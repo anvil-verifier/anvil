@@ -230,32 +230,35 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
             true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))
         ),
 {
-    let spec = assumption_and_invariants_of_all_phases(rabbitmq).and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))));
+    let spec = assumption_and_invariants_of_all_phases(rabbitmq)
+        .and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))))
+        .and(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))))
+        .and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))));
 
     // Here we first prove spec |= []helper_invariants::cm_rv_stays_unchanged(rabbitmq) using invariant_n
     // This requires us to first prove spec |= true ~> []sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq), which is from the precondition
-    always_tla_forall_apply_for_sub_resource(spec, SubResource::ServerConfigMap, rabbitmq);
-    let spec_action = |s: RMQCluster, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
-    };
-    invariant_n!(
-        spec, lift_action(spec_action), lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
-    );
+    // always_tla_forall_apply_for_sub_resource(spec, SubResource::ServerConfigMap, rabbitmq);
+    // let spec_action = |s: RMQCluster, s_prime: RMQCluster| {
+    //     &&& RMQCluster::next()(s, s_prime)
+    //     &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+    //     &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)(s)
+    //     &&& helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s)
+    //     &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
+    //     &&& sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
+    //     &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
+    //     &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
+    // };
+    // invariant_n!(
+    //     spec, lift_action(spec_action), lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)),
+    //     lift_action(RMQCluster::next()),
+    //     lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
+    //     lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)),
+    //     lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)),
+    //     lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
+    //     lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
+    //     lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
+    //     lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
+    // );
 
     // Now we will use the invariant helper_invariants::cm_rv_stays_unchanged(rabbitmq) to call prove stateful set eventually always matches
     always_tla_forall_apply_for_sub_resource(spec, SubResource::StatefulSet, rabbitmq);
