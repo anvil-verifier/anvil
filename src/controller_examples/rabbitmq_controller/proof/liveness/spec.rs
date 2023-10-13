@@ -183,8 +183,7 @@ pub proof fn next_with_wf_is_stable()
 /// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
 /// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
 pub open spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    next_with_wf()
-    .and(derived_invariants_since_beginning(rabbitmq))
+    next_with_wf().and(derived_invariants_since_beginning(rabbitmq))
 }
 
 pub proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
@@ -314,8 +313,6 @@ pub proof fn invariants_since_phase_iii_is_stable(rabbitmq: RabbitmqClusterView)
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq));
     stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
 }
-
-// TODO: create/update request only point to current cr
 
 /// Invariants since this phase ensure that certain objects only have owner references that point to current cr.
 /// To have these invariants, we first need the invariant that evert create/update request make/change the object in the

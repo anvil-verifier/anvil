@@ -49,32 +49,6 @@ pub proof fn tla_forall_action_weak_fairness_is_stable<Input, Output>(
     always_p_is_stable::<Self>(tla_forall(split_always));
 }
 
-/// Prove partial_spec is stable.
-pub proof fn sm_partial_spec_is_stable()
-    ensures
-        valid(stable(Self::sm_partial_spec())),
-{
-    always_p_is_stable::<Self>(lift_action(Self::next()));
-    Self::tla_forall_action_weak_fairness_is_stable::<Option<MsgType<E>>, ()>(Self::kubernetes_api_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<(BuiltinControllerChoice, ObjectRef), ()>(Self::builtin_controllers_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<(Option<MsgType<E>>, Option<ObjectRef>), ()>(Self::controller_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<Option<MsgType<E>>, ()>(Self::external_api_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<ObjectRef, ()>(Self::schedule_controller_reconcile());
-    Self::action_weak_fairness_is_stable::<()>(Self::disable_crash());
-    Self::action_weak_fairness_is_stable::<()>(Self::disable_transient_failure());
-
-    stable_and_n!(
-        always(lift_action(Self::next())),
-        tla_forall(|input| Self::kubernetes_api_next().weak_fairness(input)),
-        tla_forall(|input| Self::builtin_controllers_next().weak_fairness(input)),
-        tla_forall(|input| Self::controller_next().weak_fairness(input)),
-        tla_forall(|input| Self::external_api_next().weak_fairness(input)),
-        tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)),
-        Self::disable_crash().weak_fairness(()),
-        Self::disable_transient_failure().weak_fairness(())
-    );
-}
-
 pub proof fn lemma_true_leads_to_crash_always_disabled(
     spec: TempPred<Self>,
 )

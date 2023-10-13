@@ -17,15 +17,6 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled(cr_key: ObjectRef) -> TempPred<Self> {
-    Self::sm_partial_spec()
-    .and(always(lift_state(|s: Self| {
-        &&& s.resources().contains_key(cr_key)
-        &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
-    })))
-    .and(always(lift_state(Self::crash_disabled())))
-}
-
 pub proof fn lemma_pre_leads_to_post_by_controller(
     spec: TempPred<Self>, input: (Option<MsgType<E>>, Option<ObjectRef>), next: ActionPred<Self>,
     action: ControllerAction<K, E, R>, pre: StatePred<Self>, post: StatePred<Self>
