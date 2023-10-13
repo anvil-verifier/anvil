@@ -77,22 +77,6 @@ pub struct DynamicObjectView {
     pub status: Value,
 }
 
-/// MutableByUpdate includes the fields of a dynamic object that can be
-/// created/mutated by a create/update request (NOT an update-status request),
-/// including labels, annotations, owner_references, finalizers and spec.
-/// Things like resource version and uid are not here because they are either decided
-/// by the api server/etcd, or cannot be mutated by the controller once the object gets created.
-
-pub struct MutableByUpdate {
-    pub labels: Option<Map<StringView, StringView>>,
-    pub annotations: Option<Map<StringView, StringView>>,
-    pub owner_references: Option<Seq<OwnerReferenceView>>,
-    pub finalizers: Option<Seq<StringView>>,
-    pub spec: Value,
-}
-
-pub type MutableByUpdatePred = FnSpec(MutableByUpdate) -> bool;
-
 impl DynamicObjectView {
     pub open spec fn object_ref(self) -> ObjectRef
         recommends
@@ -103,16 +87,6 @@ impl DynamicObjectView {
             kind: self.kind,
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
-        }
-    }
-
-    pub open spec fn mutable_subset(self) -> MutableByUpdate {
-        MutableByUpdate {
-            labels: self.metadata.labels,
-            annotations: self.metadata.annotations,
-            owner_references: self.metadata.owner_references,
-            finalizers: self.metadata.finalizers,
-            spec: self.spec,
         }
     }
 

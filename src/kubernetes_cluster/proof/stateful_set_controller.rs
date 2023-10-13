@@ -109,12 +109,12 @@ pub open spec fn stateful_set_not_exist_or_updated_or_no_more_status_from_bc(
 }
 
 /// This lemma shows that for a given object (identified by the key) if
-/// (1) all the create request for this object will create an object that satisfies the make_fn
-/// (2) all the update request for this object will update this object to satisfy the make_fn,
+/// (1) all the create request for this object will create an object which is the same as make_fn
+/// (2) all the update request for this object will update this object to match the result of make_fn,
 /// then eventually it will reach a state where it is always true that
 /// (1) the object does not exist,
-/// (2) or the object exists and satisfies the make_fn,
-/// (3) or there is no update-status request for this object in the network.
+/// (2) or the object exists and matches the result of make_fn,
+/// (3) or there is no update-status request from the built-in controllers for this object in the network.
 ///
 /// This lemma is used to help prove that the custom controller eventually updates the object
 /// to the desired state even with potential race from other built-in controllers,

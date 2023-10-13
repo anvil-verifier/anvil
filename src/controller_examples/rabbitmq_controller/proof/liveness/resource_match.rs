@@ -75,20 +75,20 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
 {
     lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, next_resource, rabbitmq);
     lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(spec, sub_resource, next_resource, rabbitmq);
-    let key_not_exists = |s: RMQCluster| {
+    let key_not_exists = lift_state(|s: RMQCluster| {
         &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
-    };
-    let key_exists = |s: RMQCluster| {
+    });
+    let key_exists = lift_state(|s: RMQCluster| {
         &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
-    };
-    or_leads_to_combine(spec, key_not_exists, key_exists, sub_resource_state_matches(sub_resource, rabbitmq));
+    });
+    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
     temp_pred_equality(
-        lift_state(key_not_exists).or(lift_state(key_exists)), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
+        key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
     );
     if next_resource_get_step_and_request(rabbitmq, sub_resource).0 == after_get_k_request_step(next_resource) {
-        or_leads_to_combine(spec, key_not_exists, key_exists, pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq));
+        or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq)));
     }
 }
 
