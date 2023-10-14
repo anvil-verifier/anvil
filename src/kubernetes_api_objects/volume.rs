@@ -367,6 +367,7 @@ impl SecretProjection {
         }
     }
 
+    #[verifier(external_body)]
     pub fn clone(&self) -> (secret_projection: SecretProjection)
         ensures
             secret_projection@ == self@,
