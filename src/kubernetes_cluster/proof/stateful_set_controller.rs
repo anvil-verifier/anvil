@@ -167,41 +167,48 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        if !s.resources().contains_key(key)
-        || {
-            let obj = s.resources()[key];
-            let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-            let made_sts = make_fn(rv);
-            &&& s.resources().contains_key(key)
-            &&& StatefulSetView::unmarshal(obj).is_Ok()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-            &&& obj.metadata.labels == made_sts.metadata.labels
-            &&& obj.metadata.annotations == made_sts.metadata.annotations
-        } {
+        let not_exists_or_matches = |s: Self| {
+            ||| !s.resources().contains_key(key)
+            ||| {
+                let obj = s.resources()[key];
+                let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
+                let made_sts = make_fn(rv);
+                &&& s.resources().contains_key(key)
+                &&& StatefulSetView::unmarshal(obj).is_Ok()
+                &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
+                &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
+                &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
+                &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
+                &&& obj.metadata.labels == made_sts.metadata.labels
+                &&& obj.metadata.annotations == made_sts.metadata.annotations
+            }
+        };
+        let not_status = |s: Self| {
+            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+            &&& s.stable_resources().contains(key)
+        };
+        if not_exists_or_matches(s) {
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
                     match input.get_Some_0().content.get_APIRequest_0() {
-                        APIRequest::GetRequest(_) => {}
-                        APIRequest::ListRequest(_) => {}
+                        APIRequest::GetRequest(_) => { assert(not_exists_or_matches(s_prime)); }
+                        APIRequest::ListRequest(_) => { assert(not_exists_or_matches(s_prime)); }
                         APIRequest::CreateRequest(_) => {
                             StatefulSetView::marshal_spec_preserves_integrity();
                             StatefulSetView::marshal_status_preserves_integrity();
-                            StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                            assert(not_exists_or_matches(s_prime));
                         }
-                        APIRequest::DeleteRequest(_) => {}
+                        APIRequest::DeleteRequest(_) => { assert(not_exists_or_matches(s_prime)); }
                         APIRequest::UpdateRequest(_) => {
                             StatefulSetView::marshal_spec_preserves_integrity();
                             StatefulSetView::marshal_status_preserves_integrity();
-                            StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                            assert(not_exists_or_matches(s_prime));
                         }
-                        APIRequest::UpdateStatusRequest(_) => {}
+                        APIRequest::UpdateStatusRequest(_) => { assert(not_exists_or_matches(s_prime)); }
                     }
                 },
-                _ => {}
+                _ => { assert(not_exists_or_matches(s_prime)); }
             }
         } else {
             assert forall |msg| update_status_msg_from_bc_for(key)(msg) implies !s_prime.in_flight().contains(msg) by {
@@ -476,7 +483,6 @@ proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num
                 } else {
                     StatefulSetView::marshal_spec_preserves_integrity();
                     StatefulSetView::marshal_status_preserves_integrity();
-                    StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }
             },

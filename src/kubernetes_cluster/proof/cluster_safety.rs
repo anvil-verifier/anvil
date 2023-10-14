@@ -25,26 +25,29 @@ pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
     init_invariant::<Self>(spec, Self::rest_id_counter_is(rest_id), Self::next(), invariant);
 }
 
+pub open spec fn valid_object_except_k(obj: DynamicObjectView) -> bool {
+    if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == PodView::kind() { PodView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == RoleView::kind() { RoleView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == SecretView::kind() { SecretView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == ServiceView::kind() { ServiceView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation() }
+    else { true }
+}
+
 pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        &&& s.resources()[key].metadata.well_formed()
-        &&& s.resources()[key].object_ref() == key
-        &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
-        &&& s.resources()[key].metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
-        &&& {
-            if key.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == PodView::kind() { PodView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == RoleView::kind() { RoleView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == SecretView::kind() { SecretView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == ServiceView::kind() { ServiceView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == K::kind() { K::unmarshal(s.resources()[key]).is_Ok() }
-            else { true }
-        }
+        let obj = s.resources()[key];
+        &&& obj.metadata.well_formed()
+        &&& obj.object_ref() == key
+        &&& obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+        &&& obj.metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
+        &&& Self::unmarshallable_object(obj)
+        &&& Self::valid_object_except_k(obj)
     }
 }
 
@@ -80,7 +83,6 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
             StatefulSetView::marshal_status_preserves_integrity();
             ServiceAccountView::marshal_status_preserves_integrity();
             K::marshal_status_preserves_integrity();
-            K::unmarshal_result_determined_by_unmarshal_spec_and_status();
             if s.resources().contains_key(key) {
                 let step = choose |step| Self::next_step(s, s_prime, step);
                 match step {
