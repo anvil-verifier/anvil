@@ -316,6 +316,16 @@ impl ConfigMapProjection {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (config_map_projection: ConfigMapProjection)
+        ensures
+            config_map_projection@ == self@,
+    {
+        ConfigMapProjection {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures
             self@ == old(self)@.set_name(name@),
@@ -354,6 +364,15 @@ impl SecretProjection {
     {
         SecretProjection {
             inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection::default(),
+        }
+    }
+
+    pub fn clone(&self) -> (secret_projection: SecretProjection)
+        ensures
+            secret_projection@ == self@,
+    {
+        SecretProjection {
+            inner: self.inner.clone(),
         }
     }
 
@@ -510,6 +529,16 @@ impl ObjectFieldSelector {
     {
         ObjectFieldSelector {
             inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (object_field_selector: ObjectFieldSelector)
+        ensures
+            object_field_selector@ == self@,
+    {
+        ObjectFieldSelector {
+            inner: self.inner.clone(),
         }
     }
 
