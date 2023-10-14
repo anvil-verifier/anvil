@@ -40,13 +40,31 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
-            Ok(RabbitmqReconcileState {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
                 latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
                 ..state
-            })
+            };
+            let req = APIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
+        let cm = ConfigMapView::unmarshal(obj);
+        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                ..state
+            };
+            let req = APIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

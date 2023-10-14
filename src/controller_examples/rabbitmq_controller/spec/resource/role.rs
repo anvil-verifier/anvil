@@ -40,10 +40,29 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let role = RoleView::unmarshal(obj);
         if role.is_Ok() {
-            Ok(state)
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
+                ..state
+            };
+            let req = APIRequest::GetRequest(RoleBindingBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
+        let role = RoleView::unmarshal(obj);
+        if role.is_Ok() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
+                ..state
+            };
+            let req = APIRequest::GetRequest(RoleBindingBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

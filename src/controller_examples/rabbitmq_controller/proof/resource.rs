@@ -64,18 +64,37 @@ pub open spec fn update(sub_resource: SubResource, rabbitmq: RabbitmqClusterView
     }
 }
 
-pub open spec fn state_after_create_or_update(sub_resource: SubResource, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+pub open spec fn state_after_create(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState
+) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
     match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::state_after_create_or_update(obj, state),
-        SubResource::Service => ServiceBuilder::state_after_create_or_update(obj, state),
-        SubResource::ErlangCookieSecret => ErlangCookieBuilder::state_after_create_or_update(obj, state),
-        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::state_after_create_or_update(obj, state),
-        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::state_after_create_or_update(obj, state),
-        SubResource::ServerConfigMap => ServerConfigMapBuilder::state_after_create_or_update(obj, state),
-        SubResource::ServiceAccount => ServiceAccountBuilder::state_after_create_or_update(obj, state),
-        SubResource::Role => RoleBuilder::state_after_create_or_update(obj, state),
-        SubResource::RoleBinding => RoleBindingBuilder::state_after_create_or_update(obj, state),
-        SubResource::StatefulSet => StatefulSetBuilder::state_after_create_or_update(obj, state),
+        SubResource::HeadlessService => HeadlessServiceBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::Service => ServiceBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::ErlangCookieSecret => ErlangCookieBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::ServerConfigMap => ServerConfigMapBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::ServiceAccount => ServiceAccountBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::Role => RoleBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::RoleBinding => RoleBindingBuilder::state_after_create(rabbitmq, obj, state),
+        SubResource::StatefulSet => StatefulSetBuilder::state_after_create(rabbitmq, obj, state),
+    }
+}
+
+pub open spec fn state_after_update(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState
+) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
+    match sub_resource {
+        SubResource::HeadlessService => HeadlessServiceBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::Service => ServiceBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::ErlangCookieSecret => ErlangCookieBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::ServerConfigMap => ServerConfigMapBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::ServiceAccount => ServiceAccountBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::Role => RoleBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::RoleBinding => RoleBindingBuilder::state_after_update(rabbitmq, obj, state),
+        SubResource::StatefulSet => StatefulSetBuilder::state_after_update(rabbitmq, obj, state),
     }
 }
 

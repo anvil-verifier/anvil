@@ -9,7 +9,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::spec::resource::config_map::ServerConfigMapBuilder;
+use crate::rabbitmq_controller::spec::resource::config_map::make_server_config_map_key;
 use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -46,10 +46,27 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let sts = StatefulSetView::unmarshal(obj);
         if sts.is_Ok() {
-            Ok(state)
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
+        let sts = StatefulSetView::unmarshal(obj);
+        if sts.is_Ok() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
         } else {
             Err(())
         }
@@ -58,7 +75,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_stateful_set_key(rabbitmq);
         let obj = resources[key];
-        let cm_key = ServerConfigMapBuilder::get_request(rabbitmq).key;
+        let cm_key = make_server_config_map_key(rabbitmq);
         let cm_obj = resources[cm_key];
         let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
         &&& resources.contains_key(key)

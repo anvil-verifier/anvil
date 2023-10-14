@@ -64,10 +64,27 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Sta
         return Err(());
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    fn state_after_create(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
-            Ok(state)
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
+        let sts = StatefulSet::unmarshal(obj);
+        if sts.is_ok() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
         } else {
             Err(())
         }

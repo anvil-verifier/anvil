@@ -71,12 +71,31 @@ pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(Rabbitmq
     |s: RabbitmqReconcileState| s.reconcile_step == step
 }
 
+pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
+    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
+}
+
 pub open spec fn after_create_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
     RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource)
 }
 
 pub open spec fn after_update_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
     RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource)
+}
+
+pub open spec fn next_resource_after(sub_resource: SubResource) -> RabbitmqReconcileStep {
+    match sub_resource {
+        SubResource::HeadlessService => after_get_k_request_step(SubResource::Service),
+        SubResource::Service => after_get_k_request_step(SubResource::ErlangCookieSecret),
+        SubResource::ErlangCookieSecret => after_get_k_request_step(SubResource::DefaultUserSecret),
+        SubResource::DefaultUserSecret => after_get_k_request_step(SubResource::PluginsConfigMap),
+        SubResource::PluginsConfigMap => after_get_k_request_step(SubResource::ServerConfigMap),
+        SubResource::ServerConfigMap => after_get_k_request_step(SubResource::ServiceAccount),
+        SubResource::ServiceAccount => after_get_k_request_step(SubResource::Role),
+        SubResource::Role => after_get_k_request_step(SubResource::RoleBinding),
+        SubResource::RoleBinding => after_get_k_request_step(SubResource::StatefulSet),
+        _ => RabbitmqReconcileStep::Done,
+    }
 }
 
 pub open spec fn pending_req_in_flight_at_after_get_resource_step(
@@ -279,7 +298,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_create_response().res.is_Ok()
-            &&& state_after_create_or_update(sub_resource, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
+            &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
         }
     }
 }
@@ -299,7 +318,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_create_response().res.is_Ok()
-        &&& state_after_create_or_update(sub_resource, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
+        &&& state_after_create(sub_resource, rabbitmq, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
     }
 }
 
@@ -354,7 +373,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_update_response().res.is_Ok()
-            &&& state_after_create_or_update(sub_resource, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
+            &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
         }
     }
 }
@@ -374,7 +393,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_update_response().res.is_Ok()
-        &&& state_after_create_or_update(sub_resource, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
+        &&& state_after_update(sub_resource, rabbitmq, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
     }
 }
 
