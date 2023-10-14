@@ -1585,7 +1585,6 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         } by {
             StatefulSetView::marshal_spec_preserves_integrity();
             StatefulSetView::marshal_status_preserves_integrity();
-            StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
         }
     }
     invariant_n!(
@@ -1612,7 +1611,6 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
     implies stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)(s) by {
         StatefulSetView::marshal_spec_preserves_integrity();
         StatefulSetView::marshal_status_preserves_integrity();
-        StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
     }
 
     leads_to_always_enhance(spec, lift_action(stronger_inv), true_pred(),

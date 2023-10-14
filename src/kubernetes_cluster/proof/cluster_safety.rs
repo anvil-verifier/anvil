@@ -27,24 +27,12 @@ pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
 
 pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        &&& s.resources()[key].metadata.well_formed()
-        &&& s.resources()[key].object_ref() == key
-        &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
-        &&& s.resources()[key].metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
-        &&& {
-            if key.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == PodView::kind() { PodView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == RoleView::kind() { RoleView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == SecretView::kind() { SecretView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == ServiceView::kind() { ServiceView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == K::kind() { K::unmarshal(s.resources()[key]).is_Ok() }
-            else { true }
-        }
+        let obj = s.resources()[key];
+        &&& obj.metadata.well_formed()
+        &&& obj.object_ref() == key
+        &&& obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+        &&& obj.metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
+        &&& Self::unmarshallable_object(obj)
     }
 }
 
