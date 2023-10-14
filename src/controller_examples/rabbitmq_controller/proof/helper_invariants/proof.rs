@@ -413,15 +413,33 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                 assert(msg.content.is_update_response());
                 if msg.content.get_update_response().res.is_Ok() {
                     let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                    if !s.in_flight().contains(msg) {
-                        assert(step.is_KubernetesAPIStep());
-                        let req = step.get_KubernetesAPIStep_0().get_Some_0();
-                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req.content.get_update_request().key());
-                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == resource_key);
-                        assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req.content.get_update_request().key()]);
-                    } else {
-                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                        assert(!s.in_flight().contains(pending_req));
+                    match step {
+                        Step::KubernetesAPIStep(input) => {
+                            let req_msg = input.get_Some_0();
+                            match req_msg.content.get_APIRequest_0() {
+                                APIRequest::UpdateRequest(_) => {
+                                    if !s.in_flight().contains(msg) {
+                                        let req = input.get_Some_0();
+                                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req.content.get_update_request().key());
+                                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == resource_key);
+                                        assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req.content.get_update_request().key()]);
+                                    } else {
+                                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                                        assert(!s.in_flight().contains(pending_req));
+                                    }
+                                }
+                                _ => {
+                                    assert(s.in_flight().contains(msg));
+                                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                                    assert(!s.in_flight().contains(pending_req));
+                                }
+                            }
+                        },
+                        _ => {
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                        }
                     }
                 }
             }
