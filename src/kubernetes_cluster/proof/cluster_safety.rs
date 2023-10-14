@@ -68,7 +68,6 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
             StatefulSetView::marshal_status_preserves_integrity();
             ServiceAccountView::marshal_status_preserves_integrity();
             K::marshal_status_preserves_integrity();
-            K::unmarshal_result_determined_by_unmarshal_spec_and_status();
             if s.resources().contains_key(key) {
                 let step = choose |step| Self::next_step(s, s_prime, step);
                 match step {
