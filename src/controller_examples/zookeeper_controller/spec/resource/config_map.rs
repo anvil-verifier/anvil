@@ -6,12 +6,13 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
+use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::resource::{common::*, stateful_set::StatefulSetBuilder};
+use crate::zookeeper_controller::spec::types::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -37,13 +38,31 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+    open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
-            Ok(ZookeeperReconcileState {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
                 ..state
-            })
+            };
+            let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
+        let cm = ConfigMapView::unmarshal(obj);
+        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
+                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                ..state
+            };
+            let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
@@ -65,19 +84,22 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
     }
 }
 
-pub open spec fn make_config_map_key(key: ObjectRef) -> ObjectRef
+pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef
     recommends
-        key.kind.is_CustomResourceKind(),
+        zk.well_formed(),
 {
     ObjectRef {
         kind: ConfigMapView::kind(),
-        name: make_config_map_name(key.name),
-        namespace: key.namespace,
+        name: make_config_map_name(zk),
+        namespace: zk.metadata.namespace.get_Some_0(),
     }
 }
 
-pub open spec fn make_config_map_name(zk_name: StringView) -> StringView {
-    zk_name + new_strlit("-configmap")@
+pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+{
+    zk.metadata.name.get_Some_0() + new_strlit("-configmap")@
 }
 
 pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
@@ -86,7 +108,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
 {
     ConfigMapView {
         metadata: ObjectMetaView {
-            name: Some(make_config_map_name(zk.metadata.name.get_Some_0())),
+            name: Some(make_config_map_name(zk)),
             owner_references: Some(make_owner_references(zk)),
             labels: Some(make_labels(zk)),
             annotations: Some(zk.spec.annotations),

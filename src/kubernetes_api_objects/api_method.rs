@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
     error::*,
 };
 use crate::vstd_ext::{string_view::*, to_view::*};
-use vstd::prelude::*;
+use vstd::{prelude::*, view::*};
 use vstd::string::*;
 
 use vstd::pervasive::unreached;
@@ -284,8 +284,10 @@ impl ToView for KubeUpdateStatusRequest {
     }
 }
 
-impl KubeAPIRequest {
-    pub open spec fn to_view(&self) -> APIRequest {
+impl View for KubeAPIRequest {
+    type V = APIRequest;
+
+    open spec fn view(&self) -> APIRequest {
         match self {
             KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(get_req.to_view()),
             KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(list_req.to_view()),
@@ -299,7 +301,7 @@ impl KubeAPIRequest {
 
 pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
     match req {
-        Some(req) => Some(req.to_view()),
+        Some(req) => Some(req@),
         None => None,
     }
 }

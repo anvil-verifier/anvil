@@ -7,11 +7,13 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
 use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::exec::resource::common::*;
 use crate::zookeeper_controller::exec::types::*;
 use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
+use crate::zookeeper_controller::spec::types::ZookeeperClusterView;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -29,7 +31,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::S
         KubeGetRequest {
             api_resource: StatefulSet::api_resource(),
             name: make_stateful_set_name(zk),
-            namespace: zk.namespace().unwrap(),
+            namespace: zk.metadata().namespace().unwrap(),
         }
     }
 
@@ -42,28 +44,60 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::S
     }
 
     fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
-        // We check the owner reference of the found stateful set here to ensure that it is not created from
-        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
-        // than the previous one, scaling down, which should be prohibited, will happen.
-        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will
-        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
-        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
-        // will go to create a new one.
+        // Only proceed if the stateful set is owned by the current cr
+        // so that we won't accidentally update ports or some other mutable fields.
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let found_sts = sts.unwrap();
             if found_sts.metadata().owner_references_only_contains(zk.controller_owner_ref())
             && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
-                return Ok(update_stateful_set(zk, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
+                return Ok(update_stateful_set(zk, &found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
             }
         }
         return Err(());
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
-        let sts = StatefulSet::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(state)
+    fn state_after_create(zk: &ZookeeperCluster, obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<KubeAPIRequest>), ()>) {
+        let sts_obj = StatefulSet::unmarshal(obj);
+        if sts_obj.is_ok() {
+            let updated_zk = update_zk_status(zk, 0);
+            let req = KubeAPIRequest::UpdateStatusRequest(KubeUpdateStatusRequest {
+                api_resource: ZookeeperCluster::api_resource(),
+                name: zk.metadata().name().unwrap(),
+                namespace: zk.metadata().namespace().unwrap(),
+                obj: updated_zk.marshal(),
+            });
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
+                ..state
+            };
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(zk: &ZookeeperCluster, obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<KubeAPIRequest>), ()>) {
+        let sts_obj = StatefulSet::unmarshal(obj);
+        if sts_obj.is_ok() {
+            let stateful_set = sts_obj.unwrap();
+            let ready_replicas = if stateful_set.status().is_some() && stateful_set.status().as_ref().unwrap().ready_replicas().is_some() {
+                stateful_set.status().as_ref().unwrap().ready_replicas().unwrap()
+            } else {
+                0
+            };
+            let updated_zk = update_zk_status(zk, ready_replicas);
+            let req = KubeAPIRequest::UpdateStatusRequest(KubeUpdateStatusRequest {
+                api_resource: ZookeeperCluster::api_resource(),
+                name: zk.metadata().name().unwrap(),
+                namespace: zk.metadata().namespace().unwrap(),
+                obj: updated_zk.marshal(),
+            });
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
+                ..state
+            };
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
@@ -74,7 +108,7 @@ pub fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == spec_resource::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_stateful_set_name(zk@),
 {
     zk.metadata().name().unwrap()
 }
@@ -411,6 +445,19 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     pod_spec.set_node_selector(zk.spec().node_selector());
 
     pod_spec
+}
+
+pub fn update_zk_status(zk: &ZookeeperCluster, ready_replicas: i32) -> (updated_zk: ZookeeperCluster)
+    ensures
+        updated_zk@ == spec_resource::update_zk_status(zk@, ready_replicas as int),
+{
+    let mut updated_zk = zk.clone();
+    updated_zk.set_status({
+        let mut status = ZookeeperClusterStatus::default();
+        status.set_ready_replicas(ready_replicas);
+        status
+    });
+    updated_zk
 }
 
 }

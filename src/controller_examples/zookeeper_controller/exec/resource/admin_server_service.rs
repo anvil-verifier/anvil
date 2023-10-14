@@ -7,11 +7,13 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
 use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::exec::resource::{common::*, config_map::ConfigMapBuilder};
 use crate::zookeeper_controller::exec::types::*;
 use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
+use crate::zookeeper_controller::spec::types::ZookeeperClusterView;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -22,15 +24,14 @@ pub struct AdminServerServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::AdminServerServiceBuilder> for AdminServerServiceBuilder {
     open spec fn requirements(zk: ZookeeperClusterView) -> bool {
-        &&& zk.metadata.name.is_Some()
-        &&& zk.metadata.namespace.is_Some()
+        zk.well_formed()
     }
 
     fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Service::api_resource(),
             name: make_admin_server_service_name(zk),
-            namespace: zk.namespace().unwrap(),
+            namespace: zk.metadata().namespace().unwrap(),
         }
     }
 
@@ -43,28 +44,46 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::A
         if service.is_ok() {
             let found_service = service.unwrap();
             if found_service.spec().is_some() {
-                Ok(update_admin_server_service(zk, found_service).marshal()) 
+                return Ok(update_admin_server_service(zk, &found_service).marshal());
             }
+        }
+        return Err(());
+    }
+
+    fn state_after_create(zk: &ZookeeperCluster, obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<KubeAPIRequest>), ()>) {
+        let service = Service::unmarshal(obj);
+        if service.is_ok() {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ConfigMap),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(ConfigMapBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+    fn state_after_update(zk: &ZookeeperCluster, obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<KubeAPIRequest>), ()>) {
         let service = Service::unmarshal(obj);
         if service.is_ok() {
-            Ok(state)
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ConfigMap),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(ConfigMapBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
     }
 }
-    
+
 pub fn make_admin_server_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == spec_resource::make_admin_server_service_name(zk@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_admin_server_service_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-admin-server"))
 }

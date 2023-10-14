@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::{
     toleration::*,
 };
 use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::types as spec_types;
 use deps_hack::kube::Resource;
 use vstd::{prelude::*, view::*};
@@ -38,7 +39,9 @@ impl std::clone::Clone for ZookeeperReconcileState {
 }
 
 impl View for ZookeeperReconcileState {
-    pub open spec fn to_view(&self) -> spec_types::ZookeeperReconcileState {
+    type V = spec_types::ZookeeperReconcileState;
+
+    open spec fn view(&self) -> spec_types::ZookeeperReconcileState {
         spec_types::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
             latest_config_map_rv_opt: match &self.latest_config_map_rv_opt {
@@ -54,9 +57,13 @@ pub struct ZookeeperCluster {
     inner: deps_hack::ZookeeperCluster
 }
 
-impl ZookeeperCluster {
-    pub spec fn view(&self) -> spec_types::ZookeeperClusterView;
+impl View for ZookeeperCluster {
+    type V = spec_types::ZookeeperClusterView;
 
+    spec fn view(&self) -> spec_types::ZookeeperClusterView;
+}
+
+impl ZookeeperCluster {
     #[verifier(external_body)]
     pub fn clone(&self) -> (zk: Self)
         ensures
@@ -279,7 +286,7 @@ pub struct ZookeeperPorts {
 }
 
 impl ZookeeperPorts {
-    pub spec fn view(&self) -> ZookeeperPortsView;
+    pub spec fn view(&self) -> spec_types::ZookeeperPortsView;
 
     #[verifier(external_body)]
     pub fn client(&self) -> (client: i32)

@@ -115,7 +115,7 @@ impl <T: ToView> Response<T> {
 impl <T: ToView> Request<T> {
     pub open spec fn to_view(&self) -> RequestView<T::V> {
         match self {
-            Request::KRequest(req) => RequestView::KRequest(req.to_view()),
+            Request::KRequest(req) => RequestView::KRequest(req@),
             Request::ExternalRequest(req) => RequestView::ExternalRequest(req.to_view()),
         }
     }

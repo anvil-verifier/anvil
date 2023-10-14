@@ -34,12 +34,19 @@ pub trait ResourceBuilder<K: View, T: View, SpecBuilder: resource_builder::Resou
         ensures
             resource_res_to_view(res) == SpecBuilder::update(cr@, state@, obj@);
 
-    /// state_after_create_or_update describes how a successfully created/updated object influences the reconcile state except
-    /// the part concerning control flow, i.e., what the next step is. The next step will be decided by the reconciler. Such design
-    /// leads to lower coupling and fewer mistakes (e.g. next step and get request mismatch).
-    fn state_after_create_or_update(obj: DynamicObject, state: T) -> (res: Result<T, ()>)
+    fn state_after_create(cr: &K, obj: DynamicObject, state: T) -> (res: Result<(T, Option<KubeAPIRequest>), ()>)
+        requires
+            Self::requirements(cr@),
         ensures
-            resource_res_to_view(res) == SpecBuilder::state_after_create_or_update(obj@, state@);
+            res.is_Ok() == SpecBuilder::state_after_create(cr@, obj@, state@).is_Ok(),
+            res.is_Ok() ==> (res.get_Ok_0().0@, opt_req_to_view(&res.get_Ok_0().1)) == SpecBuilder::state_after_create(cr@, obj@, state@).get_Ok_0();
+
+    fn state_after_update(cr: &K, obj: DynamicObject, state: T) -> (res: Result<(T, Option<KubeAPIRequest>), ()>)
+        requires
+            Self::requirements(cr@),
+        ensures
+            res.is_Ok() == SpecBuilder::state_after_update(cr@, obj@, state@).is_Ok(),
+            res.is_Ok() ==> (res.get_Ok_0().0@, opt_req_to_view(&res.get_Ok_0().1)) == SpecBuilder::state_after_update(cr@, obj@, state@).get_Ok_0();
 }
 
 pub open spec fn resource_res_to_view<T: View>(res: Result<T, ()>) -> Result<T::V, ()> {

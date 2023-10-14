@@ -6,12 +6,13 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
+use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::resource::{common::*, config_map::make_config_map_key};
+use crate::zookeeper_controller::spec::types::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -43,10 +44,43 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
-        let sts = StatefulSetView::unmarshal(obj);
-        if sts.is_Ok() {
-            Ok(state)
+    open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
+        let sts_obj = StatefulSetView::unmarshal(obj);
+        if sts_obj.is_Ok() {
+            let req = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
+                namespace: zk.metadata.namespace.get_Some_0(),
+                name: zk.metadata.name.get_Some_0(),
+                obj: update_zk_status(zk, 0).marshal(),
+            });
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
+                ..state
+            };
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
+        let sts_obj = StatefulSetView::unmarshal(obj);
+        if sts_obj.is_Ok() {
+            let stateful_set = sts_obj.get_Ok_0();
+            let ready_replicas = if stateful_set.status.is_Some() && stateful_set.status.get_Some_0().ready_replicas.is_Some() {
+                stateful_set.status.get_Some_0().ready_replicas.get_Some_0()
+            } else {
+                0
+            };
+            let req = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
+                namespace: zk.metadata.namespace.get_Some_0(),
+                name: zk.metadata.name.get_Some_0(),
+                obj: update_zk_status(zk, ready_replicas).marshal(),
+            });
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
+                ..state
+            };
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
@@ -55,7 +89,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
     open spec fn resource_state_matches(zk: ZookeeperClusterView, resources: StoredState) -> bool {
         let key = make_stateful_set_key(zk);
         let obj = resources[key];
-        let cm_key = ServerConfigMapBuilder::get_request(zk).key;
+        let cm_key = make_config_map_key(zk);
         let cm_obj = resources[cm_key];
         let made_sts = make_stateful_set(zk, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
         &&& resources.contains_key(key)
@@ -72,19 +106,22 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
     }
 }
 
-pub open spec fn make_stateful_set_key(key: ObjectRef) -> ObjectRef
+pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef
     recommends
-        key.kind.is_CustomResourceKind(),
+        zk.well_formed(),
 {
     ObjectRef {
         kind: StatefulSetView::kind(),
-        name: make_stateful_set_name(key.name),
-        namespace: key.namespace,
+        name: make_stateful_set_name(zk),
+        namespace: zk.metadata.namespace.get_Some_0(),
     }
 }
 
-pub open spec fn make_stateful_set_name(zk_name: StringView) -> StringView {
-    zk_name
+pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+{
+    zk.metadata.name.get_Some_0()
 }
 
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView, rv: StringView) -> StatefulSetView
@@ -113,7 +150,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     recommends
         zk.well_formed(),
 {
-    let name = make_stateful_set_name(zk.metadata.name.get_Some_0());
+    let name = make_stateful_set_name(zk);
     let namespace = zk.metadata.namespace.get_Some_0();
 
     let metadata = ObjectMetaView::default()
@@ -239,6 +276,18 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
         tolerations: zk.spec.tolerations,
         node_selector: Some(zk.spec.node_selector),
         ..PodSpecView::default()
+    }
+}
+
+pub open spec fn update_zk_status(zk: ZookeeperClusterView, ready_replicas: int) -> ZookeeperClusterView
+    recommends
+        zk.well_formed(),
+{
+    ZookeeperClusterView {
+        status: Some(ZookeeperClusterStatusView {
+            ready_replicas: ready_replicas,
+        }),
+        ..zk
     }
 }
 

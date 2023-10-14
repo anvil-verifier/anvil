@@ -7,11 +7,13 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
 use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::exec::resource::{common::*, stateful_set::StatefulSetBuilder};
 use crate::zookeeper_controller::exec::types::*;
 use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
+use crate::zookeeper_controller::spec::types::ZookeeperClusterView;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -29,7 +31,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::C
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),
             name: make_config_map_name(zk),
-            namespace: zk.namespace().unwrap(),
+            namespace: zk.metadata().namespace().unwrap(),
         }
     }
 
@@ -40,19 +42,36 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::C
     fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() {
-            Ok(update_config_map(zk, cm.unwrap()).marshal())
+            return Ok(update_config_map(zk, &cm.unwrap()).marshal());
+        }
+        return Err(());
+    }
+
+    fn state_after_create(zk: &ZookeeperCluster, obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<KubeAPIRequest>), ()>) {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
+                latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+    fn state_after_update(zk: &ZookeeperCluster, obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<KubeAPIRequest>), ()>) {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
-            Ok(ZookeeperReconcileState {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
                 ..state
-            })
+            };
+            let req = KubeAPIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
@@ -63,7 +82,7 @@ pub fn make_config_map_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == spec_resource::make_config_map_name(zk@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_config_map_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-configmap"))
 }

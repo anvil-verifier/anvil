@@ -6,12 +6,15 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
+use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::resource::{
+    admin_server_service::AdminServerServiceBuilder, common::*,
+};
+use crate::zookeeper_controller::spec::types::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -37,10 +40,29 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientSe
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+    open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
         if service.is_Ok() {
-            Ok(state)
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::AdminServerService),
+                ..state
+            };
+            let req = APIRequest::GetRequest(AdminServerServiceBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
+        let service = ServiceView::unmarshal(obj);
+        if service.is_Ok() {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::AdminServerService),
+                ..state
+            };
+            let req = APIRequest::GetRequest(AdminServerServiceBuilder::get_request(zk));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }
@@ -67,19 +89,22 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientSe
     }
 }
 
-pub open spec fn make_client_service_key(key: ObjectRef) -> ObjectRef
+pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef
     recommends
-        key.kind.is_CustomResourceKind(),
+        zk.well_formed(),
 {
     ObjectRef {
         kind: ServiceView::kind(),
-        name: make_client_service_name(key.name),
-        namespace: key.namespace,
+        name: make_client_service_name(zk),
+        namespace: zk.metadata.namespace.get_Some_0(),
     }
 }
 
-pub open spec fn make_client_service_name(zk_name: StringView) -> StringView {
-    zk_name + new_strlit("-client")@
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some()
+{
+    zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_service: ServiceView) -> ServiceView
@@ -109,7 +134,7 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.ports.client)];
 
-    make_service(zk, make_client_service_name(zk.metadata.name.get_Some_0()), ports, true)
+    make_service(zk, make_client_service_name(zk), ports, true)
 }
 
 }

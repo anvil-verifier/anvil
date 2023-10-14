@@ -22,7 +22,7 @@ pub fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     requires
         zk@.well_formed(),
     ensures
-        labels@ == zk_spec::make_base_labels(zk@),
+        labels@ == spec_resource::make_base_labels(zk@),
 {
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
@@ -33,7 +33,7 @@ pub fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     requires
         zk@.well_formed(),
     ensures
-        labels@ == zk_spec::make_labels(zk@),
+        labels@ == spec_resource::make_labels(zk@),
 {
     let mut labels = zk.spec().labels();
     labels.extend(make_base_labels(zk));
@@ -44,14 +44,14 @@ pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<Ow
     requires
         zk@.well_formed(),
     ensures
-        owner_references@.map_values(|or: OwnerReference| or@) == zk_spec::make_owner_references(zk@),
+        owner_references@.map_values(|or: OwnerReference| or@) == spec_resource::make_owner_references(zk@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(zk.controller_owner_ref());
     proof {
         assert_seqs_equal!(
             owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            zk_spec::make_owner_references(zk@)
+            spec_resource::make_owner_references(zk@)
         );
     }
     owner_references
@@ -62,7 +62,7 @@ pub fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>
     requires
         zk@.well_formed(),
     ensures
-        service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
+        service@ == spec_resource::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
     let mut service = Service::default();
     service.set_metadata({
