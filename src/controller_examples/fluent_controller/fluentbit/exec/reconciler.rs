@@ -202,15 +202,11 @@ pub fn reconcile_helper<
                     if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
-                        let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
-                        let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
-                        if state_prime.is_ok() {
-                            let state_prime_with_next_step = FluentBitReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.unwrap()
-                            };
-                            let req = if req_opt.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_opt.unwrap()))) } else { None };
-                            return (state_prime_with_next_step, req);
+                        let next_state = Builder::state_after_create(fb, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
+                        if next_state.is_ok() {
+                            let (state_prime, req) = next_state.unwrap();
+                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            return (state_prime, req_o);
                         }
                     }
                     let state_prime = FluentBitReconcileState {
@@ -224,15 +220,11 @@ pub fn reconcile_helper<
                     if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
-                        let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
-                        let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
-                        if state_prime.is_ok() {
-                            let state_prime_with_next_step = FluentBitReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.unwrap()
-                            };
-                            let req = if req_opt.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_opt.unwrap()))) } else { None };
-                            return (state_prime_with_next_step, req);
+                        let next_state = Builder::state_after_update(fb, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
+                        if next_state.is_ok() {
+                            let (state_prime, req) = next_state.unwrap();
+                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            return (state_prime, req_o);
                         }
                     }
                     let state_prime = FluentBitReconcileState {
@@ -252,29 +244,6 @@ pub fn reconcile_helper<
             return (state_prime, None);
         },
     }
-}
-
-fn next_resource_get_step_and_request(fb: &FluentBit, sub_resource: SubResource) -> (res: (FluentBitReconcileStep, Option<KubeGetRequest>))
-    requires
-        fb@.well_formed(),
-    ensures
-        res.1.is_Some() == fb_spec::next_resource_get_step_and_request(fb@, sub_resource).1.is_Some(),
-        res.1.is_Some() ==> res.1.get_Some_0().to_view() == fb_spec::next_resource_get_step_and_request(fb@, sub_resource).1.get_Some_0(),
-        res.0 == fb_spec::next_resource_get_step_and_request(fb@, sub_resource).0,
-{
-    match sub_resource {
-        SubResource::ServiceAccount => (after_get_k_request_step(SubResource::Role), Some(RoleBuilder::get_request(fb))),
-        SubResource::Role => (after_get_k_request_step(SubResource::RoleBinding), Some(RoleBindingBuilder::get_request(fb))),
-        SubResource::RoleBinding => (after_get_k_request_step(SubResource::DaemonSet), Some(DaemonSetBuilder::get_request(fb))),
-        _ => (FluentBitReconcileStep::Done, None),
-    }
-}
-
-fn after_get_k_request_step(sub_resource: SubResource) -> (step: FluentBitReconcileStep)
-    ensures
-        step == fb_spec::after_get_k_request_step(sub_resource),
-{
-    FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }

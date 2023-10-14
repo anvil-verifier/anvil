@@ -65,7 +65,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
                 .leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))
         ),
-        next_resource_get_step_and_request(fbc, sub_resource).0 == after_get_k_request_step(next_resource) ==> spec.entails(
+        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, fbc)))
         ),
@@ -84,7 +84,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     temp_pred_equality(
         lift_state(key_not_exists).or(lift_state(key_exists)), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
     );
-    if next_resource_get_step_and_request(fbc, sub_resource).0 == after_get_k_request_step(next_resource) {
+    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
         or_leads_to_combine(spec, key_not_exists, key_exists, pending_req_in_flight_at_after_get_resource_step(next_resource, fbc));
     }
 }
@@ -113,7 +113,7 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))
         ),
-        next_resource_get_step_and_request(fbc, sub_resource).0 == after_get_k_request_step(next_resource) ==> spec.entails(
+        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
             lift_state(|s: FBCCluster| {
                 &&& !s.resources().contains_key(get_request(sub_resource, fbc).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
@@ -219,7 +219,7 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
 
     // We already have the desired state.
     // Now prove the system can successfully enter the next state.
-    if next_resource_get_step_and_request(fbc, sub_resource).0 == after_get_k_request_step(next_resource) {
+    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
         let known_ok_resp = |resp_msg: FBCMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, fbc, resp_msg));
         let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, fbc);
         assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
@@ -272,7 +272,7 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0())
                         &&& resp_msg.content.get_create_response().res.is_Ok()
-                        &&& state_after_create_or_update(sub_resource, resp_msg.content.get_create_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
+                        &&& state_after_create(sub_resource, fbc, resp_msg.content.get_create_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
                     };
                     assert(known_ok_resp(resp_msg).satisfied_by(ex));
                 }
@@ -312,7 +312,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))
         ),
-        next_resource_get_step_and_request(fbc, sub_resource).0 == after_get_k_request_step(next_resource) ==> spec.entails(
+        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
             lift_state(|s: FBCCluster| {
                 &&& s.resources().contains_key(get_request(sub_resource, fbc).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
@@ -414,7 +414,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
 
     // We already have the desired state.
     // Now prove the system can successfully enter the next state.
-    if next_resource_get_step_and_request(fbc, sub_resource).0 == after_get_k_request_step(next_resource) {
+    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
         let known_ok_resp = |resp_msg: FBCMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, fbc, resp_msg));
         let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, fbc);
         assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
@@ -467,7 +467,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0())
                         &&& resp_msg.content.get_update_response().res.is_Ok()
-                        &&& state_after_create_or_update(sub_resource, resp_msg.content.get_update_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
+                        &&& state_after_update(sub_resource, fbc, resp_msg.content.get_update_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
                     };
                     assert(known_ok_resp(resp_msg).satisfied_by(ex));
                 }

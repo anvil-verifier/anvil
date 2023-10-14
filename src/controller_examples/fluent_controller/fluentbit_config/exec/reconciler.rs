@@ -170,15 +170,11 @@ pub fn reconcile_helper<
                     if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
-                        let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
-                        let (next_step, req_opt) = next_resource_get_step_and_request(fbc, resource);
-                        if state_prime.is_ok() {
-                            let state_prime_with_next_step = FluentBitConfigReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.unwrap()
-                            };
-                            let req = if req_opt.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_opt.unwrap()))) } else { None };
-                            return (state_prime_with_next_step, req);
+                        let next_state = Builder::state_after_create(fbc, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
+                        if next_state.is_ok() {
+                            let (state_prime, req) = next_state.unwrap();
+                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            return (state_prime, req_o);
                         }
                     }
                     let state_prime = FluentBitConfigReconcileState {
@@ -192,15 +188,11 @@ pub fn reconcile_helper<
                     if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
-                        let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
-                        let (next_step, req_opt) = next_resource_get_step_and_request(fbc, resource);
-                        if state_prime.is_ok() {
-                            let state_prime_with_next_step = FluentBitConfigReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.unwrap()
-                            };
-                            let req = if req_opt.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_opt.unwrap()))) } else { None };
-                            return (state_prime_with_next_step, req);
+                        let next_state = Builder::state_after_update(fbc, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
+                        if next_state.is_ok() {
+                            let (state_prime, req) = next_state.unwrap();
+                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            return (state_prime, req_o);
                         }
                     }
                     let state_prime = FluentBitConfigReconcileState {
@@ -220,26 +212,6 @@ pub fn reconcile_helper<
             return (state_prime, None);
         },
     }
-}
-
-fn next_resource_get_step_and_request(fbc: &FluentBitConfig, sub_resource: SubResource) -> (res: (FluentBitConfigReconcileStep, Option<KubeGetRequest>))
-    requires
-        fbc@.well_formed(),
-    ensures
-        res.1.is_Some() == fbc_spec::next_resource_get_step_and_request(fbc@, sub_resource).1.is_Some(),
-        res.1.is_Some() ==> res.1.get_Some_0().to_view() == fbc_spec::next_resource_get_step_and_request(fbc@, sub_resource).1.get_Some_0(),
-        res.0 == fbc_spec::next_resource_get_step_and_request(fbc@, sub_resource).0,
-{
-    match sub_resource {
-        SubResource::Secret => (FluentBitConfigReconcileStep::Done, None),
-    }
-}
-
-fn after_get_k_request_step(sub_resource: SubResource) -> (step: FluentBitConfigReconcileStep)
-    ensures
-        step == fbc_spec::after_get_k_request_step(sub_resource),
-{
-    FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }

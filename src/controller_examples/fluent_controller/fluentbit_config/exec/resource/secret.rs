@@ -49,10 +49,27 @@ impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, spec_resour
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: FluentBitConfigReconcileState) -> (res: Result<FluentBitConfigReconcileState, ()>) {
+    fn state_after_create(fbc: &FluentBitConfig, obj: DynamicObject, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<KubeAPIRequest>), ()>) {
         let secret = Secret::unmarshal(obj);
         if secret.is_ok() {
-            Ok(state)
+            let state_prime = FluentBitConfigReconcileState {
+                reconcile_step: FluentBitConfigReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(fbc: &FluentBitConfig, obj: DynamicObject, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<KubeAPIRequest>), ()>) {
+        let secret = Secret::unmarshal(obj);
+        if secret.is_ok() {
+            let state_prime = FluentBitConfigReconcileState {
+                reconcile_step: FluentBitConfigReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
         } else {
             Err(())
         }

@@ -136,12 +136,25 @@ pub open spec fn at_step1_or_step2_closure(step1: FluentBitReconcileStep, step2:
     |s: FluentBitReconcileState| s.reconcile_step == step1 || s.reconcile_step == step2
 }
 
+pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> FluentBitReconcileStep {
+    FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
+}
+
 pub open spec fn after_create_k_request_step(sub_resource: SubResource) -> FluentBitReconcileStep {
     FluentBitReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource)
 }
 
 pub open spec fn after_update_k_request_step(sub_resource: SubResource) -> FluentBitReconcileStep {
     FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource)
+}
+
+pub open spec fn next_resource_after(sub_resource: SubResource) -> FluentBitReconcileStep {
+    match sub_resource {
+        SubResource::ServiceAccount => after_get_k_request_step(SubResource::Role),
+        SubResource::Role => after_get_k_request_step(SubResource::RoleBinding),
+        SubResource::RoleBinding => after_get_k_request_step(SubResource::DaemonSet),
+        _ => FluentBitReconcileStep::Done,
+    }
 }
 
 pub open spec fn pending_req_in_flight_at_after_get_resource_step(
@@ -337,7 +350,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_create_response().res.is_Ok()
-            &&& state_after_create_or_update(sub_resource, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
+            &&& state_after_create(sub_resource, fb, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
         }
     }
 }
@@ -357,7 +370,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_create_response().res.is_Ok()
-        &&& state_after_create_or_update(sub_resource, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
+        &&& state_after_create(sub_resource, fb, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
     }
 }
 
@@ -405,7 +418,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_update_response().res.is_Ok()
-            &&& state_after_create_or_update(sub_resource, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
+            &&& state_after_update(sub_resource, fb, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
         }
     }
 }
@@ -425,7 +438,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_update_response().res.is_Ok()
-        &&& state_after_create_or_update(sub_resource, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
+        &&& state_after_update(sub_resource, fb, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[fb.object_ref()].local_state).is_Ok()
     }
 }
 

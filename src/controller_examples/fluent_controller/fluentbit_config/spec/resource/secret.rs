@@ -39,10 +39,27 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<FluentBitConfigReconcileState, ()>) {
+    open spec fn state_after_create(fbc: FluentBitConfigView, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<APIRequest>), ()>) {
         let sts = SecretView::unmarshal(obj);
         if sts.is_Ok() {
-            Ok(state)
+            let state_prime = FluentBitConfigReconcileState {
+                reconcile_step: FluentBitConfigReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(fbc: FluentBitConfigView, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<APIRequest>), ()>) {
+        let sts = SecretView::unmarshal(obj);
+        if sts.is_Ok() {
+            let state_prime = FluentBitConfigReconcileState {
+                reconcile_step: FluentBitConfigReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
         } else {
             Err(())
         }

@@ -39,9 +39,15 @@ pub open spec fn update(sub_resource: SubResource, fbc: FluentBitConfigView, sta
     }
 }
 
-pub open spec fn state_after_create_or_update(sub_resource: SubResource, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<FluentBitConfigReconcileState, ()>) {
+pub open spec fn state_after_create(sub_resource: SubResource, fbc: FluentBitConfigView, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<APIRequest>), ()>) {
     match sub_resource {
-        SubResource::Secret => SecretBuilder::state_after_create_or_update(obj, state),
+        SubResource::Secret => SecretBuilder::state_after_create(fbc, obj, state),
+    }
+}
+
+pub open spec fn state_after_update(sub_resource: SubResource, fbc: FluentBitConfigView, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<APIRequest>), ()>) {
+    match sub_resource {
+        SubResource::Secret => SecretBuilder::state_after_update(fbc, obj, state),
     }
 }
 

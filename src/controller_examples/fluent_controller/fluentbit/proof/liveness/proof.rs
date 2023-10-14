@@ -95,9 +95,9 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(fb: FluentBitView)
     // at_after_get_resource_step(sub_resource) from an arbitrary state.
     assert forall |sub_resource: SubResource| sub_resource != SubResource::DaemonSet implies spec.entails(
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, fb))
-            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_get_step_and_request(fb, sub_resource).0.get_AfterKRequestStep_1(), fb)))) by {
+            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), fb)))) by {
         use_tla_forall_for_sub_resource(spec, sub_resource, fb);
-        let next_resource = next_resource_get_step_and_request(fb, sub_resource).0.get_AfterKRequestStep_1();
+        let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
         lemma_from_after_get_resource_step_to_resource_matches(spec, fb, sub_resource, next_resource);
     }
     // Thanks to the recursive construction of macro.
@@ -117,7 +117,7 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(fb: FluentBitView)
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb)))) by {
         use_tla_forall_for_sub_resource(spec, sub_resource, fb);
         let next_resource = if sub_resource == SubResource::DaemonSet { sub_resource } else {
-            next_resource_get_step_and_request(fb, sub_resource).0.get_AfterKRequestStep_1()
+            next_resource_after(sub_resource).get_AfterKRequestStep_1()
         };
         lemma_from_after_get_resource_step_to_resource_matches(spec, fb, sub_resource, next_resource);
         leads_to_trans_temp(

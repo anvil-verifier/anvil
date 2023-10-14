@@ -38,10 +38,27 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<FluentBitReconcileState, ()>) {
+    open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let ds = DaemonSetView::unmarshal(obj);
         if ds.is_Ok() {
-            Ok(state)
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
+        let ds = DaemonSetView::unmarshal(obj);
+        if ds.is_Ok() {
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::Done,
+                ..state
+            };
+            Ok((state_prime, None))
         } else {
             Err(())
         }

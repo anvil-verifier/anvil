@@ -103,10 +103,10 @@ pub open spec fn reconcile_error_result(state: FluentBitConfigReconcileState) ->
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState>>(
-    fb: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState
+    fbc: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState
 ) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
-        fb.well_formed(),
+        fbc.well_formed(),
         state.reconcile_step.is_AfterKRequestStep(),
 {
     let step = state.reconcile_step;
@@ -118,12 +118,12 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
                         let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                         if get_resp.is_Ok() {
                             // update
-                            let new_obj = Builder::update(fb, state, get_resp.get_Ok_0());
+                            let new_obj = Builder::update(fbc, state, get_resp.get_Ok_0());
                             if new_obj.is_Ok() {
                                 let updated_obj = new_obj.get_Ok_0();
                                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                                    namespace: fb.metadata.namespace.get_Some_0(),
-                                    name: Builder::get_request(fb).key.name,
+                                    namespace: fbc.metadata.namespace.get_Some_0(),
+                                    name: Builder::get_request(fbc).key.name,
                                     obj: updated_obj,
                                 });
                                 let state_prime = FluentBitConfigReconcileState {
@@ -139,10 +139,10 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
                                 (state_prime, None)
                             }
                         } else if get_resp.get_Err_0().is_ObjectNotFound() {
-                            let new_obj = Builder::make(fb, state);
+                            let new_obj = Builder::make(fbc, state);
                             if new_obj.is_Ok() {
                                 let req_o = APIRequest::CreateRequest(CreateRequest {
-                                    namespace: fb.metadata.namespace.get_Some_0(),
+                                    namespace: fbc.metadata.namespace.get_Some_0(),
                                     obj: new_obj.get_Ok_0(),
                                 });
                                 let state_prime = FluentBitConfigReconcileState {
@@ -177,15 +177,11 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
                     let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
                     if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
                     && create_resp.is_Ok() {
-                        let state_prime = Builder::state_after_create_or_update(create_resp.get_Ok_0(), state);
-                        if state_prime.is_Ok() {
-                            let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
-                            let state_prime_with_next_step = FluentBitConfigReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.get_Ok_0()
-                            };
-                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
-                            (state_prime_with_next_step, req)
+                        let next_state = Builder::state_after_create(fbc, create_resp.get_Ok_0(), state);
+                        if next_state.is_Ok() {
+                            let (state_prime, req) = next_state.get_Ok_0();
+                            let req_o = if req.is_Some() { Some(RequestView::KRequest(req.get_Some_0())) } else { None };
+                            (state_prime, req_o)
                         } else {
                             let state_prime = FluentBitConfigReconcileState {
                                 reconcile_step: FluentBitConfigReconcileStep::Error,
@@ -206,15 +202,11 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
                     let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
                     if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
                     && update_resp.is_Ok() {
-                        let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
-                        if state_prime.is_Ok() {
-                            let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
-                            let state_prime_with_next_step = FluentBitConfigReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.get_Ok_0()
-                            };
-                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
-                            (state_prime_with_next_step, req)
+                        let next_state = Builder::state_after_update(fbc, update_resp.get_Ok_0(), state);
+                        if next_state.is_Ok() {
+                            let (state_prime, req) = next_state.get_Ok_0();
+                            let req_o = if req.is_Some() { Some(RequestView::KRequest(req.get_Some_0())) } else { None };
+                            (state_prime, req_o)
                         } else {
                             let state_prime = FluentBitConfigReconcileState {
                                 reconcile_step: FluentBitConfigReconcileStep::Error,
@@ -241,16 +233,6 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
             (state_prime, None)
         },
     }
-}
-
-pub open spec fn next_resource_get_step_and_request(fb: FluentBitConfigView, sub_resource: SubResource) -> (FluentBitConfigReconcileStep, Option<GetRequest>) {
-    match sub_resource {
-        SubResource::Secret => (FluentBitConfigReconcileStep::Done, None),
-    }
-}
-
-pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> FluentBitConfigReconcileStep {
-    FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }
