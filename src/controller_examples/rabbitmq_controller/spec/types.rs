@@ -132,7 +132,7 @@ impl ResourceView for RabbitmqClusterView {
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.replicas >= 0
-        // &&& self.spec.pod_management_policy.is_Some() ==> 
+        // &&& self.spec.pod_management_policy.is_Some() ==>
         //     (self.spec.pod_management_policy.get_Some_0() == new_strlit("OrderedReady")@
         //         || self.spec.pod_management_policy.get_Some_0() == new_strlit("Parallel")@)
         // &&& self.spec.persistent_volume_claim_retention_policy.is_Some() ==>
@@ -183,7 +183,7 @@ pub struct RabbitmqConfigView {
 }
 
 pub struct RabbitmqClusterPersistenceSpecView {
-    pub storage_class_name: Option<StringView>,
+    pub storage_class_name: StringView,
     pub storage: StringView,
 }
 

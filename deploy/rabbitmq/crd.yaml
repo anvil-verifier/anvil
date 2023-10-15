@@ -498,7 +498,7 @@ spec:
                   type: object
                 persistence:
                   default:
-                    storageClassName: ~
+                    storageClassName: standard
                     storage: 10Gi
                   properties:
                     storage:
@@ -509,7 +509,7 @@ spec:
                         - rule: "self == oldSelf"
                           message: storage should not be changed
                     storageClassName:
-                      nullable: true
+                      default: standard
                       type: string
                       x-kubernetes-validations:
                         - rule: "self == oldSelf"
@@ -605,6 +605,7 @@ spec:
                   nullable: true
                   type: array
               required:
+                - image
                 - replicas
               type: object
           required:

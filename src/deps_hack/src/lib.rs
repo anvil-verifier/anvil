@@ -155,8 +155,8 @@ pub struct RabbitmqClusterSpec {
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
     RabbitmqClusterPersistenceSpec {
+        storage_class_name: default_storage_class_name(),
         storage: default_storage(),
-        storage_class_name: None,
     }
 }
 
@@ -170,14 +170,18 @@ pub struct RabbitmqConfig {
     pub env_config: Option<String>,
 }
 
+pub fn default_storage_class_name() -> String {
+    "standard".to_string()
+}
+
 pub fn default_storage() -> k8s_openapi::apimachinery::pkg::api::resource::Quantity {
     k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string())
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqClusterPersistenceSpec {
-    #[serde(rename = "storageClassName", default)]
-    pub storage_class_name: Option<String>,
+    #[serde(rename = "storageClassName", default = "default_storage_class_name")]
+    pub storage_class_name: String,
     #[serde(default = "default_storage")]
     pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
 }

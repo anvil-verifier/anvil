@@ -210,7 +210,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                             });
                             resources
                         });
-                        pvc_spec.overwrite_storage_class_name(rabbitmq.spec().persistence().storage_class_name());
+                        pvc_spec.set_storage_class_name(rabbitmq.spec().persistence().storage_class_name());
                         pvc_spec
                     });
                     pvc
