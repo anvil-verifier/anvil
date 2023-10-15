@@ -51,10 +51,29 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Erl
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    fn state_after_create(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
         let secret = Secret::unmarshal(obj);
         if secret.is_ok() {
-            Ok(state)
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DefaultUserSecret),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(DefaultUserSecretBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
+        let secret = Secret::unmarshal(obj);
+        if secret.is_ok() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DefaultUserSecret),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(DefaultUserSecretBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

@@ -6,9 +6,17 @@ use crate::kubernetes_api_objects::{
     toleration::*,
 };
 use crate::vstd_ext::string_view::*;
+use crate::zookeeper_controller::common::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub struct ZookeeperReconcileState {
+    pub reconcile_step: ZookeeperReconcileStep,
+    pub latest_config_map_rv_opt: Option<StringView>,
+}
+
+pub struct ZookeeperReconciler {}
 
 pub struct ZookeeperClusterView {
     pub metadata: ObjectMetaView,

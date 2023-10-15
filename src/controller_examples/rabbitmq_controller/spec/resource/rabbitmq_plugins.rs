@@ -40,10 +40,29 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsCon
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_Ok() {
-            Ok(state)
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
+                ..state
+            };
+            let req = APIRequest::GetRequest(ServerConfigMapBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
+        let cm = ConfigMapView::unmarshal(obj);
+        if cm.is_Ok() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
+                ..state
+            };
+            let req = APIRequest::GetRequest(ServerConfigMapBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

@@ -102,7 +102,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
             ))))),
         // Ensures that after successfully creating or updating the sub resource, the reconcile will go to after get next
         // sub resource step.
-        next_resource_get_step_and_request(fbc, sub_resource).0 == next_step,
+        next_resource_after(sub_resource) == next_step,
         spec.entails(lift_state(at_step_state_pred(fbc, next_step))
             .leads_to(lift_state(|s: FBCCluster| !s.ongoing_reconciles().contains_key(fbc.object_ref())))),
         spec.entails(lift_state(at_step_state_pred(fbc, FluentBitConfigReconcileStep::Error))

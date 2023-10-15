@@ -51,10 +51,29 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Plu
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    fn state_after_create(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() {
-            Ok(state)
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(ServerConfigMapBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(ServerConfigMapBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

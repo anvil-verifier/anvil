@@ -50,10 +50,29 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::RoleBuil
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: FluentBitReconcileState) -> (res: Result<FluentBitReconcileState, ()>) {
+    fn state_after_create(fb: &FluentBit, obj: DynamicObject, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<KubeAPIRequest>), ()>) {
         let role = Role::unmarshal(obj);
         if role.is_ok() {
-            Ok(state)
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(RoleBindingBuilder::get_request(fb));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(fb: &FluentBit, obj: DynamicObject, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<KubeAPIRequest>), ()>) {
+        let role = Role::unmarshal(obj);
+        if role.is_ok() {
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(RoleBindingBuilder::get_request(fb));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

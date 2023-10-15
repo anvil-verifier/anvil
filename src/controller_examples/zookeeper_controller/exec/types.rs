@@ -6,20 +6,64 @@ use crate::kubernetes_api_objects::{
     toleration::*,
 };
 use crate::vstd_ext::{string_map::*, string_view::*};
-use crate::zookeeper_controller::spec::types::*;
+use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::types as spec_types;
 use deps_hack::kube::Resource;
-use vstd::prelude::*;
+use vstd::{prelude::*, view::*};
 
 verus! {
+
+/// ZookeeperReconcileState describes the local state with which the reconcile functions makes decisions.
+pub struct ZookeeperReconcileState {
+    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
+    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
+    pub reconcile_step: ZookeeperReconcileStep,
+    pub latest_config_map_rv_opt: Option<String>,
+}
+
+impl std::clone::Clone for ZookeeperReconcileState {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: ZookeeperReconcileState)
+        ensures result == self
+    {
+        ZookeeperReconcileState {
+            reconcile_step: self.reconcile_step,
+            latest_config_map_rv_opt:
+                match &self.latest_config_map_rv_opt {
+                    Some(n) => Some(n.clone()),
+                    None => None,
+                }
+        }
+    }
+}
+
+impl View for ZookeeperReconcileState {
+    type V = spec_types::ZookeeperReconcileState;
+
+    open spec fn view(&self) -> spec_types::ZookeeperReconcileState {
+        spec_types::ZookeeperReconcileState {
+            reconcile_step: self.reconcile_step,
+            latest_config_map_rv_opt: match &self.latest_config_map_rv_opt {
+                Some(s) => Some(s@),
+                None => None,
+            },
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub struct ZookeeperCluster {
     inner: deps_hack::ZookeeperCluster
 }
 
-impl ZookeeperCluster {
-    pub spec fn view(&self) -> ZookeeperClusterView;
+impl View for ZookeeperCluster {
+    type V = spec_types::ZookeeperClusterView;
 
+    spec fn view(&self) -> spec_types::ZookeeperClusterView;
+}
+
+impl ZookeeperCluster {
     #[verifier(external_body)]
     pub fn clone(&self) -> (zk: Self)
         ensures
@@ -66,7 +110,7 @@ impl ZookeeperCluster {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == ZookeeperClusterView::kind(),
+            res@.kind == spec_types::ZookeeperClusterView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
     }
@@ -86,8 +130,8 @@ impl ZookeeperCluster {
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<ZookeeperCluster, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == ZookeeperClusterView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == ZookeeperClusterView::unmarshal(obj@).get_Ok_0(),
+            res.is_Ok() == spec_types::ZookeeperClusterView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == spec_types::ZookeeperClusterView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>();
         if parse_result.is_ok() {
@@ -119,7 +163,7 @@ pub struct ZookeeperClusterSpec {
 }
 
 impl ZookeeperClusterSpec {
-    pub spec fn view(&self) -> ZookeeperClusterSpecView;
+    pub spec fn view(&self) -> spec_types::ZookeeperClusterSpecView;
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: i32)
@@ -242,7 +286,7 @@ pub struct ZookeeperPorts {
 }
 
 impl ZookeeperPorts {
-    pub spec fn view(&self) -> ZookeeperPortsView;
+    pub spec fn view(&self) -> spec_types::ZookeeperPortsView;
 
     #[verifier(external_body)]
     pub fn client(&self) -> (client: i32)
@@ -305,7 +349,7 @@ pub struct ZookeeperConfig {
 }
 
 impl ZookeeperConfig {
-    pub spec fn view(&self) -> ZookeeperConfigView;
+    pub spec fn view(&self) -> spec_types::ZookeeperConfigView;
 
     #[verifier(external_body)]
     pub fn init_limit(&self) -> (init_limit: i32)
@@ -448,7 +492,7 @@ pub struct ZookeeperPersistence {
 }
 
 impl ZookeeperPersistence {
-    pub spec fn view(&self) -> ZookeeperPersistenceView;
+    pub spec fn view(&self) -> spec_types::ZookeeperPersistenceView;
 
     #[verifier(external_body)]
     pub fn enabled(&self) -> (enabled: bool)
@@ -495,12 +539,12 @@ pub struct ZookeeperClusterStatus {
 }
 
 impl ZookeeperClusterStatus {
-    pub spec fn view(&self) -> ZookeeperClusterStatusView;
+    pub spec fn view(&self) -> spec_types::ZookeeperClusterStatusView;
 
     #[verifier(external_body)]
     pub fn default() -> (status: ZookeeperClusterStatus)
         ensures
-            status@ == ZookeeperClusterStatusView::default(),
+            status@ == spec_types::ZookeeperClusterStatusView::default(),
     {
         ZookeeperClusterStatus {
             inner: deps_hack::ZookeeperClusterStatus::default(),

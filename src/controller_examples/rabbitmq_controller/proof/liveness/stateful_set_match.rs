@@ -61,8 +61,8 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
                 .leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))
         ),
 {
-    let next_resource = next_resource_get_step_and_request(rabbitmq, SubResource::StatefulSet).0.get_AfterKRequestStep_1();
-    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::StatefulSet, next_resource, rabbitmq);
+    let next_res = next_resource_after(SubResource::StatefulSet).get_AfterKRequestStep_1();
+    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::StatefulSet, next_res, rabbitmq);
     lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_matches(spec, rabbitmq);
     let key_not_exists = lift_state(|s: RMQCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, rabbitmq).key)

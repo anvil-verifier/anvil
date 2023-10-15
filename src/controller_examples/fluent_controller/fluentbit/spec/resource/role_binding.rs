@@ -4,6 +4,7 @@
 use super::common::*;
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::common::*;
+use crate::fluent_controller::fluentbit::spec::resource::daemon_set::DaemonSetBuilder;
 use crate::fluent_controller::fluentbit::spec::resource::role::make_role_name;
 use crate::fluent_controller::fluentbit::spec::resource::service_account::make_service_account_name;
 use crate::fluent_controller::fluentbit::spec::types::*;
@@ -38,10 +39,29 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<FluentBitReconcileState, ()>) {
+    open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
         if rb.is_Ok() {
-            Ok(state)
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                ..state
+            };
+            let req = APIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
+        let rb = RoleBindingView::unmarshal(obj);
+        if rb.is_Ok() {
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                ..state
+            };
+            let req = APIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

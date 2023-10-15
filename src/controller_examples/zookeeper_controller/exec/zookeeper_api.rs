@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::exec::*;
-use crate::vstd_ext::to_view::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::zookeeper_api::{
     ZKAPICreateResultView, ZKAPIExistsResultView, ZKAPIInputView, ZKAPIOutputView,
@@ -9,7 +8,7 @@ use crate::zookeeper_controller::spec::zookeeper_api::{
 };
 use core::time::Duration;
 use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZkResult, ZooKeeper};
-use vstd::{prelude::*, string::*};
+use vstd::{prelude::*, string::*, view::*};
 
 use vstd::pervasive::unreached;
 
@@ -19,9 +18,9 @@ pub struct ZKAPIExistsResult {
     pub res: Result<Option<i32>, ZKAPIError>,
 }
 
-impl ToView for ZKAPIExistsResult {
+impl View for ZKAPIExistsResult {
     type V = ZKAPIExistsResultView;
-    open spec fn to_view(&self) -> ZKAPIExistsResultView {
+    open spec fn view(&self) -> ZKAPIExistsResultView {
         match self.res {
             Ok(o) => match o {
                 Some(i) => ZKAPIExistsResultView { res: Ok(Some(i as int)) },
@@ -36,9 +35,9 @@ pub struct ZKAPICreateResult {
     pub res: Result<(), ZKAPIError>,
 }
 
-impl ToView for ZKAPICreateResult {
+impl View for ZKAPICreateResult {
     type V = ZKAPICreateResultView;
-    open spec fn to_view(&self) -> ZKAPICreateResultView {
+    open spec fn view(&self) -> ZKAPICreateResultView {
         ZKAPICreateResultView {res: self.res}
     }
 }
@@ -47,9 +46,9 @@ pub struct ZKAPISetDataResult {
     pub res: Result<(), ZKAPIError>,
 }
 
-impl ToView for ZKAPISetDataResult {
+impl View for ZKAPISetDataResult {
     type V = ZKAPISetDataResultView;
-    open spec fn to_view(&self) -> ZKAPISetDataResultView {
+    open spec fn view(&self) -> ZKAPISetDataResultView {
         ZKAPISetDataResultView {res: self.res}
     }
 }
@@ -68,9 +67,9 @@ pub enum ZKAPIOutput {
     SetDataResponse(ZKAPISetDataResult),
 }
 
-impl ToView for ZKAPIInput {
+impl View for ZKAPIInput {
     type V = ZKAPIInputView;
-    open spec fn to_view(&self) -> ZKAPIInputView {
+    open spec fn view(&self) -> ZKAPIInputView {
         match self {
             ZKAPIInput::ExistsRequest(name, namespace, port, path)
                 => ZKAPIInputView::ExistsRequest(name@, namespace@, *port as int, path@.map_values(|s: String| s@)),
@@ -82,13 +81,13 @@ impl ToView for ZKAPIInput {
     }
 }
 
-impl ToView for ZKAPIOutput {
+impl View for ZKAPIOutput {
     type V = ZKAPIOutputView;
-    open spec fn to_view(&self) -> ZKAPIOutputView {
+    open spec fn view(&self) -> ZKAPIOutputView {
         match self {
-            ZKAPIOutput::ExistsResponse(result) => ZKAPIOutputView::ExistsResponse(result.to_view()),
-            ZKAPIOutput::CreateResponse(result) => ZKAPIOutputView::CreateResponse(result.to_view()),
-            ZKAPIOutput::SetDataResponse(result) => ZKAPIOutputView::SetDataResponse(result.to_view()),
+            ZKAPIOutput::ExistsResponse(result) => ZKAPIOutputView::ExistsResponse(result@),
+            ZKAPIOutput::CreateResponse(result) => ZKAPIOutputView::CreateResponse(result@),
+            ZKAPIOutput::SetDataResponse(result) => ZKAPIOutputView::SetDataResponse(result@),
         }
     }
 }

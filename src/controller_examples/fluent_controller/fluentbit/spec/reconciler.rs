@@ -219,15 +219,11 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
                     let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
                     if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
                     && create_resp.is_Ok() {
-                        let state_prime = Builder::state_after_create_or_update(create_resp.get_Ok_0(), state);
-                        if state_prime.is_Ok() {
-                            let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
-                            let state_prime_with_next_step = FluentBitReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.get_Ok_0()
-                            };
-                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
-                            (state_prime_with_next_step, req)
+                        let next_state = Builder::state_after_create(fb, create_resp.get_Ok_0(), state);
+                        if next_state.is_Ok() {
+                            let (state_prime, req) = next_state.get_Ok_0();
+                            let req_o = if req.is_Some() { Some(RequestView::KRequest(req.get_Some_0())) } else { None };
+                            (state_prime, req_o)
                         } else {
                             let state_prime = FluentBitReconcileState {
                                 reconcile_step: FluentBitReconcileStep::Error,
@@ -248,15 +244,11 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
                     let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
                     if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
                     && update_resp.is_Ok() {
-                        let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
-                        if state_prime.is_Ok() {
-                            let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
-                            let state_prime_with_next_step = FluentBitReconcileState {
-                                reconcile_step: next_step,
-                                ..state_prime.get_Ok_0()
-                            };
-                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
-                            (state_prime_with_next_step, req)
+                        let next_state = Builder::state_after_update(fb, update_resp.get_Ok_0(), state);
+                        if next_state.is_Ok() {
+                            let (state_prime, req) = next_state.get_Ok_0();
+                            let req_o = if req.is_Some() { Some(RequestView::KRequest(req.get_Some_0())) } else { None };
+                            (state_prime, req_o)
                         } else {
                             let state_prime = FluentBitReconcileState {
                                 reconcile_step: FluentBitReconcileStep::Error,
@@ -283,19 +275,6 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
             (state_prime, None)
         },
     }
-}
-
-pub open spec fn next_resource_get_step_and_request(fb: FluentBitView, sub_resource: SubResource) -> (FluentBitReconcileStep, Option<GetRequest>) {
-    match sub_resource {
-        SubResource::ServiceAccount => (after_get_k_request_step(SubResource::Role), Some(RoleBuilder::get_request(fb))),
-        SubResource::Role => (after_get_k_request_step(SubResource::RoleBinding), Some(RoleBindingBuilder::get_request(fb))),
-        SubResource::RoleBinding => (after_get_k_request_step(SubResource::DaemonSet), Some(DaemonSetBuilder::get_request(fb))),
-        _ => (FluentBitReconcileStep::Done, None),
-    }
-}
-
-pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> FluentBitReconcileStep {
-    FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }

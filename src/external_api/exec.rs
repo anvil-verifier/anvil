@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::EmptyTypeView;
-use crate::vstd_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 
 verus! {
@@ -12,7 +11,7 @@ verus! {
 // request type of a reconciler.
 // Similarly, Output is the output type of the external api, which composes the Response<?> type of a reconciler.
 // Note that we can encapsulate all the required libraries here, so each reconciler only has one ExternalAPI type.
-pub trait ExternalAPIShimLayer<Input: ToView, Output: ToView> {
+pub trait ExternalAPIShimLayer<Input: View, Output: View> {
     fn call_external_api(input: Input) -> Output;
 }
 
@@ -29,9 +28,9 @@ impl ExternalAPIShimLayer<EmptyType, EmptyType> for EmptyAPIShimLayer {
 
 pub struct EmptyType {}
 
-impl ToView for EmptyType {
+impl View for EmptyType {
     type V = EmptyTypeView;
-    spec fn to_view(&self) -> EmptyTypeView;
+    spec fn view(&self) -> EmptyTypeView;
 }
 
 }

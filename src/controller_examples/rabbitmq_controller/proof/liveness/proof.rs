@@ -158,10 +158,10 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(rabbi
     assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies
     spec.entails(
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
-            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1(), rabbitmq)))
+            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), rabbitmq)))
     ) by {
         always_tla_forall_apply_for_sub_resource(spec, sub_resource, rabbitmq);
-        let next_resource = next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1();
+        let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
         lemma_from_after_get_resource_step_to_resource_matches(spec, rabbitmq, sub_resource, next_resource);
     }
     // Thanks to the recursive construction of macro.
@@ -188,7 +188,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(rabbi
         true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq)))
     ) by {
         always_tla_forall_apply_for_sub_resource(spec, sub_resource, rabbitmq);
-        let next_resource = next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1();
+        let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
         lemma_from_after_get_resource_step_to_resource_matches(spec, rabbitmq, sub_resource, next_resource);
         leads_to_trans_temp(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)),
@@ -255,10 +255,10 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
         assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies
         spec.entails(
             lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1(), rabbitmq)))
+                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), rabbitmq)))
         ) by {
             always_tla_forall_apply_for_sub_resource(spec, sub_resource, rabbitmq);
-            let next_resource = next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1();
+            let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
             lemma_from_after_get_resource_step_to_resource_matches(spec, rabbitmq, sub_resource, next_resource);
         }
         leads_to_trans_n!(

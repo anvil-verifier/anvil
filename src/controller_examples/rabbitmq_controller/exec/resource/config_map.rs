@@ -9,7 +9,7 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::exec::resource::service_account::*;
+use crate::rabbitmq_controller::exec::resource::service_account::ServiceAccountBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
@@ -51,13 +51,31 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Ser
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
+    fn state_after_create(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
-            Ok(RabbitmqReconcileState {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
                 latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
                 ..state
-            })
+            };
+            let req = KubeAPIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_update(rabbitmq: &RabbitmqCluster, obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<KubeAPIRequest>), ()>) {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
+                latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
+                ..state
+            };
+            let req = KubeAPIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

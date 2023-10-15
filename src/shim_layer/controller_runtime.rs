@@ -5,7 +5,6 @@ use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::shim_layer::fault_injection::*;
-use crate::vstd_ext::to_view::*;
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
@@ -47,8 +46,8 @@ where
     ResourceWrapperType: ResourceWrapper<K> + Send,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType> + Send + Sync + Default,
     ReconcileStateType: Send,
-    ExternalAPIInputType: Send + ToView,
-    ExternalAPIOutputType: Send + ToView,
+    ExternalAPIInputType: Send + View,
+    ExternalAPIOutputType: Send + View,
     ExternalAPIShimLayerType: ExternalAPIShimLayer<ExternalAPIInputType, ExternalAPIOutputType>,
 {
     let client = Client::try_default().await?;
@@ -94,8 +93,8 @@ where
     K::DynamicType: Default + Clone + Debug,
     ResourceWrapperType: ResourceWrapper<K>,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>,
-    ExternalAPIInputType: ToView,
-    ExternalAPIOutputType: ToView,
+    ExternalAPIInputType: View,
+    ExternalAPIOutputType: View,
     ExternalAPIShimLayerType: ExternalAPIShimLayer<ExternalAPIInputType, ExternalAPIOutputType>,
 {
     let client = &ctx.client;

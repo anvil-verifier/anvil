@@ -4,6 +4,7 @@
 use super::common::*;
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::common::*;
+use crate::fluent_controller::fluentbit::spec::resource::role::RoleBuilder;
 use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
@@ -36,10 +37,29 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<FluentBitReconcileState, ()>) {
+    open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let sa = ServiceAccountView::unmarshal(obj);
         if sa.is_Ok() {
-            Ok(state)
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
+                ..state
+            };
+            let req = APIRequest::GetRequest(RoleBuilder::get_request(fb));
+            Ok((state_prime, Some(req)))
+        } else {
+            Err(())
+        }
+    }
+
+    open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
+        let sa = ServiceAccountView::unmarshal(obj);
+        if sa.is_Ok() {
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
+                ..state
+            };
+            let req = APIRequest::GetRequest(RoleBuilder::get_request(fb));
+            Ok((state_prime, Some(req)))
         } else {
             Err(())
         }

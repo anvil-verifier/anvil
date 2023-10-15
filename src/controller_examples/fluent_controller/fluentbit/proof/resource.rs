@@ -46,12 +46,21 @@ pub open spec fn update(sub_resource: SubResource, fb: FluentBitView, state: Flu
     }
 }
 
-pub open spec fn state_after_create_or_update(sub_resource: SubResource, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<FluentBitReconcileState, ()>) {
+pub open spec fn state_after_create(sub_resource: SubResource, fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
     match sub_resource {
-        SubResource::ServiceAccount => ServiceAccountBuilder::state_after_create_or_update(obj, state),
-        SubResource::Role => RoleBuilder::state_after_create_or_update(obj, state),
-        SubResource::RoleBinding => RoleBindingBuilder::state_after_create_or_update(obj, state),
-        SubResource::DaemonSet => DaemonSetBuilder::state_after_create_or_update(obj, state),
+        SubResource::ServiceAccount => ServiceAccountBuilder::state_after_create(fb, obj, state),
+        SubResource::Role => RoleBuilder::state_after_create(fb, obj, state),
+        SubResource::RoleBinding => RoleBindingBuilder::state_after_create(fb, obj, state),
+        SubResource::DaemonSet => DaemonSetBuilder::state_after_create(fb, obj, state),
+    }
+}
+
+pub open spec fn state_after_update(sub_resource: SubResource, fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
+    match sub_resource {
+        SubResource::ServiceAccount => ServiceAccountBuilder::state_after_update(fb, obj, state),
+        SubResource::Role => RoleBuilder::state_after_update(fb, obj, state),
+        SubResource::RoleBinding => RoleBindingBuilder::state_after_update(fb, obj, state),
+        SubResource::DaemonSet => DaemonSetBuilder::state_after_update(fb, obj, state),
     }
 }
 
