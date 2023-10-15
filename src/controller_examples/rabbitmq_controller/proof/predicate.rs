@@ -34,6 +34,12 @@ pub open spec fn desired_state_is(rabbitmq: RabbitmqClusterView) -> StatePred<RM
     RMQCluster::desired_state_is(rabbitmq)
 }
 
+pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        resource_state_matches(sub_resource, rabbitmq, s.resources())
+    }
+}
+
 pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind()

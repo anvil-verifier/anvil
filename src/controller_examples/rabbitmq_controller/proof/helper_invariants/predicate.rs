@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     common::*,
-    proof::{liveness::resource_match::sub_resource_state_matches, predicate::*, resource::*},
+    proof::{predicate::*, resource::*},
     spec::{reconciler::*, types::*},
 };
 use crate::reconciler::spec::reconciler::*;

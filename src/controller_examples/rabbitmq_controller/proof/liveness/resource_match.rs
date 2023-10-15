@@ -26,12 +26,6 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        resource_state_matches(sub_resource, rabbitmq, s.resources())
-    }
-}
-
 /// Proves AtAfterKRequestStep(Get, sub_resource) ~> sub_resource_state_matches(sub_resource, rabbitmq) and AtAfterKRequestStep(Get, sub_resource) ~>
 /// AtAfterKRequestStep(Get, next_resource). The second one is not applicable to StatefulSet which doesn't have a next resource.
 ///
