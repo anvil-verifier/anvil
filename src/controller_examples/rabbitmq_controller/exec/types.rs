@@ -66,6 +66,14 @@ impl View for RabbitmqCluster {
 
 impl RabbitmqCluster {
     #[verifier(external_body)]
+    pub fn metadata(&self) -> (metadata: ObjectMeta)
+        ensures
+            metadata@ == self@.metadata,
+    {
+        ObjectMeta::from_kube(self.inner.metadata.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn spec(&self) -> (spec: RabbitmqClusterSpec)
         ensures
             spec@ == self@.spec,
