@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Def
         KubeGetRequest {
             api_resource: Secret::api_resource(),
             name: make_default_user_secret_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -90,7 +90,7 @@ pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: Strin
     ensures
         name@ == spec_resource::make_default_user_secret_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-default-user"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-default-user"))
 }
 
 pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: StringMap)
@@ -105,7 +105,7 @@ pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: Strin
     data.insert(new_strlit("password").to_string(), new_strlit("changeme").to_string());
     data.insert(new_strlit("type").to_string(), new_strlit("rabbitmq").to_string());
     data.insert(new_strlit("host").to_string(),
-            rabbitmq.name().unwrap().concat(new_strlit(".")).concat(rabbitmq.namespace().unwrap().as_str()).concat(new_strlit(".svc"))
+            rabbitmq.metadata().name().unwrap().concat(new_strlit(".")).concat(rabbitmq.metadata().namespace().unwrap().as_str()).concat(new_strlit(".svc"))
     );
     data.insert(new_strlit("provider").to_string(), new_strlit("rabbitmq").to_string());
     // TODO: check \n

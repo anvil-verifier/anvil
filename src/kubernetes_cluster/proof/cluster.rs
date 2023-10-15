@@ -91,6 +91,15 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
     leads_to_trans_temp::<Self>(spec, any_pred, true_pred(), always(lift_state(Self::crash_disabled())));
 }
 
+// This desired_state_is specifies the desired state (described in the cr object)
+// Informally, it says that given the cr object, the object's key exists in the etcd,
+// and the corresponding object in etcd has the same spec and uid of the given cr object.
+// Note that we also mention the name and namespace here, which seems a bit redundant
+// because it seems that lemma_always_each_object_in_etcd_is_well_formed is enough
+// to tell us the name/namespace are the same between the two. Unfortunately that's not true,
+// and the reason is that given option1.get_Some_0() == option2.get_Some_0() and option1.is_Some(),
+// Verus cannot induce that option1.is_Some() && option1 == option2.
+// So it is necessary to say both the name and namespace are also the same.
 pub open spec fn desired_state_is(cr: K) -> StatePred<Self>
     recommends
         K::kind().is_CustomResourceKind(),
@@ -99,6 +108,8 @@ pub open spec fn desired_state_is(cr: K) -> StatePred<Self>
         &&& s.resources().contains_key(cr.object_ref())
         &&& K::unmarshal(s.resources()[cr.object_ref()]).is_Ok()
         &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
+        &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().name == cr.metadata().name
+        &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().namespace == cr.metadata().namespace
         &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().uid == cr.metadata().uid
     }
 }

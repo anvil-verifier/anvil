@@ -58,7 +58,6 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -73,7 +72,7 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     RMQCluster::lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec);
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(RMQCluster::next()), 
+        spec, lift_action(next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::triggering_cr_has_lower_uid_than_uid_counter()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
@@ -125,7 +124,6 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures

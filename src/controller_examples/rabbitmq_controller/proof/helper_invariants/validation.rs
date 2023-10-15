@@ -32,7 +32,7 @@ verus! {
 /// be updated. So we need the transition validation of custom resource (rabbitmq) to show some fields of rabbitmq won't change
 /// by the update request. Therefore, though updating stateful set won't update those fields, the stateful set will still match
 /// the desired state.
-/// 
+///
 /// We don't need this for other subresources because they don't have such fields: (1) those fields are determined by the rabbitmq
 /// object (except the key of rabbitmq); and (2) these fields won't be updated during update.
 pub open spec fn certain_fields_of_stateful_set_stay_unchanged(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
@@ -59,7 +59,6 @@ pub open spec fn stateful_set_in_etcd_satisfies_unchangeable(rabbitmq: RabbitmqC
 
 pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -138,7 +137,6 @@ pub open spec fn stateful_set_update_request_msg_does_not_change_owner_reference
 
 pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -209,7 +207,6 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -268,7 +265,6 @@ pub open spec fn stateful_set_in_create_request_msg_satisfies_unchangeable(rabbi
 
 proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures

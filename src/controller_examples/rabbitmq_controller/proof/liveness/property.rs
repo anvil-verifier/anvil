@@ -23,15 +23,8 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
-    recommends
-        rabbitmq.well_formed(),
-{
+pub open spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
-}
-
-pub open spec fn desired_state_is(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    RMQCluster::desired_state_is(rabbitmq)
 }
 
 pub open spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {

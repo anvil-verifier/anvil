@@ -26,12 +26,6 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        resource_state_matches(sub_resource, rabbitmq, s.resources())
-    }
-}
-
 /// Proves AtAfterKRequestStep(Get, sub_resource) ~> sub_resource_state_matches(sub_resource, rabbitmq) and AtAfterKRequestStep(Get, sub_resource) ~>
 /// AtAfterKRequestStep(Get, next_resource). The second one is not applicable to StatefulSet which doesn't have a next resource.
 ///
@@ -41,7 +35,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, sub_resource: SubResource, next_resource: SubResource
 )
     requires
-        rabbitmq.well_formed(),
         sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
@@ -96,7 +89,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     spec: TempPred<RMQCluster>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -271,7 +263,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
@@ -445,7 +436,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
-        rabbitmq.well_formed(),
     ensures
         spec.entails(
             lift_state(
@@ -534,7 +524,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
-        rabbitmq.well_formed(),
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
@@ -593,7 +582,6 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -680,7 +668,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
-        rabbitmq.well_formed(),
         sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -759,7 +746,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
-        rabbitmq.well_formed(),
         sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -854,7 +840,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
-        rabbitmq.well_formed(),
         sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),

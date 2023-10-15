@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Ser
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),
             name: make_server_config_map_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -96,7 +96,7 @@ pub fn make_server_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_server_config_map_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-server-conf"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server-conf"))
 }
 
 pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -110,7 +110,7 @@ pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Config
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_server_config_map_name(rabbitmq));
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
@@ -161,7 +161,7 @@ pub fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
     .concat(i32_to_string(rabbitmq.spec().replicas()).as_str())
     .concat(new_strlit("\n"))
     .concat(new_strlit("cluster_name = "))
-    .concat(rabbitmq.name().unwrap().as_str())
+    .concat(rabbitmq.metadata().name().unwrap().as_str())
     .concat(new_strlit("\n"))
 }
 

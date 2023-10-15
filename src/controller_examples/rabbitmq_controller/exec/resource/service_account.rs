@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Ser
         KubeGetRequest {
             api_resource: ServiceAccount::api_resource(),
             name: make_service_account_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -88,7 +88,7 @@ pub fn make_service_account_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_service_account_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-server"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
 
 pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: ServiceAccount)
@@ -102,7 +102,7 @@ pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Ser
     service_account.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_service_account_name(rabbitmq));
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());

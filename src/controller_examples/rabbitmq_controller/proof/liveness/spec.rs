@@ -25,7 +25,7 @@ verus! {
 
 pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     invariants(rabbitmq)
-    .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
+    .and(always(lift_state(desired_state_is(rabbitmq))))
     .and(invariants_since_phase_i(rabbitmq))
     .and(invariants_since_phase_ii(rabbitmq))
     .and(invariants_since_phase_iii(rabbitmq))
@@ -37,7 +37,7 @@ pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClust
 
 pub open spec fn invariants_since_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     if n == 0 {
-        invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
+        invariants(rabbitmq).and(always(lift_state(desired_state_is(rabbitmq))))
     } else if n == 1 {
         invariants_since_phase_i(rabbitmq)
     } else if n == 2 {
@@ -61,7 +61,7 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
     decreases n,
 {
     if n == 1 {
-        invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
+        invariants(rabbitmq).and(always(lift_state(desired_state_is(rabbitmq))))
     } else if 2 <= n <= 8 {
         spec_before_phase_n((n-1) as nat, rabbitmq).and(invariants_since_phase_n((n-1) as nat, rabbitmq))
     } else {
@@ -71,7 +71,6 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, rabbitmq: RabbitmqClusterView)
     requires
-        rabbitmq.well_formed(),
         1 <= i <= 7,
     ensures
         spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))),
@@ -94,6 +93,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, r
         if i == 2 {
             RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, rabbitmq);
         } else if i == 3 {
+            helper_invariants::lemma_always_rabbitmq_is_well_formed(spec, rabbitmq);
             helper_invariants::lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(spec, rabbitmq);
             helper_invariants::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(spec, rabbitmq);
             let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq));
@@ -128,7 +128,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     invariants_is_stable(rabbitmq);
-    always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
+    always_p_is_stable(lift_state(desired_state_is(rabbitmq)));
     invariants_since_phase_i_is_stable(rabbitmq);
     invariants_since_phase_ii_is_stable(rabbitmq);
     invariants_since_phase_iii_is_stable(rabbitmq);
@@ -137,7 +137,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
     invariants_since_phase_vi_is_stable(rabbitmq);
     invariants_since_phase_vii_is_stable(rabbitmq);
     stable_and_n!(
-        invariants(rabbitmq), always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
+        invariants(rabbitmq), always(lift_state(desired_state_is(rabbitmq))),
         invariants_since_phase_i(rabbitmq), invariants_since_phase_ii(rabbitmq), invariants_since_phase_iii(rabbitmq),
         invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(rabbitmq),
         invariants_since_phase_vii(rabbitmq)
@@ -374,7 +374,6 @@ pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
 
 pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
@@ -396,8 +395,6 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
 }
 
 pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
-    requires
-        rabbitmq.well_formed(),
     ensures
         cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
 {
