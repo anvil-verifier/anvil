@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Rol
         KubeGetRequest {
             api_resource: RoleBinding::api_resource(),
             name: make_role_binding_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -89,7 +89,7 @@ pub fn make_role_binding_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_role_binding_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-server"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
 
 pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
@@ -101,7 +101,7 @@ pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
     role_ref.set_kind(new_strlit("Role").to_string());
-    role_ref.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
+    role_ref.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-peer-discovery")));
     role_ref
 }
 
@@ -116,8 +116,8 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     subjects.push({
         let mut subject = Subject::default();
         subject.set_kind(new_strlit("ServiceAccount").to_string());
-        subject.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
-        subject.set_namespace(rabbitmq.namespace().unwrap());
+        subject.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-server")));
+        subject.set_namespace(rabbitmq.metadata().namespace().unwrap());
         subject
     });
     proof{
@@ -140,7 +140,7 @@ pub fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBindi
     role_binding.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_role_binding_name(rabbitmq));
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());

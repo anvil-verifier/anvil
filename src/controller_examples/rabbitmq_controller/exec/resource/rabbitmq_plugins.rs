@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Plu
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),
             name: make_plugins_config_map_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -89,7 +89,7 @@ pub fn make_plugins_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String
     ensures
         name@ == spec_resource::make_plugins_config_map_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-plugins-conf"))
 }
 
 pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -103,7 +103,7 @@ pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Confi
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_plugins_config_map_name(rabbitmq));
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());

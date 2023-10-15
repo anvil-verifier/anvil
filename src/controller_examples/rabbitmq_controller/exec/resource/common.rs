@@ -25,7 +25,7 @@ pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
         labels@ == spec_resource::make_labels(rabbitmq@),
 {
     let mut labels = rabbitmq.spec().labels();
-    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+    labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
     labels
 }
 
@@ -58,7 +58,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
     secret.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
@@ -79,7 +79,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
     service.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
@@ -93,7 +93,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
         service_spec.set_ports(ports);
         service_spec.set_selector({
             let mut selector = StringMap::empty();
-            selector.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            selector.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
             selector
         });
         service_spec.set_publish_not_ready_addresses(true);

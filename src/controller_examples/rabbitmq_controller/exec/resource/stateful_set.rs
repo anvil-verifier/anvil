@@ -33,7 +33,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Sta
         KubeGetRequest {
             api_resource: StatefulSet::api_resource(),
             name: make_stateful_set_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -123,7 +123,7 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_stateful_set_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-server"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
 
 pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: StatefulSet)
@@ -137,7 +137,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(rabbitmq));
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
@@ -148,13 +148,13 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
         // Set the replicas number
         stateful_set_spec.set_replicas(rabbitmq.spec().replicas());
         // Set the headless service to assign DNS entry to each Rabbitmq server
-        stateful_set_spec.set_service_name(rabbitmq.name().unwrap().concat(new_strlit("-nodes")));
+        stateful_set_spec.set_service_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-nodes")));
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
             selector.set_match_labels({
                 let mut match_labels = StringMap::empty();
-                match_labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                match_labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
                 match_labels
             });
             selector
@@ -177,10 +177,10 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                     pvc.set_metadata({
                         let mut metadata = ObjectMeta::default();
                         metadata.set_name(new_strlit("persistence").to_string());
-                        metadata.set_namespace(rabbitmq.namespace().unwrap());
+                        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
                         metadata.set_labels({
                             let mut labels = StringMap::empty();
-                            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                            labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
                             labels
                         });
                         metadata
@@ -264,7 +264,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         volume.set_name(new_strlit("plugins-conf").to_string());
         volume.set_config_map({
             let mut config_map = ConfigMapVolumeSource::default();
-            config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
+            config_map.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-plugins-conf")));
             config_map
         });
         volume
@@ -280,7 +280,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     let mut volume_projection = VolumeProjection::default();
                     volume_projection.set_config_map({
                         let mut config_map = ConfigMapProjection::default();
-                        config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
+                        config_map.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-server-conf")));
                         config_map.set_items({
                             let mut items = Vec::new();
                             items.push({
@@ -312,7 +312,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     let mut volume_projection = VolumeProjection::default();
                     volume_projection.set_secret({
                         let mut secret = SecretProjection::default();
-                        secret.set_name(rabbitmq.name().unwrap().concat(new_strlit("-default-user")));
+                        secret.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-default-user")));
                         secret.set_items({
                             let mut items = Vec::new();
                             items.push({
@@ -358,7 +358,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         volume.set_name(new_strlit("erlang-cookie-secret").to_string());
         volume.set_secret({
             let mut secret = SecretVolumeSource::default();
-            secret.set_secret_name(rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")));
+            secret.set_secret_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-erlang-cookie")));
             secret
         });
         volume
@@ -413,7 +413,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         );
     }
     let mut pod_spec = PodSpec::default();
-    pod_spec.set_service_account_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+    pod_spec.set_service_account_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-server")));
     pod_spec.set_init_containers({
         let mut containers = Vec::new();
         containers.push({
@@ -643,7 +643,7 @@ pub fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
         ))
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("K8S_SERVICE_NAME").to_string(), Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes"))), None
+        new_strlit("K8S_SERVICE_NAME").to_string(), Some(rabbitmq.metadata().name().unwrap().concat(new_strlit("-nodes"))), None
     ));
     env_vars.push(EnvVar::new_with(
         new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string(), Some(new_strlit("/operator/enabled_plugins").to_string()), None

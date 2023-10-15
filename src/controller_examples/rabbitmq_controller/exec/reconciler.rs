@@ -143,7 +143,7 @@ pub fn reconcile_helper<
                                 let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                     api_resource: Builder::get_request(rabbitmq).api_resource,
                                     name: Builder::get_request(rabbitmq).name,
-                                    namespace: rabbitmq.namespace().unwrap(),
+                                    namespace: rabbitmq.metadata().namespace().unwrap(),
                                     obj: updated_obj,
                                 });
                                 let state_prime = RabbitmqReconcileState {
@@ -159,7 +159,7 @@ pub fn reconcile_helper<
                                 let created_obj = new_obj.unwrap();
                                 let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                                     api_resource: Builder::get_request(rabbitmq).api_resource,
-                                    namespace: rabbitmq.namespace().unwrap(),
+                                    namespace: rabbitmq.metadata().namespace().unwrap(),
                                     obj: created_obj,
                                 });
                                 let state_prime = RabbitmqReconcileState {

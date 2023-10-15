@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Rol
         KubeGetRequest {
             api_resource: Role::api_resource(),
             name: make_role_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -89,7 +89,7 @@ pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_role_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-peer-discovery"))
 }
 
 pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
@@ -194,7 +194,7 @@ pub fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
     role.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_role_name(rabbitmq));
-        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());

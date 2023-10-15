@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Erl
         KubeGetRequest {
             api_resource: Secret::api_resource(),
             name: make_erlang_secret_name(rabbitmq),
-            namespace: rabbitmq.namespace().unwrap(),
+            namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
 
@@ -96,7 +96,7 @@ pub fn make_erlang_secret_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_erlang_secret_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie"))
+    rabbitmq.metadata().name().unwrap().concat(new_strlit("-erlang-cookie"))
 }
 
 pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)

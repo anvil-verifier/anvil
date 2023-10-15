@@ -66,30 +66,6 @@ impl View for RabbitmqCluster {
 
 impl RabbitmqCluster {
     #[verifier(external_body)]
-    pub fn name(&self) -> (name: Option<String>)
-        ensures
-            self@.metadata.name.is_Some() == name.is_Some(),
-            name.is_Some() ==> name.get_Some_0()@ == self@.metadata.name.get_Some_0(),
-    {
-        match &self.inner.metadata.name {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn namespace(&self) -> (namespace: Option<String>)
-        ensures
-            self@.metadata.namespace.is_Some() == namespace.is_Some(),
-            namespace.is_Some() ==> namespace.get_Some_0()@ == self@.metadata.namespace.get_Some_0(),
-    {
-        match &self.inner.metadata.namespace {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn spec(&self) -> (spec: RabbitmqClusterSpec)
         ensures
             spec@ == self@.spec,
