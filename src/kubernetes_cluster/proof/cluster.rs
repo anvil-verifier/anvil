@@ -99,6 +99,8 @@ pub open spec fn desired_state_is(cr: K) -> StatePred<Self>
         &&& s.resources().contains_key(cr.object_ref())
         &&& K::unmarshal(s.resources()[cr.object_ref()]).is_Ok()
         &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
+        &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().name == cr.metadata().name
+        &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().namespace == cr.metadata().namespace
         &&& K::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().uid == cr.metadata().uid
     }
 }

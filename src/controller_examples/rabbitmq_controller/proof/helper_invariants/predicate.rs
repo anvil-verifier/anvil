@@ -24,6 +24,10 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
+pub open spec fn rabbitmq_is_well_formed(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| rabbitmq.well_formed()
+}
+
 pub open spec fn the_object_in_reconcile_satisfies_state_validation() -> StatePred<RMQCluster>
 {
     |s: RMQCluster| {
@@ -172,12 +176,7 @@ pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etc
     }
 }
 
-pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<RMQCluster>
-    recommends
-        rabbitmq.well_formed(),
-{
+pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
@@ -192,10 +191,7 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
     }
 }
 
-pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
-    recommends
-        rabbitmq.well_formed(),
-{
+pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
@@ -211,10 +207,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
     }
 }
 
-pub open spec fn every_resource_update_request_implies_at_after_update_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
-    recommends
-        rabbitmq.well_formed(),
-{
+pub open spec fn every_resource_update_request_implies_at_after_update_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;

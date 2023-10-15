@@ -30,6 +30,10 @@ pub open spec fn cluster_spec() -> TempPred<RMQCluster> {
     RMQCluster::sm_spec()
 }
 
+pub open spec fn desired_state_is(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    RMQCluster::desired_state_is(rabbitmq)
+}
+
 pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind()

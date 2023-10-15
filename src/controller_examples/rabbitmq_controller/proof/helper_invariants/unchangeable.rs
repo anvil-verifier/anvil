@@ -31,7 +31,7 @@ verus! {
 // regardless of when it was created or how many times it has been updated or what its owner references point to.
 // Right now only the `unchangeable` spec functions are proved by this. But actually things like
 // `resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref` can also use the following lemmas.
-// And the following lemmas are more powerful because it considers the cases when the objects in update request messages 
+// And the following lemmas are more powerful because it considers the cases when the objects in update request messages
 // and etcd rely on each other to show they satisfy those properties.
 
 /// Objects in create request messages satisfying the properties can be proved along because it doesn't have to do with
@@ -63,7 +63,6 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -113,7 +112,6 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -163,7 +161,6 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster
 )
     requires
-        rabbitmq.well_formed(),
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         RMQCluster::next()(s, s_prime),
@@ -209,7 +206,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
                     assert(req.content.is_update_request());
                     assert(ServiceAccountView::unmarshal(req.content.get_update_request().obj).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token);
                 }
-                
+
             }
             assert(unchangeable(sub_resource, s_prime.resources()[resource_key], rabbitmq));
         } else {
@@ -222,7 +219,6 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster
 )
     requires
-        rabbitmq.well_formed(),
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         RMQCluster::next()(s, s_prime),
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),

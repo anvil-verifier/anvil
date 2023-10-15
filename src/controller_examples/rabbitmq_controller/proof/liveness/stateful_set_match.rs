@@ -32,7 +32,6 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -83,7 +82,6 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -209,7 +207,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -302,7 +299,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -388,7 +384,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 
 proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage)
     requires
-        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
