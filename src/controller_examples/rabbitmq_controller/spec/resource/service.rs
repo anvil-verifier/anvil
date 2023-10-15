@@ -33,8 +33,9 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
-            Ok(update_main_service(rabbitmq, service.get_Ok_0()).marshal())
+        let found_service = service.get_Ok_0();
+        if service.is_Ok() && found_service.spec.is_Some() {
+            Ok(update_main_service(rabbitmq, found_service).marshal())
         } else {
             Err(())
         }
@@ -93,6 +94,7 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
+        found_main_service.spec.is_Some(),
 {
     let made_main_service = make_main_service(rabbitmq);
     ServiceView {
@@ -103,7 +105,12 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
             annotations: made_main_service.metadata.annotations,
             ..found_main_service.metadata
         },
-        spec: made_main_service.spec,
+        spec: Some(ServiceSpecView {
+            ports: made_main_service.spec.get_Some_0().ports,
+            selector: made_main_service.spec.get_Some_0().selector,
+            publish_not_ready_addresses: made_main_service.spec.get_Some_0().publish_not_ready_addresses,
+            ..found_main_service.spec.get_Some_0()
+        }),
         ..found_main_service
     }
 }

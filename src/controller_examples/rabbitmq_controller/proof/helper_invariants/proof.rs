@@ -187,7 +187,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)))),
@@ -205,7 +204,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
         &&& RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()(s)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
@@ -213,14 +211,12 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
     };
-    always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
         later(lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key))),
         lift_state(RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
