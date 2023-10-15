@@ -372,7 +372,29 @@ pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
 
-#[verifier(spinoff_prover)]
+pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+    requires
+        rabbitmq.well_formed(),
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
+    ensures
+        spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))))),
+{
+    // TODO (xudong): investigate the performance of this lemma
+    // Somehow the reasoning inside the assert forall block below is very slow (takes more than 8 seconds!)
+    // I suspect it is related to the precondition of lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state
+    let a_to_p = |step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
+    assert_by(spec.entails(always(tla_forall(a_to_p))), {
+        assert forall |step: (ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p(step))) by {
+            RMQCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
+            );
+        }
+        spec_entails_always_tla_forall(spec, a_to_p);
+    });
+}
+
 pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
@@ -401,18 +423,14 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_1);
     });
-
     RMQCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
 
+    // Different from other a_to_p_x, we encapsulate a_to_p_2 inside the lemma below because we find its reasoning is
+    // surprisingly slow in this context. Encapsulating the reasoning reduces the verification time of this function
+    // from more than 40 seconds to 2 seconds.
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
-    assert_by(spec.entails(always(tla_forall(a_to_p_2))), {
-        assert forall |step: (ActionKind, SubResource)| spec.entails(always(#[trigger] a_to_p_2(step))) by {
-            RMQCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
-            );
-        }
-        spec_entails_always_tla_forall(spec, a_to_p_2);
-    });
+    lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, rabbitmq);
+
     let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(res, rabbitmq));
     assert_by(spec.entails(always(tla_forall(a_to_p_3))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_3(sub_resource))) by {
