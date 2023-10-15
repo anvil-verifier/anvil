@@ -101,7 +101,6 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
 
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
@@ -331,7 +330,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
-
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
