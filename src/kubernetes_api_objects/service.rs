@@ -195,6 +195,15 @@ impl ServiceSpec {
     }
 
     #[verifier(external_body)]
+    pub fn publish_not_ready_addresses(&self) -> (publish_not_ready_addresses: Option<bool>)
+        ensures
+            self@.publish_not_ready_addresses.is_Some() == publish_not_ready_addresses.is_Some(),
+            publish_not_ready_addresses.is_Some() ==> publish_not_ready_addresses.get_Some_0() == self@.publish_not_ready_addresses.get_Some_0(),
+    {
+        self.inner.publish_not_ready_addresses.clone()
+    }
+
+    #[verifier(external_body)]
     pub fn set_publish_not_ready_addresses(&mut self, publish_not_ready_addresses: bool)
         ensures
             self@ == old(self)@.set_publish_not_ready_addresses(publish_not_ready_addresses),

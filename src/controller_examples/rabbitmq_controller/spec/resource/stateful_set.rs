@@ -173,18 +173,12 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                                     .insert(new_strlit("storage")@, rabbitmq.spec.persistence.storage)
                                 )
                             )
-                            .overwrite_storage_class_name(rabbitmq.spec.persistence.storage_class_name)
+                            .set_storage_class_name(rabbitmq.spec.persistence.storage_class_name)
                         )
                 ]
             }
         }),
-        pod_management_policy: Some({
-            if rabbitmq.spec.pod_management_policy.is_Some() {
-                rabbitmq.spec.pod_management_policy.get_Some_0()
-            } else {
-                new_strlit("Parallel")@
-            }
-        }),
+        pod_management_policy: Some(rabbitmq.spec.pod_management_policy),
         persistent_volume_claim_retention_policy: rabbitmq.spec.persistent_volume_claim_retention_policy,
         ..StatefulSetSpecView::default()
 

@@ -45,10 +45,12 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::Ser
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let service = Service::unmarshal(obj);
         if service.is_ok() {
-            Ok(update_main_service(rabbitmq, service.unwrap()).marshal())
-        } else {
-            Err(())
+            let found_service = service.unwrap();
+            if found_service.spec().is_some() {
+                return Ok(update_main_service(rabbitmq, found_service).marshal());
+            }
         }
+        Err(())
     }
 
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
@@ -65,6 +67,7 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        found_main_service@.spec.is_Some(),
     ensures
         service@ == spec_resource::update_main_service(rabbitmq@, found_main_service@),
 {
@@ -82,7 +85,14 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
         metadata.set_annotations(made_service.metadata().annotations().unwrap());
         metadata
     });
-    main_service.set_spec(made_service.spec().unwrap());
+    main_service.set_spec({
+        let mut svc_spec = found_main_service.spec().unwrap();
+        let made_spec = made_service.spec().unwrap();
+        svc_spec.set_ports(made_spec.ports().unwrap());
+        svc_spec.set_selector(made_spec.selector().unwrap());
+        svc_spec.set_publish_not_ready_addresses(made_spec.publish_not_ready_addresses().unwrap());
+        svc_spec
+    });
     main_service
 }
 

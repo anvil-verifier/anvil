@@ -33,8 +33,9 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessSe
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
-            Ok(update_headless_service(rabbitmq, service.get_Ok_0()).marshal())
+        let found_service = service.get_Ok_0();
+        if service.is_Ok() && found_service.spec.is_Some() {
+            Ok(update_headless_service(rabbitmq, found_service).marshal())
         } else {
             Err(())
         }
@@ -93,17 +94,23 @@ pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_he
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
+        found_headless_service.spec.is_Some(),
 {
-    let made_service = make_headless_service(rabbitmq);
+    let made_headless_service = make_headless_service(rabbitmq);
     ServiceView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(rabbitmq)),
             finalizers: None,
-            labels: made_service.metadata.labels,
-            annotations: made_service.metadata.annotations,
+            labels: made_headless_service.metadata.labels,
+            annotations: made_headless_service.metadata.annotations,
             ..found_headless_service.metadata
         },
-        spec: made_service.spec,
+        spec: Some(ServiceSpecView {
+            ports: made_headless_service.spec.get_Some_0().ports,
+            selector: made_headless_service.spec.get_Some_0().selector,
+            publish_not_ready_addresses: made_headless_service.spec.get_Some_0().publish_not_ready_addresses,
+            ..found_headless_service.spec.get_Some_0()
+        }),
         ..found_headless_service
     }
 }

@@ -146,17 +146,24 @@ pub struct RabbitmqClusterSpec {
     /// The alternative policy is `Parallel` which will create pods in parallel
     /// to match the desired scale without waiting, and on scale down will delete
     /// all pods at once.
-    #[serde(rename = "podManagementPolicy")]
-    pub pod_management_policy: Option<String>,
+    #[serde(
+        rename = "podManagementPolicy",
+        default = "default_pod_management_policy"
+    )]
+    pub pod_management_policy: String,
     #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
     pub persistent_volume_claim_retention_policy:
         Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
 }
 
+pub fn default_pod_management_policy() -> String {
+    "Parallel".to_string()
+}
+
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
     RabbitmqClusterPersistenceSpec {
+        storage_class_name: default_storage_class_name(),
         storage: default_storage(),
-        storage_class_name: None,
     }
 }
 
@@ -170,14 +177,18 @@ pub struct RabbitmqConfig {
     pub env_config: Option<String>,
 }
 
+pub fn default_storage_class_name() -> String {
+    "standard".to_string()
+}
+
 pub fn default_storage() -> k8s_openapi::apimachinery::pkg::api::resource::Quantity {
     k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string())
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqClusterPersistenceSpec {
-    #[serde(rename = "storageClassName", default)]
-    pub storage_class_name: Option<String>,
+    #[serde(rename = "storageClassName", default = "default_storage_class_name")]
+    pub storage_class_name: String,
     #[serde(default = "default_storage")]
     pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
 }

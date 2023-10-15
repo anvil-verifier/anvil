@@ -260,15 +260,11 @@ impl RabbitmqClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn pod_management_policy(&self) -> (policy: Option<String>)
+    pub fn pod_management_policy(&self) -> (policy: String)
         ensures
-            policy.is_Some() == self@.pod_management_policy.is_Some(),
-            policy.is_Some() ==> policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+            policy@ == self@.pod_management_policy,
     {
-        match &self.inner.pod_management_policy {
-            Some(s) => Some(String::from_rust_string(s.clone())),
-            None => None,
-        }
+        String::from_rust_string(self.inner.pod_management_policy.clone())
     }
 
     #[verifier(external_body)]
@@ -346,15 +342,11 @@ impl RabbitmqClusterPersistenceSpec {
     }
 
     #[verifier(external_body)]
-    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
+    pub fn storage_class_name(&self) -> (storage_class_name: String)
         ensures
-            storage_class_name.is_Some() == self@.storage_class_name.is_Some(),
-            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
+            storage_class_name@ == self@.storage_class_name,
     {
-        match &self.inner.storage_class_name {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        String::from_rust_string(self.inner.storage_class_name.clone())
     }
 }
 

@@ -164,22 +164,6 @@ impl PersistentVolumeClaimSpec {
     {
         self.inner.storage_class_name = Some(storage_class_name.into_rust_string());
     }
-
-    #[verifier(external_body)]
-    pub fn overwrite_storage_class_name(&mut self, storage_class_name: Option<String>)
-        ensures
-            storage_class_name.is_None() ==> self@ == old(self)@.overwrite_storage_class_name(None),
-            storage_class_name.is_Some() ==> self@ == old(self)@.overwrite_storage_class_name(Some(storage_class_name.get_Some_0()@)),
-    {
-        match storage_class_name {
-            Some(n) => {
-                self.inner.storage_class_name = Some(n.into_rust_string());
-            },
-            None => {
-                self.inner.storage_class_name = None;
-            }
-        }
-    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec> for PersistentVolumeClaimSpec {
@@ -352,13 +336,6 @@ impl PersistentVolumeClaimSpecView {
     pub open spec fn set_storage_class_name(self, storage_class_name: StringView) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             storage_class_name: Some(storage_class_name),
-            ..self
-        }
-    }
-
-    pub open spec fn overwrite_storage_class_name(self, storage_class_name: Option<StringView>) -> PersistentVolumeClaimSpecView {
-        PersistentVolumeClaimSpecView {
-            storage_class_name: storage_class_name,
             ..self
         }
     }
