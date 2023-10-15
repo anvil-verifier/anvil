@@ -15,7 +15,7 @@ use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::rabbitmq_controller::spec::types as spec_types;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
-use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
+use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

@@ -5,7 +5,7 @@ use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{api_method::*, dynamic::*, resource::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::resource_builder;
-use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
+use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -15,12 +15,12 @@ verus! {
 pub trait ResourceBuilder<K: View, T: View, SpecBuilder: resource_builder::ResourceBuilder<K::V, T::V>>
 {
     spec fn requirements(cr: K::V) -> bool;
-    
+
     fn get_request(cr: &K) -> (req: KubeGetRequest)
         requires
             Self::requirements(cr@),
         ensures
-            req.to_view() == SpecBuilder::get_request(cr@);
+            req@ == SpecBuilder::get_request(cr@);
 
     fn make(cr: &K, state: &T) -> (res: Result<DynamicObject, ()>)
         requires

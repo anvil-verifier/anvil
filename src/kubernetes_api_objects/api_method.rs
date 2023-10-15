@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     dynamic::*,
     error::*,
 };
-use crate::vstd_ext::{string_view::*, to_view::*};
+use crate::vstd_ext::string_view::*;
 use vstd::{prelude::*, view::*};
 use vstd::string::*;
 
@@ -138,9 +138,9 @@ impl KubeGetRequest {
     }
 }
 
-impl ToView for KubeGetRequest {
+impl View for KubeGetRequest {
     type V = GetRequest;
-    open spec fn to_view(&self) -> GetRequest {
+    open spec fn view(&self) -> GetRequest {
         GetRequest {
             key: ObjectRef {
                 kind: self.api_resource@.kind,
@@ -167,9 +167,9 @@ impl KubeListRequest {
     }
 }
 
-impl ToView for KubeListRequest {
+impl View for KubeListRequest {
     type V = ListRequest;
-    open spec fn to_view(&self) -> ListRequest {
+    open spec fn view(&self) -> ListRequest {
         ListRequest {
             kind: self.api_resource@.kind,
             namespace: self.namespace@,
@@ -192,9 +192,9 @@ impl KubeCreateRequest {
     }
 }
 
-impl ToView for KubeCreateRequest {
+impl View for KubeCreateRequest {
     type V = CreateRequest;
-    open spec fn to_view(&self) -> CreateRequest {
+    open spec fn view(&self) -> CreateRequest {
         CreateRequest {
             namespace: self.namespace@,
             obj: self.obj@,
@@ -217,9 +217,9 @@ impl KubeDeleteRequest {
     }
 }
 
-impl ToView for KubeDeleteRequest {
+impl View for KubeDeleteRequest {
     type V = DeleteRequest;
-    open spec fn to_view(&self) -> DeleteRequest {
+    open spec fn view(&self) -> DeleteRequest {
         DeleteRequest {
             key: ObjectRef {
                 kind: self.api_resource@.kind,
@@ -246,9 +246,9 @@ impl KubeUpdateRequest {
     }
 }
 
-impl ToView for KubeUpdateRequest {
+impl View for KubeUpdateRequest {
     type V = UpdateRequest;
-    open spec fn to_view(&self) -> UpdateRequest {
+    open spec fn view(&self) -> UpdateRequest {
         UpdateRequest {
             name: self.name@,
             namespace: self.namespace@,
@@ -273,9 +273,9 @@ impl KubeUpdateStatusRequest {
     }
 }
 
-impl ToView for KubeUpdateStatusRequest {
+impl View for KubeUpdateStatusRequest {
     type V = UpdateStatusRequest;
-    open spec fn to_view(&self) -> UpdateStatusRequest {
+    open spec fn view(&self) -> UpdateStatusRequest {
         UpdateStatusRequest {
             name: self.name@,
             namespace: self.namespace@,
@@ -289,12 +289,12 @@ impl View for KubeAPIRequest {
 
     open spec fn view(&self) -> APIRequest {
         match self {
-            KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(get_req.to_view()),
-            KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(list_req.to_view()),
-            KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(create_req.to_view()),
-            KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(delete_req.to_view()),
-            KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(update_req.to_view()),
-            KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(update_status_req.to_view()),
+            KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(get_req@),
+            KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(list_req@),
+            KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(create_req@),
+            KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(delete_req@),
+            KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(update_req@),
+            KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(update_status_req@),
         }
     }
 }
@@ -374,9 +374,9 @@ pub struct KubeGetResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
-impl ToView for KubeGetResponse {
+impl View for KubeGetResponse {
     type V = GetResponse;
-    open spec fn to_view(&self) -> GetResponse {
+    open spec fn view(&self) -> GetResponse {
         match self.res {
             Ok(o) => GetResponse { res: Ok(o@) },
             Err(e) => GetResponse { res: Err(e) },
@@ -390,9 +390,9 @@ pub struct KubeListResponse {
     pub res: Result<Vec<DynamicObject>, APIError>,
 }
 
-impl ToView for KubeListResponse {
+impl View for KubeListResponse {
     type V = ListResponse;
-    open spec fn to_view(&self) -> ListResponse {
+    open spec fn view(&self) -> ListResponse {
         match self.res {
             Ok(l) => ListResponse { res: Ok(l@.map_values(|o: DynamicObject| o@)) },
             Err(e) => ListResponse { res: Err(e) },
@@ -406,9 +406,9 @@ pub struct KubeCreateResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
-impl ToView for KubeCreateResponse {
+impl View for KubeCreateResponse {
     type V = CreateResponse;
-    open spec fn to_view(&self) -> CreateResponse {
+    open spec fn view(&self) -> CreateResponse {
         match self.res {
             Ok(o) => CreateResponse { res: Ok(o@) },
             Err(e) => CreateResponse { res: Err(e) },
@@ -422,9 +422,9 @@ pub struct KubeDeleteResponse {
     pub res: Result<(), APIError>,
 }
 
-impl ToView for KubeDeleteResponse {
+impl View for KubeDeleteResponse {
     type V = DeleteResponse;
-    open spec fn to_view(&self) -> DeleteResponse {
+    open spec fn view(&self) -> DeleteResponse {
         match self.res {
             Ok(_) => DeleteResponse { res: Ok(()) },
             Err(e) => DeleteResponse { res: Err(e) },
@@ -438,9 +438,9 @@ pub struct KubeUpdateResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
-impl ToView for KubeUpdateResponse {
+impl View for KubeUpdateResponse {
     type V = UpdateResponse;
-    open spec fn to_view(&self) -> UpdateResponse {
+    open spec fn view(&self) -> UpdateResponse {
         match self.res {
             Ok(o) => UpdateResponse { res: Ok(o@) },
             Err(e) => UpdateResponse { res: Err(e) },
@@ -454,9 +454,9 @@ pub struct KubeUpdateStatusResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
-impl ToView for KubeUpdateStatusResponse {
+impl View for KubeUpdateStatusResponse {
     type V = UpdateStatusResponse;
-    open spec fn to_view(&self) -> UpdateStatusResponse {
+    open spec fn view(&self) -> UpdateStatusResponse {
         match self.res {
             Ok(o) => UpdateStatusResponse { res: Ok(o@) },
             Err(e) => UpdateStatusResponse { res: Err(e) },
@@ -464,16 +464,16 @@ impl ToView for KubeUpdateStatusResponse {
     }
 }
 
-impl ToView for KubeAPIResponse {
+impl View for KubeAPIResponse {
     type V = APIResponse;
-    open spec fn to_view(&self) -> APIResponse {
+    open spec fn view(&self) -> APIResponse {
         match self {
-            KubeAPIResponse::GetResponse(get_resp) => APIResponse::GetResponse(get_resp.to_view()),
-            KubeAPIResponse::ListResponse(list_resp) => APIResponse::ListResponse(list_resp.to_view()),
-            KubeAPIResponse::CreateResponse(create_resp) => APIResponse::CreateResponse(create_resp.to_view()),
-            KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(delete_resp.to_view()),
-            KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp.to_view()),
-            KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp.to_view()),
+            KubeAPIResponse::GetResponse(get_resp) => APIResponse::GetResponse(get_resp@),
+            KubeAPIResponse::ListResponse(list_resp) => APIResponse::ListResponse(list_resp@),
+            KubeAPIResponse::CreateResponse(create_resp) => APIResponse::CreateResponse(create_resp@),
+            KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(delete_resp@),
+            KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp@),
+            KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp@),
         }
     }
 }
@@ -618,7 +618,7 @@ impl KubeAPIResponse {
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
     match resp {
-        Some(resp) => Some(resp.to_view()),
+        Some(resp) => Some(resp@),
         None => None,
     }
 }
