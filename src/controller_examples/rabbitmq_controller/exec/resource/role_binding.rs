@@ -70,7 +70,6 @@ pub fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleB
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(rabbitmq);
-    role_binding.set_role_ref(make_role_ref(rabbitmq));
     role_binding.set_subjects(make_subjects(rabbitmq));
     role_binding.set_metadata({
         let mut metadata = found_role_binding.metadata();
