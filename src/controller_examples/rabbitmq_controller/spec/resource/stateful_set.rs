@@ -178,13 +178,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                 ]
             }
         }),
-        pod_management_policy: Some({
-            if rabbitmq.spec.pod_management_policy.is_Some() {
-                rabbitmq.spec.pod_management_policy.get_Some_0()
-            } else {
-                new_strlit("Parallel")@
-            }
-        }),
+        pod_management_policy: Some(rabbitmq.spec.pod_management_policy),
         persistent_volume_claim_retention_policy: rabbitmq.spec.persistent_volume_claim_retention_policy,
         ..StatefulSetSpecView::default()
 

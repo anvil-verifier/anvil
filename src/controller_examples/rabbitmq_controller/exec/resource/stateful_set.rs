@@ -241,11 +241,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
             pod_template_spec
         });
         // Set management policy
-        if rabbitmq.spec().pod_management_policy().is_some() {
-            stateful_set_spec.set_pod_management_policy(rabbitmq.spec().pod_management_policy().unwrap());
-        } else {
-            stateful_set_spec.set_pod_management_policy(new_strlit("Parallel").to_string());
-        }
+        stateful_set_spec.set_pod_management_policy(rabbitmq.spec().pod_management_policy());
 
         if rabbitmq.spec().persistent_volume_claim_retention_policy().is_some() {
             stateful_set_spec.set_pvc_retention_policy(rabbitmq.spec().persistent_volume_claim_retention_policy().unwrap());

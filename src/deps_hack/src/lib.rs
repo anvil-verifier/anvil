@@ -146,11 +146,18 @@ pub struct RabbitmqClusterSpec {
     /// The alternative policy is `Parallel` which will create pods in parallel
     /// to match the desired scale without waiting, and on scale down will delete
     /// all pods at once.
-    #[serde(rename = "podManagementPolicy")]
-    pub pod_management_policy: Option<String>,
+    #[serde(
+        rename = "podManagementPolicy",
+        default = "default_pod_management_policy"
+    )]
+    pub pod_management_policy: String,
     #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
     pub persistent_volume_claim_retention_policy:
         Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
+}
+
+pub fn default_pod_management_policy() -> String {
+    "Parallel".to_string()
 }
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {

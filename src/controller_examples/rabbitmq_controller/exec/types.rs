@@ -260,15 +260,11 @@ impl RabbitmqClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn pod_management_policy(&self) -> (policy: Option<String>)
+    pub fn pod_management_policy(&self) -> (policy: String)
         ensures
-            policy.is_Some() == self@.pod_management_policy.is_Some(),
-            policy.is_Some() ==> policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+            policy@ == self@.pod_management_policy,
     {
-        match &self.inner.pod_management_policy {
-            Some(s) => Some(String::from_rust_string(s.clone())),
-            None => None,
-        }
+        String::from_rust_string(self.inner.pod_management_policy.clone())
     }
 
     #[verifier(external_body)]

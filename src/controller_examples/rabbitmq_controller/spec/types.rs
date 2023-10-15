@@ -158,7 +158,7 @@ pub struct RabbitmqClusterSpecView {
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
     pub resources: Option<ResourceRequirementsView>,
-    pub pod_management_policy: Option<StringView>,
+    pub pod_management_policy: StringView,
     pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
