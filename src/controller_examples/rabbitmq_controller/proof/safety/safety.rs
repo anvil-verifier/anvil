@@ -245,58 +245,26 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
         lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        replicas_of_etcd_stateful_set_satisfies_order_induction(rabbitmq, s, s_prime);
-    }
-    init_invariant(spec, RMQCluster::init(), next, inv);
-}
-
-/// To do this induction, we mainly proves how the invariant holds if if the stateful set in etcd is not changed (neither
-/// created not updated)from the previous state.
-/// If the state changes, we rely on the property of create/update request message which is proved in another lemma.
-proof fn replicas_of_etcd_stateful_set_satisfies_order_induction(rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
-    requires
-        RMQCluster::next()(s, s_prime),
-        replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)(s),
-        replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
-        RMQCluster::each_object_in_etcd_is_well_formed()(s),
-        RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
-        every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(SubResource::StatefulSet, rabbitmq)(s),
-    ensures
-        replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)(s_prime),
-{
-    let key = rabbitmq.object_ref();
-    let sts_key = make_stateful_set_key(rabbitmq);
-    if s_prime.resources().contains_key(sts_key) {
-        if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
-            if s_prime.resources().contains_key(key) {
-                if !s.resources().contains_key(key) {
-                    assert(s_prime.resources()[key].metadata.uid.get_Some_0() == s.kubernetes_api_state.uid_counter);
-                    let owner_refs = s.resources()[sts_key].metadata.owner_references;
-                    assert(owner_refs.get_Some_0()[0].uid != s.kubernetes_api_state.uid_counter);
-                    assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
-                } else if s.resources()[key] != s_prime.resources()[key] {
-                    assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
-                    assert(RabbitmqClusterView::unmarshal(s.resources()[key]).is_Ok());
-                    assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).is_Ok());
-                    assert(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref() == RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
-                    assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+        let key = rabbitmq.object_ref();
+        let sts_key = make_stateful_set_key(rabbitmq);
+        if s_prime.resources().contains_key(sts_key) {
+            if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
+                if s_prime.resources().contains_key(key) {
+                    if !s.resources().contains_key(key) {
+                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() == s.kubernetes_api_state.uid_counter);
+                        let owner_refs = s.resources()[sts_key].metadata.owner_references;
+                        assert(owner_refs.get_Some_0()[0].uid != s.kubernetes_api_state.uid_counter);
+                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                    } else if s.resources()[key] != s_prime.resources()[key] {
+                        assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
+                        assert(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref() == RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                        assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
+                    }
                 }
             }
-            if s_prime.scheduled_reconciles().contains_key(key) {
-                if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                    assert(s_prime.scheduled_reconciles()[key] == RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0());
-                }
-            }
-            if s_prime.ongoing_reconciles().contains_key(key) {
-                if !s.ongoing_reconciles().contains_key(key) || s.ongoing_reconciles()[key].triggering_cr != s_prime.ongoing_reconciles()[key].triggering_cr {
-                    assert(s_prime.ongoing_reconciles()[key].triggering_cr == s.scheduled_reconciles()[key]);
-                }
-            }
-        } else {
-            assert(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s));
-            assert(replicas_satisfies_order(s_prime.resources()[sts_key], rabbitmq)(s_prime));
         }
     }
+    init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
 spec fn replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
