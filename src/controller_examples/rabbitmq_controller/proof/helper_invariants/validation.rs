@@ -182,7 +182,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
                     assert(msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s_prime.resources()[sts_key].metadata.resource_version.get_Some_0());
                 }
             } else if resource_update_request_msg(sts_key)(msg) {
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
             }
         }
     }
@@ -244,7 +244,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
             if s.in_flight().contains(msg) {
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else if resource_update_request_msg(sts_key)(msg) {
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
             }
         }
     }
@@ -321,7 +321,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
                     if !s.in_flight().contains(msg) {
                         StatefulSetView::marshal_preserves_integrity();
                         StatefulSetView::marshal_spec_preserves_integrity();
-                        lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sts_res, rabbitmq, s, s_prime, msg, step);
+                        lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sts_res, rabbitmq, s, s_prime, msg, step);
                         let triggering_cr = s.ongoing_reconciles()[key].triggering_cr;
                         let etcd_cr = RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0();
                         assert(msg.content.get_create_request().obj.metadata.owner_references_only_contains(triggering_cr.controller_owner_ref()));

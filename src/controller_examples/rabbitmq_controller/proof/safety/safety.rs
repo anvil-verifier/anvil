@@ -165,7 +165,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
             } else {
                 StatefulSetView::marshal_preserves_integrity();
                 StatefulSetView::marshal_spec_preserves_integrity();
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
             }
         }
     }
@@ -367,7 +367,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
             if !s.in_flight().contains(msg) {
                 StatefulSetView::marshal_preserves_integrity();
                 StatefulSetView::marshal_spec_preserves_integrity();
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_create_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
             }
         },
         _ => {
@@ -419,7 +419,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
             if !s.in_flight().contains(msg) {
                 StatefulSetView::marshal_preserves_integrity();
                 StatefulSetView::marshal_spec_preserves_integrity();
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
             }
         },
         _ => {
