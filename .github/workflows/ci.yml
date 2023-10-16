@@ -34,7 +34,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify fluent controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --rlimit 50 --time
   rabbitmq-verification:
     runs-on: ubuntu-20.04
     steps:
