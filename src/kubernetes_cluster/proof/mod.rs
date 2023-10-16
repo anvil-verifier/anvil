@@ -7,6 +7,7 @@ pub mod controller_runtime;
 pub mod controller_runtime_eventual_safety;
 pub mod controller_runtime_liveness;
 pub mod controller_runtime_safety;
+pub mod daemon_set_controller;
 pub mod kubernetes_api_liveness;
 pub mod kubernetes_api_safety;
 pub mod message;
