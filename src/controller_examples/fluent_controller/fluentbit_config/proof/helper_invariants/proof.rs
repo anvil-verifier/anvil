@@ -166,8 +166,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc))))),
-        spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc))))),
-        spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))),
     ensures
         spec.entails(
             true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))))
@@ -178,8 +176,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         always_tla_forall_apply(spec, |res: SubResource|lift_state(response_at_after_get_resource_step_is_resource_get_response(res, fbc)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(no_delete_resource_request_msg_in_flight(res, fbc)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(no_update_status_request_msg_in_flight(res, fbc)), sub_resource);
-        always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, fbc)), sub_resource);
-        always_tla_forall_apply(spec, |res: SubResource|lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(res, fbc)), sub_resource);
         lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(spec, sub_resource, fbc);
     }
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)));
@@ -205,8 +201,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc)))),
-        spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc)))),
-        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc))))
@@ -244,8 +238,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, fbc)(s)
         &&& no_update_status_request_msg_in_flight(sub_resource, fbc)(s)
-        &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc)(s)
-        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies FBCCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -284,9 +276,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fbc).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)),
         lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)),
-        lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc)),
-        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc)),
-        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))
+        lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc))
     );
 
     FBCCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -769,25 +759,6 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)));
 }
 
-/// This lemma demonstrates how to use kubernetes_cluster::proof::kubernetes_api_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
-/// (referred to as lemma_X) to prove that the system will eventually enter a state where delete daemon set request messages
-/// will never appear in flight.
-///
-/// As an example, we can look at how this lemma is proved.
-/// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
-///     the newly generated messages are as expected. ("expected" means not delete daemon set request messages in this lemma. Therefore,
-///     we provide an invariant daemon_set_has_owner_reference_pointing_to_current_cr so that the grabage collector won't try
-///     to send a delete request to delete the messsage.)
-/// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
-/// - Proof body: The proof consists of three parts.
-///   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and
-///     s.in_flight().contains(msg) in the statepred of final state (no_delete_ds_req_is_in_flight in this lemma, so we can
-///     get the requirements in this lemma).
-///   + Show that spec |= every_new_req_msg_if_in_flight_then_satisfies. Basically, use two assert forall to show that forall state and
-///     its next state and forall messages, if the messages are newly generated, they must satisfy the "requirements" and always satisfies it
-///     as long as it is in flight.
-///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
-///     and the original statepred.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
@@ -799,7 +770,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(fbc)))),
-        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))
+        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc))))

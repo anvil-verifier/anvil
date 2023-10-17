@@ -43,7 +43,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
-        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))),
     ensures
         spec.entails(
@@ -188,7 +187,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
-        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))),
     ensures
         spec.entails(
@@ -580,7 +578,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))),
-        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
     ensures
         spec.entails(
             lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, fbc, req_msg))
@@ -605,7 +602,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)(s)
         &&& helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)(s)
         &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)(s)
-        &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -619,8 +615,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)),
         lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)),
-        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)),
-        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))
+        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc))
     );
 
     let post = |s: FBCCluster| {
@@ -661,7 +656,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
-        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
     ensures
         spec.entails(
             lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, fbc, resp_msg))
@@ -683,7 +677,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)(s)
         &&& helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)(s)
-        &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)(s)
     };
 
     combine_spec_entails_always_n!(
@@ -698,7 +691,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)),
         lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)),
-        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)),
         lift_state(desired_state_is(fbc))
     );
 
