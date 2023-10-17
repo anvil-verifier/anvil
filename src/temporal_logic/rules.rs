@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::temporal_logic::defs::*;
 use vstd::function::*;
-use vstd::map_lib::lemma_values_finite;
+use vstd::map_lib::*;
 use vstd::prelude::*;
 
 verus! {
