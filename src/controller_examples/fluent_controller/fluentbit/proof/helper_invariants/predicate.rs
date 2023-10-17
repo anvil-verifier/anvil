@@ -136,46 +136,6 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     }
 }
 
-pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etcd(
-    sub_resource: SubResource, fb: FluentBitView
-) -> StatePred<FBCluster> {
-    let key = fb.object_ref();
-    let resource_key = get_request(sub_resource, fb).key;
-    |s: FBCluster| {
-        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
-
-        at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && resource_update_request_msg(resource_key)(pending_req)
-            && (
-                forall |msg: FBMessage|
-                    #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-                    ==> resource_update_response_msg(resource_key, s)(msg)
-            )
-    }
-}
-
-pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etcd(
-    sub_resource: SubResource, fb: FluentBitView
-) -> StatePred<FBCluster> {
-    let key = fb.object_ref();
-    let resource_key = get_request(sub_resource, fb).key;
-    |s: FBCluster| {
-        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
-
-        at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && resource_create_request_msg(resource_key)(pending_req)
-            && (
-                forall |msg: FBMessage|
-                    #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-                    ==> resource_create_response_msg(resource_key, s)(msg)
-            )
-    }
-}
-
 pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource: SubResource, fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| {
         let key = fb.object_ref();
