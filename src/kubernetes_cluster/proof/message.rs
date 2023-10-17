@@ -479,6 +479,7 @@ pub open spec fn object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key: ObjectR
     }
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec: TempPred<Self>, key: ObjectRef)
     requires
         spec.entails(lift_state(Self::init())),

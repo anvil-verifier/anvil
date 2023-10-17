@@ -6,7 +6,16 @@ use crate::fluent_controller::fluentbit::{
     common::*,
     proof::{
         helper_invariants,
-        liveness::{property::*, resource_match::*, spec::*, terminate},
+        liveness::{
+            daemon_set_match::{
+                lemma_daemon_set_is_stable,
+                lemma_from_after_get_daemon_set_step_to_daemon_set_matches,
+            },
+            property::*,
+            resource_match::*,
+            spec::*,
+            terminate,
+        },
         predicate::*,
         resource::*,
     },
@@ -28,9 +37,60 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
+// We prove init /\ []next /\ []wf |= []desired_state_is(fb) ~> []current_state_matches(fb) holds for each fb.
+proof fn liveness_proof_forall_fb()
+    ensures
+        forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness(fb)),
+{
+    assert forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness(fb)) by {
+        liveness_proof(fb);
+    };
+}
+
+proof fn liveness_proof(fb: FluentBitView)
+    ensures
+        cluster_spec().entails(liveness(fb)),
+{
+    assumption_and_invariants_of_all_phases_is_stable(fb);
+    lemma_true_leads_to_always_current_state_matches(fb);
+    reveal_with_fuel(spec_before_phase_n, 8);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(7, fb);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, fb);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(5, fb);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(4, fb);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(3, fb);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(2, fb);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(1, fb);
+
+    let assumption = always(lift_state(desired_state_is(fb)));
+    unpack_conditions_from_spec(invariants(fb), assumption, true_pred(), always(lift_state(current_state_matches(fb))));
+    temp_pred_equality(true_pred().and(assumption), assumption);
+
+    entails_trans(
+        cluster_spec().and(derived_invariants_since_beginning(fb)), invariants(fb),
+        always(lift_state(desired_state_is(fb))).leads_to(always(lift_state(current_state_matches(fb))))
+    );
+    sm_spec_entails_all_invariants(fb);
+    simplify_predicate(cluster_spec(), derived_invariants_since_beginning(fb));
+}
+
+proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, fb: FluentBitView)
     requires
-        fb.well_formed(),
+        1 <= i <= 7,
+        valid(stable(spec_before_phase_n(i, fb))),
+        spec_before_phase_n(i + 1, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches(fb)))))
+    ensures
+        spec_before_phase_n(i, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches(fb))))),
+{
+    reveal_with_fuel(spec_before_phase_n, 8);
+    temp_pred_equality(spec_before_phase_n(i + 1, fb), spec_before_phase_n(i, fb).and(invariants_since_phase_n(i, fb)));
+    spec_of_previous_phases_entails_eventually_new_invariants(i, fb);
+    unpack_conditions_from_spec(spec_before_phase_n(i, fb), invariants_since_phase_n(i, fb), true_pred(), always(lift_state(current_state_matches(fb))));
+    temp_pred_equality(true_pred().and(invariants_since_phase_n(i, fb)), invariants_since_phase_n(i, fb));
+    leads_to_trans_temp(spec_before_phase_n(i, fb), true_pred(), invariants_since_phase_n(i, fb), always(lift_state(current_state_matches(fb))));
+}
+
+proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
     ensures
         assumption_and_invariants_of_all_phases(fb)
         .entails(
@@ -38,44 +98,31 @@ proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(fb);
-    lemma_true_leads_to_state_matches_for_all_resources(fb);
-    assert forall |sub_resource: SubResource| spec.entails(
-        true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb))))
-    ) by {
-        use_tla_forall_for_sub_resource(spec, sub_resource, fb);
-        lemma_resource_object_is_stable(spec, sub_resource, fb, true_pred());
+    lemma_true_leads_to_always_state_matches_for_all_resources(fb);
+    let a_to_p = |res: SubResource| lift_state(sub_resource_state_matches(res, fb));
+    helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches(fb)).satisfied_by(ex) by {
+        let s = ex.head();
+        assert forall |res: SubResource| #[trigger] resource_state_matches(res, fb, s.resources()) by {
+            tla_forall_apply(a_to_p, res);
+            assert(a_to_p(res).satisfied_by(ex));
+            assert(sub_resource_state_matches(res, fb)(s));
+        }
     }
-    leads_to_always_combine_n_with_equality!(
-        spec, true_pred(), lift_state(current_state_matches(fb)),
-        lift_state(sub_resource_state_matches(SubResource::ServiceAccount, fb)),
-        lift_state(sub_resource_state_matches(SubResource::Role, fb)),
-        lift_state(sub_resource_state_matches(SubResource::RoleBinding, fb)),
-        lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb))
-    );
+    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, fb))), lift_state(current_state_matches(fb)));
 }
 
-proof fn lemma_true_leads_to_state_matches_for_all_resources(fb: FluentBitView)
-    requires
-        fb.well_formed(),
+proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fb: FluentBitView)
     ensures
-        forall |sub_resource: SubResource|
-            assumption_and_invariants_of_all_phases(fb)
+        forall |sub_resource: SubResource| assumption_and_invariants_of_all_phases(fb)
             .entails(
-                true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb)))
+                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb))))
             ),
 {
     let spec = assumption_and_invariants_of_all_phases(fb);
 
-    assert forall |action: ActionKind, sub_resource: SubResource| #![auto]
-    spec.entails(always(
-        lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(action, sub_resource))))
-    )) by {
-        use_tla_forall(spec,
-            |step: (ActionKind, SubResource)| always(
-                lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1))))
-            ),
-            (action, sub_resource)
-        );
+    assert forall |action: ActionKind, sub_resource: SubResource| #![auto] spec.entails(always(lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(action, sub_resource)))))) by {
+        always_tla_forall_apply(spec, |step: (ActionKind, SubResource)| lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1)))), (action, sub_resource));
     }
 
     // The use of termination property ensures spec |= true ~> reconcile_idle.
@@ -93,10 +140,12 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(fb: FluentBitView)
     // where sub_resource cannot be DaemonSet because it's the last resource to be processed and doesn't have its next_resource.
     // Through this, we can string all the resources together in sequence. This also means that the system can go to any
     // at_after_get_resource_step(sub_resource) from an arbitrary state.
-    assert forall |sub_resource: SubResource| sub_resource != SubResource::DaemonSet implies spec.entails(
+    assert forall |sub_resource: SubResource| sub_resource != SubResource::DaemonSet implies
+    spec.entails(
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, fb))
-            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), fb)))) by {
-        use_tla_forall_for_sub_resource(spec, sub_resource, fb);
+            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), fb)))
+    ) by {
+        always_tla_forall_apply_for_sub_resource(spec, sub_resource, fb);
         let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
         lemma_from_after_get_resource_step_to_resource_matches(spec, fb, sub_resource, next_resource);
     }
@@ -114,16 +163,37 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(fb: FluentBitView)
     // Since we already have true ~> at_after_get_resource_step(sub_resource), and we can get at_after_get_resource_step(sub_resource)
     // ~> sub_resource_state_matches(sub_resource, fb) by applying lemma lemma_from_after_get_resource_step_to_resource_matches,
     // we now have true ~> sub_resource_state_matches(sub_resource, fb).
-    assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb)))) by {
-        use_tla_forall_for_sub_resource(spec, sub_resource, fb);
-        let next_resource = if sub_resource == SubResource::DaemonSet { sub_resource } else {
-            next_resource_after(sub_resource).get_AfterKRequestStep_1()
-        };
-        lemma_from_after_get_resource_step_to_resource_matches(spec, fb, sub_resource, next_resource);
-        leads_to_trans_temp(
-            spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fb)),
-            lift_state(sub_resource_state_matches(sub_resource, fb))
-        );
+    assert forall |sub_resource: SubResource| spec.entails(
+        true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb)))
+    ) by {
+        always_tla_forall_apply_for_sub_resource(spec, sub_resource, fb);
+        if sub_resource != SubResource::DaemonSet {
+            let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
+            lemma_from_after_get_resource_step_to_resource_matches(spec, fb, sub_resource, next_resource);
+            leads_to_trans_temp(
+                spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fb)),
+                lift_state(sub_resource_state_matches(sub_resource, fb))
+            );
+        } else {
+            lemma_from_after_get_daemon_set_step_to_daemon_set_matches(spec, fb);
+            leads_to_trans_temp(
+                spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb)),
+                lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb))
+            );
+        }
+    }
+
+    // Now we further prove stability: given true ~> sub_resource_state_matches(sub_resource, fb)
+    // we prove true ~> []sub_resource_state_matches(sub_resource, fb)
+    assert forall |sub_resource: SubResource| spec.entails(
+        true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb))))
+    ) by {
+        always_tla_forall_apply_for_sub_resource(spec, sub_resource, fb);
+        if sub_resource != SubResource::DaemonSet {
+            lemma_resource_object_is_stable(spec, sub_resource, fb, true_pred());
+        } else {
+            lemma_daemon_set_is_stable(spec, fb, true_pred());
+        }
     }
 }
 
@@ -132,7 +202,6 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCluster>, fb: F
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-        fb.well_formed(),
     ensures
         spec.entails(
             lift_state(|s: FBCluster| { !s.ongoing_reconciles().contains_key(fb.object_ref()) })
@@ -164,7 +233,6 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<FBCluster>, fb: Fluent
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(FBCluster::the_object_in_schedule_has_spec_and_uid_as(fb)))),
-        fb.well_formed(),
     ensures
         spec.entails(
             lift_state(|s: FBCluster| {
@@ -208,7 +276,6 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
         spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
-        fb.well_formed(),
     ensures
         spec.entails(
             lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init))
@@ -272,7 +339,6 @@ proof fn lemma_from_init_step_to_after_get_secret_step(
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
-        fb.well_formed(),
     ensures
         spec.entails(
             lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init))
@@ -311,7 +377,6 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
     spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage
 )
     requires
-        fb.well_formed(),
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
@@ -391,7 +456,6 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
-        fb.well_formed(),
     ensures
         spec.entails(
             lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(fb, resp_msg))
@@ -428,35 +492,31 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
     );
 }
 
-proof fn use_tla_forall_for_sub_resource(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
+proof fn always_tla_forall_apply_for_sub_resource(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires
-        fb.well_formed(),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, fb))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, fb))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, fb).key))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, fb).key))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, fb).key, fb))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, fb))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(res, fb).key, fb))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, fb))))),
+        spec.entails(always(tla_forall(|res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, fb))))),
     ensures
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(sub_resource, fb).key)))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, fb).key)))),
-        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, fb).key, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(sub_resource, fb).key, fb)))),
-        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)))),
 {
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, fb))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, fb))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, fb).key))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, fb).key))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, fb).key, fb))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, fb))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(res, fb).key, fb))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, fb))), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, fb)), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, fb)), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(res, fb)), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(res, fb)), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, fb)), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, fb)), sub_resource);
+    always_tla_forall_apply(spec, |res: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, fb)), sub_resource);
 }
 
 }

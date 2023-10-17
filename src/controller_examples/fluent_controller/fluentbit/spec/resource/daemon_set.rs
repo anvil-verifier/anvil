@@ -76,14 +76,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
     }
 
     open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
-        let ds = DaemonSetView::unmarshal(object).get_Ok_0();
-        let made_spec = make_daemon_set(fb).spec.get_Some_0();
-        &&& DaemonSetView::unmarshal(object).is_Ok()
-        &&& ds.spec.is_Some()
-        &&& made_spec == DaemonSetSpecView {
-            template: made_spec.template,
-            ..ds.spec.get_Some_0()
-        }
+        true
     }
 }
 

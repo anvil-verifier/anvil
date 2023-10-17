@@ -89,7 +89,6 @@ pub fn update_role_binding(fb: &FluentBit, found_role_binding: RoleBinding) -> (
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(fb);
-    role_binding.set_role_ref(make_role_ref(fb));
     role_binding.set_subjects(make_subjects(fb));
     role_binding.set_metadata({
         let mut metadata = found_role_binding.metadata();

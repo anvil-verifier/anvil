@@ -116,7 +116,6 @@ pub open spec fn update_role_binding(fb: FluentBitView, found_role_binding: Role
             annotations: made_role_binding.metadata.annotations,
             ..found_role_binding.metadata
         },
-        role_ref: made_role_binding.role_ref,
         subjects: made_role_binding.subjects,
         ..found_role_binding
     }

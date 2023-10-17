@@ -30,6 +30,19 @@ pub open spec fn cluster_spec() -> TempPred<FBCluster> {
     FBCluster::sm_spec()
 }
 
+pub open spec fn desired_state_is(fb: FluentBitView) -> StatePred<FBCluster> {
+    |s: FBCluster| {
+        &&& FBCluster::desired_state_is(fb)(s)
+        &&& s.resources().contains_key(desired_secret_key(fb))
+    }
+}
+
+pub open spec fn sub_resource_state_matches(sub_resource: SubResource, fb: FluentBitView) -> StatePred<FBCluster> {
+    |s: FBCluster| {
+        resource_state_matches(sub_resource, fb, s.resources())
+    }
+}
+
 pub open spec fn at_fb_step(key: ObjectRef, step: FluentBitReconcileStep) -> StatePred<FBCluster>
     recommends
         key.kind.is_CustomResourceKind()
@@ -291,6 +304,13 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
     }
 }
 
+pub open spec fn resource_get_request_msg(key: ObjectRef) -> FnSpec(FBMessage) -> bool {
+    |msg: FBMessage|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_get_request()
+        && msg.content.get_get_request().key == key
+}
+
 pub open spec fn resource_create_request_msg(key: ObjectRef) -> FnSpec(FBMessage) -> bool {
     |msg: FBMessage|
         msg.dst.is_KubernetesAPI()
@@ -380,11 +400,15 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
     |s: FBCluster| {
         let step = after_update_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+        let resource_key = get_request(sub_resource, fb).key;
         &&& at_fb_step_with_fb(fb, step)(s)
         &&& FBCluster::pending_k8s_api_req_msg(s, fb.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, fb).key)(msg)
+        &&& s.resources().contains_key(resource_key)
+        &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
+        &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
     }
 }
 
@@ -399,6 +423,9 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, fb).key)(req_msg)
+        &&& s.resources().contains_key(resource_key)
+        &&& req_msg.content.get_update_request().obj.metadata.resource_version.is_Some()
+        &&& req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
     }
 }
 

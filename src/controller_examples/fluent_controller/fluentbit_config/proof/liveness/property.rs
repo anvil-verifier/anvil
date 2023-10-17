@@ -20,10 +20,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn liveness(fbc: FluentBitConfigView) -> TempPred<FBCCluster>
-    recommends
-        fbc.well_formed(),
-{
+pub open spec fn liveness(fbc: FluentBitConfigView) -> TempPred<FBCCluster> {
     always(lift_state(desired_state_is(fbc)))
         .leads_to(always(lift_state(current_state_matches(fbc))))
 }
