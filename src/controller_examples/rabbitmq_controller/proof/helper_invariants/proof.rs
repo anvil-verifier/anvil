@@ -44,7 +44,7 @@ pub proof fn lemma_always_rabbitmq_is_well_formed(spec: TempPred<RMQCluster>, ra
     );
 }
 
-pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<RMQCluster>)
+proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<RMQCluster>)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -56,7 +56,7 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
     init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
 }
 
-pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<RMQCluster>)
+proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<RMQCluster>)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -120,7 +120,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
@@ -194,7 +194,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
+proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -376,7 +376,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
+proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -620,7 +620,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
+proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -760,7 +760,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
+proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -850,7 +850,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
+proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -1673,7 +1673,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
+proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
