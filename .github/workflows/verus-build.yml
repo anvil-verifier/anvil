@@ -17,9 +17,9 @@ jobs:
       - name: Build Verus image
         run: |
           cd docker/verus
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/verus:latest --build-arg VERUS_VER=c76c5ac439dda2a801d669f3ceeb3b976f5d4ee7 .
-          docker tag ghcr.io/${{ env.IMAGE_NAME }}/verus:latest ghcr.io/${{ env.IMAGE_NAME }}/verus:c76c5ac439dda2a801d669f3ceeb3b976f5d4ee7
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/verus:latest --build-arg VERUS_VER=8a5eed3c564d7a3b0d865a1c8eb28c57b0e84137 .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/verus:latest ghcr.io/${{ env.IMAGE_NAME }}/verus:8a5eed3c564d7a3b0d865a1c8eb28c57b0e84137
       - name: Push Verus image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/verus:latest
-          docker push ghcr.io/${{ env.IMAGE_NAME }}/verus:c76c5ac439dda2a801d669f3ceeb3b976f5d4ee7
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/verus:8a5eed3c564d7a3b0d865a1c8eb28c57b0e84137
