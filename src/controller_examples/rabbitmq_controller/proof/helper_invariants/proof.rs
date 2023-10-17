@@ -282,6 +282,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
     leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
+#[verifier(spinoff_prover)]
 proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
     s: RMQCluster, s_prime: RMQCluster, rabbitmq: RabbitmqClusterView
 )
@@ -463,6 +464,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
+#[verifier(spinoff_prover)]
 proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(s: RMQCluster, s_prime: RMQCluster, rabbitmq: RabbitmqClusterView)
     requires
         s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.is_Some(),
@@ -527,7 +529,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
         }
     }
 }
-
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
@@ -1558,7 +1559,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 ///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 ///     and the original statepred.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
+proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -1581,13 +1582,19 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         &&& msg.content.is_delete_request()
         &&& msg.content.get_delete_request().key == resource_key
     };
+    let resource_well_formed = |s: RMQCluster| {
+        &&& s.resources().contains_key(resource_key) ==> RMQCluster::etcd_object_is_well_formed(resource_key)(s)
+        &&& s.resources().contains_key(key) ==> RMQCluster::etcd_object_is_well_formed(key)(s)
+    };
 
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& resource_well_formed(s)
+        // &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
+    always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: RMQMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1599,6 +1606,8 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
                 match step {
                     Step::BuiltinControllersStep(_) => {
                         if s.resources().contains_key(resource_key) {
+                            assert(RMQCluster::etcd_object_is_well_formed(resource_key)(s));
+                            assert(RMQCluster::etcd_object_is_well_formed(key)(s));
                             let owner_refs = s.resources()[resource_key].metadata.owner_references;
                             assert(owner_refs == Some(seq![rabbitmq.controller_owner_ref()]));
                             assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
@@ -1610,11 +1619,13 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
                             assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0());
                             assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.is_delete_request());
                         }
+                        assert(requirements(msg, s_prime));
                     },
                     Step::ClientStep() => {
                         if msg.content.is_delete_request() {
                             assert(msg.content.get_delete_request().key.kind != resource_key.kind);
                         }
+                        assert(requirements(msg, s_prime));
                     },
                     _ => {
                         assert(requirements(msg, s_prime));
@@ -1627,7 +1638,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
-        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
+        lift_state(resource_well_formed)
     );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
