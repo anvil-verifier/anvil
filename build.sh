@@ -16,6 +16,5 @@ cargo build
 cd ..
 "$rv" -L dependency=deps_hack/target/debug/deps \
   --extern=deps_hack="deps_hack/target/debug/libdeps_hack.rlib" \
-  --expand-errors \
   --compile \
   "$@"
