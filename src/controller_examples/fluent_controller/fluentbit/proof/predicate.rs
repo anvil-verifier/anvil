@@ -400,7 +400,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
     |s: FBCluster| {
         let step = after_update_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
-        let resource_key= get_request(sub_resource, fb).key;
+        let resource_key = get_request(sub_resource, fb).key;
         &&& at_fb_step_with_fb(fb, step)(s)
         &&& FBCluster::pending_k8s_api_req_msg(s, fb.object_ref())
         &&& s.in_flight().contains(msg)
