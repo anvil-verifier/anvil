@@ -127,7 +127,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fbc: FluentB
     lemma_from_init_step_to_after_get_secret_step(spec, fbc);
 
     always_tla_forall_apply_for_sub_resource(spec, SubResource::Secret, fbc);
-    lemma_from_after_get_resource_step_to_resource_matches(spec, fbc, SubResource::Secret, SubResource::Secret);
+    lemma_from_after_get_resource_step_to_resource_matches(spec, fbc, SubResource::Secret);
     leads_to_trans_n!(
         spec, true_pred(), lift_state(|s: FBCCluster| { !s.ongoing_reconciles().contains_key(fbc.object_ref()) }),
         lift_state(|s: FBCCluster| { !s.ongoing_reconciles().contains_key(fbc.object_ref()) && s.scheduled_reconciles().contains_key(fbc.object_ref())}),

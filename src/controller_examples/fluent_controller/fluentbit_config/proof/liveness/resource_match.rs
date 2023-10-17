@@ -24,7 +24,7 @@ use vstd::{prelude::*, string::*};
 verus! {
 
 pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView, sub_resource: SubResource, next_resource: SubResource
+    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView, sub_resource: SubResource
 )
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
@@ -50,13 +50,9 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
                 .leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))
         ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-            lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, fbc)))
-        ),
 {
-    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, next_resource, fbc);
-    lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(spec, sub_resource, next_resource, fbc);
+    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, fbc);
+    lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(spec, sub_resource, fbc);
     let key_not_exists = lift_state(|s: FBCCluster| {
         &&& !s.resources().contains_key(get_request(sub_resource, fbc).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
@@ -69,13 +65,10 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
     );
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, fbc)));
-    }
 }
 
 pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, next_resource: SubResource, fbc: FluentBitConfigView
+    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
 )
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
@@ -96,12 +89,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                 &&& !s.resources().contains_key(get_request(sub_resource, fbc).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))
-        ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-            lift_state(|s: FBCCluster| {
-                &&& !s.resources().contains_key(get_request(sub_resource, fbc).key)
-                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, fbc)))
         ),
 {
     let pre = lift_state(|s: FBCCluster| {
@@ -132,7 +119,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     });
     let match_and_ok_resp = lift_state(sub_resource_state_matches(sub_resource, fbc))
         .and(lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, fbc)));
-    let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, fbc);
 
     assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
         assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight)) by {
@@ -182,73 +168,10 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
     });
-
-    // We already have the desired state.
-    // Now prove the system can successfully enter the next state.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: FBCMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, fbc, resp_msg));
-            assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
-                let pre = resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, fbc, resp_msg);
-                let stronger_next = |s, s_prime: FBCCluster| {
-                    &&& FBCCluster::next()(s, s_prime)
-                    &&& FBCCluster::crash_disabled()(s)
-                    &&& FBCCluster::busy_disabled()(s)
-                    &&& FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())(s)
-                    &&& FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())(s)
-                };
-
-                combine_spec_entails_always_n!(
-                    spec, lift_action(stronger_next),
-                    lift_action(FBCCluster::next()),
-                    lift_state(FBCCluster::crash_disabled()),
-                    lift_state(FBCCluster::busy_disabled()),
-                    lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())),
-                    lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref()))
-                );
-
-                assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
-                    let step = choose |step| FBCCluster::next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            if input.1.is_Some() && input.1.get_Some_0() == fbc.object_ref() {
-                                assert(s_prime.ongoing_reconciles()[fbc.object_ref()].local_state.reconcile_step == after_get_k_request_step(next_resource));
-                                assert(next_state(s_prime));
-                            } else {
-                                assert(pre(s_prime));
-                            }
-                        }
-                        _ => {
-                            assert(pre(s_prime));
-                        }
-                    }
-                }
-                FBCCluster::lemma_pre_leads_to_post_by_controller(
-                    spec, (Some(resp_msg), Some(fbc.object_ref())), stronger_next, FBCCluster::continue_reconcile(), pre, next_state
-                );
-            }
-            leads_to_exists_intro(spec, known_ok_resp, lift_state(next_state));
-            let exists_ok_resp = lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, fbc));
-            assert_by(tla_exists(known_ok_resp) == exists_ok_resp, {
-                assert forall |ex| #[trigger] exists_ok_resp.satisfied_by(ex) implies tla_exists(known_ok_resp).satisfied_by(ex) by {
-                    let resp_msg = choose |resp_msg| {
-                        &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0())
-                        &&& resp_msg.content.get_create_response().res.is_Ok()
-                        &&& state_after_create(sub_resource, fbc, resp_msg.content.get_create_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
-                    };
-                    assert(known_ok_resp(resp_msg).satisfied_by(ex));
-                }
-                temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
-            });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
-            leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
-        });
-    }
 }
 
 proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, next_resource: SubResource, fbc: FluentBitConfigView
+    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
 )
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
@@ -274,12 +197,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))
         ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
-            lift_state(|s: FBCCluster| {
-                &&& s.resources().contains_key(get_request(sub_resource, fbc).key)
-                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, fbc)))
-        ),
 {
     let resource_key = get_request(sub_resource, fbc).key;
     let pre = lift_state(|s: FBCCluster| {
@@ -288,7 +205,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
     let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, fbc);
     let match_and_ok_resp = lift_state(sub_resource_state_matches(sub_resource, fbc)).and(lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, fbc)));
-    let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, fbc);
     assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
         let pre_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(sub_resource, fbc, req_msg));
         assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, fbc))))
@@ -346,70 +262,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
     });
-
-    // We already have the desired state.
-    // Now prove the system can successfully enter the next state.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: FBCMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, fbc, resp_msg));
-            assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
-                let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, fbc, resp_msg);
-                let stronger_next = |s, s_prime: FBCCluster| {
-                    &&& FBCCluster::next()(s, s_prime)
-                    &&& FBCCluster::crash_disabled()(s)
-                    &&& FBCCluster::busy_disabled()(s)
-                    &&& FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())(s)
-                    &&& FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())(s)
-                };
-
-                combine_spec_entails_always_n!(
-                    spec, lift_action(stronger_next),
-                    lift_action(FBCCluster::next()),
-                    lift_state(FBCCluster::crash_disabled()),
-                    lift_state(FBCCluster::busy_disabled()),
-                    lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())),
-                    lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref()))
-                );
-
-                assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
-                    let step = choose |step| FBCCluster::next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            if input.1.is_Some() && input.1.get_Some_0() == fbc.object_ref() {
-                                // assert(input)
-                                assert(s_prime.ongoing_reconciles()[fbc.object_ref()].local_state.reconcile_step == after_get_k_request_step(next_resource));
-                                assert(next_state(s_prime));
-                            } else {
-                                assert(pre(s_prime));
-                            }
-                        }
-                        _ => {
-                            assert(pre(s_prime));
-                        }
-                    }
-                }
-                FBCCluster::lemma_pre_leads_to_post_by_controller(
-                    spec, (Some(resp_msg), Some(fbc.object_ref())), stronger_next, FBCCluster::continue_reconcile(), pre, next_state
-                );
-            }
-            leads_to_exists_intro(spec, known_ok_resp, lift_state(next_state));
-            let exists_ok_resp = lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, fbc));
-            assert_by(tla_exists(known_ok_resp) == exists_ok_resp, {
-                assert forall |ex| #[trigger] exists_ok_resp.satisfied_by(ex) implies tla_exists(known_ok_resp).satisfied_by(ex) by {
-                    let resp_msg = choose |resp_msg| {
-                        &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0())
-                        &&& resp_msg.content.get_update_response().res.is_Ok()
-                        &&& state_after_update(sub_resource, fbc, resp_msg.content.get_update_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
-                    };
-                    assert(known_ok_resp(resp_msg).satisfied_by(ex));
-                }
-                temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
-            });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
-            leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
-        });
-    }
 }
 
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
