@@ -531,30 +531,24 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
-    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
+proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)))),
 {
-    let inv = response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq);
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
+    let inv = request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq);
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
-    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
@@ -579,6 +573,31 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
         }
     }
     init_invariant(spec, RMQCluster::init(), next, inv);
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
+{
+    let key = rabbitmq.object_ref();
+    let next = |s: RMQCluster| {
+        &&& request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)(s)
+        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s)
+    };
+    lemma_always_request_at_after_get_request_step_is_resource_get_request(spec, sub_resource, rabbitmq);
+    assert(valid(lift_state(next).implies(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))));
+    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
+    invariant_n!(
+        spec, lift_state(next), lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
+        lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)), 
+        lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key))
+    );
 }
 
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(
