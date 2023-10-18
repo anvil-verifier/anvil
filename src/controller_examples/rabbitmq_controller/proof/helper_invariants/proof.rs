@@ -1255,13 +1255,12 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    // if resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
     assert(step.is_ControllerStep());
     assert(s.ongoing_reconciles().contains_key(cr_key));
     let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
     let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-    assert(local_step_prime.is_AfterKRequestStep());
     assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+    assert(local_step_prime.is_AfterKRequestStep());
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
     match sub_resource {
         SubResource::ServerConfigMap => {
@@ -1272,13 +1271,9 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
                 cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
                 {
                     let str1 = cr_key.name + new_strlit("-plugins-conf")@;
-                    let str2 = key.name + new_strlit("-server-conf")@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 6] == 's');
-                        assert(str2[str1.len() - 6] == 'r');
-                    }
+                    assert(str1[str1.len() - 6] == 's');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
@@ -1289,13 +1284,9 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
                 key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
                 {
                     let str1 = key.name + new_strlit("-plugins-conf")@;
-                    let str2 = cr_key.name + new_strlit("-server-conf")@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 6] == 's');
-                        assert(str2[str1.len() - 6] == 'r');
-                    }
+                    assert(str1[str1.len() - 6] == 's');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
@@ -1305,13 +1296,9 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
                 cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
                 {
                     let str1 = cr_key.name + new_strlit("-default-user")@;
-                    let str2 = key.name + new_strlit("-erlang-cookie")@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 'r');
-                        assert(str2[str1.len() - 1] == 'e');
-                    }
+                    assert(str1[str1.len() - 1] == 'r');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
@@ -1322,13 +1309,9 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
                 key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
                 {
                     let str1 = key.name + new_strlit("-default-user")@;
-                    let str2 = cr_key.name + new_strlit("-erlang-cookie")@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 'r');
-                        assert(str2[str1.len() - 1] == 'e');
-                    }
+                    assert(str1[str1.len() - 1] == 'r');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
@@ -1338,13 +1321,9 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
                 key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
                 {
                     let str1 = key.name + new_strlit("-nodes")@;
-                    let str2 = cr_key.name + new_strlit("-client")@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 's');
-                        assert(str2[str1.len() - 1] == 't');
-                    }
+                    assert(str1[str1.len() - 1] == 's');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
@@ -1354,13 +1333,9 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
                 cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
                 {
                     let str1 = cr_key.name + new_strlit("-nodes")@;
-                    let str2 = key.name + new_strlit("-client")@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 's');
-                        assert(str2[str1.len() - 1] == 't');
-                    }
+                    assert(str1[str1.len() - 1] == 's');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
@@ -1397,13 +1372,12 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    // if resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
     assert(step.is_ControllerStep());
     assert(s.ongoing_reconciles().contains_key(cr_key));
     let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
     let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-    assert(local_step_prime.is_AfterKRequestStep());
     assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+    assert(local_step_prime.is_AfterKRequestStep());
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
     match sub_resource {
         SubResource::ServerConfigMap => {
@@ -1414,13 +1388,9 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
                 cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
                 {
                     let str1 = cr_key.name + new_strlit("-plugins-conf")@;
-                    let str2 = key.name + new_strlit("-server-conf")@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 6] == 's');
-                        assert(str2[str1.len() - 6] == 'r');
-                    }
+                    assert(str1[str1.len() - 6] == 's');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
@@ -1431,13 +1401,9 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
                 key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
                 {
                     let str1 = key.name + new_strlit("-plugins-conf")@;
-                    let str2 = cr_key.name + new_strlit("-server-conf")@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 6] == 's');
-                        assert(str2[str1.len() - 6] == 'r');
-                    }
+                    assert(str1[str1.len() - 6] == 's');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
@@ -1447,13 +1413,9 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
                 cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
                 {
                     let str1 = cr_key.name + new_strlit("-default-user")@;
-                    let str2 = key.name + new_strlit("-erlang-cookie")@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 'r');
-                        assert(str2[str1.len() - 1] == 'e');
-                    }
+                    assert(str1[str1.len() - 1] == 'r');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
@@ -1464,13 +1426,9 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
                 key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
                 {
                     let str1 = key.name + new_strlit("-default-user")@;
-                    let str2 = cr_key.name + new_strlit("-erlang-cookie")@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 'r');
-                        assert(str2[str1.len() - 1] == 'e');
-                    }
+                    assert(str1[str1.len() - 1] == 'r');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
@@ -1480,13 +1438,9 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
                 key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
                 {
                     let str1 = key.name + new_strlit("-nodes")@;
-                    let str2 = cr_key.name + new_strlit("-client")@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 's');
-                        assert(str2[str1.len() - 1] == 't');
-                    }
+                    assert(str1[str1.len() - 1] == 's');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
@@ -1496,13 +1450,9 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
                 cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
                 {
                     let str1 = cr_key.name + new_strlit("-nodes")@;
-                    let str2 = key.name + new_strlit("-client")@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 's');
-                        assert(str2[str1.len() - 1] == 't');
-                    }
+                    assert(str1[str1.len() - 1] == 's');
                 }
             );
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
