@@ -20,17 +20,6 @@ pub fn test_default() {
 
 #[test]
 #[verifier(external)]
-pub fn test_clone() {
-    let mut volume = Volume::default();
-    let mut host_path_volume_source = HostPathVolumeSource::default();
-    host_path_volume_source.set_path(new_strlit("path").to_string());
-    volume.set_host_path(host_path_volume_source);
-    let volume_clone = volume.clone();
-    assert_eq!(volume.into_kube(), volume_clone.into_kube());
-}
-
-#[test]
-#[verifier(external)]
 pub fn test_set_name() {
     let mut volume = Volume::default();
     volume.set_name(new_strlit("name").to_string());
@@ -40,4 +29,65 @@ pub fn test_set_name() {
     volume.set_name(new_strlit("").to_string());
     assert_eq!("".to_string(), volume.into_kube().name);
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_set_host_path() {
+    let mut volume = Volume::default();
+    let mut host_path_volume_source = HostPathVolumeSource::default();
+    host_path_volume_source.set_path(new_strlit("path").to_string());
+    volume.set_host_path(host_path_volume_source.clone());
+    assert_eq!(host_path_volume_source.into_kube(), volume.into_kube().host_path.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_config_map() {
+    let mut volume = Volume::default();
+    let mut config_map_volume_source = ConfigMapVolumeSource::default();
+    config_map_volume_source.set_name(new_strlit("name").to_string());
+    volume.set_config_map(config_map_volume_source.clone());
+    assert_eq!(config_map_volume_source.into_kube(), volume.into_kube().config_map.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_projected() {
+    let mut volume = Volume::default();
+    let mut projected_volume_source = ProjectedVolumeSource::default();
+    projected_volume_source.set_sources(vec![]);
+    volume.set_projected(projected_volume_source.clone());
+    assert_eq!(projected_volume_source.into_kube(), volume.into_kube().projected.unwrap());
+}
+
+
+#[test]
+#[verifier(external)]
+pub fn test_set_secret() {
+    let mut volume = Volume::default();
+    let mut secret_volume_source = SecretVolumeSource::default();
+    secret_volume_source.set_secret_name(new_strlit("name").to_string());
+    volume.set_secret(secret_volume_source.clone());
+    assert_eq!(secret_volume_source.into_kube(), volume.into_kube().secret.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_downward_api() {
+    let mut volume = Volume::default();
+    let mut downward_api_volume_source = DownwardAPIVolumeSource::default();
+    downward_api_volume_source.set_items(vec![]);
+    volume.set_downward_api(downward_api_volume_source.clone());
+    assert_eq!(downward_api_volume_source.into_kube(), volume.into_kube().downward_api.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_empty_dir() {
+    let mut volume = Volume::default();
+    let mut empty_dir_volume_source = EmptyDirVolumeSource::default();
+    volume.set_empty_dir(empty_dir_volume_source.clone());
+    assert_eq!(empty_dir_volume_source.into_kube(), volume.into_kube().empty_dir.unwrap());
+}
+
 }

@@ -26,4 +26,13 @@ pub fn test_set_secret_name() {
     assert_eq!("secret_name".to_string(), secret_volume_source.into_kube().secret_name.unwrap());
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_clone(){
+    let mut secret_volume_source = SecretVolumeSource::default();
+    secret_volume_source.set_secret_name(new_strlit("secret_name").to_string());
+    let secret_volume_source_clone = secret_volume_source.clone();
+    assert_eq!(secret_volume_source.into_kube(), secret_volume_source_clone.into_kube());
+}
+
 }

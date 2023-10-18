@@ -41,4 +41,23 @@ pub fn test_set_resources() {
         projected_volume_source.into_kube().sources.unwrap()
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_clone(){
+    let mut projected_volume_source = ProjectedVolumeSource::default();
+    let volume_projections_gen = || {
+        let mut volume_projection_1 = VolumeProjection::default();
+        let mut volume_projection_2 = VolumeProjection::default();
+        let mut volume_projections = Vec::new();
+        volume_projection_1.set_config_map(ConfigMapProjection::default());
+        volume_projection_2.set_secret(SecretProjection::default());
+        volume_projections.push(volume_projection_1);
+        volume_projections.push(volume_projection_2);
+        volume_projections
+    };
+    projected_volume_source.set_sources(volume_projections_gen());
+    let projected_volume_source_clone = projected_volume_source.clone();
+    assert_eq!(projected_volume_source.into_kube(), projected_volume_source_clone.into_kube());
+}
 }

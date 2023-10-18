@@ -121,6 +121,16 @@ impl EmptyDirVolumeSource {
         }
     }
 
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (empty_dir_volum_source: EmptyDirVolumeSource)
+        ensures
+            empty_dir_volum_source@ == self@,
+    {
+        EmptyDirVolumeSource {
+            inner: self.inner.clone(),
+        }
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource {
         self.inner
@@ -142,6 +152,16 @@ impl HostPathVolumeSource {
     {
         HostPathVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (host_path_volume_source: HostPathVolumeSource)
+        ensures
+            host_path_volume_source@ == self@,
+    {
+        HostPathVolumeSource {
+            inner: self.inner.clone(),
         }
     }
 
@@ -178,6 +198,16 @@ impl ConfigMapVolumeSource {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (config_map_volume_source: ConfigMapVolumeSource)
+        ensures
+            config_map_volume_source@ == self@,
+    {
+        ConfigMapVolumeSource {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures
             self@ == old(self)@.set_name(name@),
@@ -210,6 +240,16 @@ impl SecretVolumeSource {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (secret_volume_source: SecretVolumeSource)
+        ensures
+            secret_volume_source@ == self@,
+    {
+        SecretVolumeSource {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_secret_name(&mut self, secret_name: String)
         ensures
             self@ == old(self)@.set_secret_name(secret_name@),
@@ -238,6 +278,16 @@ impl ProjectedVolumeSource {
     {
         ProjectedVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (projected_volume_source: ProjectedVolumeSource)
+        ensures
+            projected_volume_source@ == self@,
+    {
+        ProjectedVolumeSource {
+            inner: self.inner.clone(),
         }
     }
 
@@ -456,6 +506,16 @@ impl DownwardAPIVolumeSource {
     {
         DownwardAPIVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (downward_api_volume_source: DownwardAPIVolumeSource)
+        ensures
+            downward_api_volume_source@ == self@,
+    {
+        DownwardAPIVolumeSource {
+            inner: self.inner.clone(),
         }
     }
 
