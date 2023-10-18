@@ -42,7 +42,7 @@ pub open spec fn make(sub_resource: SubResource, zookeeper: ZookeeperClusterView
 pub open spec fn update(sub_resource: SubResource, zookeeper: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::update(zookeeper, state, obj),
-        SubResource::ClientService => HeadlessServiceBuilder::update(zookeeper, state, obj),
+        SubResource::ClientService => ClientServiceBuilder::update(zookeeper, state, obj),
         SubResource::AdminServerService => AdminServerServiceBuilder::update(zookeeper, state, obj),
         SubResource::ConfigMap => ConfigMapBuilder::update(zookeeper, state, obj),
         SubResource::StatefulSet => StatefulSetBuilder::update(zookeeper, state, obj),
@@ -54,7 +54,7 @@ pub open spec fn state_after_create(
 ) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::state_after_create(zookeeper, obj, state),
-        SubResource::ClientService => HeadlessServiceBuilder::state_after_create(zookeeper, obj, state),
+        SubResource::ClientService => ClientServiceBuilder::state_after_create(zookeeper, obj, state),
         SubResource::AdminServerService => AdminServerServiceBuilder::state_after_create(zookeeper, obj, state),
         SubResource::ConfigMap => ConfigMapBuilder::state_after_create(zookeeper, obj, state),
         SubResource::StatefulSet => StatefulSetBuilder::state_after_create(zookeeper, obj, state),
@@ -66,7 +66,7 @@ pub open spec fn state_after_update(
 ) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::state_after_update(zookeeper, obj, state),
-        SubResource::ClientService => HeadlessServiceBuilder::state_after_update(zookeeper, obj, state),
+        SubResource::ClientService => ClientServiceBuilder::state_after_update(zookeeper, obj, state),
         SubResource::AdminServerService => AdminServerServiceBuilder::state_after_update(zookeeper, obj, state),
         SubResource::ConfigMap => ConfigMapBuilder::state_after_update(zookeeper, obj, state),
         SubResource::StatefulSet => StatefulSetBuilder::state_after_update(zookeeper, obj, state),
@@ -76,7 +76,7 @@ pub open spec fn state_after_update(
 pub open spec fn resource_state_matches(sub_resource: SubResource, zookeeper: ZookeeperClusterView, resources: StoredState) -> bool {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::resource_state_matches(zookeeper, resources),
-        SubResource::ClientService => HeadlessServiceBuilder::resource_state_matches(zookeeper, resources),
+        SubResource::ClientService => ClientServiceBuilder::resource_state_matches(zookeeper, resources),
         SubResource::AdminServerService => AdminServerServiceBuilder::resource_state_matches(zookeeper, resources),
         SubResource::ConfigMap => ConfigMapBuilder::resource_state_matches(zookeeper, resources),
         SubResource::StatefulSet => StatefulSetBuilder::resource_state_matches(zookeeper, resources),
@@ -86,7 +86,7 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, zookeeper: Zo
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, zookeeper: ZookeeperClusterView) -> bool {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::unchangeable(object, zookeeper),
-        SubResource::ClientService => HeadlessServiceBuilder::unchangeable(object, zookeeper),
+        SubResource::ClientService => ClientServiceBuilder::unchangeable(object, zookeeper),
         SubResource::AdminServerService => AdminServerServiceBuilder::unchangeable(object, zookeeper),
         SubResource::ConfigMap => ConfigMapBuilder::unchangeable(object, zookeeper),
         SubResource::StatefulSet => StatefulSetBuilder::unchangeable(object, zookeeper),

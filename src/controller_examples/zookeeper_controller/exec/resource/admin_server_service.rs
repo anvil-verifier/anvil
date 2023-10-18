@@ -109,6 +109,7 @@ pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_ser
         let mut spec = found_admin_server_service.spec().unwrap();
         spec.set_ports(made_admin_server_service.spec().unwrap().ports().unwrap());
         spec.set_selector(made_admin_server_service.spec().unwrap().selector().unwrap());
+        spec.unset_publish_not_ready_addresses();
         spec
     });
     admin_server_service

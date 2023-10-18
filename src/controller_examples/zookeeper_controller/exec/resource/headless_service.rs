@@ -111,6 +111,7 @@ pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &S
         let mut spec = found_headless_service.spec().unwrap();
         spec.set_ports(made_headless_service.spec().unwrap().ports().unwrap());
         spec.set_selector(made_headless_service.spec().unwrap().selector().unwrap());
+        spec.unset_publish_not_ready_addresses();
         spec
     });
     headless_service

@@ -122,6 +122,7 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
         spec: Some(ServiceSpecView {
             ports: make_client_service(zk).spec.get_Some_0().ports,
             selector: make_client_service(zk).spec.get_Some_0().selector,
+            publish_not_ready_addresses: make_client_service(zk).spec.get_Some_0().publish_not_ready_addresses,
             ..found_client_service.spec.get_Some_0()
         }),
         ..found_client_service
