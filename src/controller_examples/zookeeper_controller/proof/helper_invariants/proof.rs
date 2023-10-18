@@ -565,7 +565,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper)));
 }
 
-#[verifier(external_body)]
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
@@ -1088,7 +1087,6 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
     }
 }
 
-#[verifier(external_body)]
 #[verifier(spinoff_prover)]
 proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
