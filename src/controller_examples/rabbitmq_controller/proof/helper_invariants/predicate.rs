@@ -125,7 +125,9 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: RMQCluster| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-        ==> (
+        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            && (
                 forall |msg: RMQMessage|
                     #[trigger] s.in_flight().contains(msg)
                     && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
