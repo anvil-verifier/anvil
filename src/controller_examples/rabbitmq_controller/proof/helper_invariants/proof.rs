@@ -1592,7 +1592,6 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& resource_well_formed(s)
-        // &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
     always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
