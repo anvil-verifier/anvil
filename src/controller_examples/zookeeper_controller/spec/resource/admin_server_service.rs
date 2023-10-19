@@ -120,6 +120,7 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
         spec: Some(ServiceSpecView {
             ports: make_admin_server_service(zk).spec.get_Some_0().ports,
             selector: make_admin_server_service(zk).spec.get_Some_0().selector,
+            publish_not_ready_addresses: make_admin_server_service(zk).spec.get_Some_0().publish_not_ready_addresses,
             ..found_admin_server_service.spec.get_Some_0()
         }),
         ..found_admin_server_service

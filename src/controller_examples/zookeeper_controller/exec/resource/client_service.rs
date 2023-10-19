@@ -111,6 +111,7 @@ pub fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Servi
         let mut spec = found_client_service.spec().unwrap();
         spec.set_ports(made_client_service.spec().unwrap().ports().unwrap());
         spec.set_selector(made_client_service.spec().unwrap().selector().unwrap());
+        spec.unset_publish_not_ready_addresses();
         spec
     });
     client_service

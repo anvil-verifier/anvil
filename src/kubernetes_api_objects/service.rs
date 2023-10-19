@@ -211,6 +211,14 @@ impl ServiceSpec {
         self.inner.publish_not_ready_addresses = Some(publish_not_ready_addresses);
     }
 
+    #[verifier(external_body)]
+    pub fn unset_publish_not_ready_addresses(&mut self)
+        ensures
+            self@ == old(self)@.unset_publish_not_ready_addresses(),
+    {
+        self.inner.publish_not_ready_addresses = None;
+    }
+
     #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec {
         ServiceSpec { inner: inner }
@@ -451,6 +459,13 @@ impl ServiceSpecView {
     pub open spec fn set_publish_not_ready_addresses(self, publish_not_ready_addresses: bool) -> ServiceSpecView {
         ServiceSpecView {
             publish_not_ready_addresses: Some(publish_not_ready_addresses),
+            ..self
+        }
+    }
+
+    pub open spec fn unset_publish_not_ready_addresses(self) -> ServiceSpecView {
+        ServiceSpecView {
+            publish_not_ready_addresses: None,
             ..self
         }
     }

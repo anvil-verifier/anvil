@@ -122,6 +122,7 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
         spec: Some(ServiceSpecView {
             ports: make_headless_service(zk).spec.get_Some_0().ports,
             selector: make_headless_service(zk).spec.get_Some_0().selector,
+            publish_not_ready_addresses: make_headless_service(zk).spec.get_Some_0().publish_not_ready_addresses,
             ..found_headless_service.spec.get_Some_0()
         }),
         ..found_headless_service
