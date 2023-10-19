@@ -510,6 +510,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     );
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
@@ -572,6 +573,16 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))
     );
+    assert forall |s, s_prime: RMQCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(input.get_Some_0()));
+            },
+            _ => {}
+        }
+        // assert(forall |msg: RMQMessage| s.in_flight().contains(msg) ==> !resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg));
+    }
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next, RMQCluster::continue_reconcile(), pre, post

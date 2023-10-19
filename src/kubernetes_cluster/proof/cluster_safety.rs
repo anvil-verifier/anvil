@@ -54,8 +54,8 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
 pub open spec fn each_object_in_etcd_is_well_formed() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
-            #[trigger] s.resources().contains_key(key)
-                ==> Self::etcd_object_is_well_formed(key)(s)
+            s.resources().contains_key(key)
+                ==> #[trigger] Self::etcd_object_is_well_formed(key)(s)
     }
 }
 

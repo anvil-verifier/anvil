@@ -208,8 +208,8 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         forall |msg: RMQMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_create_request_msg(resource_key)(msg)
+            &&& s.network_state.in_flight.contains(msg)
+            &&& #[trigger] resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& RMQCluster::pending_k8s_api_req_msg_is(s, key, msg)
