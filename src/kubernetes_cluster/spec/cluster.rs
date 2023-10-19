@@ -48,6 +48,11 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     }
 
     #[verifier(inline)]
+    pub open spec fn external_state(self) -> E::State {
+        self.external_api_state.state
+    }
+
+    #[verifier(inline)]
     pub open spec fn stable_resources(self) -> Set<ObjectRef> {
         self.kubernetes_api_state.stable_resources
     }

@@ -102,11 +102,11 @@ pub open spec fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
                         ..state
                     };
-                    let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
-                    let ext_req = ZKAPIInputView::ExistsRequest(
-                        zk_name, zk_namespace, client_port, node_path
-                    );
-                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                    // let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
+                    // let ext_req = ZKAPIInputView::ExistsRequest(
+                    //     zk_name, zk_namespace, client_port, node_path
+                    // );
+                    (state_prime, Some(RequestView::ExternalRequest(zk_exists_request(zk))))
                 } else if get_stateful_set_resp.get_Err_0().is_ObjectNotFound() {
                     let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                     let state_prime = ZookeeperReconcileState {
@@ -247,6 +247,16 @@ pub open spec fn reconcile_core(
             (state_prime, None)
         }
     }
+}
+
+pub open spec fn zk_exists_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
+    let zk_name = zk.metadata.name.get_Some_0();
+    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let client_port = zk.spec.ports.client;
+    let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
+    ZKAPIInputView::ExistsRequest(
+        zk_name, zk_namespace, client_port, node_path
+    )
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState>>(

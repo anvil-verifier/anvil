@@ -417,6 +417,25 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction<E::Input,
     }
 }
 
+pub open spec fn external_api_action_pre(action: ExternalAPIAction<E>, input: Option<MsgType<E>>) -> StatePred<Self> {
+    |s: Self| {
+        let host_result = Self::external_api().next_action_result(
+            action,
+            ExternalAPIActionInput{recv: input, resources: s.kubernetes_api_state.resources},
+            s.external_api_state
+        );
+        let msg_ops = MessageOps {
+            recv: input,
+            send: host_result.get_Enabled_1().send,
+        };
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
+
+        &&& received_msg_destined_for(input, HostId::ExternalAPI)
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
+    }
+}
+
 pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction<E::Input, E::Output>, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<Self> {
     |s: Self| {
         let host_result = Self::builtin_controllers().next_action_result(

@@ -248,7 +248,7 @@ pub open spec fn controller_req_msg(req: APIRequest, req_id: RestId) -> Message<
 }
 
 pub open spec fn controller_external_req_msg(req: I, req_id: RestId) -> Message<I, O> {
-    Message::form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::ExternalAPIRequest(req, req_id))
+    Message::form_msg(HostId::CustomController, HostId::ExternalAPI, MessageContent::ExternalAPIRequest(req, req_id))
 }
 
 pub open spec fn built_in_controller_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
