@@ -56,8 +56,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
                 .leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper)))
         ),
 {
-    let next_res = next_resource_after(SubResource::StatefulSet).get_AfterKRequestStep_1();
-    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::StatefulSet, next_res, zookeeper);
+    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::StatefulSet, zookeeper);
     lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_matches(spec, zookeeper);
     let key_not_exists = lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)

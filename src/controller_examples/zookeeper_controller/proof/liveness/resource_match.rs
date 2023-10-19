@@ -23,13 +23,8 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-/// Proves AtAfterKRequestStep(Get, sub_resource) ~> sub_resource_state_matches(sub_resource, zookeeper) and AtAfterKRequestStep(Get, sub_resource) ~>
-/// AtAfterKRequestStep(Get, next_resource). The second one is not applicable to StatefulSet which doesn't have a next resource.
-///
-/// The proof contains two part: resource_key exists or does not exist at first. The proof of both parts contains several times of applying
-/// wf1, handle_get_request => continue_reconcile => handle_create/update_request => continue_reconcile.
 pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
-    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, sub_resource: SubResource, next_resource: SubResource
+    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, sub_resource: SubResource
 )
     requires
         sub_resource != SubResource::StatefulSet,
@@ -58,13 +53,17 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
                 .leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))
         ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
+        sub_resource != SubResource::ConfigMap ==> spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, zookeeper)))
+                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)))
+        ),
+        sub_resource == SubResource::ConfigMap ==> spec.entails(
+            lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
+                .leads_to(lift_state(pending_req_in_flight_at_after_get_stateful_set_step(zookeeper)))
         ),
 {
-    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, next_resource, zookeeper);
-    lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(spec, sub_resource, next_resource, zookeeper);
+    lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, zookeeper);
+    lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(spec, sub_resource, zookeeper);
     let key_not_exists = lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(sub_resource, zookeeper).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
@@ -77,13 +76,17 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
     );
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, zookeeper)));
-    }
+
+    let next_state = if sub_resource != SubResource::ConfigMap {
+        pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)
+    } else {
+        pending_req_in_flight_at_after_get_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
+    };
+    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(next_state));
 }
 
 pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, next_resource: SubResource, zookeeper: ZookeeperClusterView
+    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -106,11 +109,17 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))
         ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
+        sub_resource != SubResource::ConfigMap && sub_resource != SubResource::StatefulSet ==> spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(sub_resource, zookeeper).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, zookeeper)))
+            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)))
+        ),
+        sub_resource == SubResource::ConfigMap ==> spec.entails(
+            lift_state(|s: ZKCluster| {
+                &&& !s.resources().contains_key(get_request(sub_resource, zookeeper).key)
+                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
+            }).leads_to(lift_state(pending_req_in_flight_at_after_get_stateful_set_step(zookeeper)))
         ),
 {
     let pre = lift_state(|s: ZKCluster| {
@@ -141,7 +150,11 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     });
     let match_and_ok_resp = lift_state(sub_resource_state_matches(sub_resource, zookeeper))
         .and(lift_state(at_after_create_resource_step_and_exists_ok_resp_in_flight(sub_resource, zookeeper)));
-    let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, zookeeper);
+    let next_state = if sub_resource != SubResource::ConfigMap {
+        pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)
+    } else {
+        pending_req_in_flight_at_after_get_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
+    };
 
     assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
         assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight)) by {
@@ -194,7 +207,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
 
     // We already have the desired state.
     // Now prove the system can successfully enter the next state.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
+    if sub_resource != SubResource::StatefulSet {
         assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
             let known_ok_resp = |resp_msg: ZKMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step(sub_resource, zookeeper, resp_msg));
             assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
@@ -221,7 +234,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     match step {
                         Step::ControllerStep(input) => {
                             if input.1.is_Some() && input.1.get_Some_0() == zookeeper.object_ref() {
-                                assert(s_prime.ongoing_reconciles()[zookeeper.object_ref()].local_state.reconcile_step == after_get_k_request_step(next_resource));
                                 assert(next_state(s_prime));
                             } else {
                                 assert(pre(s_prime));
@@ -257,7 +269,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
 }
 
 proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, next_resource: SubResource, zookeeper: ZookeeperClusterView
+    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
     requires
         sub_resource != SubResource::StatefulSet,
@@ -285,11 +297,17 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
             }).leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))
         ),
-        next_resource_after(sub_resource) == after_get_k_request_step(next_resource) ==> spec.entails(
+        sub_resource != SubResource::ConfigMap ==> spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& s.resources().contains_key(get_request(sub_resource, zookeeper).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, zookeeper)))
+            }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)))
+        ),
+        sub_resource == SubResource::ConfigMap ==> spec.entails(
+            lift_state(|s: ZKCluster| {
+                &&& s.resources().contains_key(get_request(sub_resource, zookeeper).key)
+                &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
+            }).leads_to(lift_state(pending_req_in_flight_at_after_get_stateful_set_step(zookeeper)))
         ),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -299,7 +317,11 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
     let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, zookeeper);
     let match_and_ok_resp = lift_state(sub_resource_state_matches(sub_resource, zookeeper)).and(lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, zookeeper)));
-    let next_state = pending_req_in_flight_at_after_get_resource_step(next_resource, zookeeper);
+    let next_state = if sub_resource != SubResource::ConfigMap {
+        pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)
+    } else {
+        pending_req_in_flight_at_after_get_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
+    };
     assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
         let pre_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(sub_resource, zookeeper, req_msg));
         assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, zookeeper))))
@@ -360,67 +382,61 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
 
     // We already have the desired state.
     // Now prove the system can successfully enter the next state.
-    if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
-            let known_ok_resp = |resp_msg: ZKMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, zookeeper, resp_msg));
-            assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
-                let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, zookeeper, resp_msg);
-                let stronger_next = |s, s_prime: ZKCluster| {
-                    &&& ZKCluster::next()(s, s_prime)
-                    &&& ZKCluster::crash_disabled()(s)
-                    &&& ZKCluster::busy_disabled()(s)
-                    &&& ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())(s)
-                    &&& ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())(s)
-                };
-
-                combine_spec_entails_always_n!(
-                    spec, lift_action(stronger_next),
-                    lift_action(ZKCluster::next()),
-                    lift_state(ZKCluster::crash_disabled()),
-                    lift_state(ZKCluster::busy_disabled()),
-                    lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
-                    lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref()))
-                );
-
-                assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
-                    let step = choose |step| ZKCluster::next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            if input.1.is_Some() && input.1.get_Some_0() == zookeeper.object_ref() {
-                                // assert(input)
-                                assert(s_prime.ongoing_reconciles()[zookeeper.object_ref()].local_state.reconcile_step == after_get_k_request_step(next_resource));
-                                assert(next_state(s_prime));
-                            } else {
-                                assert(pre(s_prime));
-                            }
-                        }
-                        _ => {
+    assert_by(spec.entails(pre.leads_to(lift_state(next_state))), {
+        let known_ok_resp = |resp_msg: ZKMessage| lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, zookeeper, resp_msg));
+        assert forall |resp_msg| spec.entails(#[trigger] known_ok_resp(resp_msg).leads_to(lift_state(next_state))) by {
+            let pre = resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step(sub_resource, zookeeper, resp_msg);
+            let stronger_next = |s, s_prime: ZKCluster| {
+                &&& ZKCluster::next()(s, s_prime)
+                &&& ZKCluster::crash_disabled()(s)
+                &&& ZKCluster::busy_disabled()(s)
+                &&& ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())(s)
+                &&& ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())(s)
+            };
+            combine_spec_entails_always_n!(
+                spec, lift_action(stronger_next),
+                lift_action(ZKCluster::next()),
+                lift_state(ZKCluster::crash_disabled()),
+                lift_state(ZKCluster::busy_disabled()),
+                lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
+                lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref()))
+            );
+            assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
+                let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep(input) => {
+                        if input.1.is_Some() && input.1.get_Some_0() == zookeeper.object_ref() {
+                            assert(next_state(s_prime));
+                        } else {
                             assert(pre(s_prime));
                         }
                     }
+                    _ => {
+                        assert(pre(s_prime));
+                    }
                 }
-                ZKCluster::lemma_pre_leads_to_post_by_controller(
-                    spec, (Some(resp_msg), Some(zookeeper.object_ref())), stronger_next, ZKCluster::continue_reconcile(), pre, next_state
-                );
             }
-            leads_to_exists_intro(spec, known_ok_resp, lift_state(next_state));
-            let exists_ok_resp = lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, zookeeper));
-            assert_by(tla_exists(known_ok_resp) == exists_ok_resp, {
-                assert forall |ex| #[trigger] exists_ok_resp.satisfied_by(ex) implies tla_exists(known_ok_resp).satisfied_by(ex) by {
-                    let resp_msg = choose |resp_msg| {
-                        &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
-                        &&& resp_msg.content.get_update_response().res.is_Ok()
-                        &&& state_after_update(sub_resource, zookeeper, resp_msg.content.get_update_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[zookeeper.object_ref()].local_state).is_Ok()
-                    };
-                    assert(known_ok_resp(resp_msg).satisfied_by(ex));
-                }
-                temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
-            });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
-            leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
+            ZKCluster::lemma_pre_leads_to_post_by_controller(
+                spec, (Some(resp_msg), Some(zookeeper.object_ref())), stronger_next, ZKCluster::continue_reconcile(), pre, next_state
+            );
+        }
+        leads_to_exists_intro(spec, known_ok_resp, lift_state(next_state));
+        let exists_ok_resp = lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, zookeeper));
+        assert_by(tla_exists(known_ok_resp) == exists_ok_resp, {
+            assert forall |ex| #[trigger] exists_ok_resp.satisfied_by(ex) implies tla_exists(known_ok_resp).satisfied_by(ex) by {
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
+                    &&& resp_msg.content.get_update_response().res.is_Ok()
+                    &&& state_after_update(sub_resource, zookeeper, resp_msg.content.get_update_response().res.get_Ok_0(), ex.head().ongoing_reconciles()[zookeeper.object_ref()].local_state).is_Ok()
+                };
+                assert(known_ok_resp(resp_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
         });
-    }
+        valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+        leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
+    });
 }
 
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(

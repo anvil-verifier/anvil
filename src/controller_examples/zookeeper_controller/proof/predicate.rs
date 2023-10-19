@@ -111,6 +111,24 @@ pub open spec fn pending_req_in_flight_at_after_get_resource_step(
     }
 }
 
+pub open spec fn pending_req_in_flight_at_after_get_stateful_set_step(
+    zk: ZookeeperClusterView
+) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_APIRequest_0();
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_request(SubResource::StatefulSet, zk)
+    }
+}
+
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_resource_step(
     sub_resource: SubResource, zk: ZookeeperClusterView, req_msg: ZKMessage
 ) -> StatePred<ZKCluster> {
