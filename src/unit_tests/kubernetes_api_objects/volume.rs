@@ -85,7 +85,7 @@ pub fn test_set_downward_api() {
 #[verifier(external)]
 pub fn test_set_empty_dir() {
     let mut volume = Volume::default();
-    let mut empty_dir_volume_source = EmptyDirVolumeSource::default();
+    let empty_dir_volume_source = EmptyDirVolumeSource::default();
     volume.set_empty_dir(empty_dir_volume_source.clone());
     assert_eq!(empty_dir_volume_source.into_kube(), volume.into_kube().empty_dir.unwrap());
 }
