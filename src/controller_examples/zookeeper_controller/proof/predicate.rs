@@ -552,7 +552,6 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_exists_zk_node_st
 }
 
 pub open spec fn zk_node_addr(s: ZKCluster, zk: ZookeeperClusterView) -> ZKNodeAddr {
-    // let req = zk_exists_request(zk);
     let sts_uid = s.resources()[get_request(SubResource::StatefulSet, zk).key].metadata.uid.get_Some_0();
     ZKNodeAddr::new(zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), sts_uid, zk_node_path(zk))
 }
@@ -574,7 +573,6 @@ pub open spec fn at_after_exists_zk_node_step_and_exists_ok_resp_in_flight(zk: Z
             let resp = resp_msg.content.get_ExternalAPIResponse_0();
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.is_ExternalAPIResponse()
             &&& resp == ZKAPIOutputView::ExistsResponse(ZKAPIExistsResultView{res: Ok(Some(s.external_state().data[addr].1))})
         }
     }
@@ -596,7 +594,6 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_exists_zk_node_step(
         &&& s.external_state().data.contains_key(addr)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.is_ExternalAPIResponse()
         &&& resp == ZKAPIOutputView::ExistsResponse(ZKAPIExistsResultView{res: Ok(Some(s.external_state().data[addr].1))})
     }
 }
@@ -648,7 +645,6 @@ pub open spec fn at_after_update_zk_node_step_and_exists_ok_resp_in_flight(zk: Z
             let resp = resp_msg.content.get_ExternalAPIResponse_0();
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.is_ExternalAPIResponse() // Do we really need this?
             &&& resp == ZKAPIOutputView::SetDataResponse(ZKAPISetDataResultView{res: Ok(())})
         }
     }
