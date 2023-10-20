@@ -80,6 +80,12 @@ pub open spec fn pending_k8s_api_req_msg(s: Self, key: ObjectRef) -> bool {
     && s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_APIRequest()
 }
 
+pub open spec fn pending_req_msg(s: Self, key: ObjectRef) -> bool {
+    s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+    && (s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_APIRequest()
+        || s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_ExternalAPIRequest())
+}
+
 // TODO: rename this method as it is not limited to k8s api
 pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: MsgType<E>) -> bool {
     s.ongoing_reconciles()[key].pending_req_msg == Some(req)

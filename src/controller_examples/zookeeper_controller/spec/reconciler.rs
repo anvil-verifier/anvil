@@ -134,17 +134,17 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_ExistsResponse()
             && exists_resp.is_Ok() {
                 if exists_resp.get_Ok_0().is_Some() {
-                    let version = exists_resp.get_Ok_0().get_Some_0();
-                    let node_path = zk_node_path(zk);
-                    let data = zk_node_data(zk);
-                    let ext_req = ZKAPIInputView::SetDataRequest(
-                        zk_name, zk_namespace, client_port, node_path, data, version
-                    );
+                    // let version = exists_resp.get_Ok_0().get_Some_0();
+                    // let node_path = zk_node_path(zk);
+                    // let data = zk_node_data(zk);
+                    // let ext_req = ZKAPIInputView::SetDataRequest(
+                    //     zk_name, zk_namespace, client_port, node_path, data, version
+                    // );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
                         ..state
                     };
-                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                    (state_prime, Some(RequestView::ExternalRequest(zk_set_data_request(zk, exists_resp.get_Ok_0().get_Some_0()))))
                 } else {
                     let version = exists_resp.get_Ok_0().get_Some_0();
                     let node_path = zk_parent_node_path(zk);
@@ -249,13 +249,45 @@ pub open spec fn reconcile_core(
     }
 }
 
+pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
+    recommends
+        zk.well_formed(),
+{
+    seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()]
+}
+
+pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
+    recommends
+        zk.well_formed(),
+{
+    seq![new_strlit("zookeeper-operator")@]
+}
+
+pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.well_formed(),
+{
+    new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
+}
+
 pub open spec fn zk_exists_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
     let zk_name = zk.metadata.name.get_Some_0();
     let zk_namespace = zk.metadata.namespace.get_Some_0();
     let client_port = zk.spec.ports.client;
-    let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
+    let node_path = zk_node_path(zk);
     ZKAPIInputView::ExistsRequest(
         zk_name, zk_namespace, client_port, node_path
+    )
+}
+
+pub open spec fn zk_set_data_request(zk: ZookeeperClusterView, version: int) -> ZKAPIInputView {
+    let zk_name = zk.metadata.name.get_Some_0();
+    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let client_port = zk.spec.ports.client;
+    let node_path = zk_node_path(zk);
+    let data = zk_node_data(zk);
+    ZKAPIInputView::SetDataRequest(
+        zk_name, zk_namespace, client_port, node_path, data, version
     )
 }
 
@@ -398,27 +430,6 @@ pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (Zook
         ..state
     };
     (state_prime, None)
-}
-
-pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
-    recommends
-        zk.well_formed(),
-{
-    seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()]
-}
-
-pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
-    recommends
-        zk.well_formed(),
-{
-    seq![new_strlit("zookeeper-operator")@]
-}
-
-pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.well_formed(),
-{
-    new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
 }
