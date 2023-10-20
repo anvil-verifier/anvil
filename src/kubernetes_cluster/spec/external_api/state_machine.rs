@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_api_objects::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::Cluster, external_api::types::*, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
@@ -15,6 +15,15 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
+pub open spec fn handle_external_request_helper(req_msg: MsgType<E>, s: ExternalAPIState<E>, resources: StoredState) -> (ExternalAPIState<E>, MsgType<E>) {
+    let (inner_s_prime, resp) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), resources, s.state);
+    let s_prime = ExternalAPIState {
+        state: inner_s_prime,
+    };
+    let resp_msg = Message::form_external_resp_msg(req_msg, resp);
+    (s_prime, resp_msg)
+}
+
 pub open spec fn handle_external_request() -> ExternalAPIAction<E> {
     Action {
         precondition: |input: ExternalAPIActionInput<E>, s: ExternalAPIState<E>| {
@@ -25,14 +34,10 @@ pub open spec fn handle_external_request() -> ExternalAPIAction<E> {
         },
         transition: |input: ExternalAPIActionInput<E>, s: ExternalAPIState<E>| {
             let req_msg = input.recv.get_Some_0();
-            let (inner_s_prime, resp) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), input.resources, s.state);
-            let s_prime = ExternalAPIState {
-                state: inner_s_prime,
-            };
-            let output = ExternalAPIActionOutput {
-                send: Multiset::singleton(Message::form_external_resp_msg(req_msg, resp)),
-            };
-            (s_prime, output)
+            let (s_prime, resp_msg) = Self::handle_external_request_helper(req_msg, s, input.resources);
+            (s_prime, ExternalAPIActionOutput {
+                send: Multiset::singleton(resp_msg),
+            })
         },
     }
 }

@@ -10,6 +10,9 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
     },
+    external_api::types::{
+        ExternalAPIAction, ExternalAPIActionInput, ExternalAPIState, ExternalAPIStep,
+    },
     kubernetes_api::common::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
@@ -54,6 +57,37 @@ pub proof fn exists_next_kubernetes_api_step(
         exists |step| (#[trigger] (Self::kubernetes_api().step_to_action)(step).precondition)(input, s),
 {
     assert(((Self::kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
+}
+
+pub proof fn external_api_action_pre_implies_next_pre(
+    action: ExternalAPIAction<E>, input: Option<MsgType<E>>
+)
+    requires
+        Self::external_api().actions.contains(action),
+    ensures
+        valid(
+            lift_state(Self::external_api_action_pre(action, input))
+                .implies(lift_state(Self::external_api_next().pre(input)))
+        ),
+{
+    assert forall |s: Self| #[trigger] Self::external_api_action_pre(action, input)(s)
+    implies Self::external_api_next().pre(input)(s) by {
+        Self::exists_next_external_api_step(
+            action, ExternalAPIActionInput{recv: input, resources: s.kubernetes_api_state.resources}, s.external_api_state
+        );
+    };
+}
+
+pub proof fn exists_next_external_api_step(
+    action: ExternalAPIAction<E>, input: ExternalAPIActionInput<E>, s: ExternalAPIState<E>
+)
+    requires
+        Self::external_api().actions.contains(action),
+        (action.precondition)(input, s),
+    ensures
+        exists |step| (#[trigger] (Self::external_api().step_to_action)(step).precondition)(input, s),
+{
+    assert(((Self::external_api().step_to_action)(ExternalAPIStep::HandleExternalRequest).precondition)(input, s));
 }
 
 pub proof fn controller_action_pre_implies_next_pre(

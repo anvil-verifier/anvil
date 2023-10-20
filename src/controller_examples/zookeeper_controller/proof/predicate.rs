@@ -222,6 +222,7 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
     sub_resource: SubResource, zk: ZookeeperClusterView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
+        // TODO: rethink whether we should keep s.resources().contains_key(key) here
         let step = after_get_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
@@ -243,10 +244,32 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
     }
 }
 
+pub open spec fn at_after_get_zk_step_and_exists_ok_resp_in_flight(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_APIRequest_0();
+        let key = get_request(SubResource::StatefulSet, zk).key;
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_request(SubResource::StatefulSet, zk)
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp_msg.content.get_get_response().res.is_Ok()
+        }
+    }
+}
+
 pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
     sub_resource: SubResource, zk: ZookeeperClusterView, resp_msg: ZKMessage
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
+        // TODO: rethink whether we should keep s.resources().contains_key(key) here
         let step = after_get_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
@@ -263,6 +286,25 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_get_response().res.is_Ok()
         &&& resp_msg.content.get_get_response().res.get_Ok_0() == s.resources()[key]
+    }
+}
+
+pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_zk_step(zk: ZookeeperClusterView, resp_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_APIRequest_0();
+        let key = get_request(SubResource::StatefulSet, zk).key;
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_request(SubResource::StatefulSet, zk)
+        &&& s.in_flight().contains(resp_msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+        &&& resp_msg.content.get_get_response().res.is_Ok()
     }
 }
 
@@ -325,6 +367,15 @@ pub open spec fn resource_update_request_msg(key: ObjectRef) -> FnSpec(ZKMessage
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key() == key
+}
+
+pub open spec fn zk_set_data_request_msg(zk: ZookeeperClusterView) -> FnSpec(ZKMessage) -> bool {
+    |msg: ZKMessage|
+        msg.dst.is_ExternalAPI()
+        && msg.content.is_ExternalAPIRequest()
+        && msg.content.get_ExternalAPIRequest_0().is_SetDataRequest()
+        && msg.content.get_ExternalAPIRequest_0().get_SetDataRequest_0() == zk.metadata.name.get_Some_0()
+        && msg.content.get_ExternalAPIRequest_0().get_SetDataRequest_1() == zk.metadata.namespace.get_Some_0()
 }
 
 pub open spec fn pending_req_in_flight_at_after_create_resource_step(
@@ -468,5 +519,156 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& state_after_update(sub_resource, zk, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[zk.object_ref()].local_state).is_Ok()
     }
 }
+
+// Predicates below are for zookeeper_api reasoning
+
+pub open spec fn pending_req_in_flight_at_after_exists_zk_node_step(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterExistsZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& request == zk_exists_request(zk)
+    }
+}
+
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_exists_zk_node_step(zk: ZookeeperClusterView, req_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterExistsZKNode;
+        let request = req_msg.content.get_ExternalAPIRequest_0();
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::CustomController
+        &&& req_msg.dst == HostId::ExternalAPI
+        &&& req_msg.content.is_ExternalAPIRequest()
+        &&& request == zk_exists_request(zk)
+    }
+}
+
+pub open spec fn zk_node_addr(s: ZKCluster, zk: ZookeeperClusterView) -> ZKNodeAddr {
+    let sts_uid = s.resources()[get_request(SubResource::StatefulSet, zk).key].metadata.uid.get_Some_0();
+    ZKNodeAddr::new(zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), sts_uid, zk_node_path(zk))
+}
+
+pub open spec fn at_after_exists_zk_node_step_and_exists_ok_resp_in_flight(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterExistsZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& request == zk_exists_request(zk)
+        &&& s.external_state().data.contains_key(addr)
+        &&& exists |resp_msg: ZKMessage| {
+            let resp = resp_msg.content.get_ExternalAPIResponse_0();
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp == ZKAPIOutputView::ExistsResponse(ZKAPIExistsResultView{res: Ok(Some(s.external_state().data[addr].1))})
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_exists_zk_node_step(zk: ZookeeperClusterView, resp_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterExistsZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        let resp = resp_msg.content.get_ExternalAPIResponse_0();
+        let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& request == zk_exists_request(zk)
+        &&& s.external_state().data.contains_key(addr)
+        &&& s.in_flight().contains(resp_msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+        &&& resp == ZKAPIOutputView::ExistsResponse(ZKAPIExistsResultView{res: Ok(Some(s.external_state().data[addr].1))})
+    }
+}
+
+pub open spec fn pending_req_in_flight_at_after_update_zk_node_step(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterUpdateZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& request == zk_set_data_request(zk, s.external_state().data[addr].1)
+    }
+}
+
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_zk_node_step(zk: ZookeeperClusterView, req_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterUpdateZKNode;
+        let request = req_msg.content.get_ExternalAPIRequest_0();
+        let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::CustomController
+        &&& req_msg.dst == HostId::ExternalAPI
+        &&& req_msg.content.is_ExternalAPIRequest()
+        &&& request == zk_set_data_request(zk, s.external_state().data[addr].1)
+    }
+}
+
+pub open spec fn at_after_update_zk_node_step_and_exists_ok_resp_in_flight(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterUpdateZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& s.external_state().data.contains_key(addr)
+        &&& exists |resp_msg: ZKMessage| {
+            let resp = resp_msg.content.get_ExternalAPIResponse_0();
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp == ZKAPIOutputView::SetDataResponse(ZKAPISetDataResultView{res: Ok(())})
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_zk_node_step(zk: ZookeeperClusterView, resp_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterUpdateZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        let resp = resp_msg.content.get_ExternalAPIResponse_0();
+        let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& request == zk_exists_request(zk)
+        &&& s.external_state().data.contains_key(addr)
+        &&& s.in_flight().contains(resp_msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+        &&& resp == ZKAPIOutputView::SetDataResponse(ZKAPISetDataResultView{res: Ok(())})
+    }
+}
+
 
 }

@@ -84,12 +84,12 @@ pub open spec fn resp_matches_at_most_one_pending_req(
 ) -> StatePred<Self> {
     |s: Self| {
         s.ongoing_reconciles().contains_key(cr_key)
-        && Self::pending_k8s_api_req_msg(s, cr_key)
+        && Self::pending_req_msg(s, cr_key)
         && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
         ==> (
             forall |other_key: ObjectRef|
                 #[trigger] s.ongoing_reconciles().contains_key(other_key)
-                && Self::pending_k8s_api_req_msg(s, other_key)
+                && Self::pending_req_msg(s, other_key)
                 && other_key != cr_key
                 ==> !Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0())
             )
@@ -102,7 +102,7 @@ pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches(
     |s: Self| {
         s.ongoing_reconciles().contains_key(cr_key)
         && s.in_flight().contains(resp_msg)
-        && Self::pending_k8s_api_req_msg(s, cr_key)
+        && Self::pending_req_msg(s, cr_key)
         && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
         ==> (
             forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.in_flight().contains(other_resp)
@@ -161,7 +161,7 @@ pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches(
         forall |resp_msg: MsgType<E>|
             s.ongoing_reconciles().contains_key(cr_key)
             && #[trigger] s.in_flight().contains(resp_msg)
-            && Self::pending_k8s_api_req_msg(s, cr_key)
+            && Self::pending_req_msg(s, cr_key)
             && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             ==> (
                 forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.in_flight().contains(other_resp)
@@ -196,7 +196,7 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
         assert forall |resp_msg: MsgType<E>|
             ex.head().ongoing_reconciles().contains_key(cr_key)
             && #[trigger] ex.head().in_flight().contains(resp_msg)
-            && Self::pending_k8s_api_req_msg(ex.head(), cr_key)
+            && Self::pending_req_msg(ex.head(), cr_key)
             && Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             ==> (
                 forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] ex.head().in_flight().contains(other_resp)
@@ -263,12 +263,12 @@ pub open spec fn each_resp_matches_at_most_one_pending_req(
     |s: Self| {
         forall |resp_msg: MsgType<E>|
             s.ongoing_reconciles().contains_key(cr_key)
-            && Self::pending_k8s_api_req_msg(s, cr_key)
+            && Self::pending_req_msg(s, cr_key)
             && #[trigger] Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             ==> (
                 forall |other_key: ObjectRef|
                     #[trigger] s.ongoing_reconciles().contains_key(other_key)
-                    && Self::pending_k8s_api_req_msg(s, other_key)
+                    && Self::pending_req_msg(s, other_key)
                     && other_key != cr_key
                     ==> !Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0())
                 )
