@@ -336,7 +336,7 @@ pub open spec fn pending_req_has_lower_req_id_than_allocator() -> StatePred<Self
     |s: Self| {
         forall |cr_key: ObjectRef|
             #[trigger] s.ongoing_reconciles().contains_key(cr_key)
-            && Self::pending_req_msg(s, cr_key)
+            && Self::has_pending_req_msg(s, cr_key)
             ==> s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
 }

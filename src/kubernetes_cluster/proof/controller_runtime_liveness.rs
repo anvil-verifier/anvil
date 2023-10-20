@@ -244,7 +244,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
 {
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: Self| {
         Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-        && Self::pending_k8s_api_req_msg(s, cr.object_ref())
+        && Self::has_pending_k8s_api_req_msg(s, cr.object_ref())
         && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         && (s.in_flight().contains(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         || exists |resp_msg: MsgType<E>| {
@@ -301,7 +301,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
 {
     let no_pending_req = |s: Self| {
         Self::at_expected_reconcile_states(cr.object_ref(), init_state)(s)
-        && Self::no_pending_req_msg_or_external_api_input(s, cr.object_ref())
+        && Self::no_pending_req_msg(s, cr.object_ref())
     };
     temp_pred_equality::<Self>(
         lift_state(Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(cr.object_ref(), init_state)),
@@ -371,7 +371,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     let known_resp_in_flight = |resp| lift_state(
         |s: Self| {
             Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-            && Self::pending_k8s_api_req_msg(s, cr.object_ref())
+            && Self::has_pending_k8s_api_req_msg(s, cr.object_ref())
             && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
             && s.in_flight().contains(resp)
             && Message::resp_msg_matches_req_msg(resp, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
@@ -381,7 +381,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         .leads_to(lift_state(post))) by {
             let resp_in_flight_state = |s: Self| {
                 Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-                && Self::pending_k8s_api_req_msg(s, cr.object_ref())
+                && Self::has_pending_k8s_api_req_msg(s, cr.object_ref())
                 && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
                 && s.in_flight().contains(msg)
                 && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
@@ -516,7 +516,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
 {
     let no_req_at_state = |s: Self| {
         Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-        && Self::no_pending_req_msg_or_external_api_input(s, cr.object_ref())
+        && Self::no_pending_req_msg(s, cr.object_ref())
     };
     temp_pred_equality(lift_state(Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(cr.object_ref(), state)), lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(no_req_at_state)));
     implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)), lift_state(no_req_at_state));

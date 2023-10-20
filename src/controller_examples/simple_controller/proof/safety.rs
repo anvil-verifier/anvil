@@ -38,7 +38,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: SimpleCRView)
         && s.ongoing_reconciles()[cr.object_ref()].local_state.reconcile_pc == SimpleReconcileStep::Init)
         ==> s.ongoing_reconciles().contains_key(cr.object_ref())
             && s.ongoing_reconciles()[cr.object_ref()].local_state.reconcile_pc == SimpleReconcileStep::Init)
-            && no_pending_req_msg_or_external_api_input(s, cr.object_ref())
+            && no_pending_req_msg(s, cr.object_ref())
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
 
@@ -54,7 +54,7 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
         && s.ongoing_reconciles()[cr.object_ref()].local_state.reconcile_pc == reconciler::after_get_cr_pc()
         ==> exists |req_msg| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
-                && pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
+                && pending_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.in_flight().contains(req_msg)
                     || exists |resp_msg: SimpleMessage| {
                         #[trigger] s.in_flight().contains(resp_msg)

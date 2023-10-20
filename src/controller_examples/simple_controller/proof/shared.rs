@@ -33,7 +33,7 @@ pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: SimpleCRView) -> S
     |s: State<SimpleReconcileState>| {
         &&& s.ongoing_reconciles().contains_key(cr.object_ref())
         &&& s.ongoing_reconciles()[cr.object_ref()].local_state.reconcile_pc == SimpleReconcileStep::Init)
-        &&& no_pending_req_msg_or_external_api_input(s, cr.object_ref())
+        &&& no_pending_req_msg(s, cr.object_ref())
     }
 }
 
@@ -48,7 +48,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: SimpleMessag
     |s: State<SimpleReconcileState>| {
         &&& s.ongoing_reconciles().contains_key(cr.object_ref())
         &&& s.ongoing_reconciles()[cr.object_ref()].local_state.reconcile_pc == reconciler::after_get_cr_pc()
-        &&& pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
+        &&& pending_req_msg_is(s, cr.object_ref(), msg)
         &&& is_controller_get_cr_request_msg(msg, cr)
     }
 }

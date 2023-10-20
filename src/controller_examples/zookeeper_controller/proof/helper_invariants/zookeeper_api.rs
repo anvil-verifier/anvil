@@ -44,7 +44,7 @@ pub open spec fn every_zk_set_data_request_implies_at_after_update_zk_node_step(
             &&& zk_set_data_request_msg(zookeeper)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterUpdateZKNode)(s)
-            &&& ZKCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& ZKCluster::pending_req_msg_is(s, key, msg)
         }
     }
 }

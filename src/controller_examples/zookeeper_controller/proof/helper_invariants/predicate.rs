@@ -185,7 +185,7 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
             &&& resource_update_request_msg(resource_key)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& ZKCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& ZKCluster::pending_req_msg_is(s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.owner_references_only_contains(zookeeper.controller_owner_ref())
         }
     }
@@ -200,7 +200,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
             &&& resource_create_request_msg(resource_key)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-            &&& ZKCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& ZKCluster::pending_req_msg_is(s, key, msg)
             &&& make(sub_resource, zookeeper, s.ongoing_reconciles()[key].local_state).is_Ok()
             &&& msg.content.get_create_request().obj == make(sub_resource, zookeeper, s.ongoing_reconciles()[key].local_state).get_Ok_0()
         }
@@ -216,7 +216,7 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
             &&& resource_update_request_msg(resource_key)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& ZKCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& ZKCluster::pending_req_msg_is(s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
             &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
             &&& (
