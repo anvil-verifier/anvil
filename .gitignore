@@ -13,3 +13,4 @@ e2e/target/
 /Cargo.lock
 src/liblib.rlib
 verifiable-controllers.code-workspace
+src/.verus-solver-log/

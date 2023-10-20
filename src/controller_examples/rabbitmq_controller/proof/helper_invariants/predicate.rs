@@ -136,6 +136,18 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     }
 }
 
+pub open spec fn request_at_after_get_request_step_is_resource_get_request(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+) -> StatePred<RMQCluster> {
+    let key = rabbitmq.object_ref();
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    |s: RMQCluster| {
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
+        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+    }
+}
+
 pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etcd(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 ) -> StatePred<RMQCluster> {

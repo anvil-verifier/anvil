@@ -44,7 +44,7 @@ pub proof fn lemma_always_rabbitmq_is_well_formed(spec: TempPred<RMQCluster>, ra
     );
 }
 
-pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<RMQCluster>)
+proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<RMQCluster>)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -56,7 +56,7 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
     init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
 }
 
-pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<RMQCluster>)
+proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<RMQCluster>)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -120,7 +120,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
@@ -194,7 +194,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
+proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -276,55 +276,78 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                     }
                 }
             );
-            assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
-                assert(msg.src.is_KubernetesAPI());
-                assert(msg.content.is_create_response());
-                if msg.content.get_create_response().res.is_Ok() {
-                    let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                    match step {
-                        Step::KubernetesAPIStep(input) => {
-                            let req_msg = input.get_Some_0();
-                            match req_msg.content.get_APIRequest_0() {
-                                APIRequest::CreateRequest(_) => {
-                                    if !s.in_flight().contains(msg) {
-                                        let req = input.get_Some_0();
-                                        assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == req.content.get_create_request().key());
-                                        assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == resource_key);
-                                        assert(msg.content.get_create_response().res.get_Ok_0() == s_prime.resources()[req.content.get_create_request().key()]);
-                                    } else {
-                                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                                        assert(!s.in_flight().contains(pending_req));
-                                    }
-                                }
-                                _ => {
-                                    assert(s.in_flight().contains(msg));
-                                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                                    assert(!s.in_flight().contains(pending_req));
-                                }
+            object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(s, s_prime, rabbitmq);
+        }
+    }
+    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+}
+
+#[verifier(spinoff_prover)]
+proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(
+    s: RMQCluster, s_prime: RMQCluster, rabbitmq: RabbitmqClusterView
+)
+    requires
+        s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.is_Some(),
+        resource_create_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0()),
+        at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap))(s_prime),
+        RMQCluster::next()(s, s_prime),
+        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+        RMQCluster::every_in_flight_msg_has_unique_id()(s),
+        RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+        RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
+        RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())(s_prime),
+        RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()(s),
+        no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
+        no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s),
+        object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s),
+        resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s),
+        object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)(s),
+    ensures
+        forall |msg: RMQMessage|
+            #[trigger] s_prime.in_flight().contains(msg)
+            && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
+            ==> resource_create_response_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key, s_prime)(msg),
+{
+    let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+    let key = rabbitmq.object_ref();
+    let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+    assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
+        assert(msg.src.is_KubernetesAPI());
+        assert(msg.content.is_create_response());
+        if msg.content.get_create_response().res.is_Ok() {
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            match step {
+                Step::KubernetesAPIStep(input) => {
+                    let req_msg = input.get_Some_0();
+                    match req_msg.content.get_APIRequest_0() {
+                        APIRequest::CreateRequest(_) => {
+                            if !s.in_flight().contains(msg) {
+                                let req = input.get_Some_0();
+                                assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == req.content.get_create_request().key());
+                                assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == resource_key);
+                                assert(msg.content.get_create_response().res.get_Ok_0() == s_prime.resources()[req.content.get_create_request().key()]);
+                            } else {
+                                assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                                assert(!s.in_flight().contains(pending_req));
                             }
-                        },
+                        }
                         _ => {
                             assert(s.in_flight().contains(msg));
                             assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                             assert(!s.in_flight().contains(pending_req));
                         }
                     }
-                    // if !s.in_flight().contains(msg) {
-                    //     assert(step.is_KubernetesAPIStep());
-                    //     let req = step.get_KubernetesAPIStep_0().get_Some_0();
-                    //     assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == req.content.get_create_request().key());
-                    //     assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == resource_key);
-                    //     assert(msg.content.get_create_response().res.get_Ok_0() == s_prime.resources()[req.content.get_create_request().key()]);
-                    // } else {
-                    //     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                    //     assert(!s.in_flight().contains(pending_req));
-                    // }
+                },
+                _ => {
+                    assert(s.in_flight().contains(msg));
+                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                    assert(!s.in_flight().contains(pending_req));
                 }
             }
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }
+
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd_forall(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
@@ -353,7 +376,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
+proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -435,72 +458,97 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                     }
                 }
             );
-
-            assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
-                assert(msg.src.is_KubernetesAPI());
-                assert(msg.content.is_update_response());
-                if msg.content.get_update_response().res.is_Ok() {
-                    let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                    match step {
-                        Step::KubernetesAPIStep(input) => {
-                            let req_msg = input.get_Some_0();
-                            match req_msg.content.get_APIRequest_0() {
-                                APIRequest::UpdateRequest(_) => {
-                                    if !s.in_flight().contains(msg) {
-                                        let req = input.get_Some_0();
-                                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req.content.get_update_request().key());
-                                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == resource_key);
-                                        assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req.content.get_update_request().key()]);
-                                    } else {
-                                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                                        assert(!s.in_flight().contains(pending_req));
-                                    }
-                                }
-                                _ => {
-                                    assert(s.in_flight().contains(msg));
-                                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                                    assert(!s.in_flight().contains(pending_req));
-                                }
-                            }
-                        },
-                        _ => {
-                            assert(s.in_flight().contains(msg));
-                            assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                            assert(!s.in_flight().contains(pending_req));
-                        }
-                    }
-                }
-            }
+            object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(s, s_prime, rabbitmq);
         }
     }
     leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
-    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
+proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(s: RMQCluster, s_prime: RMQCluster, rabbitmq: RabbitmqClusterView)
+    requires
+        s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.is_Some(),
+        resource_update_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0()),
+        at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime),
+        RMQCluster::next()(s, s_prime),
+        RMQCluster::every_in_flight_msg_has_unique_id()(s),
+        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+        RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
+        RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s),
+        RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())(s_prime),
+        no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s),
+        no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s),
+        object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s),
+        resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s),
+        object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)(s),
+    ensures
+        forall |msg: RMQMessage| #[trigger]
+            s_prime.in_flight().contains(msg)
+            && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
+            ==> resource_update_response_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key, s_prime)(msg),
+{
+    let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+    let key = rabbitmq.object_ref();
+    let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+    assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
+        assert(msg.src.is_KubernetesAPI());
+        assert(msg.content.is_update_response());
+        if msg.content.get_update_response().res.is_Ok() {
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            match step {
+                Step::KubernetesAPIStep(input) => {
+                    let req_msg = input.get_Some_0();
+                    match req_msg.content.get_APIRequest_0() {
+                        APIRequest::UpdateRequest(_) => {
+                            if !s.in_flight().contains(msg) {
+                                let req = input.get_Some_0();
+                                assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req.content.get_update_request().key());
+                                assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == resource_key);
+                                assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req.content.get_update_request().key()]);
+                                assert(s_prime.resources().contains_key(resource_key));
+                                assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[resource_key]);
+                            } else {
+                                assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                                assert(!s.in_flight().contains(pending_req));
+                                assert(s_prime.resources().contains_key(resource_key));
+                                assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[resource_key]);
+                            }
+                        },
+                        _ => {
+                            assert(s.in_flight().contains(msg));
+                            assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                            assert(!s.in_flight().contains(pending_req));
+                        },
+                    }
+                },
+                _ => {
+                    assert(s.in_flight().contains(msg));
+                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                },
+            }
+        }
+    }
+}
+
+#[verifier(spinoff_prover)]
+proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)))),
 {
-    let inv = response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq);
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
+    let inv = request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq);
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
-    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
@@ -525,6 +573,31 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
         }
     }
     init_invariant(spec, RMQCluster::init(), next, inv);
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
+{
+    let key = rabbitmq.object_ref();
+    let next = |s: RMQCluster| {
+        &&& request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)(s)
+        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s)
+    };
+    lemma_always_request_at_after_get_request_step_is_resource_get_request(spec, sub_resource, rabbitmq);
+    assert(valid(lift_state(next).implies(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))));
+    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
+    invariant_n!(
+        spec, lift_state(next), lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
+        lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)), 
+        lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key))
+    );
 }
 
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(
@@ -566,7 +639,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
+proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -634,7 +707,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
             if resource_update_request_msg(resource_key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
-                    lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
+                    lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                     let resp = step.get_ControllerStep_0().0.get_Some_0();
                     assert(RMQCluster::is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
@@ -706,7 +779,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
+proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -747,7 +820,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
             if resource_update_request_msg(resource_key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
-                    lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
+                    lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                 } else {
                     assert(requirements(msg, s));
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
@@ -796,7 +869,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
+proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -840,7 +913,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
             if resource_create_request_msg(resource_key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
-                    lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
+                    lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                 } else {
                     assert(requirements(msg, s));
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
@@ -1142,9 +1215,9 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies update_msg_pred(msg) && create_msg_pred(msg) by {
             if !s.in_flight().contains(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                 let cr = s.ongoing_reconciles()[key].triggering_cr;
                 if resource_create_request_msg(resource_key)(msg) {
+                    lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                     assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state).get_Ok_0());
                     assert(msg.content.get_create_request().obj.metadata.finalizers.is_None());
                     assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
@@ -1152,6 +1225,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                     ]));
                 }
                 if resource_update_request_msg(resource_key)(msg) {
+                    lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                     assert(step.get_ControllerStep_0().0.get_Some_0().content.is_get_response());
                     assert(step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.is_Ok());
                     assert(update(
@@ -1178,24 +1252,20 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 ///
 /// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(
+pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster, msg: RMQMessage, step: RMQStep
 )
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         RMQCluster::next_step(s, s_prime, step),
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+        resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
     ensures
-        resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref()
-            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime)
-            && RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
-        resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref()
-            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)
-            && RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
+        step.is_ControllerStep(),
+        step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref(),
+        at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
+        at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
+        RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
@@ -1204,134 +1274,214 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    if resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) || resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
-        assert(step.is_ControllerStep());
-        assert(s.ongoing_reconciles().contains_key(cr_key));
-        let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-        let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-        assert(local_step_prime.is_AfterKRequestStep());
-        assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
-        if resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
-            assert(local_step_prime.get_AfterKRequestStep_0() == ActionKind::Create);
-        }
-        if resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
-            assert(local_step_prime.get_AfterKRequestStep_0() == ActionKind::Update);
-        }
-        assert_by(
-            cr_key == rabbitmq.object_ref() && local_step.get_AfterKRequestStep_1() == sub_resource && RMQCluster::pending_k8s_api_req_msg_is(s_prime, cr_key, msg),
-            {
-                // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
-                match sub_resource {
-                    SubResource::ServerConfigMap => {
-                        // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
-                        // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
-                        // such a post state.
-                        assert_by(
-                            cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
-                            {
-                                let str1 = cr_key.name + new_strlit("-plugins-conf")@;
-                                let str2 = key.name + new_strlit("-server-conf")@;
-                                reveal_strlit("-server-conf");
-                                reveal_strlit("-plugins-conf");
-                                if str1.len() == str2.len() {
-                                    assert(str1[str1.len() - 6] == 's');
-                                    assert(str2[str1.len() - 6] == 'r');
-                                }
-                            }
-                        );
-                        // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
-                    },
-                    SubResource::PluginsConfigMap => {
-                        assert_by(
-                            key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
-                            {
-                                let str1 = key.name + new_strlit("-plugins-conf")@;
-                                let str2 = cr_key.name + new_strlit("-server-conf")@;
-                                reveal_strlit("-server-conf");
-                                reveal_strlit("-plugins-conf");
-                                if str1.len() == str2.len() {
-                                    assert(str1[str1.len() - 6] == 's');
-                                    assert(str2[str1.len() - 6] == 'r');
-                                }
-                            }
-                        );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
-                    },
-                    SubResource::ErlangCookieSecret => {
-                        assert_by(
-                            cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
-                            {
-                                let str1 = cr_key.name + new_strlit("-default-user")@;
-                                let str2 = key.name + new_strlit("-erlang-cookie")@;
-                                reveal_strlit("-erlang-cookie");
-                                reveal_strlit("-default-user");
-                                if str1.len() == str2.len() {
-                                    assert(str1[str1.len() - 1] == 'r');
-                                    assert(str2[str1.len() - 1] == 'e');
-                                }
-                            }
-                        );
-                        // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
-                    },
-                    SubResource::DefaultUserSecret => {
-                        assert_by(
-                            key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
-                            {
-                                let str1 = key.name + new_strlit("-default-user")@;
-                                let str2 = cr_key.name + new_strlit("-erlang-cookie")@;
-                                reveal_strlit("-erlang-cookie");
-                                reveal_strlit("-default-user");
-                                if str1.len() == str2.len() {
-                                    assert(str1[str1.len() - 1] == 'r');
-                                    assert(str2[str1.len() - 1] == 'e');
-                                }
-                            }
-                        );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
-                    },
-                    SubResource::HeadlessService => {
-                        assert_by(
-                            key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
-                            {
-                                let str1 = key.name + new_strlit("-nodes")@;
-                                let str2 = cr_key.name + new_strlit("-client")@;
-                                reveal_strlit("-client");
-                                reveal_strlit("-nodes");
-                                if str1.len() == str2.len() {
-                                    assert(str1[str1.len() - 1] == 's');
-                                    assert(str2[str1.len() - 1] == 't');
-                                }
-                            }
-                        );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
-                    },
-                    SubResource::Service => {
-                        assert_by(
-                            cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
-                            {
-                                let str1 = cr_key.name + new_strlit("-nodes")@;
-                                let str2 = key.name + new_strlit("-client")@;
-                                reveal_strlit("-client");
-                                reveal_strlit("-nodes");
-                                if str1.len() == str2.len() {
-                                    assert(str1[str1.len() - 1] == 's');
-                                    assert(str2[str1.len() - 1] == 't');
-                                }
-                            }
-                        );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
-                    },
-                    SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
-                    },
-                    SubResource::Role => {
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
-                    },
+    assert(step.is_ControllerStep());
+    assert(s.ongoing_reconciles().contains_key(cr_key));
+    let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+    let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+    assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+    assert(local_step_prime.is_AfterKRequestStep());
+    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
+    match sub_resource {
+        SubResource::ServerConfigMap => {
+            // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
+            // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
+            // such a post state.
+            assert_by(
+                cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
+                {
+                    let str1 = cr_key.name + new_strlit("-plugins-conf")@;
+                    reveal_strlit("-server-conf");
+                    reveal_strlit("-plugins-conf");
+                    assert(str1[str1.len() - 6] == 's');
                 }
-            }
-        )
+            );
+            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+        },
+        SubResource::PluginsConfigMap => {
+            assert_by(
+                key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
+                {
+                    let str1 = key.name + new_strlit("-plugins-conf")@;
+                    reveal_strlit("-server-conf");
+                    reveal_strlit("-plugins-conf");
+                    assert(str1[str1.len() - 6] == 's');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
+        },
+        SubResource::ErlangCookieSecret => {
+            assert_by(
+                cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
+                {
+                    let str1 = cr_key.name + new_strlit("-default-user")@;
+                    reveal_strlit("-erlang-cookie");
+                    reveal_strlit("-default-user");
+                    assert(str1[str1.len() - 1] == 'r');
+                }
+            );
+            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
+        },
+        SubResource::DefaultUserSecret => {
+            assert_by(
+                key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
+                {
+                    let str1 = key.name + new_strlit("-default-user")@;
+                    reveal_strlit("-erlang-cookie");
+                    reveal_strlit("-default-user");
+                    assert(str1[str1.len() - 1] == 'r');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
+        },
+        SubResource::HeadlessService => {
+            assert_by(
+                key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
+                {
+                    let str1 = key.name + new_strlit("-nodes")@;
+                    reveal_strlit("-client");
+                    reveal_strlit("-nodes");
+                    assert(str1[str1.len() - 1] == 's');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
+        },
+        SubResource::Service => {
+            assert_by(
+                cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
+                {
+                    let str1 = cr_key.name + new_strlit("-nodes")@;
+                    reveal_strlit("-client");
+                    reveal_strlit("-nodes");
+                    assert(str1[str1.len() - 1] == 's');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
+        },
+        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+        },
+        SubResource::Role => {
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
+        },
+    }
+}
+
+#[verifier(spinoff_prover)]
+pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster, msg: RMQMessage, step: RMQStep
+)
+    requires
+        !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
+        RMQCluster::next_step(s, s_prime, step),
+        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+        resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg),
+    ensures
+        step.is_ControllerStep(),
+        step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref(),
+        at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
+        at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
+        RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
+{
+    // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
+    // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
+    // is possible by extra reasoning about the strings.
+    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
+    let key = rabbitmq.object_ref();
+    let cr = s.ongoing_reconciles()[key].triggering_cr;
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    assert(step.is_ControllerStep());
+    assert(s.ongoing_reconciles().contains_key(cr_key));
+    let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+    let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+    assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+    assert(local_step_prime.is_AfterKRequestStep());
+    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
+    match sub_resource {
+        SubResource::ServerConfigMap => {
+            // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
+            // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
+            // such a post state.
+            assert_by(
+                cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
+                {
+                    let str1 = cr_key.name + new_strlit("-plugins-conf")@;
+                    reveal_strlit("-server-conf");
+                    reveal_strlit("-plugins-conf");
+                    assert(str1[str1.len() - 6] == 's');
+                }
+            );
+            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+        },
+        SubResource::PluginsConfigMap => {
+            assert_by(
+                key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
+                {
+                    let str1 = key.name + new_strlit("-plugins-conf")@;
+                    reveal_strlit("-server-conf");
+                    reveal_strlit("-plugins-conf");
+                    assert(str1[str1.len() - 6] == 's');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
+        },
+        SubResource::ErlangCookieSecret => {
+            assert_by(
+                cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
+                {
+                    let str1 = cr_key.name + new_strlit("-default-user")@;
+                    reveal_strlit("-erlang-cookie");
+                    reveal_strlit("-default-user");
+                    assert(str1[str1.len() - 1] == 'r');
+                }
+            );
+            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
+        },
+        SubResource::DefaultUserSecret => {
+            assert_by(
+                key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
+                {
+                    let str1 = key.name + new_strlit("-default-user")@;
+                    reveal_strlit("-erlang-cookie");
+                    reveal_strlit("-default-user");
+                    assert(str1[str1.len() - 1] == 'r');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
+        },
+        SubResource::HeadlessService => {
+            assert_by(
+                key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
+                {
+                    let str1 = key.name + new_strlit("-nodes")@;
+                    reveal_strlit("-client");
+                    reveal_strlit("-nodes");
+                    assert(str1[str1.len() - 1] == 's');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
+        },
+        SubResource::Service => {
+            assert_by(
+                cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
+                {
+                    let str1 = cr_key.name + new_strlit("-nodes")@;
+                    reveal_strlit("-client");
+                    reveal_strlit("-nodes");
+                    assert(str1[str1.len() - 1] == 's');
+                }
+            );
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
+        },
+        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+        },
+        SubResource::Role => {
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
+        },
     }
 }
 
@@ -1378,7 +1528,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 ///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 ///     and the original statepred.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
+proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
@@ -1401,13 +1551,18 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         &&& msg.content.is_delete_request()
         &&& msg.content.get_delete_request().key == resource_key
     };
+    let resource_well_formed = |s: RMQCluster| {
+        &&& s.resources().contains_key(resource_key) ==> RMQCluster::etcd_object_is_well_formed(resource_key)(s)
+        &&& s.resources().contains_key(key) ==> RMQCluster::etcd_object_is_well_formed(key)(s)
+    };
 
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& resource_well_formed(s)
     };
+    always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: RMQMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1419,6 +1574,8 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
                 match step {
                     Step::BuiltinControllersStep(_) => {
                         if s.resources().contains_key(resource_key) {
+                            assert(RMQCluster::etcd_object_is_well_formed(resource_key)(s));
+                            assert(RMQCluster::etcd_object_is_well_formed(key)(s));
                             let owner_refs = s.resources()[resource_key].metadata.owner_references;
                             assert(owner_refs == Some(seq![rabbitmq.controller_owner_ref()]));
                             assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
@@ -1430,11 +1587,13 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
                             assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0());
                             assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.is_delete_request());
                         }
+                        assert(requirements(msg, s_prime));
                     },
                     Step::ClientStep() => {
                         if msg.content.is_delete_request() {
                             assert(msg.content.get_delete_request().key.kind != resource_key.kind);
                         }
+                        assert(requirements(msg, s_prime));
                     },
                     _ => {
                         assert(requirements(msg, s_prime));
@@ -1447,7 +1606,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
-        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
+        lift_state(resource_well_formed)
     );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -1482,7 +1641,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
+proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
