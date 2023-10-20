@@ -811,4 +811,56 @@ pub open spec fn pending_req_in_flight_at_after_create_zk_node_step(zk: Zookeepe
     }
 }
 
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_zk_node_step(zk: ZookeeperClusterView, req_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterCreateZKNode;
+        let request = req_msg.content.get_ExternalAPIRequest_0();
+        // let addr = zk_node_addr(s, zk);
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::CustomController
+        &&& req_msg.dst == HostId::ExternalAPI
+        &&& req_msg.content.is_ExternalAPIRequest()
+        &&& request == zk_create_node_request(zk)
+    }
+}
+
+pub open spec fn at_after_create_zk_node_step_and_exists_ok_resp_in_flight(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterCreateZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& exists |resp_msg: ZKMessage| {
+            let resp = resp_msg.content.get_ExternalAPIResponse_0();
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp == ZKAPIOutputView::CreateResponse(ZKAPICreateResultView{res: Ok(())})
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_zk_node_step(zk: ZookeeperClusterView, resp_msg: ZKMessage) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let step = ZookeeperReconcileStep::AfterCreateZKNode;
+        let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_ExternalAPIRequest_0();
+        let resp = resp_msg.content.get_ExternalAPIResponse_0();
+        &&& at_zk_step_with_zk(zk, step)(s)
+        &&& s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ExternalAPI
+        &&& msg.content.is_ExternalAPIRequest()
+        &&& s.in_flight().contains(resp_msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+        &&& resp == ZKAPIOutputView::CreateResponse(ZKAPICreateResultView{res: Ok(())})
+    }
+}
+
+
 }
