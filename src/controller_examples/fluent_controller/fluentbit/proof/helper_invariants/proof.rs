@@ -219,7 +219,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     let requirements = |msg: FBMessage, s: FBCluster| {
         resource_update_request_msg(resource_key)(msg) ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& FBCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& FBCluster::pending_req_msg_is(s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
             &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
             &&& (
@@ -345,7 +345,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     let requirements = |msg: FBMessage, s: FBCluster| {
         resource_update_request_msg(resource_key)(msg) ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& FBCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& FBCluster::pending_req_msg_is(s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.owner_references_only_contains(fb.controller_owner_ref())
         }
     };
@@ -436,7 +436,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     let requirements = |msg: FBMessage, s: FBCluster| {
         resource_create_request_msg(resource_key)(msg) ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-            &&& FBCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& FBCluster::pending_req_msg_is(s, key, msg)
             &&& make(sub_resource, fb, s.ongoing_reconciles()[key].local_state).is_Ok()
             &&& msg.content.get_create_request().obj == make(sub_resource, fb, s.ongoing_reconciles()[key].local_state).get_Ok_0()
         }
@@ -795,12 +795,12 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
         ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == fb.object_ref()
             && at_fb_step(fb.object_ref(), FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
             && at_fb_step(fb.object_ref(), FluentBitReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime)
-            && FBCluster::pending_k8s_api_req_msg_is(s_prime, fb.object_ref(), msg),
+            && FBCluster::pending_req_msg_is(s_prime, fb.object_ref(), msg),
         resource_update_request_msg(get_request(sub_resource, fb).key)(msg)
         ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == fb.object_ref()
             && at_fb_step(fb.object_ref(), FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
             && at_fb_step(fb.object_ref(), FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)
-            && FBCluster::pending_k8s_api_req_msg_is(s_prime, fb.object_ref(), msg),
+            && FBCluster::pending_req_msg_is(s_prime, fb.object_ref(), msg),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
@@ -823,7 +823,7 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
             assert(local_step_prime.get_AfterKRequestStep_0() == ActionKind::Update);
         }
         assert_by(
-            cr_key == fb.object_ref() && local_step.get_AfterKRequestStep_1() == sub_resource && FBCluster::pending_k8s_api_req_msg_is(s_prime, cr_key, msg),
+            cr_key == fb.object_ref() && local_step.get_AfterKRequestStep_1() == sub_resource && FBCluster::pending_req_msg_is(s_prime, cr_key, msg),
             {
                 // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
                 match sub_resource {

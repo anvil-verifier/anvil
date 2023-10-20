@@ -63,7 +63,7 @@ pub open spec fn at_zk_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperRec
 pub open spec fn no_pending_req_at_zk_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::no_pending_req_msg_or_external_api_input(s, zk.object_ref())
+        &&& ZKCluster::no_pending_req_msg(s, zk.object_ref())
     }
 }
 
@@ -101,7 +101,7 @@ pub open spec fn pending_req_in_flight_at_after_get_resource_step(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
@@ -119,7 +119,7 @@ pub open spec fn pending_req_in_flight_at_after_get_zk_step(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
@@ -136,7 +136,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_resource_step
         let step = after_get_k_request_step(sub_resource);
         let request = req_msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& req_msg.dst == HostId::KubernetesAPI
@@ -153,7 +153,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(
         let step = ZookeeperReconcileStep::AfterGetStatefulSet;
         let request = req_msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& req_msg.dst == HostId::KubernetesAPI
@@ -180,7 +180,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -203,7 +203,7 @@ pub open spec fn at_after_get_zk_step_and_exists_not_found_resp_in_flight(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -228,7 +228,7 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -251,7 +251,7 @@ pub open spec fn at_after_get_zk_step_and_exists_ok_resp_in_flight(zk: Zookeeper
         let request = msg.content.get_APIRequest_0();
         let key = get_request(SubResource::StatefulSet, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -275,7 +275,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -296,7 +296,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_zk_step(zk: Zook
         let request = msg.content.get_APIRequest_0();
         let key = get_request(SubResource::StatefulSet, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -316,7 +316,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -335,7 +335,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_zk_step(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_APIRequest()
@@ -385,7 +385,7 @@ pub open spec fn pending_req_in_flight_at_after_create_resource_step(
         let step = after_create_k_request_step(sub_resource);
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& resource_create_request_msg(get_request(sub_resource, zk).key)(msg)
@@ -398,7 +398,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_resource_s
     |s: ZKCluster| {
         let step = after_create_k_request_step(sub_resource);
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& resource_create_request_msg(get_request(sub_resource, zk).key)(req_msg)
@@ -414,7 +414,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& resource_create_request_msg(key)(msg)
         &&& exists |resp_msg| {
@@ -435,7 +435,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& resource_create_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
@@ -453,7 +453,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let resource_key= get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(resource_key)(msg)
@@ -470,7 +470,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         let step = after_update_k_request_step(sub_resource);
         let resource_key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, zk).key)(req_msg)
@@ -489,7 +489,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(key)(msg)
         &&& exists |resp_msg| {
@@ -510,7 +510,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, zk).key;
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::has_pending_k8s_api_req_msg(s, zk.object_ref())
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
@@ -542,7 +542,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_exists_zk_node_st
         let step = ZookeeperReconcileStep::AfterExistsZKNode;
         let request = req_msg.content.get_ExternalAPIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& req_msg.dst == HostId::ExternalAPI
@@ -620,7 +620,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_zk_node_st
         let request = req_msg.content.get_ExternalAPIRequest_0();
         let addr = zk_node_addr(s, zk);
         &&& at_zk_step_with_zk(zk, step)(s)
-        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& req_msg.dst == HostId::ExternalAPI

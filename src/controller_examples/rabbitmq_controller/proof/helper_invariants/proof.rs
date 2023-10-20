@@ -595,7 +595,7 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
     RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
     invariant_n!(
         spec, lift_state(next), lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
-        lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)), 
+        lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)),
         lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key))
     );
 }
@@ -670,7 +670,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
     let requirements = |msg: RMQMessage, s: RMQCluster| {
         resource_update_request_msg(resource_key)(msg) ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& RMQCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& RMQCluster::pending_req_msg_is(s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
             &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
             &&& (
@@ -801,7 +801,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
     let requirements = |msg: RMQMessage, s: RMQCluster| {
         resource_update_request_msg(resource_key)(msg) ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-            &&& RMQCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& RMQCluster::pending_req_msg_is(s, key, msg)
             &&& msg.content.get_update_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
         }
     };
@@ -892,7 +892,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
     let requirements = |msg: RMQMessage, s: RMQCluster| {
         resource_create_request_msg(resource_key)(msg) ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-            &&& RMQCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& RMQCluster::pending_req_msg_is(s, key, msg)
             &&& make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state).is_Ok()
             &&& msg.content.get_create_request().obj == make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state).get_Ok_0()
         }
@@ -1265,7 +1265,7 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(
         step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref(),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
-        RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
+        RMQCluster::pending_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
@@ -1382,7 +1382,7 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(
         step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref(),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s),
         at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
-        RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
+        RMQCluster::pending_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map

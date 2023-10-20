@@ -344,7 +344,7 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: SimpleCRView)
             let s = ex.suffix(i).head();
             let req_msg = choose |req_msg: SimpleMessage| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
-                && ClusterProof::pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
+                && ClusterProof::pending_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.in_flight().contains(req_msg)
                     || exists |resp_msg: SimpleMessage| {
                         #[trigger] s.in_flight().contains(resp_msg)
@@ -400,7 +400,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: SimpleCRView)
             let s = ex.suffix(i).head();
             let req_msg = choose |msg| {
                 &&& #[trigger] is_controller_get_cr_request_msg(msg, cr)
-                &&& ClusterProof::pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
+                &&& ClusterProof::pending_req_msg_is(s, cr.object_ref(), msg)
                 &&& ! exists |resp_msg: SimpleMessage| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
