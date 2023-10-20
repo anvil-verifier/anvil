@@ -750,5 +750,67 @@ proof fn lemma_from_addr_exists_to_receives_ok_resp_at_after_update_zk_node_step
     );
 }
 
+proof fn lemma_from_addr_exists_and_ok_resp_to_after_get_stateful_set_step(
+    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage
+)
+    requires
+        spec.entails(always(lift_action(ZKCluster::next()))),
+        spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
+        spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
+        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
+    ensures
+        spec.entails(
+            lift_state(|s: ZKCluster| {
+                &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
+                &&& s.external_state().data.contains_key(zk_node_addr(s, zookeeper))
+                &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_zk_node_step(zookeeper, resp_msg)(s)
+            })
+                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)))
+        ),
+{
+    let pre = |s: ZKCluster| {
+        &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
+        &&& s.external_state().data.contains_key(zk_node_addr(s, zookeeper))
+        &&& resp_msg_is_the_in_flight_ok_resp_at_after_update_zk_node_step(zookeeper, resp_msg)(s)
+    };
+    let post = pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper);
+    let input = (Some(resp_msg), Some(zookeeper.object_ref()));
+    let stronger_next = |s, s_prime: ZKCluster| {
+        &&& ZKCluster::next()(s, s_prime)
+        &&& ZKCluster::crash_disabled()(s)
+        &&& ZKCluster::busy_disabled()(s)
+        &&& ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())(s)
+        &&& ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())(s)
+        &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
+        &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
+        &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
+    };
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(ZKCluster::next()),
+        lift_state(ZKCluster::crash_disabled()),
+        lift_state(ZKCluster::busy_disabled()),
+        lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
+        lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())),
+        lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
+        lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
+        lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
+        lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper))
+    );
+
+    ZKCluster::lemma_pre_leads_to_post_by_controller(
+        spec, input, stronger_next,
+        ZKCluster::continue_reconcile(), pre, post
+    );
+}
+
 
 }
