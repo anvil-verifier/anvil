@@ -212,6 +212,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
         ],
         tolerations: fb.spec.tolerations,
         affinity: fb.spec.affinity,
+        node_selector: Some(fb.spec.node_selector),
         ..PodSpecView::default()
     }
 }

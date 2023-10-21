@@ -209,6 +209,8 @@ pub struct FluentBitSpec {
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
+    #[serde(default)]
+    pub node_selector: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(
