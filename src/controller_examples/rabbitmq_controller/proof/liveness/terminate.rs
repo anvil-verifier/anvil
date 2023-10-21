@@ -25,13 +25,14 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitm
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(
+        spec.entails(always(lift_state(RMQCluster::no_pending_req_msg_at_reconcile_state(
             rabbitmq.object_ref(), |s: RabbitmqReconcileState| s.reconcile_step == RabbitmqReconcileStep::Init)))),
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
@@ -115,6 +116,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),

@@ -148,6 +148,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
 pub open spec fn next_with_wf() -> TempPred<RMQCluster> {
     always(lift_action(RMQCluster::next()))
     .and(tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)))
+    .and(tla_forall(|input| RMQCluster::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)))
@@ -161,6 +162,7 @@ pub proof fn next_with_wf_is_stable()
 {
     always_p_is_stable(lift_action(RMQCluster::next()));
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::kubernetes_api_next());
+    RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::external_api_next());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::controller_next());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::schedule_controller_reconcile());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::builtin_controllers_next());
@@ -169,6 +171,7 @@ pub proof fn next_with_wf_is_stable()
     stable_and_n!(
         always(lift_action(RMQCluster::next())),
         tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| RMQCluster::external_api_next().weak_fairness(input)),
         tla_forall(|input| RMQCluster::controller_next().weak_fairness(input)),
         tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)),
         tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)),
@@ -211,7 +214,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))))
-    .and(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
+    .and(always(lift_state(RMQCluster::no_pending_req_msg_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
     .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(res, rabbitmq)))))
     .and(always(lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq))))
@@ -247,7 +250,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
-        lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
+        lift_state(RMQCluster::no_pending_req_msg_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq)),
@@ -420,7 +423,7 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_1);
     });
-    RMQCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
+    RMQCluster::lemma_always_no_pending_req_msg_at_reconcile_state(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
 
     // Different from other a_to_p_x, we encapsulate a_to_p_2 inside the lemma below because we find its reasoning is
     // surprisingly slow in this context. Encapsulating the reasoning reduces the verification time of this function
@@ -476,7 +479,7 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
-        lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
+        lift_state(RMQCluster::no_pending_req_msg_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq)),

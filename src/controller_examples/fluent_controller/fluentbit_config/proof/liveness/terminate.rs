@@ -25,13 +25,14 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCCluster>, fbc: Fl
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| FBCCluster::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| FBCCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())))),
         spec.entails(always(lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())))),
-        spec.entails(always(lift_state(FBCCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))))),
+        spec.entails(always(lift_state(FBCCluster::no_pending_req_msg_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))))),
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))
         ))))),
@@ -96,6 +97,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| FBCCluster::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| FBCCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),

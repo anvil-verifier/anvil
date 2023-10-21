@@ -134,6 +134,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(fbc: FluentBitCon
 pub open spec fn next_with_wf() -> TempPred<FBCCluster> {
     always(lift_action(FBCCluster::next()))
     .and(tla_forall(|input| FBCCluster::kubernetes_api_next().weak_fairness(input)))
+    .and(tla_forall(|input| FBCCluster::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| FBCCluster::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| FBCCluster::schedule_controller_reconcile().weak_fairness(input)))
     .and(tla_forall(|input| FBCCluster::builtin_controllers_next().weak_fairness(input)))
@@ -147,6 +148,7 @@ pub proof fn next_with_wf_is_stable()
 {
     always_p_is_stable(lift_action(FBCCluster::next()));
     FBCCluster::tla_forall_action_weak_fairness_is_stable(FBCCluster::kubernetes_api_next());
+    FBCCluster::tla_forall_action_weak_fairness_is_stable(FBCCluster::external_api_next());
     FBCCluster::tla_forall_action_weak_fairness_is_stable(FBCCluster::controller_next());
     FBCCluster::tla_forall_action_weak_fairness_is_stable(FBCCluster::schedule_controller_reconcile());
     FBCCluster::tla_forall_action_weak_fairness_is_stable(FBCCluster::builtin_controllers_next());
@@ -155,6 +157,7 @@ pub proof fn next_with_wf_is_stable()
     stable_and_n!(
         always(lift_action(FBCCluster::next())),
         tla_forall(|input| FBCCluster::kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| FBCCluster::external_api_next().weak_fairness(input)),
         tla_forall(|input| FBCCluster::controller_next().weak_fairness(input)),
         tla_forall(|input| FBCCluster::schedule_controller_reconcile().weak_fairness(input)),
         tla_forall(|input| FBCCluster::builtin_controllers_next().weak_fairness(input)),
@@ -197,7 +200,7 @@ pub open spec fn derived_invariants_since_beginning(fbc: FluentBitConfigView) ->
     .and(always(lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))))
-    .and(always(lift_state(FBCCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init)))))
+    .and(always(lift_state(FBCCluster::no_pending_req_msg_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init)))))
     .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight(res, fbc)))))
     .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())))
@@ -229,7 +232,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigVi
         lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
-        lift_state(FBCCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))),
+        lift_state(FBCCluster::no_pending_req_msg_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
@@ -378,7 +381,7 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_1);
     });
-    FBCCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init));
+    FBCCluster::lemma_always_no_pending_req_msg_at_reconcile_state(spec, fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init));
 
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))));
     lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, fbc);
@@ -422,7 +425,7 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
-        lift_state(FBCCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))),
+        lift_state(FBCCluster::no_pending_req_msg_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),

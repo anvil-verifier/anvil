@@ -306,6 +306,7 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req(
 // The proof is very straightforward:
 //   - Right after the controller enters 'state', the pending request is added to in_flight.
 //   - If the pending request is processed by kubernetes api, there will be a response in flight.
+//   - If the pending request is processed by external api, there will be a response in flight.
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
@@ -314,11 +315,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     requires
         forall |s| (#[trigger] state(s)) ==> s != R::reconcile_init_state(),
         forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
-            ==> {
-                let req = R::reconcile_core(cr, resp_o, pre_state).1;
-                &&& req.is_Some()
-                &&& req.get_Some_0().is_KRequest()
-            },
+            ==> R::reconcile_core(cr, resp_o, pre_state).1.is_Some(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(key)))),
@@ -388,10 +385,13 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                     }
                 }
                 Step::ExternalAPIStep(input) => {
-                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        let resp_msg = Self::handle_external_request_helper(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.external_api_state, s.kubernetes_api_state.resources).1;
+                        assert(s_prime.in_flight().contains(resp_msg));
                     } else {
-                        assert(s_prime.in_flight().contains(resp));
+                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                            assert(s_prime.in_flight().contains(resp));
+                        }
                     }
                 }
                 _ => {
@@ -404,7 +404,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
-pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(
+pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(
     spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
@@ -414,9 +414,9 @@ pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_
             #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_None(),
     ensures
-        spec.entails(always(lift_state(Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(key, state)))),
+        spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(key, state)))),
 {
-    let invariant = Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(key, state);
+    let invariant = Self::no_pending_req_msg_at_reconcile_state(key, state);
     assert forall |s, s_prime: Self| invariant(s) &&
     #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
         if s_prime.ongoing_reconciles().contains_key(key) && state(s_prime.ongoing_reconciles()[key].local_state) {
@@ -428,26 +428,6 @@ pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_
             }
         }
     }
-    init_invariant(spec, Self::init(), Self::next(), invariant);
-}
-
-pub proof fn lemma_always_pending_req_msg_is_none_at_reconcile_state(
-    spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool
-)
-    requires
-        forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
-            ==> {
-                let req = R::reconcile_core(cr, resp_o, pre_state).1;
-                req.is_None()
-            },
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(Self::pending_req_msg_is_none_at_reconcile_state(key, state)))
-        ),
-{
-    let invariant = Self::pending_req_msg_is_none_at_reconcile_state(key, state);
     init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
