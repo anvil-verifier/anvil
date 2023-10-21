@@ -32,6 +32,7 @@ pub fn fluent_bit() -> String {
         namespace: default
     spec:
         fluentBitConfigName: fluent-bit-config
+        image: kubesphere/fluent-bit:v2.1.7
         tolerations:
             - operator: Exists
     "
