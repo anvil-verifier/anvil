@@ -5,8 +5,8 @@ use crate::fluent_controller::fluentbit::spec::types as spec_types;
 use crate::fluent_controller::fluentbit::spec::types::{FluentBitSpecView, FluentBitView};
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*, resource_requirements::*, toleration::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
+    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
 };
 use crate::vstd_ext::{string_map::*, string_view::*};
 use deps_hack::kube::Resource;
@@ -186,6 +186,18 @@ impl FluentBitSpec {
             annotations@ == self@.annotations,
     {
         StringMap::from_rust_map(self.inner.annotations.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn affinity(&self) -> (affinity: Option<Affinity>)
+        ensures
+            self@.affinity.is_Some() == affinity.is_Some(),
+            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+    {
+        match &self.inner.affinity {
+            Some(a) => Some(Affinity::from_kube(a.clone())),
+            None => None,
+        }
     }
 }
 
