@@ -67,10 +67,6 @@ pub open spec fn no_pending_req_at_zk_step_with_zk(zk: ZookeeperClusterView, ste
     }
 }
 
-pub open spec fn at_step_closure(step: ZookeeperReconcileStep) -> FnSpec(ZookeeperReconcileState) -> bool {
-    |s: ZookeeperReconcileState| s.reconcile_step == step
-}
-
 pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> ZookeeperReconcileStep {
     ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
