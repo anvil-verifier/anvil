@@ -112,7 +112,7 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: RMQCluster) -> 
         )
 }
 
-/// This spec tells that when the reconciler is at AfterGetStatefulSet, and there is a matched response, the reponse must be
+/// This spec tells that when the reconciler is at AfterExistsStatefulSet, and there is a matched response, the reponse must be
 /// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
 /// stateful_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
 /// so we need this extra spec and lemma.
@@ -284,7 +284,7 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
     }
 }
 
-/// We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
+/// We only need it for AfterExistsStatefulSet, but keeping all the steps makes the invariant easier to prove.
 pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();

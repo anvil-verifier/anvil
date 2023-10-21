@@ -23,7 +23,7 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub proof fn lemma_from_after_get_zk_step_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
+pub proof fn lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
@@ -49,25 +49,25 @@ pub proof fn lemma_from_after_get_zk_step_to_after_get_stateful_set_step(spec: T
         spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
     ensures
         spec.entails(
-            lift_state(pending_req_in_flight_at_after_get_zk_step(zookeeper))
+            lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper))
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)))
         ),
 {
-    lemma_from_after_get_zk_step_and_key_not_exists_to_after_get_stateful_set_step(spec, zookeeper);
-    lemma_from_after_get_zk_step_and_key_exists_to_after_get_stateful_set_step(spec, zookeeper);
+    lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_get_stateful_set_step(spec, zookeeper);
+    lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_stateful_set_step(spec, zookeeper);
     let key_not_exists = lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& pending_req_in_flight_at_after_get_zk_step(zookeeper)(s)
+        &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
     });
     let key_exists = lift_state(|s: ZKCluster| {
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& pending_req_in_flight_at_after_get_zk_step(zookeeper)(s)
+        &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
     });
     or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)));
-    temp_pred_equality(key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_zk_step(zookeeper)));
+    temp_pred_equality(key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)));
 }
 
-proof fn lemma_from_after_get_zk_step_and_key_not_exists_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
+proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
@@ -85,33 +85,33 @@ proof fn lemma_from_after_get_zk_step_and_key_not_exists_to_after_get_stateful_s
         spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                &&& pending_req_in_flight_at_after_get_zk_step(zookeeper)(s)
+                &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
             }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)))
         ),
 {
     let pre = lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& pending_req_in_flight_at_after_get_zk_step(zookeeper)(s)
+        &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
     });
     let post = lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper));
     let pre_and_req_in_flight = |req_msg| lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(zookeeper, req_msg)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(zookeeper, req_msg)(s)
     });
     let pre_and_exists_resp_in_flight = lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& at_after_get_zk_step_and_exists_not_found_resp_in_flight(zookeeper)(s)
+        &&& at_after_exists_stateful_set_step_and_exists_not_found_resp_in_flight(zookeeper)(s)
     });
     let pre_and_resp_in_flight = |resp_msg| lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& resp_msg_is_the_in_flight_resp_at_after_get_zk_step(zookeeper, resp_msg)(s)
+        &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res.is_Err()
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     });
 
     assert_by(spec.entails(pre.leads_to(post)), {
         assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight)) by {
-            lemma_from_pending_req_to_receives_not_found_resp_at_after_get_zk_step(spec, zookeeper, req_msg);
+            lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_stateful_set_step(spec, zookeeper, req_msg);
         }
         leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
         assert_by(tla_exists(pre_and_req_in_flight) == pre, {
@@ -123,7 +123,7 @@ proof fn lemma_from_after_get_zk_step_and_key_not_exists_to_after_get_stateful_s
         });
 
         assert forall |resp_msg| spec.entails(#[trigger] pre_and_resp_in_flight(resp_msg).leads_to(post)) by {
-            lemma_from_at_after_get_zk_step_to_after_get_stateful_set_step(spec, zookeeper, resp_msg);
+            lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_step(spec, zookeeper, resp_msg);
         }
         leads_to_exists_intro(spec, pre_and_resp_in_flight, post);
         assert_by(tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight, {
@@ -143,7 +143,7 @@ proof fn lemma_from_after_get_zk_step_and_key_not_exists_to_after_get_stateful_s
     });
 }
 
-proof fn lemma_from_after_get_zk_step_and_key_exists_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
+proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
@@ -169,13 +169,13 @@ proof fn lemma_from_after_get_zk_step_and_key_exists_to_after_get_stateful_set_s
         spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                &&& pending_req_in_flight_at_after_get_zk_step(zookeeper)(s)
+                &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
             }).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)))
         ),
 {
     let pre = lift_state(|s: ZKCluster| {
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& pending_req_in_flight_at_after_get_zk_step(zookeeper)(s)
+        &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
     });
     let post = lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper));
 
@@ -185,47 +185,47 @@ proof fn lemma_from_after_get_zk_step_and_key_exists_to_after_get_stateful_set_s
     });
 
     assert_by(spec.entails(pre.leads_to(after_exists_zk_node_step_pending)), {
-        let after_get_zk_step_req_msg = |req_msg: ZKMessage| lift_state(|s: ZKCluster| {
+        let after_exists_stateful_set_step_req_msg = |req_msg: ZKMessage| lift_state(|s: ZKCluster| {
             &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-            &&& req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(zookeeper, req_msg)(s)
+            &&& req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(zookeeper, req_msg)(s)
         });
-        let after_get_zk_step_waiting = lift_state(|s: ZKCluster| {
+        let after_exists_stateful_set_step_waiting = lift_state(|s: ZKCluster| {
             &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-            &&& at_after_get_zk_step_and_exists_ok_resp_in_flight(zookeeper)(s)
+            &&& at_after_exists_stateful_set_step_and_exists_ok_resp_in_flight(zookeeper)(s)
         });
-        assert forall |req_msg| spec.entails(#[trigger] after_get_zk_step_req_msg(req_msg).leads_to(after_get_zk_step_waiting)) by {
-            lemma_from_pending_req_to_receives_ok_resp_at_after_get_zk_step(spec, zookeeper, req_msg);
+        assert forall |req_msg| spec.entails(#[trigger] after_exists_stateful_set_step_req_msg(req_msg).leads_to(after_exists_stateful_set_step_waiting)) by {
+            lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set_step(spec, zookeeper, req_msg);
         }
-        leads_to_exists_intro(spec, after_get_zk_step_req_msg, after_get_zk_step_waiting);
-        assert_by(tla_exists(after_get_zk_step_req_msg) == pre, {
-            assert forall |ex| #[trigger] pre.satisfied_by(ex) implies tla_exists(after_get_zk_step_req_msg).satisfied_by(ex) by {
+        leads_to_exists_intro(spec, after_exists_stateful_set_step_req_msg, after_exists_stateful_set_step_waiting);
+        assert_by(tla_exists(after_exists_stateful_set_step_req_msg) == pre, {
+            assert forall |ex| #[trigger] pre.satisfied_by(ex) implies tla_exists(after_exists_stateful_set_step_req_msg).satisfied_by(ex) by {
                 let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
-                assert(after_get_zk_step_req_msg(req_msg).satisfied_by(ex));
+                assert(after_exists_stateful_set_step_req_msg(req_msg).satisfied_by(ex));
             }
-            temp_pred_equality(tla_exists(after_get_zk_step_req_msg), pre);
+            temp_pred_equality(tla_exists(after_exists_stateful_set_step_req_msg), pre);
         });
 
-        let after_get_zk_step_resp_msg = |resp_msg: ZKMessage| lift_state(|s: ZKCluster| {
+        let after_exists_stateful_set_step_resp_msg = |resp_msg: ZKMessage| lift_state(|s: ZKCluster| {
             &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-            &&& resp_msg_is_the_in_flight_ok_resp_at_after_get_zk_step(zookeeper, resp_msg)(s)
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
         });
-        assert forall |resp_msg| spec.entails(#[trigger] after_get_zk_step_resp_msg(resp_msg).leads_to(after_exists_zk_node_step_pending)) by {
-            lemma_from_after_get_zk_step_to_after_exists_zk_node_step(spec, zookeeper, resp_msg);
+        assert forall |resp_msg| spec.entails(#[trigger] after_exists_stateful_set_step_resp_msg(resp_msg).leads_to(after_exists_zk_node_step_pending)) by {
+            lemma_from_after_exists_stateful_set_step_to_after_exists_zk_node_step(spec, zookeeper, resp_msg);
         }
-        leads_to_exists_intro(spec, after_get_zk_step_resp_msg, after_exists_zk_node_step_pending);
-        assert_by(tla_exists(after_get_zk_step_resp_msg) == after_get_zk_step_waiting, {
-            assert forall |ex| #[trigger] after_get_zk_step_waiting.satisfied_by(ex) implies tla_exists(after_get_zk_step_resp_msg).satisfied_by(ex) by {
+        leads_to_exists_intro(spec, after_exists_stateful_set_step_resp_msg, after_exists_zk_node_step_pending);
+        assert_by(tla_exists(after_exists_stateful_set_step_resp_msg) == after_exists_stateful_set_step_waiting, {
+            assert forall |ex| #[trigger] after_exists_stateful_set_step_waiting.satisfied_by(ex) implies tla_exists(after_exists_stateful_set_step_resp_msg).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
                     &&& resp_msg.content.get_get_response().res.is_Ok()
                 };
-                assert(after_get_zk_step_resp_msg(resp_msg).satisfied_by(ex));
+                assert(after_exists_stateful_set_step_resp_msg(resp_msg).satisfied_by(ex));
             }
-            temp_pred_equality(tla_exists(after_get_zk_step_resp_msg), after_get_zk_step_waiting);
+            temp_pred_equality(tla_exists(after_exists_stateful_set_step_resp_msg), after_exists_stateful_set_step_waiting);
         });
 
-        leads_to_trans_temp(spec, pre, after_get_zk_step_waiting, after_exists_zk_node_step_pending);
+        leads_to_trans_temp(spec, pre, after_exists_stateful_set_step_waiting, after_exists_zk_node_step_pending);
     });
 
     assert_by(spec.entails(after_exists_zk_node_step_pending.leads_to(post)) , {
@@ -485,7 +485,7 @@ proof fn lemma_from_after_get_zk_step_and_key_exists_to_after_get_stateful_set_s
     leads_to_trans_temp(spec, pre, after_exists_zk_node_step_pending, post);
 }
 
-proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_get_zk_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
+proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
@@ -497,21 +497,21 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_get_zk_step(
         spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                &&& req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(zookeeper, req_msg)(s)
+                &&& req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(zookeeper, req_msg)(s)
             })
                 .leads_to(lift_state(|s: ZKCluster| {
                     &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                    &&& at_after_get_zk_step_and_exists_not_found_resp_in_flight(zookeeper)(s)
+                    &&& at_after_exists_stateful_set_step_and_exists_not_found_resp_in_flight(zookeeper)(s)
                 }))
         ),
 {
     let pre = |s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(zookeeper, req_msg)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(zookeeper, req_msg)(s)
     };
     let post = |s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& at_after_get_zk_step_and_exists_not_found_resp_in_flight(zookeeper)(s)
+        &&& at_after_exists_stateful_set_step_and_exists_not_found_resp_in_flight(zookeeper)(s)
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
@@ -562,7 +562,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_get_zk_step(
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
 }
 
-proof fn lemma_from_at_after_get_zk_step_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
+proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
@@ -577,7 +577,7 @@ proof fn lemma_from_at_after_get_zk_step_to_after_get_stateful_set_step(spec: Te
         spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                &&& resp_msg_is_the_in_flight_resp_at_after_get_zk_step(zookeeper, resp_msg)(s)
+                &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
                 &&& resp_msg.content.get_get_response().res.is_Err()
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             })
@@ -586,7 +586,7 @@ proof fn lemma_from_at_after_get_zk_step_to_after_get_stateful_set_step(spec: Te
 {
     let pre = |s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& resp_msg_is_the_in_flight_resp_at_after_get_zk_step(zookeeper, resp_msg)(s)
+        &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res.is_Err()
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
@@ -618,7 +618,7 @@ proof fn lemma_from_at_after_get_zk_step_to_after_get_stateful_set_step(spec: Te
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
-proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_get_zk_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
+proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
@@ -631,21 +631,21 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_get_zk_step(spec: T
         spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                &&& req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(zookeeper, req_msg)(s)
+                &&& req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(zookeeper, req_msg)(s)
             })
                 .leads_to(lift_state(|s: ZKCluster| {
                     &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                    &&& at_after_get_zk_step_and_exists_ok_resp_in_flight(zookeeper)(s)
+                    &&& at_after_exists_stateful_set_step_and_exists_ok_resp_in_flight(zookeeper)(s)
                 }))
         ),
 {
     let pre = |s: ZKCluster| {
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(zookeeper, req_msg)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(zookeeper, req_msg)(s)
     };
     let post = |s: ZKCluster| {
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& at_after_get_zk_step_and_exists_ok_resp_in_flight(zookeeper)(s)
+        &&& at_after_exists_stateful_set_step_and_exists_ok_resp_in_flight(zookeeper)(s)
     };
     let resource_key = get_request(SubResource::StatefulSet, zookeeper).key;
     let input = Some(req_msg);
@@ -700,7 +700,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_get_zk_step(spec: T
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
 }
 
-proof fn lemma_from_after_get_zk_step_to_after_exists_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
+proof fn lemma_from_after_exists_stateful_set_step_to_after_exists_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
@@ -716,7 +716,7 @@ proof fn lemma_from_after_get_zk_step_to_after_exists_zk_node_step(spec: TempPre
         spec.entails(
             lift_state(|s: ZKCluster| {
                 &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-                &&& resp_msg_is_the_in_flight_ok_resp_at_after_get_zk_step(zookeeper, resp_msg)(s)
+                &&& resp_msg_is_the_in_flight_ok_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
             })
                 .leads_to(lift_state(|s: ZKCluster| {
                     &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
@@ -726,7 +726,7 @@ proof fn lemma_from_after_get_zk_step_to_after_exists_zk_node_step(spec: TempPre
 {
     let pre = |s: ZKCluster| {
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
-        &&& resp_msg_is_the_in_flight_ok_resp_at_after_get_zk_step(zookeeper, resp_msg)(s)
+        &&& resp_msg_is_the_in_flight_ok_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
     };
     let post = |s: ZKCluster| {
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)

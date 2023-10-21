@@ -88,7 +88,7 @@ pub open spec fn next_resource_after(sub_resource: SubResource) -> ZookeeperReco
         SubResource::HeadlessService => after_get_k_request_step(SubResource::ClientService),
         SubResource::ClientService => after_get_k_request_step(SubResource::AdminServerService),
         SubResource::AdminServerService => after_get_k_request_step(SubResource::ConfigMap),
-        SubResource::ConfigMap => ZookeeperReconcileStep::AfterGetStatefulSet,
+        SubResource::ConfigMap => ZookeeperReconcileStep::AfterExistsStatefulSet,
         SubResource::StatefulSet => ZookeeperReconcileStep::AfterUpdateStatus,
     }
 }
@@ -111,11 +111,11 @@ pub open spec fn pending_req_in_flight_at_after_get_resource_step(
     }
 }
 
-pub open spec fn pending_req_in_flight_at_after_get_zk_step(
+pub open spec fn pending_req_in_flight_at_after_exists_stateful_set_step(
     zk: ZookeeperClusterView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
@@ -146,11 +146,11 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_resource_step
     }
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_zk_step(
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_exists_stateful_set_step(
     zk: ZookeeperClusterView, req_msg: ZKMessage
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let request = req_msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
         &&& ZKCluster::pending_req_msg_is(s, zk.object_ref(), req_msg)
@@ -195,11 +195,11 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
     }
 }
 
-pub open spec fn at_after_get_zk_step_and_exists_not_found_resp_in_flight(
+pub open spec fn at_after_exists_stateful_set_step_and_exists_not_found_resp_in_flight(
     zk: ZookeeperClusterView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)
@@ -244,9 +244,9 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
     }
 }
 
-pub open spec fn at_after_get_zk_step_and_exists_ok_resp_in_flight(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
+pub open spec fn at_after_exists_stateful_set_step_and_exists_ok_resp_in_flight(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         let key = get_request(SubResource::StatefulSet, zk).key;
@@ -289,9 +289,9 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
     }
 }
 
-pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_zk_step(zk: ZookeeperClusterView, resp_msg: ZKMessage) -> StatePred<ZKCluster> {
+pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_exists_stateful_set_step(zk: ZookeeperClusterView, resp_msg: ZKMessage) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         let key = get_request(SubResource::StatefulSet, zk).key;
@@ -327,11 +327,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
     }
 }
 
-pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_zk_step(
+pub open spec fn resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(
     zk: ZookeeperClusterView, resp_msg: ZKMessage
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        let step = ZookeeperReconcileStep::AfterGetStatefulSet;
+        let step = ZookeeperReconcileStep::AfterExistsStatefulSet;
         let msg = s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_zk_step_with_zk(zk, step)(s)

@@ -59,7 +59,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         ),
         sub_resource == SubResource::ConfigMap ==> spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_zk_step(zookeeper)))
+                .leads_to(lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)))
         ),
 {
     lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, zookeeper);
@@ -80,7 +80,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     let next_state = if sub_resource != SubResource::ConfigMap {
         pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)
     } else {
-        pending_req_in_flight_at_after_get_zk_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
+        pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
     };
     or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(next_state));
 }
@@ -119,7 +119,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(sub_resource, zookeeper).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_zk_step(zookeeper)))
+            }).leads_to(lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)))
         ),
 {
     let pre = lift_state(|s: ZKCluster| {
@@ -153,7 +153,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     let next_state = if sub_resource != SubResource::ConfigMap {
         pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)
     } else {
-        pending_req_in_flight_at_after_get_zk_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
+        pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
     };
 
     assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
@@ -307,7 +307,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
             lift_state(|s: ZKCluster| {
                 &&& s.resources().contains_key(get_request(sub_resource, zookeeper).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
-            }).leads_to(lift_state(pending_req_in_flight_at_after_get_zk_step(zookeeper)))
+            }).leads_to(lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)))
         ),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -320,7 +320,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     let next_state = if sub_resource != SubResource::ConfigMap {
         pending_req_in_flight_at_after_get_resource_step(next_resource_after(sub_resource).get_AfterKRequestStep_1(), zookeeper)
     } else {
-        pending_req_in_flight_at_after_get_zk_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
+        pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
     };
     assert_by(spec.entails(pre.leads_to(match_and_ok_resp)), {
         let pre_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(sub_resource, zookeeper, req_msg));
