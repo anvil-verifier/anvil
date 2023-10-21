@@ -410,6 +410,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
     spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
 )
@@ -425,8 +426,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
-        forall |cr_1, resp_o, s|
-            state(s) ==> #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
+        forall |cr_1, resp_o, s| state(s) ==> #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
     ensures
         spec.entails(
             lift_state(Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state))

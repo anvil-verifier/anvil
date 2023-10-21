@@ -246,21 +246,27 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
 pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnSpec(MsgType<E>, Self) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
         forall |msg: MsgType<E>|
-            (!s.in_flight().contains(msg) || requirements(msg, s))
-            && #[trigger] s_prime.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_APIRequest()
-            ==> requirements(msg, s_prime)
+            {
+                &&& (!s.in_flight().contains(msg) || requirements(msg, s))
+                &&& #[trigger] s_prime.in_flight().contains(msg)
+                &&& {
+                    ||| msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest()
+                    ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
+                }
+            } ==> requirements(msg, s_prime)
     }
 }
 
 pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(MsgType<E>, Self) -> bool) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_APIRequest()
-            ==> requirements(msg, s)
+            {
+                &&& #[trigger] s.in_flight().contains(msg)
+                &&& {
+                    ||| msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest()
+                    ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
+                }
+            } ==> requirements(msg, s)
     }
 }
 
@@ -279,6 +285,7 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
@@ -313,6 +320,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
@@ -322,20 +330,22 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
     let always_spec = always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))
                     .and(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())))
                     .and(always(lift_action(Self::next())));
-    let stable_spec = always_spec.and(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
+    let stable_spec = always_spec.and(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))).and(tla_forall(|i| Self::external_api_next().weak_fairness(i)));
     stable_and_always_n!(
         lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_action(Self::next())
     );
     Self::tla_forall_action_weak_fairness_is_stable(Self::kubernetes_api_next());
-    stable_and_temp(always_spec, tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
+    Self::tla_forall_action_weak_fairness_is_stable(Self::external_api_next());
+    stable_and_n!(always_spec, tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)), tla_forall(|i| Self::external_api_next().weak_fairness(i)));
     entails_and_n!(
         spec,
         always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements))),
         always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
         always(lift_action(Self::next())),
-        tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))
+        tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)),
+        tla_forall(|i| Self::external_api_next().weak_fairness(i))
     );
 
     let spec_with_rest_id = stable_spec.and(lift_state(Self::rest_id_counter_is(rest_id)));
@@ -353,12 +363,15 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         {
             Self::lemma_always_has_rest_id_counter_no_smaller_than(spec_with_rest_id, rest_id);
             let invariant = |s: Self| {
-                forall |msg: MsgType<E>| #[trigger]
-                    s.in_flight().contains(msg)
-                    && msg.content.get_rest_id() >= rest_id
-                    && msg.dst.is_KubernetesAPI()
-                    && msg.content.is_APIRequest()
-                    ==> requirements(msg, s)
+                forall |msg: MsgType<E>|
+                {
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& msg.content.get_rest_id() >= rest_id
+                    &&& {
+                        ||| msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest()
+                        ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
+                    }
+                } ==> requirements(msg, s)
             };
             assert_by(
                 spec_with_rest_id.entails(always(lift_state(invariant))),
@@ -424,6 +437,7 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
@@ -456,6 +470,7 @@ pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
@@ -497,6 +512,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
@@ -508,49 +524,20 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
 {
     if msg_num == 0 {
         // The base case:
-        // If there are 0 such requests, then all of them are gone. Seems trivial.
-        let pending_requests_num_is_zero = lift_state(|s: Self| {
+        // If there are 0 such requests, then all of them are gone.
+        let pending_requests_num_is_zero = |s: Self| {
             s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == 0
-        });
-        let no_more_pending_requests = lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id));
+        };
+        let no_more_pending_requests = Self::no_req_before_rest_id_is_in_flight(rest_id);
 
-        // But it still takes some efforts to show these two things are the same.
-        assert_by(pending_requests_num_is_zero == no_more_pending_requests, {
-            assert forall |ex| pending_requests_num_is_zero.satisfied_by(ex)
-            implies no_more_pending_requests.satisfied_by(ex) by {
-                assert forall |msg| !
-                    (#[trigger] ex.head().in_flight().contains(msg)
-                    && msg.dst.is_KubernetesAPI()
-                    && msg.content.is_APIRequest()
-                    && msg.content.get_rest_id() < rest_id)
-                by {
-                    assert(
-                        ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) == 0
-                    );
+        assert_by(valid(lift_state(pending_requests_num_is_zero).implies(lift_state(no_more_pending_requests))), {
+            assert forall |s: Self| #[trigger] pending_requests_num_is_zero(s) implies no_more_pending_requests(s) by {
+                assert forall |msg| api_request_msg_before(rest_id)(msg) implies !s.in_flight().contains(msg) by {
+                    assert(s.in_flight().filter(api_request_msg_before(rest_id)).count(msg) == 0);
                 }
-            };
-
-            assert forall |ex| no_more_pending_requests.satisfied_by(ex)
-            implies pending_requests_num_is_zero.satisfied_by(ex) by {
-                assert forall |msg|
-                    ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) == 0
-                by {
-                    assert(!
-                        (ex.head().in_flight().contains(msg)
-                        && msg.dst.is_KubernetesAPI()
-                        && msg.content.is_APIRequest()
-                        && msg.content.get_rest_id() < rest_id)
-                    );
-                };
-                len_is_zero_means_count_for_each_value_is_zero::<MsgType<E>>(
-                    ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id))
-                );
-            };
-
-            temp_pred_equality(pending_requests_num_is_zero, no_more_pending_requests);
+            }
         });
-
-        leads_to_self_temp(pending_requests_num_is_zero);
+        valid_implies_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
     } else {
         // The induction step:
         // If we already have "there are msg_num-1 such requests" ~> "all such requests are gone" (the inductive hypothesis),
@@ -612,6 +599,7 @@ proof fn pending_requests_num_decreases(
         msg_num > 0,
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
@@ -672,21 +660,39 @@ proof fn pending_requests_num_decreases(
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             Step::ExternalAPIStep(input) => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
+                if pending_req_multiset.count(input.get_Some_0()) > 0 {
+                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
+                } else {
+                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+                }
             },
             _ => {}
         }
     }
-    assert forall |s, s_prime: Self|
-        pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
-    implies post(s_prime) by {
-        let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
-        let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
-        assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
+
+    if msg.dst.is_KubernetesAPI() {
+        assert forall |s, s_prime: Self|
+            pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
+        implies post(s_prime) by {
+            let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
+            let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
+            assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
+        }
+        Self::lemma_pre_leads_to_post_by_kubernetes_api(
+            spec, input, stronger_next, Self::handle_request(), pre, post
+        );
+    } else {
+        assert forall |s, s_prime: Self|
+            pre(s) && #[trigger] stronger_next(s, s_prime) && Self::external_api_next().forward(input)(s, s_prime)
+        implies post(s_prime) by {
+            let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
+            let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
+            assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
+        }
+        Self::lemma_pre_leads_to_post_by_external_api(
+            spec, input, stronger_next, Self::handle_external_request(), pre, post
+        );
     }
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, Self::handle_request(), pre, post
-    );
 }
 
 }

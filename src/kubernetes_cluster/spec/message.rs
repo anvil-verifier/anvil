@@ -432,10 +432,13 @@ pub open spec fn external_resp_msg_content(resp: O, resp_id: RestId) -> MessageC
 }
 
 pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message<I, O>) -> bool {
-    |msg: Message<I, O>|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_APIRequest()
-        && msg.content.get_rest_id() < rest_id
+    |msg: Message<I, O>| {
+        &&& msg.content.get_rest_id() < rest_id
+        &&& {
+            ||| msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest()
+            ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
+        }
+    }
 }
 
 pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {

@@ -533,6 +533,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
@@ -572,6 +573,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
@@ -687,6 +689,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
@@ -712,6 +715,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
@@ -776,6 +780,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
@@ -802,6 +807,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
@@ -1317,6 +1323,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))),
     ensures
@@ -1360,6 +1367,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))
     ensures
