@@ -9,7 +9,7 @@ verus! {
 pub enum ZookeeperReconcileStep {
     Init,
     AfterKRequestStep(ActionKind, SubResource),
-    AfterGetStatefulSet,
+    AfterExistsStatefulSet,
     AfterExistsZKNode,
     AfterCreateZKParentNode,
     AfterCreateZKNode,

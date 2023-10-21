@@ -94,7 +94,7 @@ pub open spec fn reconcile_core(
                 SubResource::StatefulSet => { reconcile_helper::<StatefulSetBuilder>(zk, resp_o, state) },
             }
         },
-        ZookeeperReconcileStep::AfterGetStatefulSet => {
+        ZookeeperReconcileStep::AfterExistsStatefulSet => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
                 let get_stateful_set_resp = resp.get_KResponse_0().get_GetResponse_0().res;
                 if get_stateful_set_resp.is_Ok() {
@@ -102,10 +102,6 @@ pub open spec fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
                         ..state
                     };
-                    // let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
-                    // let ext_req = ZKAPIInputView::ExistsRequest(
-                    //     zk_name, zk_namespace, client_port, node_path
-                    // );
                     (state_prime, Some(RequestView::ExternalRequest(zk_exists_request(zk))))
                 } else if get_stateful_set_resp.get_Err_0().is_ObjectNotFound() {
                     let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
@@ -134,29 +130,17 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_ExistsResponse()
             && exists_resp.is_Ok() {
                 if exists_resp.get_Ok_0().is_Some() {
-                    // let version = exists_resp.get_Ok_0().get_Some_0();
-                    // let node_path = zk_node_path(zk);
-                    // let data = zk_node_data(zk);
-                    // let ext_req = ZKAPIInputView::SetDataRequest(
-                    //     zk_name, zk_namespace, client_port, node_path, data, version
-                    // );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
                         ..state
                     };
                     (state_prime, Some(RequestView::ExternalRequest(zk_set_data_request(zk, exists_resp.get_Ok_0().get_Some_0()))))
                 } else {
-                    let version = exists_resp.get_Ok_0().get_Some_0();
-                    let node_path = zk_parent_node_path(zk);
-                    let data = new_strlit("")@;
-                    let ext_req = ZKAPIInputView::CreateRequest(
-                        zk_name, zk_namespace, client_port, node_path, data
-                    );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
                         ..state
                     };
-                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                    (state_prime, Some(RequestView::ExternalRequest(zk_create_parent_node_request(zk))))
                 }
             } else {
                 let state_prime = ZookeeperReconcileState {
@@ -170,16 +154,11 @@ pub open spec fn reconcile_core(
             let create_resp = resp.get_ExternalResponse_0().get_CreateResponse_0().res;
             if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
             && (create_resp.is_Ok() || create_resp.get_Err_0().is_ZKNodeCreateAlreadyExists()) {
-                let node_path = zk_node_path(zk);
-                let data = zk_node_data(zk);
-                let ext_req = ZKAPIInputView::CreateRequest(
-                    zk_name, zk_namespace, client_port, node_path, data
-                );
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                     ..state
                 };
-                (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                (state_prime, Some(RequestView::ExternalRequest(zk_create_node_request(zk))))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -275,9 +254,7 @@ pub open spec fn zk_exists_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
     let zk_namespace = zk.metadata.namespace.get_Some_0();
     let client_port = zk.spec.ports.client;
     let node_path = zk_node_path(zk);
-    ZKAPIInputView::ExistsRequest(
-        zk_name, zk_namespace, client_port, node_path
-    )
+    ZKAPIInputView::ExistsRequest(zk_name, zk_namespace, client_port, node_path)
 }
 
 pub open spec fn zk_set_data_request(zk: ZookeeperClusterView, version: int) -> ZKAPIInputView {
@@ -286,9 +263,25 @@ pub open spec fn zk_set_data_request(zk: ZookeeperClusterView, version: int) -> 
     let client_port = zk.spec.ports.client;
     let node_path = zk_node_path(zk);
     let data = zk_node_data(zk);
-    ZKAPIInputView::SetDataRequest(
-        zk_name, zk_namespace, client_port, node_path, data, version
-    )
+    ZKAPIInputView::SetDataRequest(zk_name, zk_namespace, client_port, node_path, data, version)
+}
+
+pub open spec fn zk_create_parent_node_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
+    let zk_name = zk.metadata.name.get_Some_0();
+    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let client_port = zk.spec.ports.client;
+    let node_path = zk_parent_node_path(zk);
+    let data = new_strlit("")@;
+    ZKAPIInputView::CreateRequest(zk_name, zk_namespace, client_port, node_path, data)
+}
+
+pub open spec fn zk_create_node_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
+    let zk_name = zk.metadata.name.get_Some_0();
+    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let client_port = zk.spec.ports.client;
+    let node_path = zk_node_path(zk);
+    let data = zk_node_data(zk);
+    ZKAPIInputView::CreateRequest(zk_name, zk_namespace, client_port, node_path, data)
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState>>(

@@ -112,12 +112,6 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: ZKCluster) -> F
         )
 }
 
-/// This spec tells that when the reconciler is at AfterGetStatefulSet, and there is a matched response, the reponse must be
-/// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
-/// stateful_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
-/// so we need this extra spec and lemma.
-///
-/// If we don't have this, we have no idea of what is inside the response message.
 pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     sub_resource: SubResource, zookeeper: ZookeeperClusterView
 ) -> StatePred<ZKCluster> {
@@ -272,7 +266,6 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
     }
 }
 
-/// We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
 pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         let key = zookeeper.object_ref();
@@ -290,7 +283,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper: Zo
                     _ => true,
                 }
             }
-            ZookeeperReconcileStep::AfterGetStatefulSet | ZookeeperReconcileStep::AfterExistsZKNode | ZookeeperReconcileStep::AfterCreateZKParentNode | ZookeeperReconcileStep::AfterCreateZKNode | ZookeeperReconcileStep::AfterUpdateZKNode => {
+            ZookeeperReconcileStep::AfterExistsStatefulSet | ZookeeperReconcileStep::AfterExistsZKNode | ZookeeperReconcileStep::AfterCreateZKParentNode | ZookeeperReconcileStep::AfterCreateZKNode | ZookeeperReconcileStep::AfterUpdateZKNode => {
                 let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
                 &&& s.resources().contains_key(cm_key)
                 &&& s.resources()[cm_key].metadata.resource_version.is_Some()

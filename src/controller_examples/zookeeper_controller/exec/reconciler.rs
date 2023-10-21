@@ -107,7 +107,7 @@ pub fn reconcile_core(
                 SubResource::StatefulSet => reconcile_helper::<spec_resource::StatefulSetBuilder, StatefulSetBuilder>(zk, resp_o, state),
             }
         },
-        ZookeeperReconcileStep::AfterGetStatefulSet => {
+        ZookeeperReconcileStep::AfterExistsStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
                 let get_stateful_set_resp = resp_o.unwrap().into_k_response().into_get_response().res;

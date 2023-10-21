@@ -51,7 +51,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::C
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
+                reconcile_step: ZookeeperReconcileStep::AfterExistsStatefulSet,
                 latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
                 ..state
             };
@@ -66,7 +66,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::C
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
+                reconcile_step: ZookeeperReconcileStep::AfterExistsStatefulSet,
                 latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
                 ..state
             };

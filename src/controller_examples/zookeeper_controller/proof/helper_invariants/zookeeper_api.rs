@@ -49,4 +49,17 @@ pub open spec fn every_zk_set_data_request_implies_at_after_update_zk_node_step(
     }
 }
 
+pub open spec fn every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        let key = zookeeper.object_ref();
+        forall |msg: ZKMessage| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& zk_create_node_request_msg(zookeeper)(msg)
+        } ==> {
+            &&& at_zk_step(key, ZookeeperReconcileStep::AfterCreateZKNode)(s)
+            &&& ZKCluster::pending_req_msg_is(s, key, msg)
+        }
+    }
+}
+
 }
