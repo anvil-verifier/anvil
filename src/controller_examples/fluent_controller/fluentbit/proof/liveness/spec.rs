@@ -213,7 +213,7 @@ pub open spec fn derived_invariants_since_beginning(fb: FluentBitView) -> TempPr
     .and(always(lift_state(FBCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb)))))
-    .and(always(lift_state(FBCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init)))))
+    .and(always(lift_state(FBCluster::no_pending_req_msg_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init)))))
     .and(always(lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret)))))
     .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(res, fb)))))
@@ -250,7 +250,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fb: FluentBitView)
         lift_state(FBCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
-        lift_state(FBCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))),
+        lift_state(FBCluster::no_pending_req_msg_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))),
         lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
@@ -418,7 +418,7 @@ pub proof fn sm_spec_entails_all_invariants(fb: FluentBitView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_1);
     });
-    FBCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init));
+    FBCluster::lemma_always_no_pending_req_msg_at_reconcile_state(spec, fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init));
 
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1))));
     lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, fb);
@@ -471,7 +471,7 @@ pub proof fn sm_spec_entails_all_invariants(fb: FluentBitView)
         lift_state(FBCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
-        lift_state(FBCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))),
+        lift_state(FBCluster::no_pending_req_msg_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))),
         lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),

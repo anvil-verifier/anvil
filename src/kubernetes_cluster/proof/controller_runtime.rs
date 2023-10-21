@@ -151,19 +151,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
     }
 }
 
-pub open spec fn pending_req_msg_is_none_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool
-) -> StatePred<Self>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: Self| {
-        Self::at_expected_reconcile_states(key, state)(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_None()
-    }
-}
-
-pub open spec fn no_pending_req_msg_or_external_api_input_at_reconcile_state(
+pub open spec fn no_pending_req_msg_at_reconcile_state(
     key: ObjectRef, state: FnSpec(R::T) -> bool
 ) -> StatePred<Self>
     recommends
@@ -189,18 +177,6 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(
             #[trigger] s.in_flight().contains(resp_msg)
             && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
         }
-    }
-}
-
-pub open spec fn no_pending_req_msg_or_external_api_input_at_reconcile_init_state(
-    key: ObjectRef
-) -> StatePred<Self>
-    recommends
-        key.kind.is_CustomResourceKind()
-{
-    |s: Self| {
-        Self::at_reconcile_state(key, R::reconcile_init_state())(s)
-        ==> Self::no_pending_req_msg(s, key)
     }
 }
 

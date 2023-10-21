@@ -32,7 +32,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCCluster>, fbc: Fl
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())))),
         spec.entails(always(lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())))),
-        spec.entails(always(lift_state(FBCCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))))),
+        spec.entails(always(lift_state(FBCCluster::no_pending_req_msg_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))))),
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))
         ))))),

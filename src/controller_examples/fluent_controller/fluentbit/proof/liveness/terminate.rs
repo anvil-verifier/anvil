@@ -32,7 +32,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCluster>, fb: Flue
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))))),
+        spec.entails(always(lift_state(FBCluster::no_pending_req_msg_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))))),
         spec.entails(always(lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret))))),
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1))

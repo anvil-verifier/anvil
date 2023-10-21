@@ -404,7 +404,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
-pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(
+pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(
     spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
@@ -414,9 +414,9 @@ pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_
             #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_None(),
     ensures
-        spec.entails(always(lift_state(Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(key, state)))),
+        spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(key, state)))),
 {
-    let invariant = Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(key, state);
+    let invariant = Self::no_pending_req_msg_at_reconcile_state(key, state);
     assert forall |s, s_prime: Self| invariant(s) &&
     #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
         if s_prime.ongoing_reconciles().contains_key(key) && state(s_prime.ongoing_reconciles()[key].local_state) {
@@ -428,26 +428,6 @@ pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_
             }
         }
     }
-    init_invariant(spec, Self::init(), Self::next(), invariant);
-}
-
-pub proof fn lemma_always_pending_req_msg_is_none_at_reconcile_state(
-    spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool
-)
-    requires
-        forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
-            ==> {
-                let req = R::reconcile_core(cr, resp_o, pre_state).1;
-                req.is_None()
-            },
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(Self::pending_req_msg_is_none_at_reconcile_state(key, state)))
-        ),
-{
-    let invariant = Self::pending_req_msg_is_none_at_reconcile_state(key, state);
     init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
