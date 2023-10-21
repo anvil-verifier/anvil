@@ -606,6 +606,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -645,6 +646,7 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -760,6 +762,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -785,6 +788,7 @@ proof fn lemma_eventually_always_object_in_every_resource_update_request_only_ha
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -849,6 +853,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -875,6 +880,7 @@ proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -1494,6 +1500,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
     ensures
@@ -1537,6 +1544,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))
     ensures
