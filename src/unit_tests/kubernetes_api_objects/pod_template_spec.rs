@@ -40,4 +40,17 @@ pub fn test_set_spec() {
     pod_template_spec.set_spec(pod_spec.clone());
     assert_eq!(pod_spec.into_kube(), pod_template_spec.into_kube().spec.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_clone() {
+    let mut pod_template_spec = PodTemplateSpec::default();
+    let mut pod_spec = PodSpec::default();
+    let mut container = Container::default();
+    container.set_name(new_strlit("name").to_string());
+    pod_spec.set_containers(vec![container.clone()]);
+    pod_template_spec.set_spec(pod_spec.clone());
+    let pod_template_spec_clone = pod_template_spec.clone();
+    assert_eq!(pod_template_spec.into_kube(), pod_template_spec_clone.into_kube());
+}
 }

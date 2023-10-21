@@ -30,6 +30,16 @@ impl PodTemplateSpec {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (pod_template_spec: PodTemplateSpec)
+        ensures
+            pod_template_spec@ == self@,
+    {
+        PodTemplateSpec {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures
             self@ == old(self)@.set_metadata(metadata@),
