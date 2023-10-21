@@ -145,6 +145,14 @@ impl ServiceSpec {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        ServiceSpec { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_cluster_ip(&mut self, cluster_ip: String)
         ensures
             self@ == old(self)@.set_cluster_ip(cluster_ip@),

@@ -25,4 +25,13 @@ pub fn test_set_name() {
     config_map_volume_source.set_name(new_strlit("name").to_string());
     assert_eq!("name".to_string(), config_map_volume_source.into_kube().name.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_clone(){
+    let mut config_map_volume_source = ConfigMapVolumeSource::default();
+    config_map_volume_source.set_name(new_strlit("name").to_string());
+    let config_map_volume_source_clone = config_map_volume_source.clone();
+    assert_eq!(config_map_volume_source.into_kube(), config_map_volume_source_clone.into_kube());
+}
 }
