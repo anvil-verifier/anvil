@@ -297,6 +297,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     });
     pod_spec.overwrite_tolerations(fb.spec().tolerations());
     pod_spec.overwrite_affinity(fb.spec().affinity());
+    pod_spec.set_node_selector(fb.spec().node_selector());
     pod_spec
 }
 

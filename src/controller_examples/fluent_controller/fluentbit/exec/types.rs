@@ -199,6 +199,14 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn node_selector(&self) -> (node_selector: StringMap)
+        ensures
+            node_selector@ == self@.node_selector,
+    {
+        StringMap::from_rust_map(self.inner.node_selector.clone())
+    }
 }
 
 }
