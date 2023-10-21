@@ -149,6 +149,14 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn image(&self) -> (image: String)
+        ensures
+            image@ == self@.image,
+    {
+        String::from_rust_string(self.inner.image.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
             self@.resources.is_Some() == resources.is_Some(),

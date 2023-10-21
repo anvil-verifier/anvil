@@ -167,7 +167,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         containers.push({
             let mut fb_container = Container::default();
             fb_container.set_name(new_strlit("fluent-bit").to_string());
-            fb_container.set_image(new_strlit("kubesphere/fluent-bit:v2.1.7").to_string());
+            fb_container.set_image(fb.spec().image());
             fb_container.set_env(make_env(&fb));
             fb_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
