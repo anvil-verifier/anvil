@@ -306,6 +306,7 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req(
 // The proof is very straightforward:
 //   - Right after the controller enters 'state', the pending request is added to in_flight.
 //   - If the pending request is processed by kubernetes api, there will be a response in flight.
+//   - If the pending request is processed by external api, there will be a response in flight.
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
@@ -314,11 +315,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     requires
         forall |s| (#[trigger] state(s)) ==> s != R::reconcile_init_state(),
         forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
-            ==> {
-                let req = R::reconcile_core(cr, resp_o, pre_state).1;
-                &&& req.is_Some()
-                &&& req.get_Some_0().is_KRequest()
-            },
+            ==> R::reconcile_core(cr, resp_o, pre_state).1.is_Some(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(key)))),
@@ -388,10 +385,13 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                     }
                 }
                 Step::ExternalAPIStep(input) => {
-                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        let resp_msg = Self::handle_external_request_helper(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.external_api_state, s.kubernetes_api_state.resources).1;
+                        assert(s_prime.in_flight().contains(resp_msg));
                     } else {
-                        assert(s_prime.in_flight().contains(resp));
+                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                            assert(s_prime.in_flight().contains(resp));
+                        }
                     }
                 }
                 _ => {

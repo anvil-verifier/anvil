@@ -147,6 +147,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(fb: FluentBitView
 pub open spec fn next_with_wf() -> TempPred<FBCluster> {
     always(lift_action(FBCluster::next()))
     .and(tla_forall(|input| FBCluster::kubernetes_api_next().weak_fairness(input)))
+    .and(tla_forall(|input| FBCluster::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| FBCluster::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| FBCluster::schedule_controller_reconcile().weak_fairness(input)))
     .and(tla_forall(|input| FBCluster::builtin_controllers_next().weak_fairness(input)))
@@ -160,6 +161,7 @@ pub proof fn next_with_wf_is_stable()
 {
     always_p_is_stable(lift_action(FBCluster::next()));
     FBCluster::tla_forall_action_weak_fairness_is_stable(FBCluster::kubernetes_api_next());
+    FBCluster::tla_forall_action_weak_fairness_is_stable(FBCluster::external_api_next());
     FBCluster::tla_forall_action_weak_fairness_is_stable(FBCluster::controller_next());
     FBCluster::tla_forall_action_weak_fairness_is_stable(FBCluster::schedule_controller_reconcile());
     FBCluster::tla_forall_action_weak_fairness_is_stable(FBCluster::builtin_controllers_next());
@@ -168,6 +170,7 @@ pub proof fn next_with_wf_is_stable()
     stable_and_n!(
         always(lift_action(FBCluster::next())),
         tla_forall(|input| FBCluster::kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| FBCluster::external_api_next().weak_fairness(input)),
         tla_forall(|input| FBCluster::controller_next().weak_fairness(input)),
         tla_forall(|input| FBCluster::schedule_controller_reconcile().weak_fairness(input)),
         tla_forall(|input| FBCluster::builtin_controllers_next().weak_fairness(input)),

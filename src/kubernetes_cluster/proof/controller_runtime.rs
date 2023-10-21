@@ -100,16 +100,24 @@ pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state:
 {
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
-        && Self::has_pending_k8s_api_req_msg(s, key)
+        && Self::has_pending_req_msg(s, key)
         && Self::request_sent_by_controller(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
         && s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
     }
 }
 
 pub open spec fn request_sent_by_controller(msg: MsgType<E>) -> bool {
-    msg.src.is_CustomController()
-    && msg.dst.is_KubernetesAPI()
-    && msg.content.is_APIRequest()
+    &&& msg.src.is_CustomController()
+    &&& {
+        ||| {
+            &&& msg.dst.is_KubernetesAPI()
+            &&& msg.content.is_APIRequest()
+        }
+        ||| {
+            &&& msg.dst.is_ExternalAPI()
+            &&& msg.content.is_ExternalAPIRequest()
+        }
+    }
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(
@@ -132,7 +140,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
         ==> {
-            Self::has_pending_k8s_api_req_msg(s, key)
+            Self::has_pending_req_msg(s, key)
             && Self::request_sent_by_controller(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             && (s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             || exists |resp_msg: MsgType<E>| {
@@ -175,7 +183,7 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(
 {
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
-        && Self::has_pending_k8s_api_req_msg(s, key)
+        && Self::has_pending_req_msg(s, key)
         && Self::request_sent_by_controller(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
         && exists |resp_msg: MsgType<E>| {
             #[trigger] s.in_flight().contains(resp_msg)

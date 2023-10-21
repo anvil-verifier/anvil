@@ -221,6 +221,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
@@ -244,7 +245,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
 {
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: Self| {
         Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-        && Self::has_pending_k8s_api_req_msg(s, cr.object_ref())
+        && Self::has_pending_req_msg(s, cr.object_ref())
         && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         && (s.in_flight().contains(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         || exists |resp_msg: MsgType<E>| {
@@ -371,7 +372,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     let known_resp_in_flight = |resp| lift_state(
         |s: Self| {
             Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-            && Self::has_pending_k8s_api_req_msg(s, cr.object_ref())
+            && Self::has_pending_req_msg(s, cr.object_ref())
             && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
             && s.in_flight().contains(resp)
             && Message::resp_msg_matches_req_msg(resp, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
@@ -381,7 +382,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         .leads_to(lift_state(post))) by {
             let resp_in_flight_state = |s: Self| {
                 Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-                && Self::has_pending_k8s_api_req_msg(s, cr.object_ref())
+                && Self::has_pending_req_msg(s, cr.object_ref())
                 && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
                 && s.in_flight().contains(msg)
                 && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
@@ -416,6 +417,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
@@ -424,8 +426,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
-            state(s) ==>
-            #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
+            state(s) ==> #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
     ensures
         spec.entails(
             lift_state(Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state))
@@ -452,18 +453,33 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
             lift_state(Self::busy_disabled()),
             lift_state(Self::every_in_flight_msg_has_unique_id())
         );
-        let input = Some(req_msg);
-        assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
-        && Self::kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
-            let resp_msg = Self::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
-            assert({
-                &&& s_prime.in_flight().contains(resp_msg)
-                &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            });
-        };
-        Self::lemma_pre_leads_to_post_by_kubernetes_api(
-            spec, input, stronger_next, Self::handle_request(), pre_1, post_1
-        );
+        if req_msg.content.is_APIRequest() {
+            let input = Some(req_msg);
+            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+            && Self::kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
+                let resp_msg = Self::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
+                assert({
+                    &&& s_prime.in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
+                });
+            };
+            Self::lemma_pre_leads_to_post_by_kubernetes_api(
+                spec, input, stronger_next, Self::handle_request(), pre_1, post_1
+            );
+        } else {
+            let input = Some(req_msg);
+            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+            && Self::external_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
+                let resp_msg = Self::handle_external_request_helper(req_msg, s.external_api_state, s.kubernetes_api_state.resources).1;
+                assert({
+                    &&& s_prime.in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
+                });
+            };
+            Self::lemma_pre_leads_to_post_by_external_api(
+                spec, input, stronger_next, Self::handle_external_request(), pre_1, post_1
+            );
+        }
     }
     let msg_2_temp = |msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(cr.object_ref(), state, msg));
     leads_to_exists_intro(

@@ -148,6 +148,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
 pub open spec fn next_with_wf() -> TempPred<RMQCluster> {
     always(lift_action(RMQCluster::next()))
     .and(tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)))
+    .and(tla_forall(|input| RMQCluster::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)))
@@ -161,6 +162,7 @@ pub proof fn next_with_wf_is_stable()
 {
     always_p_is_stable(lift_action(RMQCluster::next()));
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::kubernetes_api_next());
+    RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::external_api_next());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::controller_next());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::schedule_controller_reconcile());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::builtin_controllers_next());
@@ -169,6 +171,7 @@ pub proof fn next_with_wf_is_stable()
     stable_and_n!(
         always(lift_action(RMQCluster::next())),
         tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| RMQCluster::external_api_next().weak_fairness(input)),
         tla_forall(|input| RMQCluster::controller_next().weak_fairness(input)),
         tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)),
         tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)),

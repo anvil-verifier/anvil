@@ -25,6 +25,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCluster>, fb: Flue
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| FBCluster::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
@@ -121,6 +122,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| FBCluster::external_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
