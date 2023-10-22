@@ -38,6 +38,16 @@ impl LabelSelector {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (label_selector: LabelSelector)
+        ensures
+            label_selector@ == self@,
+    {
+        LabelSelector {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_match_labels(&mut self, match_labels: StringMap)
         ensures
             self@ == old(self)@.set_match_labels(match_labels@),

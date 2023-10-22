@@ -171,6 +171,14 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        StatefulSetSpec { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_replicas(&mut self, replicas: i32)
         ensures
             self@ == old(self)@.set_replicas(replicas as int),
@@ -302,6 +310,14 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
         StatefulSetPersistentVolumeClaimRetentionPolicy {
             inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        StatefulSetPersistentVolumeClaimRetentionPolicy { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
