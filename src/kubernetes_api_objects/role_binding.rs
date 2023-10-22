@@ -141,6 +141,14 @@ impl RoleRef {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        RoleRef { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_api_group(&mut self, api_group: String)
         ensures
             self@ == old(self)@.set_api_group(api_group@),
