@@ -40,6 +40,10 @@ pub open spec fn sub_resource_state_matches(sub_resource: SubResource, zk: Zooke
     }
 }
 
+pub open spec fn at_step_closure(step: ZookeeperReconcileStep) -> FnSpec(ZookeeperReconcileState) -> bool {
+    |s: ZookeeperReconcileState| s.reconcile_step == step
+}
+
 pub open spec fn at_zk_step(key: ObjectRef, step: ZookeeperReconcileStep) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind()
@@ -60,7 +64,7 @@ pub open spec fn at_zk_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperRec
     }
 }
 
-pub open spec fn no_pending_req_at_zk_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ZKCluster> {
+pub open spec fn no_pending_req_at_zookeeper_step_with_zookeeper(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& at_zk_step_with_zk(zk, step)(s)
         &&& ZKCluster::no_pending_req_msg(s, zk.object_ref())
