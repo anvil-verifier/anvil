@@ -26,6 +26,7 @@ pub mod resource_requirements;
 pub mod role;
 pub mod role_binding;
 pub mod role_ref;
+pub mod secret;
 pub mod secret_projection;
 pub mod secret_volume_source;
 pub mod service;
