@@ -27,7 +27,7 @@ use crate::zookeeper_controller::{
                 lemma_stateful_set_is_stable,
             },
             terminate,
-            zk_api::lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set_step,
+            zookeeper_api::lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set_step,
         },
         predicate::*,
         resource::*,
