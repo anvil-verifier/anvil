@@ -32,14 +32,14 @@ pub fn test_set_replicas() {
 #[verifier(external)]
 pub fn test_set_selector() {
     let mut label_selector = LabelSelector::default();
-    let mut match_labels = StringMap::default();
+    let mut match_labels = StringMap::new();
     match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
     label_selector.set_match_labels(match_labels);
     let mut stateful_set_spec = StatefulSetSpec::default();
     stateful_set_spec.set_selector(label_selector.clone());
     assert_eq!(
         label_selector.into_kube(),
-        stateful_set_spec.into_kube().selector.unwrap()
+        stateful_set_spec.into_kube().selector
     );
 }
 
