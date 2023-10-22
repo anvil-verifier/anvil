@@ -140,6 +140,16 @@ impl PersistentVolumeClaimSpec {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (pvc_spec: PersistentVolumeClaimSpec)
+        ensures
+            pvc_spec@ == self@,
+    {
+        PersistentVolumeClaimSpec {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
         ensures
             self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
