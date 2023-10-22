@@ -153,7 +153,6 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSet> for Sta
 }
 
 #[verifier(external_body)]
-#[derive(Debug)]
 pub struct StatefulSetSpec {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec,
 }
@@ -320,7 +319,7 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     {
         StatefulSetPersistentVolumeClaimRetentionPolicy { inner: self.inner.clone() }
     }
-    
+
     #[verifier(external_body)]
     pub fn set_when_deleted(&mut self, when_deleted: String)
         ensures
