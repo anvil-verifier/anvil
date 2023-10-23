@@ -150,6 +150,7 @@ pub struct FluentBitSpecView {
     pub runtime_class_name: StringView,
     pub dns_policy: StringView,
     pub priority_class_name: StringView,
+    pub scheduler_name: StringView,
 }
 
 impl FluentBitSpecView {}

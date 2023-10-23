@@ -239,6 +239,14 @@ impl FluentBitSpec {
     {
         String::from_rust_string(self.inner.priority_class_name.clone())
     }
+
+    #[verifier(external_body)]
+    pub fn scheduler_name(&self) -> (scheduler_name: String)
+        ensures
+            scheduler_name@ == self@.scheduler_name,
+    {
+        String::from_rust_string(self.inner.scheduler_name.clone())
+    }
 }
 
 }
