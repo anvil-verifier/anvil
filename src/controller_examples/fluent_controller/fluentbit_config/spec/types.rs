@@ -145,16 +145,4 @@ pub struct FluentBitConfigSpecView {
 
 impl FluentBitConfigSpecView {}
 
-impl Marshalable for FluentBitConfigSpecView {
-    spec fn marshal(self) -> Value;
-
-    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
-}
-
 }
