@@ -33,6 +33,7 @@ pub fn fluent_bit() -> String {
     spec:
         fluentBitConfigName: fluent-bit-config
         image: kubesphere/fluent-bit:v2.1.7
+        runtime_class_name: 
         tolerations:
             - operator: Exists
     "
