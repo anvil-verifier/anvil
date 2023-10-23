@@ -233,6 +233,38 @@ impl PodSpec {
         self.inner.node_selector = Some(node_selector.into_rust_map())
     }
 
+    #[verifier(external_body)]
+    pub fn set_runtime_class_name(&mut self, runtime_class_name: String)
+        ensures
+            self@ == old(self)@.set_runtime_class_name(runtime_class_name@),
+    {
+        self.inner.runtime_class_name = Some(runtime_class_name.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_dns_policy(&mut self, dns_policy: String)
+        ensures
+            self@ == old(self)@.set_dns_policy(dns_policy@),
+    {
+        self.inner.dns_policy = Some(dns_policy.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_scheduler_name(&mut self, scheduler_name: String)
+        ensures
+            self@ == old(self)@.set_scheduler_name(scheduler_name@),
+    {
+        self.inner.scheduler_name = Some(scheduler_name.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_priority_class_name(&mut self, priority_class_name: String)
+        ensures
+            self@ == old(self)@.set_priority_class_name(priority_class_name@),
+    {
+        self.inner.priority_class_name = Some(priority_class_name.into_rust_string())
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec {
         PodSpec { inner: inner }
@@ -376,6 +408,10 @@ pub struct PodSpecView {
     pub service_account_name: Option<StringView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub node_selector: Option<Map<StringView, StringView>>,
+    pub runtime_class_name: Option<StringView>,
+    pub dns_policy: Option<StringView>,
+    pub priority_class_name: Option<StringView>,
+    pub scheduler_name: Option<StringView>,
 }
 
 impl PodSpecView {
@@ -388,6 +424,10 @@ impl PodSpecView {
             service_account_name: None,
             tolerations: None,
             node_selector: None,
+            runtime_class_name: None,
+            dns_policy: None,
+            priority_class_name: None,
+            scheduler_name: None,
         }
     }
 
@@ -450,6 +490,34 @@ impl PodSpecView {
     pub open spec fn set_node_selector(self, node_selector: Map<StringView, StringView>) -> PodSpecView {
         PodSpecView {
             node_selector: Some(node_selector),
+            ..self
+        }
+    }
+
+    pub open spec fn set_runtime_class_name(self, runtime_class_name: StringView) -> PodSpecView {
+        PodSpecView {
+            runtime_class_name: Some(runtime_class_name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_dns_policy(self, dns_policy: StringView) -> PodSpecView {
+        PodSpecView {
+            dns_policy: Some(dns_policy),
+            ..self
+        }
+    }
+
+    pub open spec fn set_scheduler_name(self, scheduler_name: StringView) -> PodSpecView {
+        PodSpecView {
+            scheduler_name: Some(scheduler_name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_priority_class_name(self, priority_class_name: StringView) -> PodSpecView {
+        PodSpecView {
+            priority_class_name: Some(priority_class_name),
             ..self
         }
     }
