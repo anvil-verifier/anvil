@@ -223,6 +223,14 @@ impl FluentBitSpec {
     {
         String::from_rust_string(self.inner.runtime_class_name.clone())
     }
+
+    #[verifier(external_body)]
+    pub fn dns_policy(&self) -> (dns_policy: String)
+        ensures
+            dns_policy@ == self@.dns_policy,
+    {
+        String::from_rust_string(self.inner.dns_policy.clone())
+    }
 }
 
 }
