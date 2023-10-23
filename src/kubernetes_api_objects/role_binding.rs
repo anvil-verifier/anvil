@@ -398,18 +398,6 @@ impl RoleRefView {
     }
 }
 
-impl Marshalable for RoleRefView {
-    open spec fn marshal(self) -> Value;
-
-    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
-}
-
 pub struct SubjectView {
     pub kind: StringView,
     pub name: StringView,
@@ -450,18 +438,6 @@ impl SubjectView {
             ..self
         }
     }
-}
-
-impl Marshalable for SubjectView {
-    open spec fn marshal(self) -> Value;
-
-    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
 }
 
 }

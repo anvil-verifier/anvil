@@ -29,24 +29,4 @@ pub enum Value {
     Object(Map<nat, Value>),
 }
 
-/// This trait is used to marshal ghost Kubernetes object types to Value, and unmarshal them back
-pub trait Marshalable: Sized {
-    /// Marshal the object to a Value
-
-    spec fn marshal(self) -> Value;
-
-    /// Unmarshal the object back from a Value
-
-    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    proof fn marshal_returns_non_null()
-        ensures
-            forall |o: Self| !(#[trigger] o.marshal()).is_Null();
-
-    /// Check if the data integrity is preserved after marshaling and unmarshaling
-    proof fn marshal_preserves_integrity()
-        ensures
-            forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
-}
-
 }

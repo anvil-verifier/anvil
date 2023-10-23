@@ -603,18 +603,6 @@ impl StatefulSetSpecView {
     }
 }
 
-impl Marshalable for StatefulSetSpecView {
-    spec fn marshal(self) -> Value;
-
-    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
-}
-
 pub struct StatefulSetPersistentVolumeClaimRetentionPolicyView {
     pub when_deleted: Option<StringView>,
     pub when_scaled: Option<StringView>,
@@ -646,18 +634,6 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
             ..self
         }
     }
-}
-
-impl Marshalable for StatefulSetPersistentVolumeClaimRetentionPolicyView {
-    closed spec fn marshal(self) -> Value;
-
-    closed spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct StatefulSetStatusView {
