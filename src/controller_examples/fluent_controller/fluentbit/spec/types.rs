@@ -147,10 +147,10 @@ pub struct FluentBitSpecView {
     pub annotations: Map<StringView, StringView>,
     pub affinity: Option<AffinityView>,
     pub node_selector: Map<StringView, StringView>,
-    pub runtime_class_name: StringView,
-    pub dns_policy: StringView,
-    pub priority_class_name: StringView,
-    pub scheduler_name: StringView,
+    pub runtime_class_name: Option<StringView>,
+    pub dns_policy: Option<StringView>,
+    pub priority_class_name: Option<StringView>,
+    pub scheduler_name: Option<StringView>,
 }
 
 impl FluentBitSpecView {}

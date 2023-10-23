@@ -22,6 +22,7 @@ spec:
             spec:
               properties:
                 DNSPolicy:
+                  nullable: true
                   type: string
                 affinity:
                   description: Affinity is a group of affinity scheduling rules.
@@ -505,6 +506,7 @@ spec:
                   default: {}
                   type: object
                 priorityClassName:
+                  nullable: true
                   type: string
                 resources:
                   description: ResourceRequirements describes the compute resource requirements.
@@ -536,8 +538,10 @@ spec:
                       type: object
                   type: object
                 runtimeClassName:
+                  nullable: true
                   type: string
                 schedulerName:
+                  nullable: true
                   type: string
                 tolerations:
                   items:
@@ -563,12 +567,8 @@ spec:
                   nullable: true
                   type: array
               required:
-                - DNSPolicy
                 - fluentBitConfigName
                 - image
-                - priorityClassName
-                - runtimeClassName
-                - schedulerName
               type: object
           required:
             - spec

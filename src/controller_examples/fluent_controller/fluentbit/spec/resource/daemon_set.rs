@@ -213,26 +213,10 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
         tolerations: fb.spec.tolerations,
         affinity: fb.spec.affinity,
         node_selector: Some(fb.spec.node_selector),
-        runtime_class_name: if fb.spec.runtime_class_name != new_strlit("")@ {
-                Some(fb.spec.runtime_class_name) 
-            } else {
-                PodSpecView::default().runtime_class_name
-            },
-        dns_policy: if fb.spec.dns_policy != new_strlit("")@ {
-                Some(fb.spec.dns_policy) 
-            } else {
-                PodSpecView::default().dns_policy
-            },
-        priority_class_name: if fb.spec.priority_class_name != new_strlit("")@ {
-                Some(fb.spec.priority_class_name) 
-            } else {
-                PodSpecView::default().priority_class_name
-            },
-        scheduler_name: if fb.spec.scheduler_name != new_strlit("")@ {
-                Some(fb.spec.scheduler_name) 
-            } else {
-                PodSpecView::default().scheduler_name
-            },
+        runtime_class_name: fb.spec.runtime_class_name,
+        dns_policy: fb.spec.dns_policy,
+        priority_class_name: fb.spec.priority_class_name,
+        scheduler_name: fb.spec.scheduler_name,
         ..PodSpecView::default()
     }
 }
