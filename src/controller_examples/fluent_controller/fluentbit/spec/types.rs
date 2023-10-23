@@ -147,6 +147,7 @@ pub struct FluentBitSpecView {
     pub annotations: Map<StringView, StringView>,
     pub affinity: Option<AffinityView>,
     pub node_selector: Map<StringView, StringView>,
+    pub runtime_class_name: StringView,
 }
 
 impl FluentBitSpecView {}
