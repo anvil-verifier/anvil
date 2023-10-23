@@ -212,11 +212,11 @@ pub struct FluentBitSpec {
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     #[serde(default)]
     pub node_selector: std::collections::BTreeMap<String, String>,
-    #[serde(default, rename = "runtimeClassName")]
+    #[serde(rename = "runtimeClassName")]
     pub runtime_class_name: String,
-    #[serde(default, rename = "DNSPolicy")]
+    #[serde(rename = "DNSPolicy")]
     pub dns_policy: String,
-    #[serde(default, rename = "priorityClassName")]
+    #[serde(rename = "priorityClassName")]
     pub priority_class_name: String,
 }
 
