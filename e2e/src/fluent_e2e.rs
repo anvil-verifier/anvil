@@ -35,6 +35,7 @@ pub fn fluent_bit() -> String {
         image: kubesphere/fluent-bit:v2.1.7
         runtimeClassName: ''
         DNSPolicy: ''
+        priorityClassName: ''
         tolerations:
             - operator: Exists
     "

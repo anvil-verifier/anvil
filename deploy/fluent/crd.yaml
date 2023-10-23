@@ -504,6 +504,8 @@ spec:
                     type: string
                   default: {}
                   type: object
+                priorityClassName:
+                  type: string
                 resources:
                   description: ResourceRequirements describes the compute resource requirements.
                   nullable: true
@@ -562,6 +564,7 @@ spec:
                 - DNSPolicy
                 - fluentBitConfigName
                 - image
+                - priorityClassName
                 - runtimeClassName
               type: object
           required:
@@ -610,4 +613,3 @@ spec:
       served: true
       storage: true
       subresources: {}
-

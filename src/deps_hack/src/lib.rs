@@ -216,6 +216,8 @@ pub struct FluentBitSpec {
     pub runtime_class_name: String,
     #[serde(rename = "DNSPolicy")]
     pub dns_policy: String,
+    #[serde(rename = "priorityClassName")]
+    pub priority_class_name: String,
 }
 
 #[derive(
