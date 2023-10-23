@@ -252,7 +252,7 @@ impl PodSpec {
     #[verifier(external_body)]
     pub fn set_scheduler_name(&mut self, scheduler_name: String)
         ensures
-            self@ == old(self)@.set_scheduled_name(scheduler_name@),
+            self@ == old(self)@.set_scheduler_name(scheduler_name@),
     {
         self.inner.scheduler_name = Some(scheduler_name.into_rust_string())
     }
