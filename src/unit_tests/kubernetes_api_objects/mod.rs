@@ -1,5 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+pub mod cluster_role;
+pub mod cluster_role_binding;
 pub mod config_map;
 pub mod configmap_projection;
 pub mod configmap_volume_source;
