@@ -228,6 +228,11 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
             } else {
                 PodSpecView::default().priority_class_name
             },
+        scheduler_name: if fb.spec.scheduler_name != new_strlit("")@ {
+                Some(fb.spec.scheduler_name) 
+            } else {
+                PodSpecView::default().scheduler_name
+            },
         ..PodSpecView::default()
     }
 }

@@ -36,6 +36,7 @@ pub fn fluent_bit() -> String {
         runtimeClassName: ''
         DNSPolicy: ''
         priorityClassName: ''
+        schedulerName: ''
         tolerations:
             - operator: Exists
     "

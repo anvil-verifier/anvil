@@ -307,6 +307,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     if !fb.spec().priority_class_name().eq(&new_strlit("").to_string()) {
         pod_spec.set_priority_class_name(fb.spec().priority_class_name());
     }
+    if !fb.spec().scheduler_name().eq(&new_strlit("").to_string()) {
+        pod_spec.set_scheduler_name(fb.spec().scheduler_name());
+    }
     pod_spec
 }
 
