@@ -214,7 +214,7 @@ pub struct FluentBitSpec {
     pub node_selector: std::collections::BTreeMap<String, String>,
     #[serde(rename = "runtimeClassName")]
     pub runtime_class_name: Option<String>,
-    #[serde(rename = "DNSPolicy")]
+    #[serde(rename = "dnsPolicy")]
     pub dns_policy: Option<String>,
     #[serde(rename = "priorityClassName")]
     pub priority_class_name: Option<String>,
