@@ -304,6 +304,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     if !fb.spec().dns_policy().eq(&new_strlit("").to_string()) {
         pod_spec.set_dns_policy(fb.spec().dns_policy());
     }
+    if !fb.spec().priority_class_name().eq(&new_strlit("").to_string()) {
+        pod_spec.set_priority_class_name(fb.spec().priority_class_name());
+    }
     pod_spec
 }
 

@@ -231,6 +231,14 @@ impl FluentBitSpec {
     {
         String::from_rust_string(self.inner.dns_policy.clone())
     }
+
+    #[verifier(external_body)]
+    pub fn priority_class_name(&self) -> (priority_class_name: String)
+        ensures
+            priority_class_name@ == self@.priority_class_name,
+    {
+        String::from_rust_string(self.inner.priority_class_name.clone())
+    }
 }
 
 }

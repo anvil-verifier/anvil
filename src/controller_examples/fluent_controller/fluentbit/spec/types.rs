@@ -149,6 +149,7 @@ pub struct FluentBitSpecView {
     pub node_selector: Map<StringView, StringView>,
     pub runtime_class_name: StringView,
     pub dns_policy: StringView,
+    pub priority_class_name: StringView,
 }
 
 impl FluentBitSpecView {}

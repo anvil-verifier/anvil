@@ -223,6 +223,11 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
             } else {
                 PodSpecView::default().dns_policy
             },
+        priority_class_name: if fb.spec.priority_class_name != new_strlit("")@ {
+                Some(fb.spec.priority_class_name) 
+            } else {
+                PodSpecView::default().priority_class_name
+            },
         ..PodSpecView::default()
     }
 }
