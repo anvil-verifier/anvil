@@ -215,6 +215,14 @@ impl FluentBitSpec {
     {
         StringMap::from_rust_map(self.inner.node_selector.clone())
     }
+
+    #[verifier(external_body)]
+    pub fn runtime_class_name(&self) -> (runtime_class_name: String)
+        ensures
+            runtime_class_name@ == self@.runtime_class_name,
+    {
+        String::from_rust_string(self.inner.runtime_class_name.clone())
+    }
 }
 
 }

@@ -213,6 +213,11 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
         tolerations: fb.spec.tolerations,
         affinity: fb.spec.affinity,
         node_selector: Some(fb.spec.node_selector),
+        runtime_class_name: if fb.spec.runtime_class_name != new_strlit("")@ {
+                Some(fb.spec.runtime_class_name) 
+            } else {
+                PodSpecView::default().runtime_class_name
+            },
         ..PodSpecView::default()
     }
 }
