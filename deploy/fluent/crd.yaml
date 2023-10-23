@@ -531,6 +531,8 @@ spec:
                       description: "Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
                       type: object
                   type: object
+                runtimeClassName:
+                  type: string
                 tolerations:
                   items:
                     description: "The pod this Toleration is attached to tolerates any taint that matches the triple <key,value,effect> using the matching operator <operator>."
@@ -556,6 +558,8 @@ spec:
                   type: array
               required:
                 - fluentBitConfigName
+                - image
+                - runtimeClassName
               type: object
           required:
             - spec
@@ -603,3 +607,4 @@ spec:
       served: true
       storage: true
       subresources: {}
+
