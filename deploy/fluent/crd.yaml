@@ -21,6 +21,8 @@ spec:
           properties:
             spec:
               properties:
+                DNSPolicy:
+                  type: string
                 affinity:
                   description: Affinity is a group of affinity scheduling rules.
                   nullable: true
@@ -557,6 +559,7 @@ spec:
                   nullable: true
                   type: array
               required:
+                - DNSPolicy
                 - fluentBitConfigName
                 - image
                 - runtimeClassName
