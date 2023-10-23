@@ -33,6 +33,7 @@ pub mod secret;
 pub mod secret_projection;
 pub mod secret_volume_source;
 pub mod service;
+pub mod service_account;
 pub mod service_port;
 pub mod service_spec;
 pub mod stateful_set;
