@@ -154,6 +154,14 @@ impl DaemonSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        DaemonSetSpec { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: LabelSelector)
         ensures
             self@ == old(self)@.set_selector(selector@),
