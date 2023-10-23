@@ -5,6 +5,7 @@ use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     cluster::*,
+    cluster_state_machine::Step,
     controller::common::{ControllerAction, ControllerActionInput},
     message::*,
 };
@@ -410,7 +411,6 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     );
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
     spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
 )
@@ -431,6 +431,37 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         spec.entails(
             lift_state(Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state))
                 .leads_to(lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)))
+        ),
+{
+    Self::lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(spec, cr, state);
+    Self::lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, cr, state, next_state);
+    leads_to_trans_n!(
+        spec,
+        lift_state(Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state)),
+        lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)),
+        lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state))
+    );
+}
+
+pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(
+    spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
+    ensures
+        spec.entails(
+            lift_state(Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state))
+                .leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)))
         ),
 {
     let pre = Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state);
@@ -463,6 +494,21 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
                     &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                 });
             };
+            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+            implies pre_1(s_prime) || post_1(s_prime) by {
+                let step = choose |step| Self::next_step(s, s_prime, step);
+                match step {
+                    Step::KubernetesAPIStep(input) => {
+                        if input.get_Some_0() == req_msg {
+                            assert(post_1(s_prime));
+                        } else {
+                            assert(pre_1(s_prime));
+                        }
+                    }
+                    Step::ControllerStep(input) => { assert(pre_1(s_prime)); },
+                    _ => { assert(pre_1(s_prime)); }
+                }
+            };
             Self::lemma_pre_leads_to_post_by_kubernetes_api(
                 spec, input, stronger_next, Self::handle_request(), pre_1, post_1
             );
@@ -475,6 +521,21 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
                     &&& s_prime.in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                 });
+            };
+            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+            implies pre_1(s_prime) || post_1(s_prime) by {
+                let step = choose |step| Self::next_step(s, s_prime, step);
+                match step {
+                    Step::ExternalAPIStep(input) => {
+                        if input.get_Some_0() == req_msg {
+                            assert(post_1(s_prime));
+                        } else {
+                            assert(pre_1(s_prime));
+                        }
+                    }
+                    Step::ControllerStep(input) => { assert(pre_1(s_prime)); },
+                    _ => { assert(pre_1(s_prime)); }
+                }
             };
             Self::lemma_pre_leads_to_post_by_external_api(
                 spec, input, stronger_next, Self::handle_external_request(), pre_1, post_1
@@ -497,13 +558,6 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
             }
             temp_pred_equality(lift_state(pre), tla_exists(msg_2_temp));
         }
-    );
-    Self::lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, cr, state, next_state);
-    leads_to_trans_n!(
-        spec,
-        lift_state(pre),
-        lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)),
-        lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state))
     );
 }
 
