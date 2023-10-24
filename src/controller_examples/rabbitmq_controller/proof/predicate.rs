@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::proof::{liveness_theorem::*, resource::*};
+use crate::rabbitmq_controller::proof::{liveness_theorem::resource_state_matches, resource::*};
 use crate::rabbitmq_controller::spec::{reconciler::*, resource::*, types::*};
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;

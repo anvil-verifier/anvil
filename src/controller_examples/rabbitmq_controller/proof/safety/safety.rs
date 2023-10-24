@@ -13,7 +13,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     common::*,
-    proof::{helper_invariants::*, predicate::*, resource::*},
+    proof::{helper_invariants::*, predicate::*, resource::*, safety_theorem::*},
     spec::{reconciler::*, resource::*, types::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -21,33 +21,20 @@ use vstd::prelude::*;
 
 verus! {
 
-/// To prove the safety property about stateful set, we need to first specify what the property is.
-///
-/// Previously, we planned to use Message to describe the possible update/deletion/creation actions, and also specify the
-/// relevant properties. However, it is better not to include Message in the description the high-level safety property
-/// because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is
-/// to talk about the previous and current state: an object being updated means that it exists in both states but changes
-/// in current state.
-spec fn stateful_set_not_scaled_down(rabbitmq: RabbitmqClusterView) -> ActionPred<RMQCluster> {
-    |s: RMQCluster, s_prime: RMQCluster| {
-        let sts_key = make_stateful_set_key(rabbitmq);
-        s.resources().contains_key(sts_key)
-        && s_prime.resources().contains_key(sts_key)
-        ==> replicas_of_stateful_set(s_prime.resources()[sts_key]) >= replicas_of_stateful_set(s.resources()[sts_key])
-    }
+proof fn safety_proof_forall_rabbitmq()
+    ensures
+        safety_theorem(),
+{
+    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety(rabbitmq)) by {
+        safety_proof(rabbitmq);
+    };
 }
 
-proof fn lemma_stateful_set_never_scaled_down_for_all(spec: TempPred<RMQCluster>)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
+proof fn safety_proof(rabbitmq: RabbitmqClusterView)
     ensures
-        forall |rabbitmq: RabbitmqClusterView|
-            spec.entails(always(lift_action(#[trigger] stateful_set_not_scaled_down(rabbitmq)))),
+        cluster_spec_without_wf().entails(safety(rabbitmq)),
 {
-    assert forall |rabbitmq| spec.entails(always(lift_action(#[trigger] stateful_set_not_scaled_down(rabbitmq)))) by {
-        lemma_stateful_set_never_scaled_down_for_rabbitmq(spec, rabbitmq);
-    }
+    lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster_spec_without_wf(), rabbitmq);
 }
 
 /// This invariant is exactly the high-level property. The proof of this invariant is where we talk about update Message. It requires another two invariants to hold all the time:
@@ -150,7 +137,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg) && s_prime.resources().contains_key(sts_key)
-        && s_prime.resources()[sts_key].metadata.resource_version.get_Some_0() == msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() 
+        && s_prime.resources()[sts_key].metadata.resource_version.get_Some_0() == msg.content.get_update_request().obj.metadata.resource_version.get_Some_0()
         implies StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0()
         <= replicas_of_stateful_set(msg.content.get_update_request().obj) by {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -203,13 +190,6 @@ spec fn replicas_of_rabbitmq(obj: DynamicObjectView) -> int
         obj.kind.is_CustomResourceKind(),
 {
     RabbitmqClusterView::unmarshal(obj).get_Ok_0().spec.replicas
-}
-
-spec fn replicas_of_stateful_set(obj: DynamicObjectView) -> int
-    recommends
-        obj.kind.is_StatefulSetKind(),
-{
-    StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0()
 }
 
 spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {

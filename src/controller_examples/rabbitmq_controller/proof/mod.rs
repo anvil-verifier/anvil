@@ -6,3 +6,4 @@ pub mod liveness_theorem;
 pub mod predicate;
 pub mod resource;
 pub mod safety;
+pub mod safety_theorem;
