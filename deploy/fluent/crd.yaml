@@ -21,9 +21,6 @@ spec:
           properties:
             spec:
               properties:
-                dnsPolicy:
-                  nullable: true
-                  type: string
                 affinity:
                   description: Affinity is a group of affinity scheduling rules.
                   nullable: true
@@ -491,9 +488,15 @@ spec:
                     type: string
                   default: {}
                   type: object
+                dnsPolicy:
+                  nullable: true
+                  type: string
                 fluentBitConfigName:
                   type: string
                 image:
+                  type: string
+                internalMountPropagation:
+                  nullable: true
                   type: string
                 labels:
                   additionalProperties:
