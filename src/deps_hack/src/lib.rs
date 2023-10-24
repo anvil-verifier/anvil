@@ -48,7 +48,7 @@ pub struct ZookeeperClusterSpec {
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
-    #[serde(default)]
+    #[serde(default, rename = "nodeSelector")]
     pub node_selector: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub labels: std::collections::BTreeMap<String, String>,
@@ -210,7 +210,7 @@ pub struct FluentBitSpec {
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
-    #[serde(default)]
+    #[serde(default, rename = "nodeSelector")]
     pub node_selector: std::collections::BTreeMap<String, String>,
     #[serde(rename = "runtimeClassName")]
     pub runtime_class_name: Option<String>,

@@ -504,7 +504,7 @@ spec:
                   format: int32
                   nullable: true
                   type: integer
-                node_selector:
+                nodeSelector:
                   additionalProperties:
                     type: string
                   default: {}
