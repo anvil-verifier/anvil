@@ -213,13 +213,13 @@ pub struct FluentBitSpec {
     #[serde(default)]
     pub node_selector: std::collections::BTreeMap<String, String>,
     #[serde(rename = "runtimeClassName")]
-    pub runtime_class_name: String,
-    #[serde(rename = "DNSPolicy")]
-    pub dns_policy: String,
+    pub runtime_class_name: Option<String>,
+    #[serde(rename = "dnsPolicy")]
+    pub dns_policy: Option<String>,
     #[serde(rename = "priorityClassName")]
-    pub priority_class_name: String,
+    pub priority_class_name: Option<String>,
     #[serde(rename = "schedulerName")]
-    pub scheduler_name: String,
+    pub scheduler_name: Option<String>,
 }
 
 #[derive(

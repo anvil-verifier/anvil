@@ -234,35 +234,49 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
-    pub fn set_runtime_class_name(&mut self, runtime_class_name: String)
+    pub fn overwrite_runtime_class_name(&mut self, runtime_class_name: Option<String>)
         ensures
-            self@ == old(self)@.set_runtime_class_name(runtime_class_name@),
+            self@ == old(self)@.overwrite_runtime_class_name(opt_string_to_view(&runtime_class_name)),
     {
-        self.inner.runtime_class_name = Some(runtime_class_name.into_rust_string())
+        match runtime_class_name {
+            Some(n) => self.inner.runtime_class_name = Some(n.into_rust_string()),
+            None => self.inner.runtime_class_name = None,
+        }
+        
     }
 
     #[verifier(external_body)]
-    pub fn set_dns_policy(&mut self, dns_policy: String)
+    pub fn overwrite_dns_policy(&mut self, dns_policy: Option<String>)
         ensures
-            self@ == old(self)@.set_dns_policy(dns_policy@),
+            self@ == old(self)@.overwrite_dns_policy(opt_string_to_view(&dns_policy)),
     {
-        self.inner.dns_policy = Some(dns_policy.into_rust_string())
+        match dns_policy {
+            Some(n) => self.inner.dns_policy = Some(n.into_rust_string()),
+            None => self.inner.dns_policy = None,
+        }
+        
     }
 
     #[verifier(external_body)]
-    pub fn set_scheduler_name(&mut self, scheduler_name: String)
+    pub fn overwrite_scheduler_name(&mut self, scheduler_name: Option<String>)
         ensures
-            self@ == old(self)@.set_scheduler_name(scheduler_name@),
+            self@ == old(self)@.overwrite_scheduler_name(opt_string_to_view(&scheduler_name)),
     {
-        self.inner.scheduler_name = Some(scheduler_name.into_rust_string())
+        match scheduler_name {
+            Some(n) => self.inner.scheduler_name = Some(n.into_rust_string()),
+            None => self.inner.scheduler_name = None,
+        }
     }
 
     #[verifier(external_body)]
-    pub fn set_priority_class_name(&mut self, priority_class_name: String)
+    pub fn overwrite_priority_class_name(&mut self, priority_class_name: Option<String>)
         ensures
-            self@ == old(self)@.set_priority_class_name(priority_class_name@),
+            self@ == old(self)@.overwrite_priority_class_name(opt_string_to_view(&priority_class_name)),
     {
-        self.inner.priority_class_name = Some(priority_class_name.into_rust_string())
+        match priority_class_name {
+            Some(n) => self.inner.priority_class_name = Some(n.into_rust_string()),
+            None => self.inner.priority_class_name = None,
+        }
     }
 
     #[verifier(external)]
@@ -494,30 +508,30 @@ impl PodSpecView {
         }
     }
 
-    pub open spec fn set_runtime_class_name(self, runtime_class_name: StringView) -> PodSpecView {
+    pub open spec fn overwrite_runtime_class_name(self, runtime_class_name: Option<StringView>) -> PodSpecView {
         PodSpecView {
-            runtime_class_name: Some(runtime_class_name),
+            runtime_class_name: runtime_class_name,
             ..self
         }
     }
 
-    pub open spec fn set_dns_policy(self, dns_policy: StringView) -> PodSpecView {
+    pub open spec fn overwrite_dns_policy(self, dns_policy: Option<StringView>) -> PodSpecView {
         PodSpecView {
-            dns_policy: Some(dns_policy),
+            dns_policy: dns_policy,
             ..self
         }
     }
 
-    pub open spec fn set_scheduler_name(self, scheduler_name: StringView) -> PodSpecView {
+    pub open spec fn overwrite_scheduler_name(self, scheduler_name: Option<StringView>) -> PodSpecView {
         PodSpecView {
-            scheduler_name: Some(scheduler_name),
+            scheduler_name: scheduler_name,
             ..self
         }
     }
 
-    pub open spec fn set_priority_class_name(self, priority_class_name: StringView) -> PodSpecView {
+    pub open spec fn overwrite_priority_class_name(self, priority_class_name: Option<StringView>) -> PodSpecView {
         PodSpecView {
-            priority_class_name: Some(priority_class_name),
+            priority_class_name: priority_class_name,
             ..self
         }
     }

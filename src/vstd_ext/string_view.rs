@@ -40,4 +40,11 @@ pub proof fn bool_to_string_view_injectivity()
         forall |i: bool, j: bool| bool_to_string_view(i) == bool_to_string_view(j) ==> i == j,
 {}
 
+pub open spec fn opt_string_to_view(s: &Option<String>) -> Option<StringView> {
+    match s {
+        Some(s1) => Some(s1@),
+        None => None,
+    }
+}
+
 }

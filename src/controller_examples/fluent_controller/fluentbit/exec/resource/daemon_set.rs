@@ -298,18 +298,10 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     pod_spec.overwrite_tolerations(fb.spec().tolerations());
     pod_spec.overwrite_affinity(fb.spec().affinity());
     pod_spec.set_node_selector(fb.spec().node_selector());
-    if !fb.spec().runtime_class_name().eq(&new_strlit("").to_string()) {
-        pod_spec.set_runtime_class_name(fb.spec().runtime_class_name());
-    }
-    if !fb.spec().dns_policy().eq(&new_strlit("").to_string()) {
-        pod_spec.set_dns_policy(fb.spec().dns_policy());
-    }
-    if !fb.spec().priority_class_name().eq(&new_strlit("").to_string()) {
-        pod_spec.set_priority_class_name(fb.spec().priority_class_name());
-    }
-    if !fb.spec().scheduler_name().eq(&new_strlit("").to_string()) {
-        pod_spec.set_scheduler_name(fb.spec().scheduler_name());
-    }
+    pod_spec.overwrite_runtime_class_name(fb.spec().runtime_class_name());
+    pod_spec.overwrite_dns_policy(fb.spec().dns_policy());
+    pod_spec.overwrite_priority_class_name(fb.spec().priority_class_name());
+    pod_spec.overwrite_scheduler_name(fb.spec().scheduler_name());
     pod_spec
 }
 

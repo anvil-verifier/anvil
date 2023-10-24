@@ -217,35 +217,47 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
-    pub fn runtime_class_name(&self) -> (runtime_class_name: String)
+    pub fn runtime_class_name(&self) -> (runtime_class_name: Option<String>)
         ensures
-            runtime_class_name@ == self@.runtime_class_name,
+            opt_string_to_view(&runtime_class_name) == self@.runtime_class_name,
     {
-        String::from_rust_string(self.inner.runtime_class_name.clone())
+        match &self.inner.runtime_class_name {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
     }
 
     #[verifier(external_body)]
-    pub fn dns_policy(&self) -> (dns_policy: String)
+    pub fn dns_policy(&self) -> (dns_policy: Option<String>)
         ensures
-            dns_policy@ == self@.dns_policy,
+            opt_string_to_view(&dns_policy) == self@.dns_policy,
     {
-        String::from_rust_string(self.inner.dns_policy.clone())
+        match &self.inner.dns_policy {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
     }
 
     #[verifier(external_body)]
-    pub fn priority_class_name(&self) -> (priority_class_name: String)
+    pub fn priority_class_name(&self) -> (priority_class_name: Option<String>)
         ensures
-            priority_class_name@ == self@.priority_class_name,
+            opt_string_to_view(&priority_class_name) == self@.priority_class_name,
     {
-        String::from_rust_string(self.inner.priority_class_name.clone())
+        match &self.inner.priority_class_name {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
     }
 
     #[verifier(external_body)]
-    pub fn scheduler_name(&self) -> (scheduler_name: String)
+    pub fn scheduler_name(&self) -> (scheduler_name: Option<String>)
         ensures
-            scheduler_name@ == self@.scheduler_name,
+            opt_string_to_view(&scheduler_name) == self@.scheduler_name,
     {
-        String::from_rust_string(self.inner.scheduler_name.clone())
+        match &self.inner.scheduler_name {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
     }
 }
 
