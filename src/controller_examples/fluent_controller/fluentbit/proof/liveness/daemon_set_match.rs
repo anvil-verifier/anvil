@@ -4,7 +4,10 @@
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::{
     common::*,
-    proof::{helper_invariants, liveness::resource_match::*, predicate::*, resource::*},
+    proof::{
+        helper_invariants, liveness::resource_match::*, liveness_theorem::desired_state_is,
+        predicate::*, resource::*,
+    },
     spec::{reconciler::*, resource::*, types::*},
 };
 use crate::kubernetes_api_objects::{

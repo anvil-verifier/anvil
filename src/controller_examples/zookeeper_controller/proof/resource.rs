@@ -73,16 +73,6 @@ pub open spec fn state_after_update(
     }
 }
 
-pub open spec fn resource_state_matches(sub_resource: SubResource, zookeeper: ZookeeperClusterView, resources: StoredState) -> bool {
-    match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::resource_state_matches(zookeeper, resources),
-        SubResource::ClientService => ClientServiceBuilder::resource_state_matches(zookeeper, resources),
-        SubResource::AdminServerService => AdminServerServiceBuilder::resource_state_matches(zookeeper, resources),
-        SubResource::ConfigMap => ConfigMapBuilder::resource_state_matches(zookeeper, resources),
-        SubResource::StatefulSet => StatefulSetBuilder::resource_state_matches(zookeeper, resources),
-    }
-}
-
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, zookeeper: ZookeeperClusterView) -> bool {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::unchangeable(object, zookeeper),

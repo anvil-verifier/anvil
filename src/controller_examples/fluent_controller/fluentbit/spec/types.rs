@@ -1,15 +1,25 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit::common::*;
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
+    marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    toleration::*,
 };
+use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub type FBStep = Step<FBMessage>;
+
+pub type FBCluster = Cluster<FluentBitView, EmptyAPI, FluentBitReconciler>;
+
+pub type FBMessage = Message<EmptyTypeView, EmptyTypeView>;
+
+pub struct FluentBitReconciler {}
 
 pub struct FluentBitReconcileState {
     pub reconcile_step: FluentBitReconcileStep,

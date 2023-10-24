@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, prelude::*, resource::*, stateful_set::*,
 };
@@ -14,25 +13,11 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::proof::resource::*;
+use crate::zookeeper_controller::proof::{liveness_theorem::*, resource::*};
 use crate::zookeeper_controller::spec::{reconciler::*, resource::*, types::*, zookeeper_api::*};
 use vstd::prelude::*;
 
 verus! {
-
-pub type ZKStep = Step<ZKMessage>;
-
-pub type ZKCluster = Cluster<ZookeeperClusterView, ZKAPI, ZookeeperReconciler>;
-
-pub type ZKMessage = Message<ZKAPIInputView, ZKAPIOutputView>;
-
-pub open spec fn cluster_spec() -> TempPred<ZKCluster> {
-    ZKCluster::sm_spec()
-}
-
-pub open spec fn desired_state_is(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
-    ZKCluster::desired_state_is(zk)
-}
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {

@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, prelude::*, resource::*, stateful_set::*,
 };
@@ -13,26 +12,12 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::proof::resource::*;
+use crate::rabbitmq_controller::proof::{liveness_theorem::resource_state_matches, resource::*};
 use crate::rabbitmq_controller::spec::{reconciler::*, resource::*, types::*};
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {
-
-pub type RMQStep = Step<RMQMessage>;
-
-pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
-
-pub type RMQMessage = Message<EmptyTypeView, EmptyTypeView>;
-
-pub open spec fn cluster_spec() -> TempPred<RMQCluster> {
-    RMQCluster::sm_spec()
-}
-
-pub open spec fn desired_state_is(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    RMQCluster::desired_state_is(rabbitmq)
-}
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {

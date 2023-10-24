@@ -72,21 +72,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
-        let key = make_stateful_set_key(rabbitmq);
-        let obj = resources[key];
-        let cm_key = make_server_config_map_key(rabbitmq);
-        let cm_obj = resources[cm_key];
-        let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
-        &&& resources.contains_key(key)
-        &&& resources.contains_key(cm_key)
-        &&& cm_obj.metadata.resource_version.is_Some()
-        &&& StatefulSetView::unmarshal(obj).is_Ok()
-        &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec == made_sts.spec
-        &&& obj.metadata.labels == made_sts.metadata.labels
-        &&& obj.metadata.annotations == made_sts.metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
         true
     }

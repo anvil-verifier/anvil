@@ -64,17 +64,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
         }
     }
 
-    open spec fn resource_state_matches(fb: FluentBitView, resources: StoredState) -> bool {
-        let key = make_daemon_set_key(fb);
-        let obj = resources[key];
-        let made_ds = make_daemon_set(fb);
-        &&& resources.contains_key(key)
-        &&& DaemonSetView::unmarshal(obj).is_Ok()
-        &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec == made_ds.spec
-        &&& obj.metadata.labels == made_ds.metadata.labels
-        &&& obj.metadata.annotations == made_ds.metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
         true
     }

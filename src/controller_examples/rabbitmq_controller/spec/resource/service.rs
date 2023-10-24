@@ -69,22 +69,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
-        let key = make_main_service_key(rabbitmq);
-        let obj = resources[key];
-        let made_spec = make_main_service(rabbitmq).spec.get_Some_0();
-        let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
-        &&& resources.contains_key(key)
-        &&& ServiceView::unmarshal(obj).is_Ok()
-        &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
-        &&& made_spec == ServiceSpecView {
-            cluster_ip: made_spec.cluster_ip,
-            ..spec
-        }
-        &&& obj.metadata.labels == make_main_service(rabbitmq).metadata.labels
-        &&& obj.metadata.annotations == make_main_service(rabbitmq).metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
         true
     }

@@ -64,15 +64,6 @@ pub open spec fn state_after_update(sub_resource: SubResource, fb: FluentBitView
     }
 }
 
-pub open spec fn resource_state_matches(sub_resource: SubResource, fb: FluentBitView, resources: StoredState) -> bool {
-    match sub_resource {
-        SubResource::ServiceAccount => ServiceAccountBuilder::resource_state_matches(fb, resources),
-        SubResource::Role => RoleBuilder::resource_state_matches(fb, resources),
-        SubResource::RoleBinding => RoleBindingBuilder::resource_state_matches(fb, resources),
-        SubResource::DaemonSet => DaemonSetBuilder::resource_state_matches(fb, resources),
-    }
-}
-
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, fb: FluentBitView) -> bool {
     match sub_resource {
         SubResource::ServiceAccount => ServiceAccountBuilder::unchangeable(object, fb),

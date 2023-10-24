@@ -14,7 +14,8 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::{
     common::*,
     proof::{
-        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
+        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable,
+        liveness_theorem::desired_state_is, predicate::*, resource::*,
     },
     spec::{resource::make_stateful_set, types::*},
 };

@@ -16,7 +16,8 @@ use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use crate::zookeeper_controller::{
     common::*,
     proof::{
-        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
+        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable,
+        liveness_theorem::desired_state_is, predicate::*, resource::*,
     },
     spec::{resource::make_stateful_set, types::*},
 };

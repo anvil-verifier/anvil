@@ -11,8 +11,6 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub struct FluentBitReconciler {}
-
 impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
     type T = FluentBitReconcileState;
 

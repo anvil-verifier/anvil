@@ -6,7 +6,8 @@ use crate::fluent_controller::fluentbit_config::{
     common::*,
     proof::{
         helper_invariants,
-        liveness::{property::*, resource_match::*, spec::*, terminate},
+        liveness::{resource_match::*, spec::*, terminate},
+        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
@@ -31,7 +32,7 @@ verus! {
 // We prove init /\ []next /\ []wf |= []desired_state_is(fbc) ~> []current_state_matches(fbc) holds for each fbc.
 proof fn liveness_proof_forall_fbc()
     ensures
-        forall |fbc: FluentBitConfigView| #[trigger] cluster_spec().entails(liveness(fbc)),
+        liveness_theorem(),
 {
     assert forall |fbc: FluentBitConfigView| #[trigger] cluster_spec().entails(liveness(fbc)) by {
         liveness_proof(fbc);
