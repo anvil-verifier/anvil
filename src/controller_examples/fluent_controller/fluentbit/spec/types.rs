@@ -151,6 +151,7 @@ pub struct FluentBitSpecView {
     pub dns_policy: Option<StringView>,
     pub priority_class_name: Option<StringView>,
     pub scheduler_name: Option<StringView>,
+    pub metrics_port: Option<int>,
 }
 
 impl FluentBitSpecView {}

@@ -220,6 +220,8 @@ pub struct FluentBitSpec {
     pub priority_class_name: Option<String>,
     #[serde(rename = "schedulerName")]
     pub scheduler_name: Option<String>,
+    #[serde(rename = "metricsPort")]
+    pub metrics_port: Option<i32>,
 }
 
 #[derive(
