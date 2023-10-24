@@ -181,25 +181,38 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
                 image: Some(fb.spec.image),
                 env: Some(make_env(fb)),
                 volume_mounts: Some(seq![
-                    VolumeMountView::default()
-                        .set_name(new_strlit("varlibcontainers")@)
-                        .set_read_only(true)
-                        .set_mount_path(new_strlit("/containers")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("config")@)
-                        .set_read_only(true)
-                        .set_mount_path(new_strlit("/fluent-bit/config")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("varlogs")@)
-                        .set_read_only(true)
-                        .set_mount_path(new_strlit("/var/log/")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("systemd")@)
-                        .set_read_only(true)
-                        .set_mount_path(new_strlit("/var/log/journal")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("positions")@)
-                        .set_mount_path(new_strlit("/fluent-bit/tail")@),
+                    VolumeMountView {
+                        name: new_strlit("varlibcontainers")@,
+                        read_only: Some(true),
+                        mount_path: new_strlit("/containers")@,
+                        mount_propagation: fb.spec.internal_mount_propagation,
+                        ..VolumeMountView::default()
+                    },
+                    VolumeMountView {
+                        name: new_strlit("config")@,
+                        read_only: Some(true),
+                        mount_path: new_strlit("/fluent-bit/config")@,
+                        ..VolumeMountView::default()
+                    },
+                    VolumeMountView {
+                        name: new_strlit("varlogs")@,
+                        read_only: Some(true),
+                        mount_path: new_strlit("/var/log/")@,
+                        mount_propagation: fb.spec.internal_mount_propagation,
+                        ..VolumeMountView::default()
+                    },
+                    VolumeMountView {
+                        name: new_strlit("systemd")@,
+                        read_only: Some(true),
+                        mount_path: new_strlit("/var/log/journal")@,
+                        mount_propagation: fb.spec.internal_mount_propagation,
+                        ..VolumeMountView::default()
+                    },
+                    VolumeMountView {
+                        name: new_strlit("positions")@,
+                        mount_path: new_strlit("/fluent-bit/tail")@,
+                        ..VolumeMountView::default()
+                    },
                 ]),
                 ports: Some(seq![
                     ContainerPortView::default()

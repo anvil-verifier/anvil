@@ -268,6 +268,17 @@ impl FluentBitSpec {
     {
         self.inner.metrics_port
     }
+
+    #[verifier(external_body)]
+    pub fn internal_mount_propagation(&self) -> (internal_mount_propagation: Option<String>)
+        ensures
+            opt_string_to_view(&internal_mount_propagation) == self@.internal_mount_propagation,
+    {
+        match &self.inner.internal_mount_propagation {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
 }
 
 }

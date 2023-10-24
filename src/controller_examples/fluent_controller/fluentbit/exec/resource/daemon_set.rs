@@ -176,6 +176,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     volume_mount.set_name(new_strlit("varlibcontainers").to_string());
                     volume_mount.set_read_only(true);
                     volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                     volume_mount
                 });
                 volume_mounts.push({
@@ -190,6 +191,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     volume_mount.set_name(new_strlit("varlogs").to_string());
                     volume_mount.set_read_only(true);
                     volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
+                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                     volume_mount
                 });
                 volume_mounts.push({
@@ -197,6 +199,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     volume_mount.set_name(new_strlit("systemd").to_string());
                     volume_mount.set_read_only(true);
                     volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
+                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                     volume_mount
                 });
                 volume_mounts.push({

@@ -152,6 +152,7 @@ pub struct FluentBitSpecView {
     pub priority_class_name: Option<StringView>,
     pub scheduler_name: Option<StringView>,
     pub metrics_port: Option<int>,
+    pub internal_mount_propagation: Option<StringView>,
 }
 
 impl FluentBitSpecView {}

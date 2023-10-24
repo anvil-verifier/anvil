@@ -222,6 +222,8 @@ pub struct FluentBitSpec {
     pub scheduler_name: Option<String>,
     #[serde(rename = "metricsPort")]
     pub metrics_port: Option<i32>,
+    #[serde(rename = "internalMountPropagation")]
+    pub internal_mount_propagation: Option<String>,
 }
 
 #[derive(
