@@ -197,7 +197,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
                     VolumeMountView {
                         name: new_strlit("varlogs")@,
                         read_only: Some(true),
-                        mount_path: new_strlit("varlogs")@,
+                        mount_path: new_strlit("/var/log/")@,
                         mount_propagation: fb.spec.internal_mount_propagation,
                         ..VolumeMountView::default()
                     },
