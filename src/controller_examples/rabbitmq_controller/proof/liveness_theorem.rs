@@ -1,15 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::prelude::*;
-use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::BuiltinControllerChoice,
-    cluster::*,
-    cluster_state_machine::Step,
-    controller::common::{ControllerActionInput, ControllerStep},
-    message::*,
-};
+use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::Step, message::*};
 use crate::rabbitmq_controller::{
     common::*,
     spec::{reconciler::*, resource::*, types::*},

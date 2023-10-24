@@ -1,16 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::{
     common::*,
     spec::{reconciler::*, resource::*, types::*},
 };
 use crate::kubernetes_api_objects::prelude::*;
-use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::BuiltinControllerChoice, cluster::*, cluster_state_machine::Step,
-    message::*,
-};
+use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::Step, message::*};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::int_to_string_view;
 use vstd::prelude::*;
