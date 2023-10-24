@@ -65,16 +65,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBuilder {
         }
     }
 
-    open spec fn resource_state_matches(fb: FluentBitView, resources: StoredState) -> bool {
-        let key = make_role_key(fb);
-        let obj = resources[key];
-        &&& resources.contains_key(key)
-        &&& RoleView::unmarshal(obj).is_Ok()
-        &&& RoleView::unmarshal(obj).get_Ok_0().policy_rules == make_role(fb).policy_rules
-        &&& obj.metadata.labels == make_role(fb).metadata.labels
-        &&& obj.metadata.annotations == make_role(fb).metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
         true
     }

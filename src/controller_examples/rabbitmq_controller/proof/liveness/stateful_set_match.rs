@@ -17,6 +17,7 @@ use crate::rabbitmq_controller::{
     proof::{
         helper_invariants,
         liveness::{resource_match::*, spec::assumption_and_invariants_of_all_phases},
+        liveness_theorem::*,
         predicate::*,
         resource::*,
     },

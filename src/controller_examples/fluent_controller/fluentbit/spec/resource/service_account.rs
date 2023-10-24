@@ -65,16 +65,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
         }
     }
 
-    open spec fn resource_state_matches(fb: FluentBitView, resources: StoredState) -> bool {
-        let key = make_service_account_key(fb);
-        let obj = resources[key];
-        &&& resources.contains_key(key)
-        &&& ServiceAccountView::unmarshal(obj).is_Ok()
-        &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == make_service_account(fb).automount_service_account_token
-        &&& obj.metadata.labels == make_service_account(fb).metadata.labels
-        &&& obj.metadata.annotations == make_service_account(fb).metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
         &&& ServiceAccountView::unmarshal(object).is_Ok()
         &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(fb).automount_service_account_token

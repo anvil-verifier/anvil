@@ -5,7 +5,8 @@ use super::predicate::*;
 use crate::fluent_controller::fluentbit::{
     common::*,
     proof::{
-        helper_invariants::daemon_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
+        helper_invariants::daemon_set_in_etcd_satisfies_unchangeable,
+        liveness_theorem::desired_state_is, predicate::*, resource::*,
     },
     spec::{resource::make_daemon_set, types::*},
 };

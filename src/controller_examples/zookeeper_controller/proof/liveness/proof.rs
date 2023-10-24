@@ -19,7 +19,6 @@ use crate::zookeeper_controller::{
     proof::{
         helper_invariants,
         liveness::{
-            property::*,
             resource_match::*,
             spec::*,
             stateful_set_match::{
@@ -29,6 +28,7 @@ use crate::zookeeper_controller::{
             terminate,
             zookeeper_api::lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set_step,
         },
+        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
@@ -41,7 +41,7 @@ verus! {
 // We prove init /\ []next /\ []wf |= []ZKCluster::desired_state_is(zookeeper) ~> []current_state_matches(zookeeper) holds for each zookeeper.
 proof fn liveness_proof_forall_zookeeper()
     ensures
-        forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness(zookeeper)),
+        liveness_theorem(),
 {
     assert forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness(zookeeper)) by {
         liveness_proof(zookeeper);

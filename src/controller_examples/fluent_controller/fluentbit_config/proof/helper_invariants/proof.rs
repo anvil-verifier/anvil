@@ -4,7 +4,7 @@
 use super::predicate::*;
 use crate::fluent_controller::fluentbit_config::{
     common::*,
-    proof::{predicate::*, resource::*},
+    proof::{liveness_theorem::desired_state_is, predicate::*, resource::*},
     spec::{resource::*, types::*},
 };
 use crate::kubernetes_api_objects::{

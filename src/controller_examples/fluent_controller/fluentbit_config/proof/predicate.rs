@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit_config::common::*;
-use crate::fluent_controller::fluentbit_config::proof::resource::*;
+use crate::fluent_controller::fluentbit_config::proof::{liveness_theorem::*, resource::*};
 use crate::fluent_controller::fluentbit_config::spec::{reconciler::*, resource::*, types::*};
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, prelude::*, resource::*, stateful_set::*,
@@ -19,20 +19,6 @@ use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {
-
-pub type FBCStep = Step<FBCMessage>;
-
-pub type FBCCluster = Cluster<FluentBitConfigView, EmptyAPI, FluentBitConfigReconciler>;
-
-pub type FBCMessage = Message<EmptyTypeView, EmptyTypeView>;
-
-pub open spec fn cluster_spec() -> TempPred<FBCCluster> {
-    FBCCluster::sm_spec()
-}
-
-pub open spec fn desired_state_is(fbc: FluentBitConfigView) -> StatePred<FBCCluster> {
-    FBCCluster::desired_state_is(fbc)
-}
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, fbc: FluentBitConfigView) -> StatePred<FBCCluster> {
     |s: FBCCluster| {

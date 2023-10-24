@@ -11,11 +11,11 @@ use crate::fluent_controller::fluentbit::{
                 lemma_daemon_set_is_stable,
                 lemma_from_after_get_daemon_set_step_to_daemon_set_matches,
             },
-            property::*,
             resource_match::*,
             spec::*,
             terminate,
         },
+        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
@@ -40,7 +40,7 @@ verus! {
 // We prove init /\ []next /\ []wf |= []desired_state_is(fb) ~> []current_state_matches(fb) holds for each fb.
 proof fn liveness_proof_forall_fb()
     ensures
-        forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness(fb)),
+        liveness_theorem(),
 {
     assert forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness(fb)) by {
         liveness_proof(fb);

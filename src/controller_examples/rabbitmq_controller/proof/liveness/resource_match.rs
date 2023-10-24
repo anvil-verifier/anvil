@@ -15,8 +15,8 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::{
     common::*,
     proof::{
-        helper_invariants, liveness::spec::assumption_and_invariants_of_all_phases, predicate::*,
-        resource::*,
+        helper_invariants, liveness::spec::assumption_and_invariants_of_all_phases,
+        liveness_theorem::*, predicate::*, resource::*,
     },
     spec::{reconciler::*, resource::*, types::*},
 };

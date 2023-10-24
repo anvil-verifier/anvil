@@ -51,12 +51,6 @@ pub open spec fn state_after_update(sub_resource: SubResource, fbc: FluentBitCon
     }
 }
 
-pub open spec fn resource_state_matches(sub_resource: SubResource, fbc: FluentBitConfigView, resources: StoredState) -> bool {
-    match sub_resource {
-        SubResource::Secret => SecretBuilder::resource_state_matches(fbc, resources),
-    }
-}
-
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, fbc: FluentBitConfigView) -> bool {
     match sub_resource {
         SubResource::Secret => SecretBuilder::unchangeable(object, fbc),

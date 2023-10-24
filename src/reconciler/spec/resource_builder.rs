@@ -21,10 +21,6 @@ pub trait ResourceBuilder<K, T> {
 
     spec fn state_after_update(cr: K, obj: DynamicObjectView, state: T) -> Result<(T, Option<APIRequest>), ()>;
 
-    /// resource_state_matches takes the cr and an object that stores all resources, then it will check whether the resource pool
-    /// reaches the desired state in the view of the object that it builds.
-    spec fn resource_state_matches(cr: K, resources: StoredState) -> bool;
-
     spec fn unchangeable(object: DynamicObjectView, cr: K) -> bool;
 }
 

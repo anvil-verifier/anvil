@@ -5,11 +5,18 @@ use crate::kubernetes_api_objects::{
     marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
     toleration::*,
 };
+use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::{common::*, spec::zookeeper_api::*};
 use vstd::prelude::*;
 
 verus! {
+
+pub type ZKStep = Step<ZKMessage>;
+
+pub type ZKCluster = Cluster<ZookeeperClusterView, ZKAPI, ZookeeperReconciler>;
+
+pub type ZKMessage = Message<ZKAPIInputView, ZKAPIOutputView>;
 
 pub struct ZookeeperReconcileState {
     pub reconcile_step: ZookeeperReconcileStep,

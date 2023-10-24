@@ -66,22 +66,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
         }
     }
 
-    open spec fn resource_state_matches(zk: ZookeeperClusterView, resources: StoredState) -> bool {
-        let key = make_admin_server_service_key(zk);
-        let obj = resources[key];
-        let made_spec = make_admin_server_service(zk).spec.get_Some_0();
-        let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
-        &&& resources.contains_key(key)
-        &&& ServiceView::unmarshal(obj).is_Ok()
-        &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
-        &&& made_spec == ServiceSpecView {
-            cluster_ip: made_spec.cluster_ip,
-            ..spec
-        }
-        &&& obj.metadata.labels == make_admin_server_service(zk).metadata.labels
-        &&& obj.metadata.annotations == make_admin_server_service(zk).metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
         true
     }

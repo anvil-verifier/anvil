@@ -19,8 +19,6 @@ use vstd::string::*;
 
 verus! {
 
-pub struct RabbitmqReconciler {}
-
 impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     type T = RabbitmqReconcileState;
 

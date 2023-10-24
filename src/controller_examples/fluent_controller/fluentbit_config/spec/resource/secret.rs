@@ -65,14 +65,6 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
         }
     }
 
-    open spec fn resource_state_matches(fbc: FluentBitConfigView, resources: StoredState) -> bool {
-        let key = make_secret_key(fbc);
-        let obj = resources[key];
-        &&& resources.contains_key(key)
-        &&& SecretView::unmarshal(obj).is_Ok()
-        &&& SecretView::unmarshal(obj).get_Ok_0().data == make_secret(fbc).data
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, fbc: FluentBitConfigView) -> bool {
         true
     }

@@ -70,17 +70,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
-        let key = make_server_config_map_key(rabbitmq);
-        let obj = resources[key];
-        &&& resources.contains_key(key)
-        &&& ConfigMapView::unmarshal(obj).is_Ok()
-        &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_server_config_map(rabbitmq).data
-        &&& obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
-        &&& obj.metadata.labels == make_server_config_map(rabbitmq).metadata.labels
-        &&& obj.metadata.annotations == make_server_config_map(rabbitmq).metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
         true
     }

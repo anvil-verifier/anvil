@@ -68,17 +68,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
         }
     }
 
-    open spec fn resource_state_matches(zk: ZookeeperClusterView, resources: StoredState) -> bool {
-        let key = make_config_map_key(zk);
-        let obj = resources[key];
-        &&& resources.contains_key(key)
-        &&& ConfigMapView::unmarshal(obj).is_Ok()
-        &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_config_map(zk).data
-        &&& obj.spec == ConfigMapView::marshal_spec((make_config_map(zk).data, ()))
-        &&& obj.metadata.labels == make_config_map(zk).metadata.labels
-        &&& obj.metadata.annotations == make_config_map(zk).metadata.annotations
-    }
-
     open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
         true
     }
