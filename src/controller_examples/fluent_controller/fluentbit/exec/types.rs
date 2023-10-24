@@ -259,6 +259,15 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn metrics_port(&self) -> (metrics_port: Option<i32>)
+        ensures
+            metrics_port.is_Some() == self@.metrics_port.is_Some(),
+            metrics_port.is_Some() ==> metrics_port.get_Some_0() as int == self@.metrics_port.get_Some_0(),
+    {
+        self.inner.metrics_port
+    }
 }
 
 }

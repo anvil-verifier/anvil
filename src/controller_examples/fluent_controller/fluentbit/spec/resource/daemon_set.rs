@@ -204,7 +204,10 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
                 ports: Some(seq![
                     ContainerPortView::default()
                         .set_name(new_strlit("metrics")@)
-                        .set_container_port(2020),
+                        .set_container_port({
+                            let port = if fb.spec.metrics_port.is_Some() { fb.spec.metrics_port.get_Some_0() } else { 2020 };
+                            port
+                        }),
                 ]),
                 resources: fb.spec.resources,
                 ..ContainerView::default()

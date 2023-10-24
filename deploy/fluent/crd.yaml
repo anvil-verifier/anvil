@@ -500,6 +500,10 @@ spec:
                     type: string
                   default: {}
                   type: object
+                metricsPort:
+                  format: int32
+                  nullable: true
+                  type: integer
                 node_selector:
                   additionalProperties:
                     type: string
