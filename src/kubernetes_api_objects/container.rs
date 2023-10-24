@@ -917,7 +917,7 @@ impl VolumeMountView {
         }
     }
 
-    pub open spec fn overwrite_mount_propagation(self, mount_propagation: StringView) -> VolumeMountView {
+    pub open spec fn overwrite_mount_propagation(self, mount_propagation: Option<StringView>) -> VolumeMountView {
         VolumeMountView {
             mount_propagation: mount_propagation,
             ..self
