@@ -40,7 +40,6 @@ verus! {
 // We prove init /\ []next /\ []wf |= []RMQCluster::desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq) holds for each rabbitmq.
 proof fn liveness_proof_forall_rabbitmq()
     ensures
-        // forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness(rabbitmq)),
         liveness_theorem(),
 {
     assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness(rabbitmq)) by {
