@@ -267,6 +267,17 @@ impl VolumeMount {
         self.inner.sub_path = Some(sub_path.into_rust_string());
     }
 
+    #[verifier(external_body)]
+    pub fn overwrite_mount_propagation(&mut self, mount_propagation: Option<String>)
+        ensures
+            self@ == old(self)@.overwrite_mount_propagation(opt_string_to_view(&mount_propagation)),
+    {
+        match mount_propagation {
+            Some(n) => self.inner.mount_propagation = Some(n.into_rust_string()),
+            None => self.inner.mount_propagation = None,
+        }
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeMount {
         self.inner
@@ -864,6 +875,7 @@ pub struct VolumeMountView {
     pub name: StringView,
     pub read_only: Option<bool>,
     pub sub_path: Option<StringView>,
+    pub mount_propagation: Option<StringView>,
 }
 
 impl VolumeMountView {
@@ -873,6 +885,7 @@ impl VolumeMountView {
             name: new_strlit("")@,
             read_only: Some(false),
             sub_path: None,
+            mount_propagation: None,
         }
     }
 
@@ -900,6 +913,13 @@ impl VolumeMountView {
     pub open spec fn set_sub_path(self, sub_path: StringView) -> VolumeMountView {
         VolumeMountView {
             sub_path: Some(sub_path),
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_mount_propagation(self, mount_propagation: Option<StringView>) -> VolumeMountView {
+        VolumeMountView {
+            mount_propagation: mount_propagation,
             ..self
         }
     }
