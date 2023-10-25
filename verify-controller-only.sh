@@ -12,7 +12,7 @@ NC='\033[0m'
 app=$1
 
 if [ "$app" = "fluent" ]; then
-    ./build.sh fluent_controller.rs --emit=dep-info --time --time-expanded --output-json --rlimit 50 \
+    ./build.sh fluent_controller.rs --emit=dep-info --time --time-expanded --output-json --rlimit 50 --num-threads 1 \
         --verify-module fluent_controller \
         --verify-module fluent_controller::fluentbit \
         --verify-module fluent_controller::fluentbit::common \
@@ -79,7 +79,7 @@ if [ "$app" = "fluent" ]; then
         --verify-module fluent_controller::fluentbit_config::spec::types \
         > fluent.json
 elif [ "$app" = "rabbitmq" ]; then
-    ./build.sh rabbitmq_controller.rs --emit=dep-info --time --time-expanded --output-json --rlimit 50 \
+    ./build.sh rabbitmq_controller.rs --emit=dep-info --time --time-expanded --output-json --rlimit 50 --num-threads 1 \
         --verify-module rabbitmq_controller \
         --verify-module rabbitmq_controller::common \
         --verify-module rabbitmq_controller::exec \
@@ -133,7 +133,7 @@ elif [ "$app" = "rabbitmq" ]; then
         --verify-module rabbitmq_controller::spec::types \
         > rabbitmq.json
 elif [ "$app" = "zookeeper" ]; then
-    ./build.sh zookeeper_controller.rs --emit=dep-info --time --time-expanded --output-json --rlimit 50 \
+    ./build.sh zookeeper_controller.rs --emit=dep-info --time --time-expanded --output-json --rlimit 50 --num-threads 1 \
         --verify-module zookeeper_controller \
         --verify-module zookeeper_controller::common \
         --verify-module zookeeper_controller::exec \
