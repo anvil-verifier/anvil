@@ -309,6 +309,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     if fb.spec().security_context().is_some() {
         pod_spec.set_security_context(fb.spec().security_context().unwrap());
     }
+    if fb.spec().host_network().is_some() {
+        pod_spec.set_host_network(fb.spec().host_network().unwrap());
+    }
     pod_spec
 }
 
