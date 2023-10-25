@@ -27,15 +27,6 @@ pub enum Error {
 #[derive(
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
-#[kube(group = "anvil.dev", version = "v1", kind = "SimpleCR")]
-#[kube(shortname = "cr", namespaced)]
-pub struct SimpleCRSpec {
-    pub content: String,
-}
-
-#[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
-)]
 #[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
 #[kube(shortname = "zk", namespaced)]
 #[kube(status = "ZookeeperClusterStatus")]
