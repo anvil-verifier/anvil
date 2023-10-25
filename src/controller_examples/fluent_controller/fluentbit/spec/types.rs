@@ -5,7 +5,7 @@ use crate::fluent_controller::fluentbit::common::*;
 use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
     marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
-    toleration::*,
+    toleration::*, prelude::*
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
@@ -163,6 +163,7 @@ pub struct FluentBitSpecView {
     pub scheduler_name: Option<StringView>,
     pub metrics_port: Option<int>,
     pub internal_mount_propagation: Option<StringView>,
+    pub security_context: Option<PodSecurityContextView>,
 }
 
 impl FluentBitSpecView {}

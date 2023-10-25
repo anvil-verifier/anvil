@@ -306,6 +306,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     pod_spec.overwrite_dns_policy(fb.spec().dns_policy());
     pod_spec.overwrite_priority_class_name(fb.spec().priority_class_name());
     pod_spec.overwrite_scheduler_name(fb.spec().scheduler_name());
+    if fb.spec().security_context().is_some() {
+        pod_spec.set_security_context(fb.spec().security_context().unwrap());
+    }
     pod_spec
 }
 

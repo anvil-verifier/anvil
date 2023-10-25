@@ -222,6 +222,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
         dns_policy: fb.spec.dns_policy,
         priority_class_name: fb.spec.priority_class_name,
         scheduler_name: fb.spec.scheduler_name,
+        security_context: fb.spec.security_context,
         ..PodSpecView::default()
     }
 }
