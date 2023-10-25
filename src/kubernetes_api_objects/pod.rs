@@ -287,6 +287,14 @@ impl PodSpec {
         self.inner.security_context = Some(security_context.into_kube());
     }
 
+    #[verifier(external_body)]
+    pub fn set_host_network(&mut self, host_network: bool)
+        ensures
+            self@ == old(self)@.set_host_network(host_network),
+    {
+        self.inner.host_network = Some(host_network);
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec {
         PodSpec { inner: inner }
@@ -458,6 +466,7 @@ pub struct PodSpecView {
     pub priority_class_name: Option<StringView>,
     pub scheduler_name: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
+    pub host_network: Option<bool>,
 }
 
 impl PodSpecView {
@@ -475,6 +484,7 @@ impl PodSpecView {
             priority_class_name: None,
             scheduler_name: None,
             security_context: None,
+            host_network: None,
         }
     }
 
@@ -572,6 +582,13 @@ impl PodSpecView {
     pub open spec fn set_security_context(self, security_context: PodSecurityContextView) -> PodSpecView {
         PodSpecView {
             security_context: Some(security_context),
+            ..self
+        }
+    }
+
+    pub open spec fn set_host_network(self, host_network: bool) -> PodSpecView {
+        PodSpecView {
+            host_network: Some(host_network),
             ..self
         }
     }
