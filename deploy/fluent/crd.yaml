@@ -493,6 +493,9 @@ spec:
                   type: string
                 fluentBitConfigName:
                   type: string
+                hostNetwork:
+                  nullable: true
+                  type: boolean
                 image:
                   type: string
                 internalMountPropagation:

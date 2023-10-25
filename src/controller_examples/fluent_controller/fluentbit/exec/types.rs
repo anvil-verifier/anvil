@@ -291,6 +291,14 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn host_network(&self) -> (host_network: Option<bool>)
+        ensures
+            host_network == self@.host_network,
+    {
+        self.inner.host_network
+    }
 }
 
 }

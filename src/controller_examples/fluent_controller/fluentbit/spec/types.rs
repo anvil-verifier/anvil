@@ -164,6 +164,7 @@ pub struct FluentBitSpecView {
     pub metrics_port: Option<int>,
     pub internal_mount_propagation: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
+    pub host_network: Option<bool>,
 }
 
 impl FluentBitSpecView {}
