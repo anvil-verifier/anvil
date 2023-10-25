@@ -279,6 +279,14 @@ impl PodSpec {
         }
     }
 
+    #[verifier(external_body)]
+    pub fn set_security_context(&mut self, security_context: PodSecurityContext)
+        ensures
+            self@ == old(self)@.set_security_context(security_context@),
+    {
+        self.inner.security_context = Some(security_context.into_kube());
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec {
         PodSpec { inner: inner }
@@ -286,6 +294,29 @@ impl PodSpec {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct PodSecurityContext {
+    inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext,
+}
+
+impl View for PodSecurityContext {
+    type V = PodSecurityContextView;
+
+    spec fn view(&self) -> PodSecurityContextView;
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PodSecurityContext> for PodSecurityContext {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext) -> PodSecurityContext {
+        PodSecurityContext { inner: inner }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSecurityContext {
         self.inner
     }
 }
@@ -426,6 +457,7 @@ pub struct PodSpecView {
     pub dns_policy: Option<StringView>,
     pub priority_class_name: Option<StringView>,
     pub scheduler_name: Option<StringView>,
+    pub security_context: Option<PodSecurityContextView>,
 }
 
 impl PodSpecView {
@@ -442,6 +474,7 @@ impl PodSpecView {
             dns_policy: None,
             priority_class_name: None,
             scheduler_name: None,
+            security_context: None,
         }
     }
 
@@ -535,6 +568,15 @@ impl PodSpecView {
             ..self
         }
     }
+
+    pub open spec fn set_security_context(self, security_context: PodSecurityContextView) -> PodSpecView {
+        PodSpecView {
+            security_context: Some(security_context),
+            ..self
+        }
+    }
 }
+
+pub struct PodSecurityContextView {}
 
 }
