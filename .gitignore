@@ -14,3 +14,4 @@ e2e/target/
 src/liblib.rlib
 verifiable-controllers.code-workspace
 src/.verus-solver-log/
+src/*.d
