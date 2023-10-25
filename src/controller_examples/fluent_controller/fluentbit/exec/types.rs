@@ -6,7 +6,7 @@ use crate::fluent_controller::fluentbit::spec::types::{FluentBitSpecView, Fluent
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
+    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
 };
 use crate::vstd_ext::{string_map::*, string_view::*};
 use deps_hack::kube::Resource;
@@ -276,6 +276,18 @@ impl FluentBitSpec {
     {
         match &self.inner.internal_mount_propagation {
             Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn security_context(&self) -> (security_context: Option<PodSecurityContext>)
+        ensures
+            security_context.is_Some() == self@.security_context.is_Some(),
+            security_context.is_Some() ==> security_context.get_Some_0()@ == self@.security_context.get_Some_0(),
+    {
+        match &self.inner.security_context {
+            Some(s) => Some(PodSecurityContext::from_kube(s.clone())),
             None => None,
         }
     }
