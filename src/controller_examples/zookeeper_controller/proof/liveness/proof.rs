@@ -46,6 +46,7 @@ proof fn liveness_proof_forall_zookeeper()
     assert forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness(zookeeper)) by {
         liveness_proof(zookeeper);
     };
+    spec_entails_tla_forall(cluster_spec(), |zookeeper: ZookeeperClusterView| liveness(zookeeper));
 }
 
 proof fn liveness_proof(zookeeper: ZookeeperClusterView)
