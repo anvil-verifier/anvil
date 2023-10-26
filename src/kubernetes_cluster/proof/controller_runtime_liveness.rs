@@ -263,7 +263,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
     Self::lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, cr, state, next_state);
     Self::lemma_from_pending_req_in_flight_at_some_state_to_next_state(spec, cr, state, next_state);
 
-    or_leads_to_combine(spec, req_in_flight, resp_in_flight, Self::at_expected_reconcile_states(cr.object_ref(), next_state));
+    or_leads_to_combine_temp(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)));
     temp_pred_equality::<Self>(
         lift_state(req_in_flight).or(lift_state(resp_in_flight)),
         lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)

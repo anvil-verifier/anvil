@@ -406,7 +406,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
                 lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))
                 .implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
             );
-            entails_trans(
+            valid_implies_trans(
                 spec_with_rest_id, always(lift_state(invariant)),
                 always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)).implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
             );
@@ -425,7 +425,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
     );
     temp_pred_equality(true_pred().and(lift_state(Self::rest_id_counter_is(rest_id))), lift_state(Self::rest_id_counter_is(rest_id)));
-    entails_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
+    valid_implies_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
 }
 
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
