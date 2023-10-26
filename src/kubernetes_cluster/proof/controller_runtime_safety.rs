@@ -133,7 +133,7 @@ pub proof fn lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches
     );
 }
 
-pub proof fn lemma_forall_always_resp_if_matches_pending_req_then_no_other_resp_matches(
+pub proof fn lemma_always_forall_resp_if_matches_pending_req_then_no_other_resp_matches(
     spec: TempPred<Self>, cr_key: ObjectRef
 )
     requires
@@ -141,14 +141,14 @@ pub proof fn lemma_forall_always_resp_if_matches_pending_req_then_no_other_resp_
         spec.entails(always(lift_action(Self::next()))),
     ensures
         spec.entails(
-            tla_forall(|resp_msg: MsgType<E>| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))))
+            always(tla_forall(|resp_msg: MsgType<E>| lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))))
         ),
 {
-    let m_to_p = |msg| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(msg, cr_key)));
-    assert forall |msg| #[trigger] spec.entails(m_to_p(msg)) by {
+    let m_to_p = |msg| lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(msg, cr_key));
+    assert forall |msg| #[trigger] spec.entails(always(m_to_p(msg))) by {
         Self::lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches(spec, msg, cr_key);
     }
-    spec_entails_tla_forall(spec, m_to_p);
+    spec_entails_always_tla_forall(spec, m_to_p);
 }
 
 pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches(

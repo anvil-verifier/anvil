@@ -1172,7 +1172,7 @@ pub use combine_spec_entails_always_n_internal;
 ///     spec |= []p2
 ///         ...
 ///     spec |= []pn
-///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
+///     partial_spec ==> p1 /\ p2 /\ ... /\ pn
 /// post:
 ///     spec |= []inv
 ///

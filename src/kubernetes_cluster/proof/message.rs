@@ -402,13 +402,14 @@ pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> Fn
 pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && Self::is_ok_get_response_msg()(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] Self::is_ok_get_response_msg()(msg)
             ==> msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
                 && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     }
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec: TempPred<Self>)
     requires
         spec.entails(lift_state(Self::init())),
@@ -420,45 +421,32 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
     let next = |s, s_prime| {
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
-        &&& Self::each_object_in_etcd_is_well_formed()(s_prime)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_to_always_later(spec, lift_state(Self::each_object_in_etcd_is_well_formed()));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()),
-        lift_state(Self::each_object_in_etcd_is_well_formed()),
-        later(lift_state(Self::each_object_in_etcd_is_well_formed()))
+        lift_state(Self::each_object_in_etcd_is_well_formed())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg()(msg) implies
+        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] Self::is_ok_get_response_msg()(msg) implies
         msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
         && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
             let step = choose |step| Self::next_step(s, s_prime, step);
             if s.in_flight().contains(msg) {
-                let input = step.get_KubernetesAPIStep_0().get_Some_0();
-                match input.content.get_APIRequest_0() {
-                    APIRequest::GetRequest(_) => {}
-                    APIRequest::ListRequest(_) => {}
-                    APIRequest::CreateRequest(_) => {}
-                    APIRequest::DeleteRequest(_) => {}
-                    APIRequest::UpdateRequest(_) => {}
-                    APIRequest::UpdateStatusRequest(_) => {}
-                }
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else {
                 let input = step.get_KubernetesAPIStep_0().get_Some_0();
                 match input.content.get_APIRequest_0() {
-                    APIRequest::GetRequest(_) => {}
-                    APIRequest::ListRequest(_) => {}
-                    APIRequest::CreateRequest(_) => {}
-                    APIRequest::DeleteRequest(_) => {}
-                    APIRequest::UpdateRequest(_) => {}
-                    APIRequest::UpdateStatusRequest(_) => {}
+                    APIRequest::GetRequest(req) => {
+                        if Self::is_ok_get_response_msg()(msg) {
+                            let req_key = req.key;
+                            assert(s.resources().contains_key(req_key));
+                            assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resources()[req_key].metadata.resource_version.get_Some_0());
+                            assert(s.resources()[req_key].metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
+                        } else {}
+                    }
+                    _ => {}
                 }
-                let req_key = input.content.get_get_request().key;
-                assert(s.resources().contains_key(req_key));
-                assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resources()[req_key].metadata.resource_version.get_Some_0());
-                assert(s.resources()[req_key].metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
             }
         }
     }
@@ -499,6 +487,7 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg_and_matches_key(key)(msg) && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() implies s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0() by {
+            assert(Self::is_ok_get_response_msg()(msg));
             if s.in_flight().contains(msg) {
                 if !s.resources().contains_key(key) || s.resources()[key] != s_prime.resources()[key] {
                     assert(s_prime.resources()[key].metadata.resource_version.get_Some_0() != msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0())
@@ -735,11 +724,11 @@ pub open spec fn key_of_object_in_matched_ok_create_resp_message_is_same_as_key_
         let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
         let create_req = pending_req.content.get_create_request();
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
+            s.in_flight().contains(msg)
             && Self::is_ok_create_response_msg()(msg)
             && s.ongoing_reconciles().contains_key(key)
             && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, pending_req)
+            && #[trigger] Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             ==> (create_req.obj.metadata.name.is_Some()
                 && Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg))
     }

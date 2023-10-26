@@ -71,7 +71,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
                 if input.content.is_delete_request() {
                     assert(StatefulSetView::unmarshal(s.resources()[sts_key]).get_Ok_0().spec == StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec);
                 } else {
-                    assert(input.content.is_update_request());
+                    if resource_update_request_msg(sts_key)(input) {} else {}
                     assert(s.resources()[sts_key].metadata.resource_version.get_Some_0() == input.content.get_update_request().obj.metadata.resource_version.get_Some_0());
                     assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) == replicas_of_stateful_set(input.content.get_update_request().obj));
                     assert(replicas_of_stateful_set(s_prime.resources()[sts_key]) >= replicas_of_stateful_set(s.resources()[sts_key]));
@@ -200,6 +200,7 @@ spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterV
     }
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
