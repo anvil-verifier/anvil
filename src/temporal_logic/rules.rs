@@ -1541,60 +1541,6 @@ pub proof fn wf1_variant_borrow_from_spec_temp<T>(spec: TempPred<T>, next: TempP
     borrow_conditions_from_spec(spec, c, p, q);
 }
 
-/// Get the initial leads_to by assuming always asm.
-/// pre:
-///     spec |= [](p /\ next /\ asm => p' /\ q')
-///     spec |= [](p /\ next /\ forward => q')
-///     spec |= []next
-///     spec |= []p ~> forward
-/// post:
-///     spec |= p /\ []asm ~> q
-pub proof fn wf1_variant_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, asm: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(p.and(next).and(asm).implies(later(p).or(later(q))))),
-        spec.entails(always(p.and(next).and(forward).implies(later(q)))),
-        spec.entails(always(next)),
-        spec.entails(always(p).leads_to(forward)),
-    ensures
-        spec.entails(p.and(always(asm)).leads_to(q)),
-{
-    let p_and_always_asm = p.and(always(asm));
-
-    assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p_and_always_asm.and(next).implies(later(p_and_always_asm).or(later(q)))).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p.and(next).and(asm).implies(later(p).or(later(q)))));
-        assert forall |i| #[trigger] p_and_always_asm.and(next).satisfied_by(ex.suffix(i))
-        implies later(p_and_always_asm).or(later(q)).satisfied_by(ex.suffix(i)) by {
-            always_unfold::<T>(ex.suffix(i), asm);
-            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
-            implies_apply::<T>(ex.suffix(i), p.and(next).and(asm), later(p).or(later(q)));
-            always_propagate_forwards::<T>(ex.suffix(i), asm, 1);
-        };
-    };
-
-    assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p_and_always_asm.and(next).and(forward).implies(later(q))).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p.and(next).and(forward).implies(later(q))));
-        assert forall |i| #[trigger] p_and_always_asm.and(next).and(forward).satisfied_by(ex.suffix(i))
-        implies later(q).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex.suffix(i), p.and(next).and(forward), later(q));
-        };
-    };
-
-    assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p_and_always_asm).leads_to(forward).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p).leads_to(forward));
-        leads_to_unfold::<T>(ex, always(p), forward);
-        assert forall |i| #[trigger] always(p_and_always_asm).satisfied_by(ex.suffix(i))
-        implies eventually(forward).satisfied_by(ex.suffix(i)) by {
-            always_unfold::<T>(ex.suffix(i), p_and_always_asm);
-            implies_apply::<T>(ex.suffix(i), always(p), eventually(forward));
-        };
-    };
-
-    wf1_variant_temp::<T>(spec, next, forward, p_and_always_asm, q);
-}
-
 /// Get the initial leads_to with a stronger wf assumption than wf1_variant.
 /// pre:
 ///     |= p /\ next => p' /\ q'
