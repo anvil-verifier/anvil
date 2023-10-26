@@ -157,6 +157,29 @@ pub open spec fn in_flight_or_pending_req_message(s: Self, msg: MsgType<E>) -> b
     ))
 }
 
+pub open spec fn pending_req_has_unique_id(key: ObjectRef) -> StatePred<Self> {
+    |s: Self| {
+        s.ongoing_reconciles().contains_key(key)
+        && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+        ==> (
+            forall |other_key: ObjectRef|
+                #[trigger] s.ongoing_reconciles().contains_key(other_key)
+                && s.ongoing_reconciles()[other_key].pending_req_msg.is_Some()
+                ==> s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id()
+                    != s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0().content.get_rest_id()
+        )
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_pending_req_has_unique_id(spec: TempPred<Self>, key: ObjectRef)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
+    ensures
+        spec.entails(always(lift_state(Self::pending_req_has_unique_id(key)))),
+{}
+
 pub open spec fn every_in_flight_or_pending_req_msg_has_unique_id() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
