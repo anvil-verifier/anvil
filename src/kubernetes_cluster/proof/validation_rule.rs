@@ -271,8 +271,8 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         }
     }
     init_invariant(spec, Self::init(), next, inv);
-    always_weaken(spec, inv, Self::transition_rule_applies_to_etcd_and_triggering_cr(cr));
-    always_weaken(spec, inv, Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr));
+    always_weaken_temp(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_etcd_and_triggering_cr(cr)));
+    always_weaken_temp(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)));
 }
 
 }

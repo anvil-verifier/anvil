@@ -122,11 +122,11 @@ pub proof fn lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches
             always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)))
         ),
 {
-    implies_preserved_by_always::<Self>(
-        Self::every_in_flight_msg_has_unique_id(), Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)
+    implies_preserved_by_always_temp::<Self>(
+        lift_state(Self::every_in_flight_msg_has_unique_id()), lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))
     );
     Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
-    entails_trans::<Self>(
+    valid_implies_trans::<Self>(
         spec,
         always(lift_state(Self::every_in_flight_msg_has_unique_id())),
         always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)))

@@ -1571,7 +1571,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& resource_well_formed(s)
     };
-    always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
+    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: RMQMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1667,9 +1667,9 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
 {
     let key = get_request(sub_resource, rabbitmq).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
-    always_weaken(spec, object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq), RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq), RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq), RMQCluster::object_has_no_finalizers(key));
+    always_weaken_temp(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)), lift_state(RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken_temp(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)), lift_state(RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken_temp(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(RMQCluster::object_has_no_finalizers(key)));
 
     let state = |s: RMQCluster| {
         RMQCluster::desired_state_is(rabbitmq)(s)

@@ -1481,9 +1481,9 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 {
     let key = get_request(sub_resource, zookeeper).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![zookeeper.controller_owner_ref()])};
-    always_weaken(spec, object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper), ZKCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper), ZKCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper), ZKCluster::object_has_no_finalizers(key));
+    always_weaken_temp(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)), lift_state(ZKCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken_temp(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)), lift_state(ZKCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken_temp(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper)), lift_state(ZKCluster::object_has_no_finalizers(key)));
 
     let state = |s: ZKCluster| {
         ZKCluster::desired_state_is(zookeeper)(s)

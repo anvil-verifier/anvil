@@ -191,7 +191,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec, input, stronger_next, Self::run_garbage_collector(), pre, delete_msg_in_flight
     );
 
-    leads_to_self(post);
+    leads_to_self_temp(lift_state(post));
 
     assert_by(
         spec.entails(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).leads_to(lift_state(post))),
@@ -207,7 +207,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
 
     or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
 
-    leads_to_stable(spec, stronger_next, |s: Self| true, post);
+    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
 proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
