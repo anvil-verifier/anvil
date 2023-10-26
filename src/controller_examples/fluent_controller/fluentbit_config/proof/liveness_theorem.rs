@@ -14,7 +14,7 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn liveness_theorem() -> bool {
-    forall |fbc: FluentBitConfigView| #[trigger] cluster_spec().entails(liveness(fbc))
+    cluster_spec().entails(tla_forall(|fbc: FluentBitConfigView| liveness(fbc)))
 }
 
 pub open spec fn cluster_spec() -> TempPred<FBCCluster> {

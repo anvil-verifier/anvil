@@ -45,6 +45,7 @@ proof fn liveness_proof_forall_fb()
     assert forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness(fb)) by {
         liveness_proof(fb);
     };
+    spec_entails_tla_forall(cluster_spec(), |fb: FluentBitView| liveness(fb));
 }
 
 proof fn liveness_proof(fb: FluentBitView)

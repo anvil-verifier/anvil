@@ -28,6 +28,7 @@ proof fn safety_proof_forall_rabbitmq()
     assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety(rabbitmq)) by {
         safety_proof(rabbitmq);
     };
+    spec_entails_tla_forall(cluster_spec_without_wf(), |rabbitmq: RabbitmqClusterView| safety(rabbitmq));
 }
 
 proof fn safety_proof(rabbitmq: RabbitmqClusterView)

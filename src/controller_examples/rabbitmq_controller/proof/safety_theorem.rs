@@ -14,7 +14,7 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn safety_theorem() -> bool {
-    forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety(rabbitmq))
+    cluster_spec_without_wf().entails(tla_forall(|rabbitmq: RabbitmqClusterView| safety(rabbitmq)))
 }
 
 pub open spec fn cluster_spec_without_wf() -> TempPred<RMQCluster> {

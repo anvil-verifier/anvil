@@ -45,6 +45,7 @@ proof fn liveness_proof_forall_rabbitmq()
     assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness(rabbitmq)) by {
         liveness_proof(rabbitmq);
     };
+    spec_entails_tla_forall(cluster_spec(), |rabbitmq: RabbitmqClusterView| liveness(rabbitmq));
 }
 
 proof fn liveness_proof(rabbitmq: RabbitmqClusterView)

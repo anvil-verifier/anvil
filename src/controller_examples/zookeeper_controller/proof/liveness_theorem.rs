@@ -14,7 +14,7 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn liveness_theorem() -> bool {
-    forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness(zookeeper))
+    cluster_spec().entails(tla_forall(|zookeeper: ZookeeperClusterView| liveness(zookeeper)))
 }
 
 pub open spec fn cluster_spec() -> TempPred<ZKCluster> {

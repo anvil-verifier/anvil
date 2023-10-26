@@ -37,6 +37,7 @@ proof fn liveness_proof_forall_fbc()
     assert forall |fbc: FluentBitConfigView| #[trigger] cluster_spec().entails(liveness(fbc)) by {
         liveness_proof(fbc);
     };
+    spec_entails_tla_forall(cluster_spec(), |fbc: FluentBitConfigView| liveness(fbc));
 }
 
 proof fn liveness_proof(fbc: FluentBitConfigView)

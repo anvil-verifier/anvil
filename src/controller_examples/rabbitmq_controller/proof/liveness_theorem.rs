@@ -14,7 +14,7 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn liveness_theorem() -> bool {
-    forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness(rabbitmq))
+    cluster_spec().entails(tla_forall(|rabbitmq: RabbitmqClusterView| liveness(rabbitmq)))
 }
 
 pub open spec fn cluster_spec() -> TempPred<RMQCluster> {
