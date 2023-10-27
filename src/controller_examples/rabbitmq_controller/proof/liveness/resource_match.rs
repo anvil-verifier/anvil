@@ -885,7 +885,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(tla_forall(|resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))),
@@ -906,12 +905,10 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     let resource_well_formed = |s: RMQCluster| {
         s.resources().contains_key(resource_key) ==> RMQCluster::etcd_object_is_well_formed(resource_key)(s)
     };
-    always_tla_forall_apply(spec, |resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref())), resp_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
         &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
-        &&& RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())(s)
         &&& resource_well_formed(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)(s)
@@ -927,7 +924,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
-        lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())),
         lift_state(resource_well_formed),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)),

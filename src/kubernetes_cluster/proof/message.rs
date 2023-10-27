@@ -237,6 +237,18 @@ pub proof fn lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec:
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
+pub open spec fn in_flight_msg_has_unique_id(msg: MsgType<E>) -> StatePred<Self> {
+    |s: Self| {
+        s.in_flight().contains(msg)
+        ==> (
+            forall |other_msg: MsgType<E>|
+                #[trigger] s.in_flight().contains(other_msg)
+                && msg != other_msg
+                ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
+        )
+    }
+}
+
 pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
