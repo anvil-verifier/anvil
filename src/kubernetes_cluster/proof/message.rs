@@ -78,25 +78,6 @@ pub proof fn lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec
         spec.entails(always(lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator()))),
 {
     let invariant = Self::every_pending_req_msg_has_lower_id_than_allocator();
-    assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles().contains_key(key) 
-        && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some()
-        implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
-            let step = choose |step| Self::next_step(s, s_prime, step);
-            assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
-            match step {
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key == key {
-                        if s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() {
-                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter);
-                        }
-                    }
-                },
-                _ => {},
-            }
-        }
-    };
     init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
 }
 
@@ -180,56 +161,70 @@ pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(spec: Temp
     init_invariant(spec, Self::init(), next, inv);
 }
 
-pub open spec fn every_in_flight_or_pending_req_msg_has_unique_id() -> StatePred<Self> {
+pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: MsgType<E>|
-            #[trigger] Self::in_flight_or_pending_req_message(s, msg)
-            ==> (
-                forall |other_msg: MsgType<E>|
-                    #[trigger] Self::in_flight_or_pending_req_message(s, other_msg)
-                    && msg != other_msg
-                    ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
-            )
+        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        s.ongoing_reconciles().contains_key(key)
+        && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+        ==> {
+            forall |msg: MsgType<E>|
+                #[trigger] s.in_flight().contains(msg)
+                && msg.content.is_APIRequest()
+                && msg != pending_req
+                ==> msg.content.get_rest_id() != pending_req.content.get_rest_id()
+        }
+
     }
 }
 
-pub proof fn lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec: TempPred<Self>)
+pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec: TempPred<Self>, key: ObjectRef)
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(
-            always(lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()))
-        ),
+        spec.entails(always(lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)))),
 {
-    let invariant = Self::every_in_flight_or_pending_req_msg_has_unique_id();
+    let invariant = Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key);
     let stronger_next = |s, s_prime: Self| {
         Self::next()(s, s_prime)
         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        && Self::pending_req_has_lower_req_id_than_allocator()(s)
+        && Self::every_pending_req_msg_has_lower_id_than_allocator()(s)
     };
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    Self::lemma_always_pending_req_has_lower_req_id_than_allocator(spec);
+    Self::lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::pending_req_has_lower_req_id_than_allocator())
+        lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator())
     );
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
-        assert forall |msg| #[trigger] Self::in_flight_or_pending_req_message(s_prime, msg) implies (
-        forall |other_msg: MsgType<E>| #[trigger] Self::in_flight_or_pending_req_message(s_prime, other_msg) && msg != other_msg
-        ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
-            assert forall |other_msg: MsgType<E>| #[trigger] Self::in_flight_or_pending_req_message(s_prime, other_msg) && msg != other_msg implies
-            msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
+        if s_prime.ongoing_reconciles().contains_key(key) && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() {
+            let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+            assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_APIRequest() && msg != pending_req implies
+            msg.content.get_rest_id() != pending_req.content.get_rest_id() by {
                 let step = choose |step| Self::next_step(s, s_prime, step);
-                if Self::in_flight_or_pending_req_message(s, other_msg) && Self::in_flight_or_pending_req_message(s, msg) {
-                    assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
-                } else if Self::in_flight_or_pending_req_message(s, msg) {
-                    assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
-                } else if Self::in_flight_or_pending_req_message(s, other_msg) {
-                    assert(other_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                match step {
+                    Step::ControllerStep(input) => {
+                        let cr_key = input.1.get_Some_0();
+                        if cr_key == key {
+                            assert(pending_req.content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+                            if s.in_flight().contains(msg) {} else {}
+                            assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                        } else {
+                            assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                            assert(pending_req.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                            if s.in_flight().contains(msg) {} else {}
+                        }
+                    },
+                    _ => {
+                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                        if !s.in_flight().contains(msg) {
+                            assert(pending_req.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                            assert(msg.content.get_rest_id() == s.rest_id_allocator.rest_id_counter)
+                        }
+                    }
                 }
             }
         }
@@ -381,29 +376,6 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
             _ => assert(false),
         }
     }
-}
-
-
-pub open spec fn pending_req_has_lower_req_id_than_allocator() -> StatePred<Self> {
-    |s: Self| {
-        forall |cr_key: ObjectRef|
-            #[trigger] s.ongoing_reconciles().contains_key(cr_key)
-            && Self::has_pending_req_msg(s, cr_key)
-            ==> s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
-    }
-}
-
-pub proof fn lemma_always_pending_req_has_lower_req_id_than_allocator(spec: TempPred<Self>)
-    requires
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::pending_req_has_lower_req_id_than_allocator()))),
-{
-    let invariant = Self::pending_req_has_lower_req_id_than_allocator();
-    init_invariant::<Self>(
-        spec, Self::init(), Self::next(), invariant
-    );
 }
 
 pub open spec fn is_ok_get_response_msg() -> FnSpec(MsgType<E>) -> bool {
@@ -596,17 +568,17 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
+        &&& Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)(s)
         &&& Self::every_in_flight_msg_has_unique_id()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
+    Self::lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, key);
     Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
+        lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)),
         lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -630,8 +602,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                 Step::KubernetesAPIStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
                         assert(msg.content.is_get_response());
                         assert(msg == Self::handle_get_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
@@ -646,8 +616,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                 Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.0));
                         assert(msg.src.is_KubernetesAPI());
                         assert(msg.content.is_get_response());
                         assert(msg.content.get_get_response().res.is_Err());
@@ -696,17 +664,17 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
+        &&& Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)(s)
         &&& Self::every_in_flight_msg_has_unique_id()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
+    Self::lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, key);
     Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
+        lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)),
         lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -730,8 +698,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                 Step::KubernetesAPIStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
                         assert(msg.content.is_update_response());
                         assert(msg == Self::handle_update_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
@@ -746,8 +712,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                 Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.0));
                         assert(msg.src.is_KubernetesAPI());
                         assert(msg.content.is_update_response());
                         assert(msg.content.get_update_response().res.is_Err());
@@ -799,17 +763,17 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
+        &&& Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)(s)
         &&& Self::every_in_flight_msg_has_unique_id()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
+    Self::lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, key);
     Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
+        lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)),
         lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -835,8 +799,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                 Step::KubernetesAPIStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
                         assert(msg.content.is_create_response());
                         assert(msg == Self::handle_create_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
@@ -851,8 +813,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                 Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.0));
                         assert(msg.src.is_KubernetesAPI());
                         assert(msg.content.is_create_response());
                         assert(msg.content.get_create_response().res.is_Err());
