@@ -98,7 +98,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_Some(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(always(lift_state(Self::pending_req_has_unique_id(key)))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(key)))),
     ensures
         spec.entails(
             always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))
@@ -107,7 +107,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     let invariant = Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
-        &&& Self::pending_req_has_unique_id(key)(s)
+        &&& Self::pending_req_of_key_is_unique_with_unique_id(key)(s)
     };
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         if Self::at_expected_reconcile_states(key, state)(s_prime) {
@@ -180,7 +180,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             }
         }
     }
-    strengthen_next::<Self>(spec, Self::next(), Self::pending_req_has_unique_id(key), stronger_next);
+    strengthen_next::<Self>(spec, Self::next(), Self::pending_req_of_key_is_unique_with_unique_id(key), stronger_next);
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 

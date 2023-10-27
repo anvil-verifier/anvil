@@ -227,7 +227,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_has_unique_id(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
         spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
@@ -342,7 +342,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_has_unique_id(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
             state(s) ==>
@@ -368,14 +368,14 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         let stronger_next = |s, s_prime: Self| {
             &&& Self::next()(s, s_prime)
             &&& Self::crash_disabled()(s)
-            &&& Self::pending_req_has_unique_id(cr.object_ref())(s)
+            &&& Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())(s)
             &&& Self::every_in_flight_msg_has_unique_id()(s)
         };
         combine_spec_entails_always_n!(
             spec, lift_action(stronger_next),
             lift_action(Self::next()),
             lift_state(Self::crash_disabled()),
-            lift_state(Self::pending_req_has_unique_id(cr.object_ref())),
+            lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())),
             lift_state(Self::every_in_flight_msg_has_unique_id())
         );
         let resp_in_flight_state = |s: Self| {
@@ -420,7 +420,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::pending_req_has_unique_id(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s| state(s) ==> #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
     ensures

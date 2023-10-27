@@ -54,7 +54,46 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec: 
                     },
                     Step::ExternalAPIStep(_) => {},
                     _ => {},
-                } 
+                }
+            }
+        }
+    };
+    init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
+}
+
+pub open spec fn every_pending_req_msg_has_lower_id_than_allocator() -> StatePred<Self> {
+    |s: Self| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles().contains_key(key)
+            && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            ==> s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
+    }
+}
+
+pub proof fn lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
+    ensures
+        spec.entails(always(lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator()))),
+{
+    let invariant = Self::every_pending_req_msg_has_lower_id_than_allocator();
+    assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
+        assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles().contains_key(key) 
+        && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some()
+        implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
+            let step = choose |step| Self::next_step(s, s_prime, step);
+            assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
+            match step {
+                Step::ControllerStep(input) => {
+                    let cr_key = input.1.get_Some_0();
+                    if cr_key == key {
+                        if s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() {
+                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter);
+                        }
+                    }
+                },
+                _ => {},
             }
         }
     };
@@ -70,37 +109,6 @@ pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
     }
 }
 
-pub proof fn lemma_always_every_in_flight_req_is_unique(spec: TempPred<Self>)
-    requires
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(Self::every_in_flight_req_is_unique()))
-        ),
-{
-    let invariant = Self::every_in_flight_req_is_unique();
-    let stronger_next = |s, s_prime: Self| {
-        &&& Self::next()(s, s_prime)
-        &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-    };
-    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    strengthen_next::<Self>(
-        spec, Self::next(), Self::every_in_flight_msg_has_lower_id_than_allocator(), stronger_next
-    );
-    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
-    invariant(s_prime) by {
-        assert forall |msg: MsgType<E>|
-        (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest()) && #[trigger] s_prime.in_flight().contains(msg) implies
-        s_prime.network_state.in_flight.count(msg) == 1 by {
-            if (s.in_flight().contains(msg)) {
-                assert(s.network_state.in_flight.count(msg) == 1);
-            }
-        };
-    };
-    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
-}
-
 pub open spec fn in_flight_or_pending_req_message(s: Self, msg: MsgType<E>) -> bool {
     msg.content.is_APIRequest()
     && (s.in_flight().contains(msg)
@@ -111,13 +119,14 @@ pub open spec fn in_flight_or_pending_req_message(s: Self, msg: MsgType<E>) -> b
     ))
 }
 
-pub open spec fn pending_req_has_unique_id(key: ObjectRef) -> StatePred<Self> {
+pub open spec fn pending_req_of_key_is_unique_with_unique_id(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         s.ongoing_reconciles().contains_key(key)
         && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
         ==> (
             forall |other_key: ObjectRef|
                 #[trigger] s.ongoing_reconciles().contains_key(other_key)
+                && key != other_key
                 && s.ongoing_reconciles()[other_key].pending_req_msg.is_Some()
                 ==> s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id()
                     != s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0().content.get_rest_id()
@@ -125,14 +134,51 @@ pub open spec fn pending_req_has_unique_id(key: ObjectRef) -> StatePred<Self> {
     }
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_always_pending_req_has_unique_id(spec: TempPred<Self>, key: ObjectRef)
+pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(spec: TempPred<Self>, key: ObjectRef)
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::pending_req_has_unique_id(key)))),
-{}
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(key)))),
+{
+    let inv = Self::pending_req_of_key_is_unique_with_unique_id(key);
+    let next = |s: Self, s_prime: Self| {
+        &&& Self::next()(s, s_prime)
+        &&& Self::every_pending_req_msg_has_lower_id_than_allocator()(s)
+    };
+    Self::lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec);
+    combine_spec_entails_always_n!(
+        spec, lift_action(next),
+        lift_action(Self::next()), lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator())
+    );
+    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        if s_prime.ongoing_reconciles().contains_key(key) && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() {
+            assert forall |other_key: ObjectRef|
+            #[trigger] s_prime.ongoing_reconciles().contains_key(other_key) && s_prime.ongoing_reconciles()[other_key].pending_req_msg.is_Some()
+            && key != other_key implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id()
+            != s_prime.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0().content.get_rest_id() by {
+                let step = choose |step| Self::next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep(input) => {
+                        let cr_key = input.1.get_Some_0();
+                        if cr_key == key {
+                            assert(s.ongoing_reconciles().contains_key(other_key) && s.ongoing_reconciles()[other_key].pending_req_msg.is_Some());
+                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+                        } else {
+                            assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].pending_req_msg.is_Some());
+                            if s_prime.ongoing_reconciles().contains_key(cr_key) && s_prime.ongoing_reconciles()[cr_key].pending_req_msg.is_Some() {
+                                assert(s.ongoing_reconciles().contains_key(cr_key));
+                                assert(s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+    init_invariant(spec, Self::init(), next, inv);
+}
 
 pub open spec fn every_in_flight_or_pending_req_msg_has_unique_id() -> StatePred<Self> {
     |s: Self| {
@@ -207,12 +253,13 @@ pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
             #[trigger] s.in_flight().contains(msg)
-            ==> (
-                forall |other_msg: MsgType<E>|
-                    #[trigger] s.in_flight().contains(other_msg)
-                    && msg != other_msg
-                    ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
-            )
+            ==> s.in_flight().count(msg) == 1
+                && (
+                    forall |other_msg: MsgType<E>|
+                        #[trigger] s.in_flight().contains(other_msg)
+                        && msg != other_msg
+                        ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
+                )
     }
 }
 
@@ -227,20 +274,53 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
     let stronger_next = |s, s_prime: Self| {
         Self::next()(s, s_prime)
         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        && Self::every_in_flight_req_is_unique()(s)
     };
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    Self::lemma_always_every_in_flight_req_is_unique(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(Self::next()),
-        lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::every_in_flight_req_is_unique())
+        lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())
     );
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
+        assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies s_prime.in_flight().count(msg) == 1 &&
         (forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg
         ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
+            let step = choose |step| Self::next_step(s, s_prime, step);
+            assert_by(
+                s_prime.in_flight().count(msg) == 1, {
+                    match step {
+                        Step::KubernetesAPIStep(input) => {
+                            let req = input.get_Some_0();
+                            let (_, resp) = Self::transition_by_etcd(req, s.kubernetes_api_state);
+                            assert(resp.content.get_rest_id() == req.content.get_rest_id());
+                            assert(s.in_flight().contains(req));
+                            if s.in_flight().contains(msg) {
+                                assert(s.in_flight().count(msg) == 1);
+                                assert(msg.content.get_rest_id() != resp.content.get_rest_id());
+                                assert(s_prime.in_flight().count(msg) == 1);
+                            } else {
+                                assert(msg == resp);
+                                assert(s_prime.in_flight().count(resp) == 1);
+                            }
+                        },
+                        Step::FailTransientlyStep(input) => {
+                            let req = input.0;
+                            assert(s.in_flight().contains(req));
+                            if s.in_flight().contains(msg) {
+                                assert(s.in_flight().count(msg) == 1);
+                                assert(s_prime.in_flight().count(msg) == 1);
+                            } else {
+                                assert(s_prime.in_flight().count(msg) == 1);
+                            }
+                        },
+                        _ => {
+                            if (s.in_flight().contains(msg)) {
+                                assert(s.in_flight().count(msg) == 1);
+                            }
+                        },
+                    }
+                }
+            );
             assert forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg implies
             msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
                 // At most one message will be added to the network_state.in_flight for each action.

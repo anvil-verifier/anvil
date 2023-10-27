@@ -565,9 +565,12 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq);
+    let consistent_key = |s: RMQCluster| {
+        s.ongoing_reconciles().contains_key(key) ==> s.ongoing_reconciles()[key].triggering_cr.object_ref() == key
+    };
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& consistent_key(s)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     combine_spec_entails_always_n!(
@@ -579,16 +582,18 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key == key {
-                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                    } else {
-                        assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                    if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
+                        let cr_key = input.1.get_Some_0();
+                        if cr_key == key {
+                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
+                            assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                        } else {
+                            assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                        }
                     }
                 },
                 Step::RestartController() => {
-                    assert(false);
+                    assert(!s_prime.ongoing_reconciles().contains_key(key));
                 },
                 _ => {
                     assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
@@ -639,7 +644,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
         spec.entails(always(lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(RMQCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))),
@@ -679,7 +683,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
         spec.entails(always(lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(RMQCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)))),
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
@@ -764,7 +767,6 @@ proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_
         lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
-        lift_state(RMQCluster::every_in_flight_req_is_unique()),
         lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
         lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)),

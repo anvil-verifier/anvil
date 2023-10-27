@@ -206,10 +206,9 @@ pub proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 // The safety invariants that are required to prove liveness.
 pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-    .and(always(lift_state(RMQCluster::every_in_flight_req_is_unique())))
     .and(always(lift_state(RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id())))
     .and(always(lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
-    .and(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref()))))
+    .and(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref()))))
     .and(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
@@ -241,10 +240,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
     stable_and_always_n!(
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(RMQCluster::every_in_flight_req_is_unique()),
         lift_state(RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
+        lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
@@ -379,7 +377,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
     ensures
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))))),
 {
@@ -407,10 +405,9 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     assert(spec.entails(lift_state(RMQCluster::init())));
     assert(spec.entails(always(lift_action(RMQCluster::next()))));
     RMQCluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
-    RMQCluster::lemma_always_every_in_flight_req_is_unique(spec);
     RMQCluster::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
     RMQCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
-    RMQCluster::lemma_always_pending_req_has_unique_id(spec, rabbitmq.object_ref());
+    RMQCluster::lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, rabbitmq.object_ref());
     RMQCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     RMQCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
@@ -468,10 +465,9 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     entails_always_and_n!(
         spec,
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(RMQCluster::every_in_flight_req_is_unique()),
         lift_state(RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
+        lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),

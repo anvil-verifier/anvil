@@ -41,7 +41,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
@@ -94,7 +94,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
@@ -203,7 +203,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     &&& RMQCluster::next()(s, s_prime)
                     &&& RMQCluster::crash_disabled()(s)
                     &&& RMQCluster::busy_disabled()(s)
-                    &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
+                    &&& RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())(s)
                     &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
                 };
                 combine_spec_entails_always_n!(
@@ -211,7 +211,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     lift_action(RMQCluster::next()),
                     lift_state(RMQCluster::crash_disabled()),
                     lift_state(RMQCluster::busy_disabled()),
-                    lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
+                    lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
                     lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
                 );
 
@@ -265,7 +265,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
@@ -366,7 +366,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                     &&& RMQCluster::next()(s, s_prime)
                     &&& RMQCluster::crash_disabled()(s)
                     &&& RMQCluster::busy_disabled()(s)
-                    &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
+                    &&& RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())(s)
                     &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
                 };
 
@@ -375,7 +375,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                     lift_action(RMQCluster::next()),
                     lift_state(RMQCluster::crash_disabled()),
                     lift_state(RMQCluster::busy_disabled()),
-                    lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
+                    lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
                     lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
                 );
 
@@ -514,7 +514,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
@@ -550,7 +550,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
-        &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
+        &&& RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())(s)
         &&& consistent_key(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)(s)
@@ -561,7 +561,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
-        lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
+        lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(consistent_key),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)),
@@ -873,7 +873,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))),
@@ -897,7 +897,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
-        &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
+        &&& RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())(s)
         &&& resource_well_formed(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)(s)
@@ -912,7 +912,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
-        lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
+        lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(resource_well_formed),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)),

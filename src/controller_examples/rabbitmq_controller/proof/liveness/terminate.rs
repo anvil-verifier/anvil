@@ -30,7 +30,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitm
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::no_pending_req_msg_at_reconcile_state(
             rabbitmq.object_ref(), |s: RabbitmqReconcileState| s.reconcile_step == RabbitmqReconcileStep::Init)))),
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
@@ -120,7 +120,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())))),
         // Ensures that after get/create/update the sub resource, there is always a pending request or matched response
         // in flight so that the reconciler can enter the next state.
         forall |action: ActionKind| #![auto]
