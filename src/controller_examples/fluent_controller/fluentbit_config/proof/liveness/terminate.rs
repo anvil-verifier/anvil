@@ -30,8 +30,6 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCCluster>, fbc: Fl
         spec.entails(always(lift_state(FBCCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())))),
-        spec.entails(always(lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())))),
         spec.entails(always(lift_state(FBCCluster::no_pending_req_msg_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::Init))))),
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))
@@ -102,8 +100,6 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         spec.entails(always(lift_state(FBCCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())))),
-        spec.entails(always(lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())))),
         // Ensures that after get/create/update the sub resource, there is always a pending request or matched response
         // in flight so that the reconciler can enter the next state.
         forall |action: ActionKind| #![auto]

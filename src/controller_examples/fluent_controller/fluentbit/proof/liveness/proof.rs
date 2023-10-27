@@ -273,8 +273,6 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
     ensures
@@ -453,8 +451,6 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
     ensures
@@ -470,8 +466,6 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         &&& FBCluster::next()(s, s_prime)
         &&& FBCluster::crash_disabled()(s)
         &&& FBCluster::busy_disabled()(s)
-        &&& FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())(s)
-        &&& FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())(s)
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
     };
@@ -481,8 +475,6 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         lift_action(FBCluster::next()),
         lift_state(FBCluster::crash_disabled()),
         lift_state(FBCluster::busy_disabled()),
-        lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())),
-        lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())),
         lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id())
     );

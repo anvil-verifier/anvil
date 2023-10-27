@@ -192,11 +192,7 @@ pub proof fn invariants_is_stable(fbc: FluentBitConfigView)
 // The safety invariants that are required to prove liveness.
 pub open spec fn derived_invariants_since_beginning(fbc: FluentBitConfigView) -> TempPred<FBCCluster> {
     always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))
-    .and(always(lift_state(FBCCluster::every_in_flight_req_is_unique())))
-    .and(always(lift_state(FBCCluster::every_in_flight_or_pending_req_msg_has_unique_id())))
     .and(always(lift_state(FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
-    .and(always(lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref()))))
-    .and(always(lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref()))))
     .and(always(lift_state(FBCCluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
@@ -224,11 +220,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigVi
     let a_to_p_5 = |res: SubResource| lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fbc).key));
     stable_and_always_n!(
         lift_state(FBCCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(FBCCluster::every_in_flight_req_is_unique()),
-        lift_state(FBCCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())),
-        lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())),
         lift_state(FBCCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(FBCCluster::each_object_in_etcd_is_well_formed()),
         lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
@@ -342,7 +334,6 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-        spec.entails(always(lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())))),
     ensures
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))))))),
 {
@@ -367,11 +358,7 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
     assert(spec.entails(lift_state(FBCCluster::init())));
     assert(spec.entails(always(lift_action(FBCCluster::next()))));
     FBCCluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
-    FBCCluster::lemma_always_every_in_flight_req_is_unique(spec);
-    FBCCluster::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
     FBCCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
-    FBCCluster::lemma_always_each_resp_matches_at_most_one_pending_req(spec, fbc.object_ref());
-    FBCCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, fbc.object_ref());
     FBCCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     FBCCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     FBCCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
@@ -417,11 +404,7 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
     entails_always_and_n!(
         spec,
         lift_state(FBCCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(FBCCluster::every_in_flight_req_is_unique()),
-        lift_state(FBCCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(FBCCluster::each_resp_matches_at_most_one_pending_req(fbc.object_ref())),
-        lift_state(FBCCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fbc.object_ref())),
         lift_state(FBCCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(FBCCluster::each_object_in_etcd_is_well_formed()),
         lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),

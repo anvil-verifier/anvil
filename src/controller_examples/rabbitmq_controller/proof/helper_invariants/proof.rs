@@ -1249,6 +1249,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
+
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
 /// create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
 ///
