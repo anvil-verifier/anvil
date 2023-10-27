@@ -34,77 +34,31 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec: 
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
 {
     let invariant = Self::every_in_flight_msg_has_lower_id_than_allocator();
-    assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime) implies
-    invariant(s_prime) by {
-        Self::next_preserves_every_in_flight_msg_has_lower_id_than_allocator(s, s_prime);
-    };
-    init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
-}
-
-proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
-    s: Self, s_prime: Self
-)
-    requires
-        Self::every_in_flight_msg_has_lower_id_than_allocator()(s), Self::next()(s, s_prime),
-    ensures
-        Self::every_in_flight_msg_has_lower_id_than_allocator()(s_prime),
-{
-    assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
-    msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
-        assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
-        if (s.in_flight().contains(msg)) {
-            assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
-        } else {
-            match msg.content {
-                MessageContent::APIRequest(_, id) => {
-                    assert(id == s.rest_id_allocator.rest_id_counter);
-                    assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter)
-                },
-                MessageContent::APIResponse(_, id) => {
-                    let next_step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
-                    match next_step {
-                        Step::KubernetesAPIStep(input) => {
-                            let req_msg = input.get_Some_0();
-                            match req_msg.content.get_APIRequest_0() {
-                                APIRequest::GetRequest(_) => {}
-                                APIRequest::ListRequest(_) => {}
-                                APIRequest::CreateRequest(_) => {}
-                                APIRequest::DeleteRequest(_) => {}
-                                APIRequest::UpdateRequest(_) => {}
-                                APIRequest::UpdateStatusRequest(_) => {}
-                            }
-                            assert(s.in_flight().contains(req_msg));
-                            assert(id == req_msg.content.get_rest_id());
-                        }
-                        Step::FailTransientlyStep(input) => {
-                            let req_msg = input.0;
-                            assert(s.in_flight().contains(req_msg));
-                            assert(id == req_msg.content.get_rest_id());
-                        }
-                        _ => assert(false),
-                    }
-                },
-                MessageContent::ExternalAPIRequest(_, id) => {
-                    assert(id == s.rest_id_allocator.rest_id_counter);
-                    assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter)
-                },
-                MessageContent::ExternalAPIResponse(_, id) => {
-                    let next_step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
-                    match next_step {
-                        Step::ExternalAPIStep(input) => {
-                            let req_msg = input.get_Some_0();
-                            assert(s.in_flight().contains(req_msg));
-                            assert(s.in_flight().contains(req_msg) ==> req_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
-                            assert(id == req_msg.content.get_rest_id());
-                            assert(id < s.rest_id_allocator.rest_id_counter);
-                        }
-                        _ => assert(false),
-                    }
-                },
+    assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
+        msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
+            let id = msg.content.get_rest_id();
+            let step = choose |step| Self::next_step(s, s_prime, step);
+            if s.in_flight().contains(msg) {
+                assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
+            } else {
+                match step {
+                    Step::ControllerStep(_) => {},
+                    Step::KubernetesAPIStep(input) => {
+                        assert(s.in_flight().contains(input.get_Some_0()));
+                        assert(id == input.get_Some_0().content.get_rest_id());
+                    },
+                    Step::FailTransientlyStep(input) => {
+                        assert(s.in_flight().contains(input.0));
+                        assert(id == input.0.content.get_rest_id());
+                    },
+                    Step::ExternalAPIStep(_) => {},
+                    _ => {},
+                } 
             }
-            assert(msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter);
         }
     };
+    init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
 }
 
 pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
@@ -267,9 +221,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(
-            always(lift_state(Self::every_in_flight_msg_has_unique_id()))
-        ),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
 {
     let invariant = Self::every_in_flight_msg_has_unique_id();
     let stronger_next = |s, s_prime: Self| {
@@ -285,42 +237,27 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_req_is_unique())
     );
-    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
-    invariant(s_prime) by {
-        Self::next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(s, s_prime);
-    };
-    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
-}
-
-proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(
-    s: Self, s_prime: Self
-)
-    requires
-        Self::next()(s, s_prime),
-        Self::every_in_flight_msg_has_lower_id_than_allocator()(s),
-        Self::every_in_flight_req_is_unique()(s),
-        Self::every_in_flight_msg_has_unique_id()(s), // the invariant
-    ensures
-        Self::every_in_flight_msg_has_unique_id()(s_prime),
-{
-    assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
-    (forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg
+    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
+        (forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg
         ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
-        assert forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg implies
-        msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
-            // At most one message will be added to the network_state.in_flight for each action.
-            assert(s.in_flight().contains(msg) || s.in_flight().contains(other_msg));
-            if (s.in_flight().contains(msg) && s.in_flight().contains(other_msg)) {
-                assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
-            } else {
-                if (s.in_flight().contains(msg)) {
-                    Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, msg, other_msg);
+            assert forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg implies
+            msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
+                // At most one message will be added to the network_state.in_flight for each action.
+                assert(s.in_flight().contains(msg) || s.in_flight().contains(other_msg));
+                if (s.in_flight().contains(msg) && s.in_flight().contains(other_msg)) {
+                    assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
                 } else {
-                    Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, other_msg, msg);
+                    if (s.in_flight().contains(msg)) {
+                        Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, msg, other_msg);
+                    } else {
+                        Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, other_msg, msg);
+                    }
                 }
             }
         }
     };
+    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
 proof fn newly_added_msg_have_different_id_from_existing_ones(
