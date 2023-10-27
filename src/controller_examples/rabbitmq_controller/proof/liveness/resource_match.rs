@@ -564,7 +564,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)(s)
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
     };
-    always_weaken(spec, RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(), consistent_key);
+    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()), lift_state(consistent_key));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
@@ -920,7 +920,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
     };
-    always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
+    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),

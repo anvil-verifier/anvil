@@ -200,6 +200,18 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
 
     or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
 
+    assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        let step = choose |step| Self::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                if resource_create_request_msg(key)(req) {} else {}
+                if resource_update_request_msg(key)(req) {} else {}
+            },
+            _ => {}
+        }
+    }
+
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 

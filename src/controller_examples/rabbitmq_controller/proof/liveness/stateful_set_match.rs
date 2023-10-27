@@ -448,7 +448,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
     };
-    always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
+    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),

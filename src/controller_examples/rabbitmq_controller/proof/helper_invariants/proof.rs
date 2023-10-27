@@ -149,7 +149,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         &&& object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
     };
-    always_weaken(spec, RMQCluster::each_object_in_etcd_is_well_formed(), resource_well_formed);
+    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     always_to_always_later(spec, lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
