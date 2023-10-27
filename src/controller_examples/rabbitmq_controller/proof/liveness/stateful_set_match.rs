@@ -39,7 +39,6 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(tla_forall(|resp_msg: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
@@ -89,7 +88,6 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(tla_forall(|resp_msg: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
@@ -310,7 +308,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(tla_forall(|resp_msg: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref()))))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
@@ -346,7 +344,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& RMQCluster::crash_disabled()(s)
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
-        &&& RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())(s)
+        &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
@@ -357,7 +355,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
         &&& helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime)
     };
-    always_tla_forall_apply(spec, |resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref())), resp_msg);
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -365,7 +362,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
-        lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())),
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),

@@ -580,17 +580,17 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
-        &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key)(s)
+        &&& Self::every_in_flight_msg_has_unique_id()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
-    Self::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, key);
+    Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
-        lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key))
+        lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)
@@ -680,17 +680,17 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
-        &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key)(s)
+        &&& Self::every_in_flight_msg_has_unique_id()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
-    Self::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, key);
+    Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
-        lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key))
+        lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_update_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)
@@ -783,17 +783,17 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
-        &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key)(s)
+        &&& Self::every_in_flight_msg_has_unique_id()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
-    Self::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, key);
+    Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
-        lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key))
+        lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_create_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)

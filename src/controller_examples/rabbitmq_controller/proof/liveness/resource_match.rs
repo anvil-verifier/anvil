@@ -42,7 +42,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(tla_forall(|resp_msg: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
@@ -98,7 +97,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(tla_forall(|resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
@@ -207,16 +205,15 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     &&& RMQCluster::crash_disabled()(s)
                     &&& RMQCluster::busy_disabled()(s)
                     &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
-                    &&& RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())(s)
+                    &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
                 };
-                always_tla_forall_apply(spec, |resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref())), resp_msg);
                 combine_spec_entails_always_n!(
                     spec, lift_action(stronger_next),
                     lift_action(RMQCluster::next()),
                     lift_state(RMQCluster::crash_disabled()),
                     lift_state(RMQCluster::busy_disabled()),
                     lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
-                    lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref()))
+                    lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
                 );
 
                 assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
@@ -270,7 +267,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
-        spec.entails(always(tla_forall(|resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
@@ -373,9 +369,8 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                     &&& RMQCluster::crash_disabled()(s)
                     &&& RMQCluster::busy_disabled()(s)
                     &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
-                    &&& RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())(s)
+                    &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
                 };
-                always_tla_forall_apply(spec, |resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref())), resp_msg);
 
                 combine_spec_entails_always_n!(
                     spec, lift_action(stronger_next),
@@ -383,7 +378,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                     lift_state(RMQCluster::crash_disabled()),
                     lift_state(RMQCluster::busy_disabled()),
                     lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
-                    lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref()))
+                    lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
                 );
 
                 assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
@@ -523,7 +518,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(tla_forall(|resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref()))))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
     ensures
@@ -554,13 +549,12 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     let consistent_key = |s: RMQCluster| {
         s.ongoing_reconciles().contains_key(key) ==> s.ongoing_reconciles()[key].triggering_cr.object_ref() == key
     };
-    always_tla_forall_apply(spec, |resp: RMQMessage| lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp, rabbitmq.object_ref())), resp_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
         &&& RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())(s)
         &&& consistent_key(s)
-        &&& RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())(s)
+        &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)(s)
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
     };
@@ -571,7 +565,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::pending_req_has_unique_id(rabbitmq.object_ref())),
         lift_state(consistent_key),
-        lift_state(RMQCluster::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, rabbitmq.object_ref())),
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))
     );
