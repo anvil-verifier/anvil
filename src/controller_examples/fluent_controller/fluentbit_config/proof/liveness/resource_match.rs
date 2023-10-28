@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit_config::{
     common::*,
-    proof::{helper_invariants, liveness_theorem::desired_state_is, predicate::*, resource::*},
+    proof::{helper_invariants, predicate::*, resource::*},
     spec::{reconciler::*, resource::*, types::*},
 };
 use crate::kubernetes_api_objects::{
@@ -34,8 +34,8 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(desired_state_is(fbc)))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))),
@@ -76,6 +76,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
+        spec.entails(always(lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))),
     ensures
@@ -176,7 +177,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(desired_state_is(fbc)))),
+        spec.entails(always(lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)))),
@@ -350,6 +351,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
+        spec.entails(always(lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))),
     ensures
         spec.entails(
@@ -379,8 +381,8 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         &&& FBCCluster::next()(s, s_prime)
         &&& FBCCluster::crash_disabled()(s)
         &&& FBCCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& FBCCluster::each_object_in_etcd_is_well_formed()(s)
         &&& FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)(s)
     };
 
@@ -389,8 +391,8 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         lift_action(FBCCluster::next()),
         lift_state(FBCCluster::crash_disabled()),
         lift_state(FBCCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(FBCCluster::each_object_in_etcd_is_well_formed()),
         lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc))
     );
 
@@ -560,7 +562,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(desired_state_is(fbc)))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
@@ -584,7 +585,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         &&& FBCCluster::busy_disabled()(s)
         &&& FBCCluster::every_in_flight_msg_has_unique_id()(s)
         &&& FBCCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& desired_state_is(fbc)(s)
         &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(fbc.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)(s)
@@ -598,7 +598,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         lift_state(FBCCluster::busy_disabled()),
         lift_state(FBCCluster::every_in_flight_msg_has_unique_id()),
         lift_state(FBCCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(desired_state_is(fbc)),
         lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fbc.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)),
@@ -638,7 +637,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(desired_state_is(fbc)))),
+        spec.entails(always(lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
@@ -657,7 +656,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& FBCCluster::busy_disabled()(s)
         &&& FBCCluster::each_object_in_etcd_is_well_formed()(s)
         &&& FBCCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& desired_state_is(fbc)(s)
+        &&& FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)(s)
         &&& helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)(s)
@@ -670,16 +669,13 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         lift_state(FBCCluster::busy_disabled()),
         lift_state(FBCCluster::each_object_in_etcd_is_well_formed()),
         lift_state(FBCCluster::every_in_flight_msg_has_unique_id()),
+        lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)),
         lift_state(helper_invariants::no_update_status_request_msg_in_flight(sub_resource, fbc)),
-        lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc)),
-        lift_state(desired_state_is(fbc))
+        lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc))
     );
 
-    FBCCluster::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        FBCCluster::continue_reconcile(), pre, post
-    );
+    FBCCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, FBCCluster::continue_reconcile(), pre, post);
 }
 
 pub proof fn lemma_resource_object_is_stable(
