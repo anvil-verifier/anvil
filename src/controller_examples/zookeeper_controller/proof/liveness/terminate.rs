@@ -30,7 +30,6 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::no_pending_req_msg_at_reconcile_state(zookeeper.object_ref(), |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::Init)))),
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterExistsStatefulSet))))),
@@ -196,7 +195,6 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         // Ensures that after get/create/update the sub resource, there is always a pending request or matched response
         // in flight so that the reconciler can enter the next state.

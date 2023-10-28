@@ -319,9 +319,7 @@ pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(zoo
         ||| {
             &&& forall |msg: ZKMessage|
                 #[trigger] s.in_flight().contains(msg)
-                && msg.dst.is_KubernetesAPI()
-                && msg.content.is_update_status_request()
-                ==> msg.content.get_update_status_request().key() != get_request(SubResource::StatefulSet, zookeeper).key
+                ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg)
             &&& s.stable_resources().contains(sts_key)
         }
     }

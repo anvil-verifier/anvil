@@ -33,7 +33,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
@@ -96,7 +95,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
@@ -216,7 +214,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     &&& ZKCluster::next()(s, s_prime)
                     &&& ZKCluster::crash_disabled()(s)
                     &&& ZKCluster::busy_disabled()(s)
-                    &&& ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())(s)
+                    &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
                     &&& ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())(s)
                 };
 
@@ -225,7 +223,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     lift_action(ZKCluster::next()),
                     lift_state(ZKCluster::crash_disabled()),
                     lift_state(ZKCluster::busy_disabled()),
-                    lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())),
+                    lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
                     lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref()))
                 );
 
@@ -278,7 +276,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
@@ -390,7 +387,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 &&& ZKCluster::next()(s, s_prime)
                 &&& ZKCluster::crash_disabled()(s)
                 &&& ZKCluster::busy_disabled()(s)
-                &&& ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())(s)
+                &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
                 &&& ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())(s)
             };
             combine_spec_entails_always_n!(
@@ -398,7 +395,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 lift_action(ZKCluster::next()),
                 lift_state(ZKCluster::crash_disabled()),
                 lift_state(ZKCluster::busy_disabled()),
-                lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())),
+                lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
                 lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref()))
             );
             assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
@@ -532,7 +529,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)))),
@@ -566,7 +562,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         &&& ZKCluster::crash_disabled()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())(s)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)(s)
@@ -579,7 +574,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         lift_state(ZKCluster::crash_disabled()),
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)),
@@ -848,7 +842,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
@@ -871,7 +864,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
         &&& ZKCluster::busy_disabled()(s)
-        &&& ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())(s)
         &&& ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
@@ -888,7 +880,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         lift_action(ZKCluster::next()),
         lift_state(ZKCluster::crash_disabled()),
         lift_state(ZKCluster::busy_disabled()),
-        lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())),
         lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
