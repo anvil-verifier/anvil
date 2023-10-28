@@ -510,10 +510,9 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_daemo
     let resource_key = get_request(sub_resource, fb).key;
     assert forall |s, s_prime: FBCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         if sub_resource != SubResource::DaemonSet {
-            assert forall |msg: FBMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_update_status_request()
-            implies msg.content.get_update_status_request().key() != resource_key by {
+            assert forall |msg: FBMessage| s_prime.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(resource_key)(msg)) by {
                 if s.in_flight().contains(msg) {
-                    assert(msg.content.get_update_status_request().key() != resource_key);
+                    assert(!resource_update_status_request_msg(resource_key)(msg));
                 } else {
                     let step = choose |step: FBStep| FBCluster::next_step(s, s_prime, step);
                     match step {
@@ -535,31 +534,14 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_daemo
                                     }
                                 } else {}
                             } else {}
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
-                        },
-                        Step::KubernetesAPIStep(_) => {
-                            assert(!msg.content.is_APIRequest());
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
-                        },
-                        Step::ClientStep() => {
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         },
                         Step::BuiltinControllersStep(_) => {
-                            assert(msg.content.get_update_status_request().key().kind == Kind::DaemonSetKind
-                                || msg.content.get_update_status_request().key().kind == Kind::DaemonSetKind);
-                            assert(msg.content.get_update_status_request().key() != resource_key);
-                        },
-                        Step::FailTransientlyStep(_) => {
-                            assert(!msg.content.is_APIRequest());
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
+                            assert(resource_key.kind != Kind::StatefulSetKind && resource_key.kind != Kind::DaemonSetKind);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         },
                         _ => {
-                            assert(!s_prime.in_flight().contains(msg));
-                            assert(false);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         }
                     }
                 }
@@ -907,17 +889,16 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
 {
     let key = fb.object_ref();
     let resource_key = get_request(sub_resource, fb).key;
-    let requirements = |msg: FBMessage, s: FBCluster| !{
-        &&& msg.dst.is_KubernetesAPI()
-        &&& msg.content.is_delete_request()
-        &&& msg.content.get_delete_request().key == resource_key
+    let requirements = |msg: FBMessage, s: FBCluster| !resource_delete_request_msg(resource_key)(msg);
+    let resource_well_formed = |s: FBCluster| {
+        &&& s.resources().contains_key(resource_key) ==> FBCluster::etcd_object_is_well_formed(resource_key)(s)
+        &&& s.resources().contains_key(key) ==> FBCluster::etcd_object_is_well_formed(key)(s)
     };
-
     let stronger_next = |s: FBCluster, s_prime: FBCluster| {
         &&& FBCluster::next()(s, s_prime)
         &&& desired_state_is(fb)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)(s)
-        &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& resource_well_formed(s)
     };
     assert forall |s: FBCluster, s_prime: FBCluster| #[trigger] stronger_next(s, s_prime) implies FBCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: FBMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
