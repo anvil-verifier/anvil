@@ -28,12 +28,10 @@ pub open spec fn zookeeper_is_well_formed(zookeeper: ZookeeperClusterView) -> St
     |s: ZKCluster| zookeeper.well_formed()
 }
 
-pub open spec fn the_object_in_reconcile_satisfies_state_validation() -> StatePred<ZKCluster>
+pub open spec fn the_object_in_reconcile_satisfies_state_validation(key: ObjectRef) -> StatePred<ZKCluster>
 {
     |s: ZKCluster| {
-        forall |key: ObjectRef|
-        #[trigger] s.ongoing_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        s.ongoing_reconciles().contains_key(key)
         ==> s.ongoing_reconciles()[key].triggering_cr.state_validation()
     }
 }
@@ -173,10 +171,9 @@ pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etc
 pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         let key = zookeeper.object_ref();
-        let resource_key = get_request(sub_resource, zookeeper).key;
         forall |msg: ZKMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_update_request_msg(resource_key)(msg)
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_update_request_msg(get_request(sub_resource, zookeeper).key)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& ZKCluster::pending_req_msg_is(s, key, msg)
@@ -188,10 +185,9 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
 pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         let key = zookeeper.object_ref();
-        let resource_key = get_request(sub_resource, zookeeper).key;
         forall |msg: ZKMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_create_request_msg(resource_key)(msg)
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_create_request_msg(get_request(sub_resource, zookeeper).key)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& ZKCluster::pending_req_msg_is(s, key, msg)
@@ -206,8 +202,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         let key = zookeeper.object_ref();
         let resource_key = get_request(sub_resource, zookeeper).key;
         forall |msg: ZKMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_update_request_msg(resource_key)(msg)
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_update_request_msg(get_request(sub_resource, zookeeper).key)(msg)
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& ZKCluster::pending_req_msg_is(s, key, msg)
@@ -235,10 +231,8 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
 pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         forall |msg: ZKMessage| !{
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_KubernetesAPI()
-            &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == get_request(sub_resource, zookeeper).key
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_delete_request_msg(get_request(sub_resource, zookeeper).key)(msg)
         }
     }
 }
@@ -249,8 +243,7 @@ pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(s
         ==> {
             forall |msg: ZKMessage|
                 #[trigger] s.in_flight().contains(msg)
-                && msg.content.is_update_status_request()
-                ==> msg.content.get_update_status_request().key() != get_request(sub_resource, zookeeper).key
+                ==> !(#[trigger] resource_update_status_request_msg(get_request(sub_resource, zookeeper).key)(msg))
         }
     }
 }
@@ -261,8 +254,7 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
             #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && !msg.src.is_BuiltinController()
-            && msg.content.is_update_status_request()
-            ==> msg.content.get_update_status_request().key() != get_request(SubResource::StatefulSet, zookeeper).key
+            ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg)
     }
 }
 
@@ -318,8 +310,8 @@ pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(zoo
         ||| sub_resource_state_matches(SubResource::StatefulSet, zookeeper)(s)
         ||| {
             &&& forall |msg: ZKMessage|
-                #[trigger] s.in_flight().contains(msg)
-                ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg)
+                s.in_flight().contains(msg)
+                ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(msg))
             &&& s.stable_resources().contains(sts_key)
         }
     }

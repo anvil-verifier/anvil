@@ -46,7 +46,7 @@ pub proof fn lemma_always_stateful_set_has_at_least_one_replica(spec: TempPred<Z
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(stateful_set_has_at_least_one_replica(zookeeper)))),
 {
@@ -94,7 +94,7 @@ proof fn lemma_always_stateful_set_in_create_req_has_at_least_one_replica(spec: 
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(stateful_set_in_create_req_has_at_least_one_replica(zookeeper)))),
 {
@@ -102,12 +102,12 @@ proof fn lemma_always_stateful_set_in_create_req_has_at_least_one_replica(spec: 
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(the_object_in_reconcile_satisfies_state_validation())
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
     );
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = get_request(SubResource::StatefulSet, zookeeper).key;
@@ -173,7 +173,7 @@ proof fn lemma_always_stateful_set_in_update_req_has_at_least_one_replica(spec: 
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(stateful_set_in_update_req_has_at_least_one_replica(zookeeper)))),
 {
@@ -181,12 +181,12 @@ proof fn lemma_always_stateful_set_in_update_req_has_at_least_one_replica(spec: 
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(the_object_in_reconcile_satisfies_state_validation())
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
     );
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = get_request(SubResource::StatefulSet, zookeeper).key;

@@ -228,7 +228,7 @@ pub open spec fn derived_invariants_since_beginning(zookeeper: ZookeeperClusterV
     .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(res, zookeeper)))))
     .and(always(lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper))))
-    .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())))
+    .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))))
     .and(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))))
     .and(always(lift_state(ZKCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref()))))
     .and(always(lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref()))))
@@ -269,7 +269,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperCl
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
         lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)),
         lift_state(ZKCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),
         lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),
@@ -531,7 +531,7 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         spec_entails_always_tla_forall(spec, a_to_p_3);
     });
     helper_invariants::lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(spec, zookeeper);
-    helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec);
+    helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, zookeeper.object_ref());
     helper_invariants::lemma_always_stateful_set_has_at_least_one_replica(spec, zookeeper);
     ZKCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, zookeeper.object_ref());
     ZKCluster::lemma_always_key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(spec, zookeeper.object_ref());
@@ -580,7 +580,7 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
         lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)),
         lift_state(ZKCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),
         lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),

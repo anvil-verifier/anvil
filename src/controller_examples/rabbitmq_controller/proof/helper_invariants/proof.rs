@@ -187,7 +187,6 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                 _ => {},
             }
         }
-        
     }
     leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }

@@ -37,7 +37,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
@@ -84,7 +84,7 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
@@ -256,6 +256,10 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_delete_request_msg(resource_key)(req));
+                assert(!resource_update_request_msg(resource_key)(req));
+                assert(!resource_update_status_request_msg(resource_key)(req));
                 if input.get_Some_0() == req_msg {
                     let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -365,6 +369,19 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         lift_action(helper_invariants::cm_rv_stays_unchanged(zookeeper))
     );
 
+    assert forall |s, s_prime: ZKCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+        let resource_key = get_request(SubResource::StatefulSet, zookeeper).key;
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_delete_request_msg(resource_key)(req));
+                assert(!resource_update_request_msg(resource_key)(req));
+                assert(!resource_update_status_request_msg(resource_key)(req));
+            },
+            _ => {}
+        }
+    }
     ZKCluster::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
         ZKCluster::continue_reconcile(), pre, post
@@ -380,7 +397,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
@@ -413,7 +430,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
         &&& ZKCluster::desired_state_is(zookeeper)(s)
-        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)(s)
@@ -431,7 +448,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         lift_state(ZKCluster::desired_state_is(zookeeper)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)),
@@ -448,6 +465,19 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         let resp = ZKCluster::handle_update_request(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         StatefulSetView::marshal_preserves_integrity();
+    }
+
+    assert forall |s, s_prime: ZKCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_delete_request_msg(resource_key)(req));
+                assert(!resource_update_status_request_msg(resource_key)(req));
+                if resource_update_request_msg(resource_key)(req) {} else {}
+            },
+            _ => {}
+        }
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
@@ -489,6 +519,15 @@ pub proof fn lemma_stateful_set_is_stable(
 
     assert forall |s, s_prime: ZKCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         StatefulSetView::marshal_preserves_integrity();
+        let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_delete_request_msg(resource_key)(req));
+                if resource_update_request_msg(resource_key)(req) {} else {}
+            },
+            _ => {}
+        }
     }
 
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));

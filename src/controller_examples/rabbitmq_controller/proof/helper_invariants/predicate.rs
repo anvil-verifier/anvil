@@ -190,7 +190,7 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
         forall |msg: RMQMessage| {
-            &&& s.network_state.in_flight.contains(msg)
+            &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
@@ -204,7 +204,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
         forall |msg: RMQMessage| {
-            &&& s.network_state.in_flight.contains(msg)
+            &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
@@ -220,7 +220,7 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         let key = rabbitmq.object_ref();
         let resource_key = get_request(sub_resource, rabbitmq).key;
         forall |msg: RMQMessage| {
-            &&& s.network_state.in_flight.contains(msg)
+            &&& s.in_flight().contains(msg)
             &&& #[trigger] resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)

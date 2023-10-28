@@ -78,14 +78,14 @@ pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec
     init_invariant(spec, ZKCluster::init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<ZKCluster>)
+pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<ZKCluster>, key: ObjectRef)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
 {
-    let inv = the_object_in_reconcile_satisfies_state_validation();
+    let inv = the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& the_object_in_schedule_satisfies_state_validation()(s)
@@ -165,6 +165,20 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
         spec, true_pred(), lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())),
         true_pred(), lift_state(inv)
     );
+    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        if s_prime.ongoing_reconciles().contains_key(key) {
+            let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+            match step {
+                Step::KubernetesAPIStep(input) => {
+                    let req = input.get_Some_0();
+                    assert(!resource_delete_request_msg(get_request(SubResource::ConfigMap, zookeeper).key)(req));
+                    assert(!resource_update_status_request_msg(get_request(SubResource::ConfigMap, zookeeper).key)(req));
+                    if resource_update_request_msg(get_request(SubResource::ConfigMap, zookeeper).key)(req) {} else {}
+                },
+                _ => {},
+            }
+        }
+    }
     leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
@@ -281,13 +295,15 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                     match step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
+                            assert(!resource_delete_request_msg(resource_key)(req_msg));
+                            assert(!resource_update_request_msg(resource_key)(req_msg));
+                            assert(!resource_update_status_request_msg(resource_key)(req_msg));
                             match req_msg.content.get_APIRequest_0() {
                                 APIRequest::CreateRequest(_) => {
                                     if !s.in_flight().contains(msg) {
-                                        let req = input.get_Some_0();
-                                        assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == req.content.get_create_request().key());
+                                        assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == req_msg.content.get_create_request().key());
                                         assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == resource_key);
-                                        assert(msg.content.get_create_response().res.get_Ok_0() == s_prime.resources()[req.content.get_create_request().key()]);
+                                        assert(msg.content.get_create_response().res.get_Ok_0() == s_prime.resources()[req_msg.content.get_create_request().key()]);
                                     } else {
                                         assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                                         assert(!s.in_flight().contains(pending_req));
@@ -306,16 +322,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                             assert(!s.in_flight().contains(pending_req));
                         }
                     }
-                    // if !s.in_flight().contains(msg) {
-                    //     assert(step.is_KubernetesAPIStep());
-                    //     let req = step.get_KubernetesAPIStep_0().get_Some_0();
-                    //     assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == req.content.get_create_request().key());
-                    //     assert(msg.content.get_create_response().res.get_Ok_0().object_ref() == resource_key);
-                    //     assert(msg.content.get_create_response().res.get_Ok_0() == s_prime.resources()[req.content.get_create_request().key()]);
-                    // } else {
-                    //     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                    //     assert(!s.in_flight().contains(pending_req));
-                    // }
                 }
             }
         }
@@ -437,14 +443,16 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                     match step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
+                            assert(!resource_delete_request_msg(resource_key)(req_msg));
+                            assert(!resource_update_status_request_msg(resource_key)(req_msg));
                             match req_msg.content.get_APIRequest_0() {
                                 APIRequest::UpdateRequest(_) => {
                                     if !s.in_flight().contains(msg) {
-                                        let req = input.get_Some_0();
-                                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req.content.get_update_request().key());
+                                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req_msg.content.get_update_request().key());
                                         assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == resource_key);
-                                        assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req.content.get_update_request().key()]);
+                                        assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req_msg.content.get_update_request().key()]);
                                     } else {
+                                        assert(!resource_update_request_msg(resource_key)(req_msg));
                                         assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                                         assert(!s.in_flight().contains(pending_req));
                                     }
@@ -885,10 +893,9 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
     let resource_key = get_request(sub_resource, zookeeper).key;
     assert forall |s, s_prime: ZKCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         if sub_resource != SubResource::StatefulSet {
-            assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_update_status_request()
-            implies msg.content.get_update_status_request().key() != resource_key by {
+            assert forall |msg: ZKMessage| s_prime.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(resource_key)(msg)) by {
                 if s.in_flight().contains(msg) {
-                    assert(msg.content.get_update_status_request().key() != resource_key);
+                    assert(!resource_update_status_request_msg(resource_key)(msg));
                 } else {
                     let step = choose |step: ZKStep| ZKCluster::next_step(s, s_prime, step);
                     match step {
@@ -911,30 +918,14 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
                                     }
                                 } else {}
                             } else {}
-                            assert(msg.content.get_update_status_request().key() != resource_key);
-                        },
-                        Step::KubernetesAPIStep(_) => {
-                            assert(!msg.content.is_APIRequest());
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
-                        },
-                        Step::ClientStep() => {
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         },
                         Step::BuiltinControllersStep(_) => {
-                            assert(msg.content.get_update_status_request().key().kind == Kind::StatefulSetKind
-                                || msg.content.get_update_status_request().key().kind == Kind::DaemonSetKind);
-                            assert(msg.content.get_update_status_request().key() != resource_key);
-                        },
-                        Step::FailTransientlyStep(_) => {
-                            assert(!msg.content.is_APIRequest());
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
+                            assert(resource_key.kind != Kind::StatefulSetKind && resource_key.kind != Kind::DaemonSetKind);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         },
                         _ => {
-                            assert(!s_prime.in_flight().contains(msg));
-                            assert(false);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         }
                     }
                 }
@@ -1367,11 +1358,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
 {
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
-    let requirements = |msg: ZKMessage, s: ZKCluster| !{
-        &&& msg.dst.is_KubernetesAPI()
-        &&& msg.content.is_delete_request()
-        &&& msg.content.get_delete_request().key == resource_key
-    };
+    let requirements = |msg: ZKMessage, s: ZKCluster| !resource_delete_request_msg(resource_key)(msg);
 
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
@@ -1630,6 +1617,19 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zooke
         &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)(s)
     };
+
+    assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) implies cm_rv_stays_unchanged(zookeeper)(s, s_prime) by {
+        let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_delete_request_msg(cm_key)(req));
+                assert(!resource_update_status_request_msg(cm_key)(req));
+                if resource_update_request_msg(cm_key)(req) {} else {}
+            },
+            _ => {},
+        }
+    }
 
     invariant_n!(
         spec, lift_action(stronger_inv), lift_action(cm_rv_stays_unchanged(zookeeper)),
