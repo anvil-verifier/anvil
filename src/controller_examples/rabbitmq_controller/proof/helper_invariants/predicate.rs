@@ -323,8 +323,8 @@ pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(rab
         ||| sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)(s)
         ||| {
             &&& forall |msg: RMQMessage|
-                s.in_flight().contains(msg)
-                ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg))
+                    s.in_flight().contains(msg)
+                    ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg))
             &&& s.stable_resources().contains(sts_key)
         }
     }

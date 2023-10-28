@@ -1747,12 +1747,12 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
     let sts_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let make_fn = |rv: StringView| make_stateful_set(rabbitmq, rv);
-    let inv_for_create = |s: RMQCluster, s_prime: RMQCluster| {
+    let inv_for_create = |s: RMQCluster| {
         &&& every_resource_create_request_implies_at_after_create_resource_step(SubResource::StatefulSet, rabbitmq)(s)
         &&& cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
     };
     invariant_n!(
-        spec, lift_action(inv_for_create), lift_state(RMQCluster::every_in_flight_create_req_msg_for_this_sts_matches(sts_key, cm_key, make_fn)),
+        spec, lift_state(inv_for_create), lift_state(RMQCluster::every_in_flight_create_req_msg_for_this_sts_matches(sts_key, cm_key, make_fn)),
         lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::StatefulSet, rabbitmq)),
         lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))
     );
