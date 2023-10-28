@@ -221,7 +221,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         &&& ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
-        &&& ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()(s)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ConfigMap, zookeeper)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ConfigMap, zookeeper)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)(s)
@@ -236,7 +235,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         later(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())),
         later(lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key))),
-        lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ConfigMap, zookeeper)),
         lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ConfigMap, zookeeper)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)),
@@ -335,7 +333,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, zookeeper))))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(res, zookeeper))))),
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
@@ -362,7 +359,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ConfigMap, zookeeper)))),
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
@@ -380,7 +376,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         &&& ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& ZKCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
-        &&& ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()(s)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ConfigMap, zookeeper)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ConfigMap, zookeeper)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)(s)
@@ -395,7 +390,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         later(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())),
         later(lift_state(ZKCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key))),
-        lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(no_delete_resource_request_msg_in_flight(SubResource::ConfigMap, zookeeper)),
         lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ConfigMap, zookeeper)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)),
