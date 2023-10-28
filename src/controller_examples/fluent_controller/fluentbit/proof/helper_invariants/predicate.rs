@@ -28,12 +28,10 @@ pub open spec fn fb_is_well_formed(fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| fb.well_formed()
 }
 
-pub open spec fn the_object_in_reconcile_satisfies_state_validation() -> StatePred<FBCluster>
+pub open spec fn the_object_in_reconcile_satisfies_state_validation(key: ObjectRef) -> StatePred<FBCluster>
 {
     |s: FBCluster| {
-        forall |key: ObjectRef|
-        #[trigger] s.ongoing_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        s.ongoing_reconciles().contains_key(key)
         ==> s.ongoing_reconciles()[key].triggering_cr.state_validation()
     }
 }

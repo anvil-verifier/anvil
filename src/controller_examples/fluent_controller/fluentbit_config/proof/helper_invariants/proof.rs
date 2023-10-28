@@ -75,14 +75,14 @@ pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec
     init_invariant(spec, FBCCluster::init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<FBCCluster>)
+pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<FBCCluster>, key: ObjectRef)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
 {
-    let inv = the_object_in_reconcile_satisfies_state_validation();
+    let inv = the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: FBCCluster, s_prime: FBCCluster| {
         &&& FBCCluster::next()(s, s_prime)
         &&& the_object_in_schedule_satisfies_state_validation()(s)
@@ -162,7 +162,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)))),
         spec.entails(always(lift_state(FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fbc).key))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc))))),
@@ -198,7 +197,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)))),
         spec.entails(always(lift_state(FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fbc).key)))),
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
@@ -274,7 +272,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         lift_state(FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(FBCCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(FBCCluster::each_object_in_etcd_is_well_formed())),
-        lift_state(FBCCluster::every_in_flight_req_is_unique()),
         lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fbc).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)),
         lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)),

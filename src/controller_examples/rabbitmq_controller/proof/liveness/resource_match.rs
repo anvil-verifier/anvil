@@ -50,7 +50,6 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
@@ -87,6 +86,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     spec: TempPred<RMQCluster>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -98,7 +98,6 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
@@ -425,6 +424,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -511,6 +511,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -518,7 +519,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
@@ -554,7 +554,6 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         &&& consistent_key(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)(s)
-        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
     };
     always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()), lift_state(consistent_key));
     combine_spec_entails_always_n!(
@@ -564,8 +563,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         lift_state(RMQCluster::pending_req_of_key_is_unique_with_unique_id(rabbitmq.object_ref())),
         lift_state(consistent_key),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))
+        lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -587,6 +585,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -594,7 +593,6 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
     ensures
         spec.entails(
@@ -621,7 +619,6 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())(s)
-        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
@@ -632,7 +629,6 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())),
-        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))
     );
 

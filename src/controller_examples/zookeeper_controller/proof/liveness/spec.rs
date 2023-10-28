@@ -210,7 +210,6 @@ pub proof fn invariants_is_stable(zookeeper: ZookeeperClusterView)
 // The safety invariants that are required to prove liveness.
 pub open spec fn derived_invariants_since_beginning(zookeeper: ZookeeperClusterView) -> TempPred<ZKCluster> {
     always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))
-    .and(always(lift_state(ZKCluster::every_in_flight_req_is_unique())))
     .and(always(lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id())))
     .and(always(lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
     .and(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref()))))
@@ -253,7 +252,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperCl
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper));
     stable_and_always_n!(
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(ZKCluster::every_in_flight_req_is_unique()),
         lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
@@ -568,7 +566,6 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
     entails_always_and_n!(
         spec,
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(ZKCluster::every_in_flight_req_is_unique()),
         lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
