@@ -277,7 +277,6 @@ pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)(s)
-        &&& ZKCluster::every_in_flight_req_is_unique()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -359,7 +358,6 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)(s)
-        &&& ZKCluster::every_in_flight_req_is_unique()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {

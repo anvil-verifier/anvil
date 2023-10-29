@@ -81,25 +81,6 @@ pub proof fn lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec
     init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
 }
 
-pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
-    |s: Self| {
-        forall |msg: MsgType<E>|
-            (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest())
-            && #[trigger] s.in_flight().contains(msg)
-            ==> s.network_state.in_flight.count(msg) == 1
-    }
-}
-
-pub open spec fn in_flight_or_pending_req_message(s: Self, msg: MsgType<E>) -> bool {
-    msg.content.is_APIRequest()
-    && (s.in_flight().contains(msg)
-    || (
-        exists |key|
-            #[trigger] s.ongoing_reconciles().contains_key(key)
-            && s.ongoing_reconciles()[key].pending_req_msg == Some(msg)
-    ))
-}
-
 pub open spec fn pending_req_of_key_is_unique_with_unique_id(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         s.ongoing_reconciles().contains_key(key)
@@ -341,7 +322,6 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
     requires
         Self::next()(s, s_prime),
         Self::every_in_flight_msg_has_lower_id_than_allocator()(s),
-        Self::every_in_flight_req_is_unique()(s),
         s.in_flight().contains(msg_1),
         !s.in_flight().contains(msg_2),
         s_prime.in_flight().contains(msg_1),

@@ -233,7 +233,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         &&& FBCCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
         &&& FBCCluster::each_object_in_etcd_is_well_formed()(s)
         &&& FBCCluster::each_object_in_etcd_is_well_formed()(s_prime)
-        &&& FBCCluster::every_in_flight_req_is_unique()(s)
         &&& FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fbc).key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, fbc)(s)
