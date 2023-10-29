@@ -223,3 +223,4 @@ jobs:
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests for ephemeral storage
         run: cd e2e && cargo run -- zookeeper-ephemeral
+        
