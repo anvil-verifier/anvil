@@ -1360,12 +1360,17 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     let resource_key = get_request(sub_resource, zookeeper).key;
     let requirements = |msg: ZKMessage, s: ZKCluster| !resource_delete_request_msg(resource_key)(msg);
 
+    let resource_well_formed = |s: ZKCluster| {
+        &&& s.resources().contains_key(resource_key) ==> ZKCluster::etcd_object_is_well_formed(resource_key)(s)
+        &&& s.resources().contains_key(key) ==> ZKCluster::etcd_object_is_well_formed(key)(s)
+    };
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::desired_state_is(zookeeper)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper)(s)
-        &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& resource_well_formed(s)
     };
+    always_weaken_temp(spec, lift_state(ZKCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     assert forall |s: ZKCluster, s_prime: ZKCluster| #[trigger] stronger_next(s, s_prime) implies ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: ZKMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1405,7 +1410,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec, lift_action(stronger_next), lift_action(ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(ZKCluster::next()), lift_state(ZKCluster::desired_state_is(zookeeper)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper)),
-        lift_state(ZKCluster::each_object_in_etcd_is_well_formed())
+        lift_state(resource_well_formed)
     );
 
     ZKCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
