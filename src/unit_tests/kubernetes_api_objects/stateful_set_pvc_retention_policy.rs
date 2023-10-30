@@ -43,4 +43,36 @@ pub fn test_set_selector() {
     );
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let sts_pvc_retention_policy = StatefulSetSpec::from_kube(
+        deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
+            replicas: Some(1),
+            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+                match_labels: Some(vec![(
+                    "key".to_string(),
+                    "value".to_string(),
+                )].into_iter().collect()),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(
+        sts_pvc_retention_policy.into_kube(),
+        deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
+            replicas: Some(1),
+            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+                match_labels: Some(vec![(
+                    "key".to_string(),
+                    "value".to_string(),
+                )].into_iter().collect()),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    )
+}
 }

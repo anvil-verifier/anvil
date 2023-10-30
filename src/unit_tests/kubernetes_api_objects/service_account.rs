@@ -53,4 +53,27 @@ pub fn test_clone() {
     let service_account_clone = service_account.clone();
     assert_eq!(service_account.into_kube(), service_account_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let service_account = ServiceAccount::from_kube(deps_hack::k8s_openapi::api::core::v1::ServiceAccount {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    assert_eq!(
+        service_account.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ServiceAccount {
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+}
 }

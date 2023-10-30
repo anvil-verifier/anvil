@@ -119,5 +119,59 @@ pub fn test_publish_not_ready_addresses() {
     assert_eq!(false, service_spec_2.publish_not_ready_addresses().unwrap());
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let service_spec = ServiceSpec::from_kube(
+        deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
+            cluster_ip: Some("ip".to_string()),
+            ports: Some(vec![
+                deps_hack::k8s_openapi::api::core::v1::ServicePort {
+                    port: 1,
+                    app_protocol: Some("http".to_string()),
+                    ..Default::default()
+                },
+                deps_hack::k8s_openapi::api::core::v1::ServicePort {
+                    port: 2048,
+                    app_protocol: Some("tcp".to_string()),
+                    ..Default::default()
+                },
+            ]),
+            selector: Some(
+                vec![
+                    ("key".to_string(), "value".to_string())
+                ].into_iter().collect()
+            ),
+            publish_not_ready_addresses: Some(true),
+            ..Default::default()
+        }
+    );
+
+    assert_eq!(
+        service_spec.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
+            cluster_ip: Some("ip".to_string()),
+            ports: Some(vec![
+                deps_hack::k8s_openapi::api::core::v1::ServicePort {
+                    port: 1,
+                    app_protocol: Some("http".to_string()),
+                    ..Default::default()
+                },
+                deps_hack::k8s_openapi::api::core::v1::ServicePort {
+                    port: 2048,
+                    app_protocol: Some("tcp".to_string()),
+                    ..Default::default()
+                },
+            ]),
+            selector: Some(
+                vec![
+                    ("key".to_string(), "value".to_string())
+                ].into_iter().collect()
+            ),
+            publish_not_ready_addresses: Some(true),
+            ..Default::default()
+        }
+    )
+}
 
 }

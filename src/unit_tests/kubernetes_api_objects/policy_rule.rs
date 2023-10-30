@@ -82,4 +82,26 @@ pub fn test_set_verbs() {
     );
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let policy_rule = PolicyRule::from_kube(
+        deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+            api_groups: Some(vec!["api_groups".to_string()]),
+            resources: Some(vec!["resources".to_string()]),
+            verbs: vec!["verbs".to_string()],
+            ..Default::default()
+        }
+    );
+
+    assert_eq!(
+        policy_rule.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+            api_groups: Some(vec!["api_groups".to_string()]),
+            resources: Some(vec!["resources".to_string()]),
+            verbs: vec!["verbs".to_string()],
+            ..Default::default()
+        }
+    );
+}
 }

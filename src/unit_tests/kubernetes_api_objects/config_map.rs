@@ -77,4 +77,46 @@ pub fn test_api_resource(){
     assert_eq!(api_resource.into_kube().kind, "ConfigMap");
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let config_map = ConfigMap::from_kube(
+        deps_hack::k8s_openapi::api::core::v1::ConfigMap {
+            metadata:
+                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    ..Default::default()
+                },
+            data: Some(
+                vec![(
+                    "key".to_string(),
+                    "value".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            ..Default::default()
+        },
+    );
+    assert_eq!(config_map.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ConfigMap {
+            metadata:
+                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    ..Default::default()
+                },
+            data: Some(
+                vec![(
+                    "key".to_string(),
+                    "value".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            ..Default::default()
+        });
+}
+
+
+
 }

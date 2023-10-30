@@ -51,4 +51,45 @@ pub fn test_set_items() {
         secret_projection.into_kube().items.unwrap()
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let secret_projection = SecretProjection::from_kube(deps_hack::k8s_openapi::api::core::v1::SecretProjection{
+        name: Some("name".to_string()),
+        items: Some(vec![
+            deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+                key: "key1".to_string(),
+                path: "path1".to_string(),
+                ..Default::default()
+            },
+            deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+                key: "key2".to_string(),
+                path: "path2".to_string(),
+                ..Default::default()
+            }
+        ]),
+        ..Default::default()
+    });
+
+    assert_eq!(
+        secret_projection.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::SecretProjection{
+            name: Some("name".to_string()),
+            items: Some(vec![
+                deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+                    key: "key1".to_string(),
+                    path: "path1".to_string(),
+                    ..Default::default()
+                },
+                deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+                    key: "key2".to_string(),
+                    path: "path2".to_string(),
+                    ..Default::default()
+                }
+            ]),
+            ..Default::default()
+        }
+    );
+}
 }

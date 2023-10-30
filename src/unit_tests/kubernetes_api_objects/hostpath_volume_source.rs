@@ -34,4 +34,19 @@ pub fn test_clone(){
     let host_path_volume_source_clone = host_path_volume_source.clone();
     assert_eq!(host_path_volume_source.into_kube(), host_path_volume_source_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let host_path_volume_source = HostPathVolumeSource::from_kube(deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource{
+        path: "path".to_string(),
+        ..Default::default()
+    });
+
+    assert_eq!(host_path_volume_source.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource{
+            path: "path".to_string(),
+            ..Default::default()
+        });
+}
 }

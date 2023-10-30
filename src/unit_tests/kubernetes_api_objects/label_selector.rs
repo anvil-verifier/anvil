@@ -48,4 +48,49 @@ pub fn test_clone() {
         label_selector_clone.into_kube().match_labels.unwrap()
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let label_selector = LabelSelector::from_kube(
+        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+            match_labels: Some(
+                vec![
+                    (
+                        "key".to_string(),
+                        "value".to_string(),
+                    ),
+                    (
+                        "key_2".to_string(),
+                        "value_2".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(
+        label_selector.into_kube(),
+        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+            match_labels: Some(
+                vec![
+                    (
+                        "key".to_string(),
+                        "value".to_string(),
+                    ),
+                    (
+                        "key_2".to_string(),
+                        "value_2".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            ..Default::default()
+        }
+    );
+}
 }

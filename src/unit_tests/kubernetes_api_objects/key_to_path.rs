@@ -33,4 +33,21 @@ pub fn test_set_path() {
     key_to_path.set_path(new_strlit("path").to_string());
     assert_eq!("path".to_string(), key_to_path.into_kube().path);
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let key_to_path = KeyToPath::from_kube(deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+        key: "key".to_string(),
+        path: "path".to_string(),
+        ..Default::default()
+    });
+
+    assert_eq!(key_to_path.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+            key: "key".to_string(),
+            path: "path".to_string(),
+            ..Default::default()
+    });
+}
 }

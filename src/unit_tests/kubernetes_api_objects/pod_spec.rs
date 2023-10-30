@@ -124,4 +124,299 @@ pub fn test_set_node_selector() {
     pod_spec.set_node_selector(node_selector.clone());
     assert_eq!(node_selector.into_rust_map(), pod_spec.into_kube().node_selector.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let pod_spec = PodSpec::from_kube(
+        deps_hack::k8s_openapi::api::core::v1::PodSpec {
+            containers:
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name".to_string(),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name_2".to_string(),
+                        ..Default::default()
+                    },
+                ],
+            volumes: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Volume {
+                        name: "name".to_string(),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Volume {
+                        name: "name_2".to_string(),
+                        ..Default::default()
+                    },
+                ],
+            ),
+
+            init_containers: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name".to_string(),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name_2".to_string(),
+                        ..Default::default()
+                    },
+                ],
+            ),
+            service_account_name: Some("name".to_string()),
+            tolerations: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Toleration {
+                        key: Some("key".to_string()),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Toleration {
+                        key: Some("key_2".to_string()),
+                        ..Default::default()
+                    },
+                ],
+            ),
+            node_selector: Some(
+                vec![
+                    (
+                        "key".to_string(),
+                        "value".to_string(),
+                    ),
+                    (
+                        "key_2".to_string(),
+                        "value_2".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            affinity: Some(
+                deps_hack::k8s_openapi::api::core::v1::Affinity {
+                    node_affinity: Some(
+                        deps_hack::k8s_openapi::api::core::v1::NodeAffinity {
+                            required_during_scheduling_ignored_during_execution: Some(
+                                deps_hack::k8s_openapi::api::core::v1::NodeSelector {
+                                    node_selector_terms:
+                                        vec![
+                                            deps_hack::k8s_openapi::api::core::v1::NodeSelectorTerm {
+                                                match_expressions: Some(
+                                                    vec![
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key".to_string(),
+                                                            operator: "operator".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key_2".to_string(),
+                                                            operator: "operator_2".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                    ],
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            deps_hack::k8s_openapi::api::core::v1::NodeSelectorTerm {
+                                                match_fields: Some(
+                                                    vec![
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key".to_string(),
+                                                            operator: "operator".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key_2".to_string(),
+                                                            operator: "operator_2".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                    ],
+                                                ),
+                                                ..Default::default()
+                                            },
+                                        ],
+
+                                    ..Default::default()
+                                },
+                            ),
+                            ..Default::default()
+                        },
+                    ),
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        });
+
+    assert_eq!(
+        pod_spec.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::PodSpec {
+            containers:
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name".to_string(),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name_2".to_string(),
+                        ..Default::default()
+                    },
+                ],
+            volumes: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Volume {
+                        name: "name".to_string(),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Volume {
+                        name: "name_2".to_string(),
+                        ..Default::default()
+                    },
+                ],
+            ),
+
+            init_containers: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name".to_string(),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Container {
+                        name: "name_2".to_string(),
+                        ..Default::default()
+                    },
+                ],
+            ),
+            service_account_name: Some("name".to_string()),
+            tolerations: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::core::v1::Toleration {
+                        key: Some("key".to_string()),
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::core::v1::Toleration {
+                        key: Some("key_2".to_string()),
+                        ..Default::default()
+                    },
+                ],
+            ),
+            node_selector: Some(
+                vec![
+                    (
+                        "key".to_string(),
+                        "value".to_string(),
+                    ),
+                    (
+                        "key_2".to_string(),
+                        "value_2".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            affinity: Some(
+                deps_hack::k8s_openapi::api::core::v1::Affinity {
+                    node_affinity: Some(
+                        deps_hack::k8s_openapi::api::core::v1::NodeAffinity {
+                            required_during_scheduling_ignored_during_execution: Some(
+                                deps_hack::k8s_openapi::api::core::v1::NodeSelector {
+                                    node_selector_terms:
+                                        vec![
+                                            deps_hack::k8s_openapi::api::core::v1::NodeSelectorTerm {
+                                                match_expressions: Some(
+                                                    vec![
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key".to_string(),
+                                                            operator: "operator".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key_2".to_string(),
+                                                            operator: "operator_2".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                    ],
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            deps_hack::k8s_openapi::api::core::v1::NodeSelectorTerm {
+                                                match_fields: Some(
+                                                    vec![
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key".to_string(),
+                                                            operator: "operator".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                        deps_hack::k8s_openapi::api::core::v1::NodeSelectorRequirement {
+                                                            key: "key_2".to_string(),
+                                                            operator: "operator_2".to_string(),
+                                                            values: Some(
+                                                                vec![
+                                                                    "value".to_string(),
+                                                                    "value_2".to_string(),
+                                                                ],
+                                                            ),
+                                                            ..Default::default()
+                                                        },
+                                                    ],
+                                                ),
+                                                ..Default::default()
+                                            },
+                                        ],
+
+                                    ..Default::default()
+                                },
+                            ),
+                            ..Default::default()
+                        },
+                    ),
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        });
+}
 }

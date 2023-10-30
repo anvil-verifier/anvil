@@ -83,4 +83,42 @@ pub fn test_clone() {
     assert_eq!(daemon_set_spec.into_kube(), daemon_set_spec_clone.into_kube());
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let daemon_set_spec = DaemonSetSpec::from_kube(
+        deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
+            min_ready_seconds: Some(0),
+            revision_history_limit: Some(0),
+            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+                match_expressions: None,
+                match_labels: Some(vec![("key".to_string(), "value".to_string())].into_iter().collect()),
+            },
+            template: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
+                metadata: Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    );
+    assert_eq!(daemon_set_spec.into_kube(), deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
+        min_ready_seconds: Some(0),
+        revision_history_limit: Some(0),
+        selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+            match_expressions: None,
+            match_labels: Some(vec![("key".to_string(), "value".to_string())].into_iter().collect()),
+        },
+        template: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
+            metadata: Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+}
 }

@@ -69,4 +69,41 @@ pub fn test_api_resource() {
     let api_resource = Pod::api_resource();
     assert_eq!(api_resource.into_kube().kind, "Pod");
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let pod = Pod::from_kube(deps_hack::k8s_openapi::api::core::v1::Pod {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
+        spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
+            containers: vec![deps_hack::k8s_openapi::api::core::v1::Container {
+                name: "name".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+
+    assert_eq!(
+        pod.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::Pod {
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                ..Default::default()
+            },
+            spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
+                containers: vec![deps_hack::k8s_openapi::api::core::v1::Container {
+                    name: "name".to_string(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    );
+}
 }

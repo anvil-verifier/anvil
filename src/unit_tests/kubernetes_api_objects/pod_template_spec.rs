@@ -53,4 +53,38 @@ pub fn test_clone() {
     let pod_template_spec_clone = pod_template_spec.clone();
     assert_eq!(pod_template_spec.into_kube(), pod_template_spec_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let pod_template_spec = PodTemplateSpec::from_kube(deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec{
+        metadata: Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta{
+            name: Some("name".to_string()),
+            ..Default::default()
+        }),
+        spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec{
+            containers: vec![deps_hack::k8s_openapi::api::core::v1::Container{
+                name: "name".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+
+    assert_eq!(pod_template_spec.into_kube(), deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec{
+        metadata: Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta{
+            name: Some("name".to_string()),
+            ..Default::default()
+        }),
+        spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec{
+            containers: vec![deps_hack::k8s_openapi::api::core::v1::Container{
+                name: "name".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+}
 }

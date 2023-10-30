@@ -92,6 +92,14 @@ impl Service {
         self.inner
     }
 
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Service) -> (service: Service)
+    {
+        Service { inner: inner }
+    }
+
+
+
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
@@ -228,7 +236,7 @@ impl ServiceSpec {
     }
 
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec {
         ServiceSpec { inner: inner }
     }
 
@@ -292,7 +300,7 @@ impl ServicePort {
     }
 
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort {
         ServicePort { inner: inner }
     }
 

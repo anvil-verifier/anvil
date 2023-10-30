@@ -75,6 +75,12 @@ impl ClusterRoleBinding {
         self.inner
     }
 
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding) -> (role_binding: ClusterRoleBinding)
+    {
+        ClusterRoleBinding { inner: inner }
+    }
+
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures

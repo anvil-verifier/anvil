@@ -92,6 +92,12 @@ impl Volume {
         self.inner
     }
 
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> (volume: Volume)
+    {
+        Volume { inner }
+    }
+
     /// Methods for the fields that Anvil currently does not reason about
 
     #[verifier(external_body)]
@@ -135,6 +141,12 @@ impl EmptyDirVolumeSource {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource) -> (empty_dir_volum_source: EmptyDirVolumeSource)
+    {
+        EmptyDirVolumeSource { inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -176,6 +188,12 @@ impl HostPathVolumeSource {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource) -> (host_path_volume_source: HostPathVolumeSource)
+    {
+        HostPathVolumeSource { inner }
     }
 }
 
@@ -219,6 +237,12 @@ impl ConfigMapVolumeSource {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource) -> (config_map_volume_source: ConfigMapVolumeSource)
+    {
+        ConfigMapVolumeSource { inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -260,6 +284,12 @@ impl SecretVolumeSource {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource) -> (secret_volume_source: SecretVolumeSource)
+    {
+        SecretVolumeSource { inner }
     }
 }
 
@@ -305,6 +335,12 @@ impl ProjectedVolumeSource {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource) -> (projected_volume_source: ProjectedVolumeSource)
+    {
+        ProjectedVolumeSource { inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -344,6 +380,12 @@ impl VolumeProjection {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeProjection {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection) -> (volume_projection: VolumeProjection)
+    {
+        VolumeProjection { inner }
     }
 }
 
@@ -397,6 +439,12 @@ impl ConfigMapProjection {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection) -> (config_map_projection: ConfigMapProjection)
+    {
+        ConfigMapProjection { inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -449,6 +497,12 @@ impl SecretProjection {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretProjection {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection) -> (secret_projection: SecretProjection)
+    {
+        SecretProjection { inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -488,6 +542,12 @@ impl KeyToPath {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::KeyToPath {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath) -> (key_to_path: KeyToPath)
+    {
+        KeyToPath { inner }
     }
 }
 
@@ -533,6 +593,12 @@ impl DownwardAPIVolumeSource {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource) -> (downward_api_volume_source: DownwardAPIVolumeSource)
+    {
+        DownwardAPIVolumeSource { inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -572,6 +638,12 @@ impl DownwardAPIVolumeFile {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile) -> (downward_api_volume_file: DownwardAPIVolumeFile)
+    {
+        DownwardAPIVolumeFile { inner }
     }
 }
 

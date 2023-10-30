@@ -60,4 +60,35 @@ pub fn test_clone(){
     let downward_api_volume_source_clone = downward_api_volume_source.clone();
     assert_eq!(downward_api_volume_source.into_kube(), downward_api_volume_source_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let downward_api_volume_source = DownwardAPIVolumeSource::from_kube(deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource{
+        default_mode: None,
+        items: Some(vec![deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
+            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
+                api_version: None,
+                field_path: "field_path".to_string(),
+            }),
+            mode: None,
+            path: "path".to_string(),
+            resource_field_ref: None,
+        }]),
+    });
+
+    assert_eq!(downward_api_volume_source.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource{
+            default_mode: None,
+            items: Some(vec![deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
+                field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
+                    api_version: None,
+                    field_path: "field_path".to_string(),
+                }),
+                mode: None,
+                path: "path".to_string(),
+                resource_field_ref: None,
+            }]),
+        });
+}
 }
