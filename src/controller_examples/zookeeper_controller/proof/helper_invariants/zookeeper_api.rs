@@ -46,7 +46,7 @@ pub proof fn lemma_always_stateful_set_has_at_least_one_replica(spec: TempPred<Z
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(stateful_set_has_at_least_one_replica(zookeeper)))),
 {
@@ -94,7 +94,7 @@ proof fn lemma_always_stateful_set_in_create_req_has_at_least_one_replica(spec: 
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(stateful_set_in_create_req_has_at_least_one_replica(zookeeper)))),
 {
@@ -102,12 +102,12 @@ proof fn lemma_always_stateful_set_in_create_req_has_at_least_one_replica(spec: 
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(the_object_in_reconcile_satisfies_state_validation())
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
     );
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = get_request(SubResource::StatefulSet, zookeeper).key;
@@ -173,7 +173,7 @@ proof fn lemma_always_stateful_set_in_update_req_has_at_least_one_replica(spec: 
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(stateful_set_in_update_req_has_at_least_one_replica(zookeeper)))),
 {
@@ -181,12 +181,12 @@ proof fn lemma_always_stateful_set_in_update_req_has_at_least_one_replica(spec: 
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(the_object_in_reconcile_satisfies_state_validation())
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
     );
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = get_request(SubResource::StatefulSet, zookeeper).key;
@@ -258,7 +258,6 @@ pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_is_unique()))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper))))
@@ -278,7 +277,6 @@ pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)(s)
-        &&& ZKCluster::every_in_flight_req_is_unique()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -302,8 +300,7 @@ pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_
         lift_action(ZKCluster::next()), lift_state(ZKCluster::crash_disabled()), lift_state(ZKCluster::busy_disabled()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)),
-        lift_state(ZKCluster::every_in_flight_req_is_unique())
+        lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper))
     );
 
     ZKCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -341,8 +338,7 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
-        spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(ZKCluster::every_in_flight_req_is_unique()))),
+        spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())))
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper))))
@@ -362,7 +358,6 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)(s)
-        &&& ZKCluster::every_in_flight_req_is_unique()(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -386,8 +381,7 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
         lift_action(ZKCluster::next()), lift_state(ZKCluster::crash_disabled()), lift_state(ZKCluster::busy_disabled()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)),
-        lift_state(ZKCluster::every_in_flight_req_is_unique())
+        lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper))
     );
 
     ZKCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);

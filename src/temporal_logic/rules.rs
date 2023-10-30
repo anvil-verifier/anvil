@@ -1142,7 +1142,7 @@ pub use combine_with_next_internal;
 ///     spec |= []p2
 ///        ...
 ///     spec |= []pn
-///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
+///     p1 /\ p2 /\ ... /\ pn ==> partial_spec
 /// post:
 ///     spec |= []all
 ///
@@ -1157,8 +1157,15 @@ macro_rules! combine_spec_entails_always_n {
 #[macro_export]
 macro_rules! combine_spec_entails_always_n_internal {
     ($spec:expr, $partial_spec:expr, $($tail:tt)*) => {
-        entails_always_and_n!($spec, $($tail)*);
-        temp_pred_equality($partial_spec, combine_with_next!($($tail)*));
+        assert_by(
+            valid($spec.implies(always(combine_with_next!($($tail)*)))),
+            {
+                entails_always_and_n!($spec, $($tail)*);
+            }
+        );
+        implies_preserved_by_always_temp(combine_with_next!($($tail)*), $partial_spec);
+        valid_implies_trans($spec, always(combine_with_next!($($tail)*)), always($partial_spec));
+        // temp_pred_equality($partial_spec, combine_with_next!($($tail)*));
     };
 }
 
@@ -1172,7 +1179,7 @@ pub use combine_spec_entails_always_n_internal;
 ///     spec |= []p2
 ///         ...
 ///     spec |= []pn
-///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
+///     p1 /\ p2 /\ ... /\ pn ==> partial_spec
 /// post:
 ///     spec |= []inv
 ///
@@ -1187,7 +1194,14 @@ macro_rules! invariant_n {
 #[macro_export]
 macro_rules! invariant_n_internal {
     ($spec:expr, $partial_spec:expr, $inv:expr, $($tail:tt)*) => {
-        combine_spec_entails_always_n!($spec, $partial_spec, $($tail)*);
+        assert_by(
+            valid($spec.implies(always(combine_with_next!($($tail)*)))),
+            {
+                entails_always_and_n!($spec, $($tail)*);
+            }
+        );
+        implies_preserved_by_always_temp(combine_with_next!($($tail)*), $partial_spec);
+        valid_implies_trans($spec, always(combine_with_next!($($tail)*)), always($partial_spec));
         implies_preserved_by_always_temp($partial_spec, $inv);
         valid_implies_trans($spec, always($partial_spec), always($inv));
     };

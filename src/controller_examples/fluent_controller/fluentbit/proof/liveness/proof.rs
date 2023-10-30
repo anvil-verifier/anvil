@@ -273,10 +273,9 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
     ensures
         spec.entails(
             lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init))
@@ -440,9 +439,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
         });
     }
 
-    FBCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, FBCluster::handle_request(), pre, post
-    );
+    FBCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, FBCluster::handle_request(), pre, post);
 }
 
 proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
@@ -453,10 +450,9 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
     ensures
         spec.entails(
             lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(fb, resp_msg))
@@ -470,10 +466,9 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         &&& FBCluster::next()(s, s_prime)
         &&& FBCluster::crash_disabled()(s)
         &&& FBCluster::busy_disabled()(s)
-        &&& FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())(s)
-        &&& FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())(s)
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
+        &&& FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())(s)
     };
 
     combine_spec_entails_always_n!(
@@ -481,16 +476,28 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         lift_action(FBCluster::next()),
         lift_state(FBCluster::crash_disabled()),
         lift_state(FBCluster::busy_disabled()),
-        lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())),
-        lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())),
         lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(FBCluster::every_in_flight_msg_has_unique_id())
+        lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
+        lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref()))
     );
 
-    FBCluster::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        FBCluster::continue_reconcile(), pre, post
-    );
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::ControllerStep(input) => {
+                if input.1.get_Some_0() != fb.object_ref() {
+                    assert(pre(s_prime));
+                } else {
+                    assert(post(s_prime));
+                }
+            },
+            _ => {
+                assert(pre(s_prime));
+            }
+        }
+    }
+
+    FBCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, FBCluster::continue_reconcile(), pre, post);
 }
 
 proof fn always_tla_forall_apply_for_sub_resource(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)

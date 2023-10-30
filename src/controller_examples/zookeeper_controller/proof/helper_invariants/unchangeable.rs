@@ -40,8 +40,8 @@ pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_r
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {
         forall |msg: ZKMessage|
-            #[trigger] s.in_flight().contains(msg)
-            && resource_create_request_msg(resource_key)(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] resource_create_request_msg(get_request(sub_resource, zookeeper).key)(msg)
             ==> unchangeable(sub_resource, msg.content.get_create_request().obj, zookeeper)
     }
 }
@@ -51,8 +51,8 @@ pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_r
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {
         forall |msg: ZKMessage|
-            #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(resource_key)(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(get_request(sub_resource, zookeeper).key)(msg)
             && s.resources().contains_key(resource_key)
             && s.resources()[resource_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
             ==> unchangeable(sub_resource, msg.content.get_update_request().obj, zookeeper)
@@ -82,17 +82,11 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     );
     let resource_key = get_request(sub_resource, zookeeper).key;
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_create_request_msg(resource_key)(msg)
+        assert forall |msg: ZKMessage| s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg(resource_key)(msg)
         implies unchangeable(sub_resource, msg.content.get_create_request().obj, zookeeper) by {
             if !s.in_flight().contains(msg) {
                 let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, zookeeper, s, s_prime, msg, step);
-                // match sub_resource {
-                //     SubResource::StatefulSet => {
-                //         StatefulSetView::marshal_preserves_integrity();
-                //     },
-                //     _ => {},
-                // }
             }
         }
     }
@@ -196,7 +190,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
-    assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(resource_key)(msg)
+    assert forall |msg: ZKMessage| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(resource_key)(msg)
     && s_prime.resources().contains_key(resource_key) && s_prime.resources()[resource_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
     implies unchangeable(sub_resource, msg.content.get_update_request().obj, zookeeper) by {
         if s.in_flight().contains(msg) {

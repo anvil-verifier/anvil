@@ -78,14 +78,14 @@ pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec
     init_invariant(spec, FBCluster::init(), stronger_next, inv);
 }
 
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<FBCluster>)
+pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<FBCluster>, key: ObjectRef)
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
 {
-    let inv = the_object_in_reconcile_satisfies_state_validation();
+    let inv = the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: FBCluster, s_prime: FBCluster| {
         &&& FBCluster::next()(s, s_prime)
         &&& the_object_in_schedule_satisfies_state_validation()(s)
@@ -165,7 +165,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(FBCluster::the_object_in_reconcile_has_spec_and_uid_as(fb)))),
         spec.entails(always(lift_state(FBCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fb).key))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fb))))),
@@ -205,7 +204,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(FBCluster::the_object_in_reconcile_has_spec_and_uid_as(fb)))),
         spec.entails(always(lift_state(FBCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(lift_state(FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fb).key)))),
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fb)))),
@@ -244,7 +242,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         &&& FBCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s_prime)
-        &&& FBCluster::every_in_flight_req_is_unique()(s)
         &&& FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fb).key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, fb)(s)
@@ -285,7 +282,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         lift_state(FBCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
         lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(FBCluster::each_object_in_etcd_is_well_formed())),
-        lift_state(FBCluster::every_in_flight_req_is_unique()),
         lift_state(FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fb).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)),
         lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fb)),
@@ -513,10 +509,9 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_daemo
     let resource_key = get_request(sub_resource, fb).key;
     assert forall |s, s_prime: FBCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
         if sub_resource != SubResource::DaemonSet {
-            assert forall |msg: FBMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_update_status_request()
-            implies msg.content.get_update_status_request().key() != resource_key by {
+            assert forall |msg: FBMessage| s_prime.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(resource_key)(msg)) by {
                 if s.in_flight().contains(msg) {
-                    assert(msg.content.get_update_status_request().key() != resource_key);
+                    assert(!resource_update_status_request_msg(resource_key)(msg));
                 } else {
                     let step = choose |step: FBStep| FBCluster::next_step(s, s_prime, step);
                     match step {
@@ -538,31 +533,14 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_daemo
                                     }
                                 } else {}
                             } else {}
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
-                        },
-                        Step::KubernetesAPIStep(_) => {
-                            assert(!msg.content.is_APIRequest());
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
-                        },
-                        Step::ClientStep() => {
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         },
                         Step::BuiltinControllersStep(_) => {
-                            assert(msg.content.get_update_status_request().key().kind == Kind::StatefulSetKind
-                                || msg.content.get_update_status_request().key().kind == Kind::DaemonSetKind);
-                            assert(msg.content.get_update_status_request().key() != resource_key);
-                        },
-                        Step::FailTransientlyStep(_) => {
-                            assert(!msg.content.is_APIRequest());
-                            assert(!msg.content.is_update_status_request());
-                            assert(false);
+                            assert(resource_key.kind != Kind::StatefulSetKind && resource_key.kind != Kind::DaemonSetKind);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         },
                         _ => {
-                            assert(!s_prime.in_flight().contains(msg));
-                            assert(false);
+                            assert(!resource_update_status_request_msg(resource_key)(msg));
                         }
                     }
                 }
@@ -910,17 +888,16 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
 {
     let key = fb.object_ref();
     let resource_key = get_request(sub_resource, fb).key;
-    let requirements = |msg: FBMessage, s: FBCluster| !{
-        &&& msg.dst.is_KubernetesAPI()
-        &&& msg.content.is_delete_request()
-        &&& msg.content.get_delete_request().key == resource_key
+    let requirements = |msg: FBMessage, s: FBCluster| !resource_delete_request_msg(resource_key)(msg);
+    let resource_well_formed = |s: FBCluster| {
+        &&& s.resources().contains_key(resource_key) ==> FBCluster::etcd_object_is_well_formed(resource_key)(s)
+        &&& s.resources().contains_key(key) ==> FBCluster::etcd_object_is_well_formed(key)(s)
     };
-
     let stronger_next = |s: FBCluster, s_prime: FBCluster| {
         &&& FBCluster::next()(s, s_prime)
         &&& desired_state_is(fb)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)(s)
-        &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& resource_well_formed(s)
     };
     assert forall |s: FBCluster, s_prime: FBCluster| #[trigger] stronger_next(s, s_prime) implies FBCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: FBMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
@@ -1041,8 +1018,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCluster>, p
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,
-        set![SubResource::ServiceAccount, SubResource::Role,
-        SubResource::RoleBinding, SubResource::DaemonSet]
+        set![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::DaemonSet]
     );
 }
 
@@ -1055,11 +1031,9 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| FBCluster::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)))),
-        spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_daemon_set(fb)))),
@@ -1070,92 +1044,61 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
 {
     let ds_key = get_request(SubResource::DaemonSet, fb).key;
     let make_fn = || make_daemon_set(fb);
-    let stronger_inv = |s: FBCluster, s_prime: FBCluster| {
+    implies_preserved_by_always_temp(
+        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)), 
+        lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn))
+    );
+    valid_implies_trans(
+        spec, 
+        always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb))), 
+        always(lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn)))
+    );
+    let inv_for_update = |s: FBCluster| {
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& desired_state_is(fb)(s)
-        &&& every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)(s)
         &&& every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)(s)
-        &&& object_in_etcd_satisfies_unchangeable(SubResource::DaemonSet, fb)(s)
+        &&& daemon_set_in_etcd_satisfies_unchangeable(fb)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)(s)
+    };
+    DaemonSetView::marshal_spec_preserves_integrity();
+    DaemonSetView::marshal_status_preserves_integrity();
+    invariant_n!(
+        spec, lift_state(inv_for_update), lift_state(FBCluster::every_in_flight_update_req_msg_for_this_ds_matches(ds_key, make_fn)),
+        lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
+        lift_state(desired_state_is(fb)),
+        lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)),
+        lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)),
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb))
+    );
+
+    FBCluster::lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec, ds_key, make_fn);
+
+    let stronger_inv = |s: FBCluster| {
+        &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& desired_state_is(fb)(s)
         &&& daemon_set_in_etcd_satisfies_unchangeable(fb)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)(s)
         &&& no_update_status_request_msg_not_from_bc_in_flight_of_daemon_set(fb)(s)
     };
 
-    assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime)
-    implies FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn)(s) by {
-        assert forall |msg| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& msg.dst.is_KubernetesAPI()
-            &&& msg.content.is_create_request()
-            &&& msg.content.get_create_request().namespace == ds_key.namespace
-            &&& msg.content.get_create_request().obj.metadata.name == Some(ds_key.name)
-            &&& msg.content.get_create_request().obj.kind == ds_key.kind
-        } implies {
-            &&& msg.content.get_create_request().obj == make_fn().marshal()
-        } by {}
-    }
-    invariant_n!(
-        spec, lift_action(stronger_inv), lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn)),
-        lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(desired_state_is(fb)),
-        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)),
-        lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)),
-        lift_state(object_in_etcd_satisfies_unchangeable(SubResource::DaemonSet, fb)),
-        lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)),
-        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)),
-        lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_daemon_set(fb))
-    );
-
-    assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime)
-    implies FBCluster::every_in_flight_update_req_msg_for_this_ds_matches(ds_key, make_fn)(s) by {
-        assert forall |msg| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& msg.dst.is_KubernetesAPI()
-            &&& msg.content.is_update_request()
-            &&& msg.content.get_update_request().key() == ds_key
-        } implies {
-            &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
-            &&& {
-                &&& s.resources().contains_key(ds_key)
-                &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[ds_key].metadata.resource_version
-            } ==> {
-                let made_ds = make_fn();
-                let obj = msg.content.get_update_request().obj;
-                &&& DaemonSetView::unmarshal(obj).is_Ok()
-                &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-                &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_ds.spec.get_Some_0().template
-                &&& obj.metadata.labels == made_ds.metadata.labels
-                &&& obj.metadata.annotations == made_ds.metadata.annotations
+    assert forall |s| #[trigger] stronger_inv(s) && FBCluster::daemon_set_not_exist_or_updated_or_no_more_status_from_bc(ds_key, make_fn)(s)
+    implies daemon_set_not_exists_or_matches_or_no_more_status_update(fb)(s) by {
+        if !s.resources().contains_key(ds_key) {}
+        else if sub_resource_state_matches(SubResource::DaemonSet, fb)(s) {}
+        else {
+            assert forall |msg: FBMessage| s.in_flight().contains(msg) implies !(#[trigger] resource_update_status_request_msg(get_request(SubResource::DaemonSet, fb).key)(msg)) by {
+                if update_status_msg_from_bc_for(get_request(SubResource::DaemonSet, fb).key)(msg) {} else {}
             }
-        } by {
-            DaemonSetView::marshal_spec_preserves_integrity();
-            DaemonSetView::marshal_status_preserves_integrity();
         }
     }
-    invariant_n!(
-        spec, lift_action(stronger_inv), lift_state(FBCluster::every_in_flight_update_req_msg_for_this_ds_matches(ds_key, make_fn)),
-        lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(desired_state_is(fb)),
-        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)),
-        lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)),
-        lift_state(object_in_etcd_satisfies_unchangeable(SubResource::DaemonSet, fb)),
+    combine_spec_entails_always_n!(
+        spec, lift_state(stronger_inv), lift_state(FBCluster::each_object_in_etcd_is_well_formed()), lift_state(desired_state_is(fb)),
         lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)),
         lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_daemon_set(fb))
     );
 
-    FBCluster::lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec, ds_key, make_fn);
-
-    assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) && FBCluster::daemon_set_not_exist_or_updated_or_no_more_status_from_bc(ds_key, make_fn)(s)
-    implies daemon_set_not_exists_or_matches_or_no_more_status_update(fb)(s) by {
-        DaemonSetView::marshal_spec_preserves_integrity();
-        DaemonSetView::marshal_status_preserves_integrity();
-    }
-
-    leads_to_always_enhance(spec, lift_action(stronger_inv), true_pred(),
+    leads_to_always_enhance(spec, lift_state(stronger_inv), true_pred(),
         lift_state(FBCluster::daemon_set_not_exist_or_updated_or_no_more_status_from_bc(ds_key, make_fn)),
         lift_state(daemon_set_not_exists_or_matches_or_no_more_status_update(fb))
     );

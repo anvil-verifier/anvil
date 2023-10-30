@@ -186,24 +186,13 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
             },
             _ => {},
         }
-        if s.resources().contains_key(resource_key) {
-            if sub_resource == SubResource::ServiceAccount {
-                if s.resources()[resource_key].spec == s_prime.resources()[resource_key].spec {
-                    let object = s_prime.resources()[resource_key];
-                    assert(ServiceAccountView::unmarshal(object).is_Ok());
-                    assert(ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(fb).automount_service_account_token);
-                } else {
-                    let step = choose |step| FBCluster::next_step(s, s_prime, step);
-                    assert(step.is_KubernetesAPIStep());
-                    let req = step.get_KubernetesAPIStep_0().get_Some_0();
-                    assert(req.content.is_update_request());
-                    assert(ServiceAccountView::unmarshal(req.content.get_update_request().obj).get_Ok_0().automount_service_account_token == make_service_account(fb).automount_service_account_token);
-                }
-
-            }
-            assert(unchangeable(sub_resource, s_prime.resources()[resource_key], fb));
-        } else {
-            assert(unchangeable(sub_resource, s_prime.resources()[resource_key], fb));
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                if resource_update_request_msg(resource_key)(req) {} else {}
+            },
+            _ => {}
         }
     }
 }

@@ -108,14 +108,16 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                         .transition_validation(ZookeeperClusterView::unmarshal(s.resources()[key]).get_Ok_0()));
                 }
                 assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], ZookeeperClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
-            } else if s.resources().contains_key(sts_key) && s.resources()[sts_key] != s_prime.resources()[sts_key] {
-                assert(StatefulSetView::unmarshal(s_prime.resources()[key]).get_Ok_0()
-                    .transition_validation(StatefulSetView::unmarshal(s.resources()[key]).get_Ok_0()));
-                assert(s_prime.resources()[sts_key].metadata.owner_references == s.resources()[sts_key].metadata.owner_references);
-                assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], ZookeeperClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
             } else {
-                assert(stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper)(s));
-                assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], ZookeeperClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+                match step {
+                    Step::KubernetesAPIStep(input) => {
+                        let req = input.get_Some_0();
+                        if resource_create_request_msg(sts_key)(req) {} else {}
+                        if resource_update_request_msg(sts_key)(req) {} else {}
+                    },
+                    _ => {}
+                }
             }
         }
     }
@@ -127,8 +129,8 @@ pub open spec fn stateful_set_update_request_msg_does_not_change_owner_reference
     let sts_key = StatefulSetBuilder::get_request(zookeeper).key;
     |s: ZKCluster| {
         forall |msg: ZKMessage|
-            #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(sts_key)(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(sts_key)(msg)
             && s.resources().contains_key(sts_key)
             && s.resources()[sts_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
             ==> s.resources()[sts_key].metadata.owner_references == msg.content.get_update_request().obj.metadata.owner_references
@@ -170,7 +172,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, zookeeper))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg)
+        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(sts_key)(msg)
         && s_prime.resources().contains_key(sts_key)
         && s_prime.resources()[sts_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
         implies s_prime.resources()[sts_key].metadata.owner_references == msg.content.get_update_request().obj.metadata.owner_references by {
@@ -196,8 +198,8 @@ pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
         let resource_key = get_request(sub_resource, zookeeper).key;
         let etcd_rv = s.resources()[resource_key].metadata.resource_version.get_Some_0();
         forall |msg: ZKMessage|
-            #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(resource_key)(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(get_request(sub_resource, zookeeper).key)(msg)
             ==> msg.content.get_update_request().obj.metadata.resource_version.is_Some()
                 && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     }
@@ -237,7 +239,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
         lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg) implies
+        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(sts_key)(msg) implies
         msg.content.get_update_request().obj.metadata.resource_version.is_Some()
         && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
@@ -245,6 +247,8 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else if resource_update_request_msg(sts_key)(msg) {
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, zookeeper, s, s_prime, msg, step);
+                let resp = step.get_ControllerStep_0().0.get_Some_0();
+                assert(ZKCluster::is_ok_get_response_msg()(resp));
             }
         }
     }
@@ -256,9 +260,9 @@ pub open spec fn stateful_set_in_create_request_msg_satisfies_unchangeable(zooke
     let sts_key = StatefulSetBuilder::get_request(zookeeper).key;
     |s: ZKCluster| {
         forall |msg: ZKMessage|
-            #[trigger] s.in_flight().contains(msg)
+            s.in_flight().contains(msg)
             && s.resources().contains_key(key)
-            && resource_create_request_msg(sts_key)(msg)
+            && #[trigger] resource_create_request_msg(sts_key)(msg)
             ==> certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, ZookeeperClusterView::unmarshal(s.resources()[key]).get_Ok_0())
     }
 }
@@ -297,7 +301,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = zookeeper.object_ref();
         let sts_key = make_stateful_set_key(zookeeper);
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && resource_create_request_msg(sts_key)(msg)
+        assert forall |msg| s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && #[trigger] resource_create_request_msg(sts_key)(msg)
         implies certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, ZookeeperClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
             match step {

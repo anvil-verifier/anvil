@@ -210,11 +210,9 @@ pub proof fn invariants_is_stable(zookeeper: ZookeeperClusterView)
 // The safety invariants that are required to prove liveness.
 pub open spec fn derived_invariants_since_beginning(zookeeper: ZookeeperClusterView) -> TempPred<ZKCluster> {
     always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))
-    .and(always(lift_state(ZKCluster::every_in_flight_req_is_unique())))
-    .and(always(lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id())))
     .and(always(lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())))
-    .and(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref()))))
-    .and(always(lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref()))))
+    .and(always(lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref()))))
+    .and(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref()))))
     .and(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
@@ -230,7 +228,7 @@ pub open spec fn derived_invariants_since_beginning(zookeeper: ZookeeperClusterV
     .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(res, zookeeper)))))
     .and(always(lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper))))
-    .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())))
+    .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))))
     .and(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))))
     .and(always(lift_state(ZKCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref()))))
     .and(always(lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref()))))
@@ -253,11 +251,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperCl
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper));
     stable_and_always_n!(
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(ZKCluster::every_in_flight_req_is_unique()),
-        lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
-        lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())),
+        lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())),
+        lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())),
         lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
@@ -273,7 +269,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperCl
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
         lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)),
         lift_state(ZKCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),
         lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),
@@ -404,7 +400,7 @@ pub proof fn lemma_always_for_all_sub_resource_step_pending_req_in_flight_or_res
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1))))))),
 {
@@ -426,7 +422,7 @@ pub proof fn lemma_always_for_after_exists_stateful_set_step_pending_req_in_flig
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterExistsStatefulSet))))),
 {
@@ -437,7 +433,7 @@ pub proof fn lemma_always_for_after_exists_zk_node_step_pending_req_in_flight_or
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterExistsZKNode))))),
 {
@@ -448,7 +444,7 @@ pub proof fn lemma_always_for_after_create_zk_parent_node_step_pending_req_in_fl
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKParentNode))))),
 {
@@ -459,7 +455,7 @@ pub proof fn lemma_always_for_after_create_zk_node_step_pending_req_in_flight_or
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode))))),
 {
@@ -470,7 +466,7 @@ pub proof fn lemma_always_for_after_update_zk_node_step_pending_req_in_flight_or
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode))))),
 {
@@ -481,7 +477,7 @@ pub proof fn lemma_always_for_after_update_status_step_pending_req_in_flight_or_
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-        spec.entails(always(lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
     ensures
         spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus))))),
 {
@@ -498,11 +494,9 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
     assert(spec.entails(lift_state(ZKCluster::init())));
     assert(spec.entails(always(lift_action(ZKCluster::next()))));
     ZKCluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
-    ZKCluster::lemma_always_every_in_flight_req_is_unique(spec);
-    ZKCluster::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
     ZKCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
-    ZKCluster::lemma_always_each_resp_matches_at_most_one_pending_req(spec, zookeeper.object_ref());
-    ZKCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, zookeeper.object_ref());
+    ZKCluster::lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, zookeeper.object_ref());
+    ZKCluster::lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, zookeeper.object_ref());
     ZKCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     ZKCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
@@ -537,7 +531,7 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         spec_entails_always_tla_forall(spec, a_to_p_3);
     });
     helper_invariants::lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(spec, zookeeper);
-    helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec);
+    helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, zookeeper.object_ref());
     helper_invariants::lemma_always_stateful_set_has_at_least_one_replica(spec, zookeeper);
     ZKCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, zookeeper.object_ref());
     ZKCluster::lemma_always_key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(spec, zookeeper.object_ref());
@@ -568,11 +562,9 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
     entails_always_and_n!(
         spec,
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(ZKCluster::every_in_flight_req_is_unique()),
-        lift_state(ZKCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
         lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
-        lift_state(ZKCluster::each_resp_matches_at_most_one_pending_req(zookeeper.object_ref())),
-        lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zookeeper.object_ref())),
+        lift_state(ZKCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(zookeeper.object_ref())),
+        lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())),
         lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
@@ -588,7 +580,7 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
         lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)),
         lift_state(ZKCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),
         lift_state(ZKCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(zookeeper.object_ref())),

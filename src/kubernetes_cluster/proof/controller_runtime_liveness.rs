@@ -227,8 +227,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
-        spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
         spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
@@ -343,8 +342,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
-        spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
             state(s) ==>
@@ -357,19 +355,6 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
 {
     let pre = Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state);
     let post = Self::at_expected_reconcile_states(cr.object_ref(), next_state);
-    let stronger_next = |s, s_prime: Self| {
-        &&& Self::next()(s, s_prime)
-        &&& Self::crash_disabled()(s)
-        &&& Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())(s)
-        &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())(s)
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(Self::next()),
-        lift_state(Self::crash_disabled()),
-        lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())),
-        lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref()))
-    );
     let known_resp_in_flight = |resp| lift_state(
         |s: Self| {
             Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
@@ -379,19 +364,31 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             && Message::resp_msg_matches_req_msg(resp, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         }
     );
-    assert forall |msg: MsgType<E>| spec.entails(#[trigger] known_resp_in_flight(msg)
-        .leads_to(lift_state(post))) by {
-            let resp_in_flight_state = |s: Self| {
-                Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
-                && Self::has_pending_req_msg(s, cr.object_ref())
-                && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
-                && s.in_flight().contains(msg)
-                && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
-            };
-            let input = (Some(msg), Some(cr.object_ref()));
-            Self::lemma_pre_leads_to_post_by_controller(
-                spec, input, stronger_next, Self::continue_reconcile(), resp_in_flight_state, post
-            );
+    assert forall |msg: MsgType<E>| spec.entails(#[trigger] known_resp_in_flight(msg).leads_to(lift_state(post))) by {
+        let stronger_next = |s, s_prime: Self| {
+            &&& Self::next()(s, s_prime)
+            &&& Self::crash_disabled()(s)
+            &&& Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())(s)
+            &&& Self::every_in_flight_msg_has_unique_id()(s)
+        };
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(Self::next()),
+            lift_state(Self::crash_disabled()),
+            lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())),
+            lift_state(Self::every_in_flight_msg_has_unique_id())
+        );
+        let resp_in_flight_state = |s: Self| {
+            Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
+            && Self::has_pending_req_msg(s, cr.object_ref())
+            && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
+            && s.in_flight().contains(msg)
+            && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
+        };
+        let input = (Some(msg), Some(cr.object_ref()));
+        Self::lemma_pre_leads_to_post_by_controller(
+            spec, input, stronger_next, Self::continue_reconcile(), resp_in_flight_state, post
+        );
     };
     leads_to_exists_intro::<Self, MsgType<E>>(spec, known_resp_in_flight, lift_state(post));
     assert_by(
@@ -423,8 +420,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
-        spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s| state(s) ==> #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
     ensures
@@ -443,6 +439,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(
     spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool
 )
@@ -451,12 +448,9 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
-        spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
     ensures
         spec.entails(

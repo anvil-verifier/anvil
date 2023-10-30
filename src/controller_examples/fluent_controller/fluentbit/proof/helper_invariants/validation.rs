@@ -106,14 +106,16 @@ pub proof fn lemma_always_daemon_set_in_etcd_satisfies_unchangeable(spec: TempPr
                         .transition_validation(FluentBitView::unmarshal(s.resources()[key]).get_Ok_0()));
                 }
                 assert(certain_fields_of_daemon_set_stay_unchanged(s_prime.resources()[ds_key], FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
-            } else if s.resources().contains_key(ds_key) && s.resources()[ds_key] != s_prime.resources()[ds_key] {
-                assert(DaemonSetView::unmarshal(s_prime.resources()[key]).get_Ok_0()
-                    .transition_validation(DaemonSetView::unmarshal(s.resources()[key]).get_Ok_0()));
-                assert(s_prime.resources()[ds_key].metadata.owner_references == s.resources()[ds_key].metadata.owner_references);
-                assert(certain_fields_of_daemon_set_stay_unchanged(s_prime.resources()[ds_key], FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
             } else {
-                assert(daemon_set_in_create_request_msg_satisfies_unchangeable(fb)(s));
-                assert(certain_fields_of_daemon_set_stay_unchanged(s_prime.resources()[ds_key], FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                let step = choose |step| FBCluster::next_step(s, s_prime, step);
+                match step {
+                    Step::KubernetesAPIStep(input) => {
+                        let req = input.get_Some_0();
+                        if resource_create_request_msg(ds_key)(req) {} else {}
+                        if resource_update_request_msg(ds_key)(req) {} else {}
+                    },
+                    _ => {}
+                }
             }
         }
     }
@@ -125,8 +127,8 @@ pub open spec fn daemon_set_update_request_msg_does_not_change_owner_reference(f
     let ds_key = DaemonSetBuilder::get_request(fb).key;
     |s: FBCluster| {
         forall |msg: FBMessage|
-            #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(ds_key)(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(DaemonSetBuilder::get_request(fb).key)(msg)
             && s.resources().contains_key(ds_key)
             && s.resources()[ds_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
             ==> s.resources()[ds_key].metadata.owner_references == msg.content.get_update_request().obj.metadata.owner_references
@@ -168,7 +170,7 @@ pub proof fn lemma_always_daemon_set_update_request_msg_does_not_change_owner_re
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::DaemonSet, fb))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(ds_key)(msg)
+        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(ds_key)(msg)
         && s_prime.resources().contains_key(ds_key)
         && s_prime.resources()[ds_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
         implies s_prime.resources()[ds_key].metadata.owner_references == msg.content.get_update_request().obj.metadata.owner_references by {
@@ -194,8 +196,8 @@ pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
         let resource_key = get_request(sub_resource, fb).key;
         let etcd_rv = s.resources()[resource_key].metadata.resource_version.get_Some_0();
         forall |msg: FBMessage|
-            #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(resource_key)(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(get_request(sub_resource, fb).key)(msg)
             ==> msg.content.get_update_request().obj.metadata.resource_version.is_Some()
                 && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     }
@@ -235,7 +237,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
         lift_state(FBCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(ds_key)(msg) implies
+        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(ds_key)(msg) implies
         msg.content.get_update_request().obj.metadata.resource_version.is_Some()
         && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
             let step = choose |step| FBCluster::next_step(s, s_prime, step);
@@ -243,6 +245,8 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else if resource_update_request_msg(ds_key)(msg) {
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fb, s, s_prime, msg, step);
+                let resp = step.get_ControllerStep_0().0.get_Some_0();
+                assert(FBCluster::is_ok_get_response_msg()(resp));
             }
         }
     }
@@ -251,12 +255,11 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
 
 pub open spec fn daemon_set_in_create_request_msg_satisfies_unchangeable(fb: FluentBitView) -> StatePred<FBCluster> {
     let key = fb.object_ref();
-    let ds_key = DaemonSetBuilder::get_request(fb).key;
     |s: FBCluster| {
         forall |msg: FBMessage|
-            #[trigger] s.in_flight().contains(msg)
+            s.in_flight().contains(msg)
             && s.resources().contains_key(key)
-            && resource_create_request_msg(ds_key)(msg)
+            && #[trigger] resource_create_request_msg(DaemonSetBuilder::get_request(fb).key)(msg)
             ==> certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s.resources()[key]).get_Ok_0())
     }
 }
@@ -295,7 +298,7 @@ proof fn lemma_always_daemon_set_in_create_request_msg_satisfies_unchangeable(sp
     assert forall |s: FBCluster, s_prime: FBCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = fb.object_ref();
         let ds_key = make_daemon_set_key(fb);
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && resource_create_request_msg(ds_key)(msg)
+        assert forall |msg| s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && #[trigger] resource_create_request_msg(ds_key)(msg)
         implies certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
             let step = choose |step| FBCluster::next_step(s, s_prime, step);
             match step {

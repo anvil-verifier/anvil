@@ -28,11 +28,8 @@ pub open spec fn every_update_msg_sets_owner_references_as(
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_update_request()
-            && msg.content.get_update_request().key() == key
-            && msg.content.get_update_request().obj.kind == key.kind
+            s.in_flight().contains(msg)
+            && #[trigger] resource_update_request_msg(key)(msg)
             ==> requirements(msg.content.get_update_request().obj.metadata.owner_references)
     }
 }
@@ -42,12 +39,8 @@ pub open spec fn every_create_msg_sets_owner_references_as(
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_create_request()
-            && msg.content.get_create_request().namespace == key.namespace
-            && msg.content.get_create_request().obj.metadata.name == Some(key.name)
-            && msg.content.get_create_request().obj.kind == key.kind
+            s.in_flight().contains(msg)
+            && #[trigger] resource_create_request_msg(key)(msg)
             ==> requirements(msg.content.get_create_request().obj.metadata.owner_references)
     }
 }
@@ -206,6 +199,18 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     );
 
     or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
+
+    assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        let step = choose |step| Self::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                if resource_create_request_msg(key)(req) {} else {}
+                if resource_update_request_msg(key)(req) {} else {}
+            },
+            _ => {}
+        }
+    }
 
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }

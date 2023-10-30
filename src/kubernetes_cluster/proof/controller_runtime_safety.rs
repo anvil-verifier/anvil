@@ -79,226 +79,6 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: Tem
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }
 
-pub open spec fn resp_matches_at_most_one_pending_req(
-    resp_msg: MsgType<E>, cr_key: ObjectRef
-) -> StatePred<Self> {
-    |s: Self| {
-        s.ongoing_reconciles().contains_key(cr_key)
-        && Self::has_pending_req_msg(s, cr_key)
-        && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-        ==> (
-            forall |other_key: ObjectRef|
-                #[trigger] s.ongoing_reconciles().contains_key(other_key)
-                && Self::has_pending_req_msg(s, other_key)
-                && other_key != cr_key
-                ==> !Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0())
-            )
-    }
-}
-
-pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches(
-    resp_msg: MsgType<E>, cr_key: ObjectRef
-) -> StatePred<Self> {
-    |s: Self| {
-        s.ongoing_reconciles().contains_key(cr_key)
-        && s.in_flight().contains(resp_msg)
-        && Self::has_pending_req_msg(s, cr_key)
-        && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-        ==> (
-            forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.in_flight().contains(other_resp)
-            ==> !Message::resp_msg_matches_req_msg(other_resp, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-        )
-    }
-}
-
-pub proof fn lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches(
-    spec: TempPred<Self>, resp_msg: MsgType<E>, cr_key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)))
-        ),
-{
-    implies_preserved_by_always_temp::<Self>(
-        lift_state(Self::every_in_flight_msg_has_unique_id()), lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))
-    );
-    Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
-    valid_implies_trans::<Self>(
-        spec,
-        always(lift_state(Self::every_in_flight_msg_has_unique_id())),
-        always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)))
-    );
-}
-
-pub proof fn lemma_forall_always_resp_if_matches_pending_req_then_no_other_resp_matches(
-    spec: TempPred<Self>, cr_key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            tla_forall(|resp_msg: MsgType<E>| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))))
-        ),
-{
-    let m_to_p = |msg| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(msg, cr_key)));
-    assert forall |msg| #[trigger] spec.entails(m_to_p(msg)) by {
-        Self::lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches(spec, msg, cr_key);
-    }
-    spec_entails_tla_forall(spec, m_to_p);
-}
-
-pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches(
-    cr_key: ObjectRef
-) -> StatePred<Self>
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
-{
-    |s: Self| {
-        forall |resp_msg: MsgType<E>|
-            s.ongoing_reconciles().contains_key(cr_key)
-            && #[trigger] s.in_flight().contains(resp_msg)
-            && Self::has_pending_req_msg(s, cr_key)
-            && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-            ==> (
-                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.in_flight().contains(other_resp)
-                ==> !Message::resp_msg_matches_req_msg(other_resp, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-            )
-    }
-}
-
-pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(
-    spec: TempPred<Self>, cr_key: ObjectRef
-)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr_key)))
-        ),
-{
-    let forall_a_to_p = lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr_key));
-    let a_to_p = |resp_msg: MsgType<E>| lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key));
-    let a_to_always_p = |resp_msg: MsgType<E>| always(a_to_p(resp_msg));
-    assert forall |resp_msg: MsgType<E>| spec.entails(#[trigger] a_to_always_p(resp_msg))
-    by {
-        Self::lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches(spec, resp_msg, cr_key);
-    }
-    spec_entails_tla_forall(spec, a_to_always_p);
-    tla_forall_always_equality(a_to_p);
-
-    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies forall_a_to_p.satisfied_by(ex) by {
-        assert forall |resp_msg: MsgType<E>|
-            ex.head().ongoing_reconciles().contains_key(cr_key)
-            && #[trigger] ex.head().in_flight().contains(resp_msg)
-            && Self::has_pending_req_msg(ex.head(), cr_key)
-            && Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-            ==> (
-                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] ex.head().in_flight().contains(other_resp)
-                ==> !Message::resp_msg_matches_req_msg(other_resp, ex.head().ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-            )
-        by {
-            assert(a_to_p(resp_msg).satisfied_by(ex));
-        }
-    }
-
-    temp_pred_equality(forall_a_to_p, tla_forall(a_to_p));
-
-}
-
-pub proof fn lemma_always_resp_matches_at_most_one_pending_req(
-    spec: TempPred<Self>, resp_msg: MsgType<E>, cr_key: ObjectRef
-)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::resp_matches_at_most_one_pending_req(resp_msg, cr_key)))),
-{
-    let invariant = Self::resp_matches_at_most_one_pending_req(resp_msg, cr_key);
-    let stronger_next = |s, s_prime: Self| {
-        &&& Self::next()(s, s_prime)
-        &&& Self::pending_req_has_lower_req_id_than_allocator()(s)
-    };
-
-    Self::lemma_always_pending_req_has_lower_req_id_than_allocator(spec);
-
-    strengthen_next::<Self>(
-        spec, Self::next(), Self::pending_req_has_lower_req_id_than_allocator(), stronger_next
-    );
-    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
-}
-
-pub proof fn lemma_forall_resp_always_matches_at_most_one_pending_req(
-    spec: TempPred<Self>, cr_key: ObjectRef
-)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(
-            tla_forall(|msg| always(lift_state(Self::resp_matches_at_most_one_pending_req(msg, cr_key))))
-        ),
-{
-    let m_to_p = |msg| always(lift_state(Self::resp_matches_at_most_one_pending_req(msg, cr_key)));
-    assert forall |msg| #[trigger] spec.entails(m_to_p(msg)) by {
-        Self::lemma_always_resp_matches_at_most_one_pending_req(spec, msg, cr_key);
-    };
-    spec_entails_tla_forall(spec, m_to_p);
-}
-
-pub open spec fn each_resp_matches_at_most_one_pending_req(
-    cr_key: ObjectRef
-) -> StatePred<Self>
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
-{
-    |s: Self| {
-        forall |resp_msg: MsgType<E>|
-            s.ongoing_reconciles().contains_key(cr_key)
-            && Self::has_pending_req_msg(s, cr_key)
-            && #[trigger] Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
-            ==> (
-                forall |other_key: ObjectRef|
-                    #[trigger] s.ongoing_reconciles().contains_key(other_key)
-                    && Self::has_pending_req_msg(s, other_key)
-                    && other_key != cr_key
-                    ==> !Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0())
-                )
-    }
-}
-
-pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req(
-    spec: TempPred<Self>, cr_key: ObjectRef
-)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-        spec.entails(lift_state(Self::init())),
-        spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr_key)))),
-{
-    let invariant = Self::each_resp_matches_at_most_one_pending_req(cr_key);
-    let stronger_next = |s, s_prime: Self| {
-        &&& Self::next()(s, s_prime)
-        &&& Self::pending_req_has_lower_req_id_than_allocator()(s)
-    };
-
-    Self::lemma_always_pending_req_has_lower_req_id_than_allocator(spec);
-
-    strengthen_next::<Self>(
-        spec, Self::next(), Self::pending_req_has_lower_req_id_than_allocator(), stronger_next
-    );
-    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
-}
-
 // This lemma ensures that if a controller is at some reconcile state for a cr, there must be the pending request of the
 // reconcile state in flight or a corresponding response in flight.
 // Obviously, this requires that when controller enters the 'state' in reconcile_core, there must be a request generated;
@@ -318,7 +98,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_Some(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(key)))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(key)))),
     ensures
         spec.entails(
             always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))
@@ -327,7 +107,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     let invariant = Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
-        &&& Self::each_resp_matches_at_most_one_pending_req(key)(s)
+        &&& Self::pending_req_of_key_is_unique_with_unique_id(key)(s)
     };
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         if Self::at_expected_reconcile_states(key, state)(s_prime) {
@@ -400,7 +180,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             }
         }
     }
-    strengthen_next::<Self>(spec, Self::next(), Self::each_resp_matches_at_most_one_pending_req(key), stronger_next);
+    strengthen_next::<Self>(spec, Self::next(), Self::pending_req_of_key_is_unique_with_unique_id(key), stronger_next);
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 

@@ -28,12 +28,10 @@ pub open spec fn fb_is_well_formed(fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| fb.well_formed()
 }
 
-pub open spec fn the_object_in_reconcile_satisfies_state_validation() -> StatePred<FBCluster>
+pub open spec fn the_object_in_reconcile_satisfies_state_validation(key: ObjectRef) -> StatePred<FBCluster>
 {
     |s: FBCluster| {
-        forall |key: ObjectRef|
-        #[trigger] s.ongoing_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
+        s.ongoing_reconciles().contains_key(key)
         ==> s.ongoing_reconciles()[key].triggering_cr.state_validation()
     }
 }
@@ -139,10 +137,9 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
 pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource: SubResource, fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| {
         let key = fb.object_ref();
-        let resource_key = get_request(sub_resource, fb).key;
         forall |msg: FBMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_update_request_msg(resource_key)(msg)
+            &&& s.network_state.in_flight.contains(msg)
+            &&& #[trigger] resource_update_request_msg(get_request(sub_resource, fb).key)(msg)
         } ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& FBCluster::pending_req_msg_is(s, key, msg)
@@ -154,10 +151,9 @@ pub open spec fn object_in_every_resource_update_request_only_has_owner_referenc
 pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| {
         let key = fb.object_ref();
-        let resource_key = get_request(sub_resource, fb).key;
         forall |msg: FBMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_create_request_msg(resource_key)(msg)
+            &&& s.network_state.in_flight.contains(msg)
+            &&& #[trigger] resource_create_request_msg(get_request(sub_resource, fb).key)(msg)
         } ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& FBCluster::pending_req_msg_is(s, key, msg)
@@ -172,8 +168,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         let key = fb.object_ref();
         let resource_key = get_request(sub_resource, fb).key;
         forall |msg: FBMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_update_request_msg(resource_key)(msg)
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_update_request_msg(get_request(sub_resource, fb).key)(msg)
         } ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& FBCluster::pending_req_msg_is(s, key, msg)
@@ -201,10 +197,8 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
 pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| {
         forall |msg: FBMessage| !{
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_KubernetesAPI()
-            &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == get_request(sub_resource, fb).key
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_delete_request_msg(get_request(sub_resource, fb).key)(msg)
         }
     }
 }
@@ -214,9 +208,8 @@ pub open spec fn no_update_status_request_msg_in_flight_of_except_daemon_set(sub
         sub_resource != SubResource::DaemonSet
         ==> {
             forall |msg: FBMessage|
-                #[trigger] s.in_flight().contains(msg)
-                && msg.content.is_update_status_request()
-                ==> msg.content.get_update_status_request().key() != get_request(sub_resource, fb).key
+                s.in_flight().contains(msg)
+                ==> !(#[trigger] resource_update_status_request_msg(get_request(sub_resource, fb).key)(msg))
         }
     }
 }
@@ -227,8 +220,7 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_daemon_se
             #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && !msg.src.is_BuiltinController()
-            && msg.content.is_update_status_request()
-            ==> msg.content.get_update_status_request().key() != get_request(SubResource::DaemonSet, fb).key
+            ==> !resource_update_status_request_msg(get_request(SubResource::DaemonSet, fb).key)(msg)
     }
 }
 
@@ -246,10 +238,8 @@ pub open spec fn daemon_set_not_exists_or_matches_or_no_more_status_update(fb: F
         ||| sub_resource_state_matches(SubResource::DaemonSet, fb)(s)
         ||| {
             &&& forall |msg: FBMessage|
-                #[trigger] s.in_flight().contains(msg)
-                && msg.dst.is_KubernetesAPI()
-                && msg.content.is_update_status_request()
-                ==> msg.content.get_update_status_request().key() != get_request(SubResource::DaemonSet, fb).key
+                    s.in_flight().contains(msg)
+                    ==> !(#[trigger] resource_update_status_request_msg(get_request(SubResource::DaemonSet, fb).key)(msg))
             &&& s.stable_resources().contains(sts_key)
         }
     }

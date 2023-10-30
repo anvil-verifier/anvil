@@ -34,7 +34,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify fluent controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --rlimit 50 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --time
   rabbitmq-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -57,7 +57,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify rabbitmq controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 50 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 20 --time
   zookeeper-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -80,7 +80,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify zookeeper controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --rlimit 50 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
@@ -223,3 +223,4 @@ jobs:
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests for ephemeral storage
         run: cd e2e && cargo run -- zookeeper-ephemeral
+        

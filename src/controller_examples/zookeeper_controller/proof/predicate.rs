@@ -331,29 +331,6 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_ste
     }
 }
 
-pub open spec fn resource_get_request_msg(key: ObjectRef) -> FnSpec(ZKMessage) -> bool {
-    |msg: ZKMessage|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_get_request()
-        && msg.content.get_get_request().key == key
-}
-
-pub open spec fn resource_create_request_msg(key: ObjectRef) -> FnSpec(ZKMessage) -> bool {
-    |msg: ZKMessage|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_create_request()
-        && msg.content.get_create_request().namespace == key.namespace
-        && msg.content.get_create_request().obj.metadata.name == Some(key.name)
-        && msg.content.get_create_request().obj.kind == key.kind
-}
-
-pub open spec fn resource_update_request_msg(key: ObjectRef) -> FnSpec(ZKMessage) -> bool {
-    |msg: ZKMessage|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_update_request()
-        && msg.content.get_update_request().key() == key
-}
-
 pub open spec fn zk_set_data_request_msg(zk: ZookeeperClusterView) -> FnSpec(ZKMessage) -> bool {
     |msg: ZKMessage|
         msg.dst.is_ExternalAPI()

@@ -488,4 +488,41 @@ pub open spec fn received_msg_destined_for<I, O>(recv: Option<Message<I, O>>, ho
     }
 }
 
+pub open spec fn resource_get_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_get_request()
+        && msg.content.get_get_request().key == key
+}
+
+pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_create_request()
+        && msg.content.get_create_request().namespace == key.namespace
+        && msg.content.get_create_request().obj.metadata.name == Some(key.name)
+        && msg.content.get_create_request().obj.kind == key.kind
+}
+
+pub open spec fn resource_update_status_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_update_status_request()
+        && msg.content.get_update_status_request().key() == key
+}
+
+pub open spec fn resource_update_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_update_request()
+        && msg.content.get_update_request().key() == key
+}
+
+pub open spec fn resource_delete_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_delete_request()
+        && msg.content.get_delete_request().key == key
+}
+
 }

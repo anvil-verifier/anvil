@@ -38,13 +38,11 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)))),
@@ -92,10 +90,9 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
     ensures
         spec.entails(
@@ -201,17 +198,16 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                     &&& FBCluster::next()(s, s_prime)
                     &&& FBCluster::crash_disabled()(s)
                     &&& FBCluster::busy_disabled()(s)
-                    &&& FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())(s)
-                    &&& FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())(s)
+                    &&& FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())(s)
+                    &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
                 };
-
                 combine_spec_entails_always_n!(
                     spec, lift_action(stronger_next),
                     lift_action(FBCluster::next()),
                     lift_state(FBCluster::crash_disabled()),
                     lift_state(FBCluster::busy_disabled()),
-                    lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())),
-                    lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref()))
+                    lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())),
+                    lift_state(FBCluster::every_in_flight_msg_has_unique_id())
                 );
 
                 assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
@@ -264,12 +260,10 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)))),
@@ -367,8 +361,8 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                     &&& FBCluster::next()(s, s_prime)
                     &&& FBCluster::crash_disabled()(s)
                     &&& FBCluster::busy_disabled()(s)
-                    &&& FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())(s)
-                    &&& FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())(s)
+                    &&& FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())(s)
+                    &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
                 };
 
                 combine_spec_entails_always_n!(
@@ -376,8 +370,8 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                     lift_action(FBCluster::next()),
                     lift_state(FBCluster::crash_disabled()),
                     lift_state(FBCluster::busy_disabled()),
-                    lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())),
-                    lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref()))
+                    lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())),
+                    lift_state(FBCluster::every_in_flight_msg_has_unique_id())
                 );
 
                 assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || next_state(s_prime) by {
@@ -421,6 +415,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     }
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView, req_msg: FBMessage
 )
@@ -475,6 +470,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
+                assert(!resource_create_request_msg(get_request(sub_resource, fb).key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -505,6 +501,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     );
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView, resp_msg: FBMessage
 )
@@ -512,11 +509,9 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
-        spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
     ensures
         spec.entails(
@@ -541,29 +536,39 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
         &&& pending_req_in_flight_at_after_create_resource_step(sub_resource, fb)(s)
     };
-    let input = (Some(resp_msg), Some(fb.object_ref()));
+    let key = fb.object_ref();
+    let input = (Some(resp_msg), Some(key));
+    let consistent_key = |s: FBCluster| {
+        s.ongoing_reconciles().contains_key(key) ==> s.ongoing_reconciles()[key].triggering_cr.object_ref() == key
+    };
     let stronger_next = |s, s_prime: FBCluster| {
         &&& FBCluster::next()(s, s_prime)
         &&& FBCluster::crash_disabled()(s)
+        &&& FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())(s)
+        &&& consistent_key(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())(s)
-        &&& FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)(s)
     };
-
+    always_weaken_temp(spec, lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()), lift_state(consistent_key));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(FBCluster::next()),
         lift_state(FBCluster::crash_disabled()),
+        lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())),
+        lift_state(consistent_key),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())),
-        lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb))
     );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                assert(!resource_create_request_msg(get_request(sub_resource, fb).key)(input.get_Some_0()));
+            },
+            _ => {}
+        }
+    }
 
     FBCluster::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next, FBCluster::continue_reconcile(), pre, post
@@ -580,7 +585,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
     ensures
         spec.entails(
@@ -606,7 +611,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         &&& FBCluster::busy_disabled()(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)(s)
     };
     combine_spec_entails_always_n!(
@@ -616,7 +621,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         lift_state(FBCluster::busy_disabled()),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb))
     );
 
@@ -634,6 +639,16 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
             SubResource::DaemonSet => DaemonSetView::marshal_preserves_integrity(),
+        }
+    }
+
+    assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                if resource_create_request_msg(get_request(sub_resource, fb).key)(input.get_Some_0()) {} else {}
+            },
+            _ => {},
         }
     }
 
@@ -694,6 +709,10 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_update_request_msg(get_request(sub_resource, fb).key)(req));
+                assert(!resource_delete_request_msg(get_request(sub_resource, fb).key)(req));
+                assert(!resource_update_status_request_msg(get_request(sub_resource, fb).key)(req));
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -736,8 +755,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))),
+        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)))),
@@ -762,8 +780,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         &&& FBCluster::busy_disabled()(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& desired_state_is(fb)(s)
-        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation()(s)
+        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)(s)
         &&& helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)(s)
@@ -778,8 +795,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         lift_state(FBCluster::busy_disabled()),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(desired_state_is(fb)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)),
         lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)),
@@ -801,7 +817,19 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
-            SubResource::DaemonSet => DaemonSetView::marshal_preserves_integrity(),
+            _ => {}
+        }
+    }
+
+    assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                assert(!resource_delete_request_msg(resource_key)(input.get_Some_0()));
+                assert(!resource_update_status_request_msg(resource_key)(input.get_Some_0()));
+                if resource_update_request_msg(resource_key)(input.get_Some_0()) {} else {}
+            },
+            _ => {},
         }
     }
 
@@ -813,6 +841,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView, resp_msg: FBMessage
 )
@@ -821,12 +850,9 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
-        spec.entails(always(lift_state(FBCluster::busy_disabled()))),
-        spec.entails(always(lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())))),
-        spec.entails(always(lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(desired_state_is(fb)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)))),
@@ -841,38 +867,50 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     let pre = resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, fb, resp_msg);
     let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, fb);
     let input = (Some(resp_msg), Some(fb.object_ref()));
+    let resource_key = get_request(sub_resource, fb).key;
+    let resource_well_formed = |s: FBCluster| {
+        s.resources().contains_key(resource_key) ==> FBCluster::etcd_object_is_well_formed(resource_key)(s)
+    };
     let stronger_next = |s, s_prime: FBCluster| {
         &&& FBCluster::next()(s, s_prime)
         &&& FBCluster::crash_disabled()(s)
-        &&& FBCluster::busy_disabled()(s)
-        &&& FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())(s)
-        &&& FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())(s)
-        &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())(s)
+        &&& resource_well_formed(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& desired_state_is(fb)(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)(s)
         &&& helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)(s)
         &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s)
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)(s)
     };
+    always_weaken_temp(spec, lift_state(FBCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(FBCluster::next()),
         lift_state(FBCluster::crash_disabled()),
-        lift_state(FBCluster::busy_disabled()),
-        lift_state(FBCluster::each_resp_matches_at_most_one_pending_req(fb.object_ref())),
-        lift_state(FBCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(fb.object_ref())),
-        lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
+        lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())),
+        lift_state(resource_well_formed),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)),
         lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)),
         lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb)),
-        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)),
-        lift_state(desired_state_is(fb))
+        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb))
     );
+
+    assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_update_status_request_msg(get_request(sub_resource, fb).key)(req));
+                assert(!resource_delete_request_msg(get_request(sub_resource, fb).key)(req));
+                if resource_update_request_msg(get_request(sub_resource, fb).key)(req) {} else {}
+            },
+            _ => {},
+        }
+    }
 
     FBCluster::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
@@ -916,6 +954,16 @@ pub proof fn lemma_resource_object_is_stable(
     );
 
     assert forall |s, s_prime: FBCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        let step = choose |step| FBCluster::next_step(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                assert(!resource_delete_request_msg(get_request(sub_resource, fb).key)(req));
+                assert(!resource_update_status_request_msg(get_request(sub_resource, fb).key)(req));
+                if resource_update_request_msg(get_request(sub_resource, fb).key)(req) {} else {}
+            },
+            _ => {},
+        }
         match sub_resource {
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
