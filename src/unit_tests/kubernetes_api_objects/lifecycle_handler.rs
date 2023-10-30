@@ -36,4 +36,23 @@ pub fn test_clone(){
     let handler_clone = handler.clone();
     assert_eq!(handler.into_kube(), handler_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube(){
+    let handler = LifecycleHandler::from_kube(deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
+        exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+            command: Some(vec!["command".to_string()]),
+        }),
+        ..Default::default()
+    });
+
+    assert_eq!(handler.into_kube(), deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
+        exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+            command: Some(vec!["command".to_string()]),
+        }),
+        ..Default::default()
+    });
+}
+
 }

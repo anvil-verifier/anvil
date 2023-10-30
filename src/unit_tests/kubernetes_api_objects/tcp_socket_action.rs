@@ -43,4 +43,19 @@ pub fn test_clone() {
     assert_eq!(tcp_socket_action.into_kube(), tcp_socket_action_clone.into_kube());
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let tcp_socket_action = TCPSocketAction::from_kube(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
+        host: Some("host".to_string()),
+        port: deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
+    });
+
+    assert_eq!(tcp_socket_action.into_kube(),
+               deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
+                   host: Some("host".to_string()),
+                   port: deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
+               });
+    }
+
 }

@@ -54,4 +54,34 @@ pub fn test_overwrite_value_from(){
     env_var.overwrite_value_from(Some(env_var_source.clone()));
     assert_eq!(env_var_source.into_kube(), env_var.into_kube().value_from.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube(){
+    let env_var = EnvVar::from_kube(deps_hack::k8s_openapi::api::core::v1::EnvVar {
+        name: "name".to_string(),
+        value: Some("value".to_string()),
+        value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                field_path: "field_path".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+
+    assert_eq!(env_var.into_kube(), deps_hack::k8s_openapi::api::core::v1::EnvVar {
+        name: "name".to_string(),
+        value: Some("value".to_string()),
+        value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                field_path: "field_path".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+}
 }

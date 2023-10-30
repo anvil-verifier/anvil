@@ -25,38 +25,6 @@ pub fn test_set_name() {
     assert_eq!("name".to_string(), container.into_kube().name);
 }
 
-// Tests for volume monts
-#[test]
-#[verifier(external)]
-pub fn test_set_mount_path() {
-    let mut volume_mount = VolumeMount::default();
-    volume_mount.set_mount_path(new_strlit("mount_path").to_string());
-    assert_eq!("mount_path".to_string(), volume_mount.into_kube().mount_path);
-}
-
-#[test]
-#[verifier(external)]
-pub fn test_set_name_volume_mount() {
-    let mut volume_mount = VolumeMount::default();
-    volume_mount.set_name(new_strlit("name").to_string());
-    assert_eq!("name".to_string(), volume_mount.into_kube().name);
-}
-
-#[test]
-#[verifier(external)]
-pub fn test_set_read_only() {
-    let mut volume_mount = VolumeMount::default();
-    volume_mount.set_read_only(true);
-    assert_eq!(true, volume_mount.into_kube().read_only.unwrap());
-}
-
-#[test]
-#[verifier(external)]
-pub fn test_set_sub_path() {
-    let mut volume_mount = VolumeMount::default();
-    volume_mount.set_sub_path(new_strlit("sub_path").to_string());
-    assert_eq!("sub_path".to_string(), volume_mount.into_kube().sub_path.unwrap());
-}
 
 #[test]
 #[verifier(external)]
@@ -74,23 +42,6 @@ pub fn test_set_volume_mounts() {
     container.set_volume_mounts(volume_mounts());
     assert_eq!(volume_mounts().into_iter().map(|v: VolumeMount| v.into_kube()).collect::<Vec<_>>(),
                container.into_kube().volume_mounts.unwrap());
-}
-
-// Tests for ports(ContainerPort)
-#[test]
-#[verifier(external)]
-pub fn test_set_container_port() {
-    let mut container_port = ContainerPort::default();
-    container_port.set_container_port(8080);
-    assert_eq!(8080, container_port.into_kube().container_port);
-}
-
-#[test]
-#[verifier(external)]
-pub fn test_set_name_container_port() {
-    let mut container_port = ContainerPort::default();
-    container_port.set_name(new_strlit("name").to_string());
-    assert_eq!("name".to_string(), container_port.into_kube().name.unwrap());
 }
 
 #[test]
@@ -128,7 +79,6 @@ pub fn test_set_lifecycle() {
     assert_eq!(lifecycle.into_kube(), container.into_kube().lifecycle.unwrap());
 }
 
-// Tests for resources
 #[test]
 #[verifier(external)]
 pub fn test_set_resources() {
@@ -141,6 +91,22 @@ pub fn test_set_resources() {
 
     container.set_resources(resources.clone());
     assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_overwrite_resources(){
+    let mut container = Container::default();
+    let mut resources = ResourceRequirements::default();
+    let mut requests = StringMap::new();
+    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
+    resources.set_requests(requests);
+    container. overwrite_resources(Some(resources.clone()));
+    assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
+    let mut container_2 = Container::default();
+    let resources_2 = None;
+    container_2.overwrite_resources(resources_2);
+    assert_eq!(None, container_2.into_kube().resources);
 }
 
 #[test]
@@ -171,7 +137,6 @@ pub fn test_set_readiness_probe() {
     assert_eq!(probe.into_kube(), container.into_kube().readiness_probe.unwrap());
 }
 
-// Tests for command and image pull policy
 #[test]
 #[verifier(external)]
 pub fn test_set_command() {
@@ -188,7 +153,6 @@ pub fn test_set_image_pull_policy() {
     assert_eq!("image_pull_policy".to_string(), container.into_kube().image_pull_policy.unwrap());
 }
 
-// Test for Envs
 #[test]
 #[verifier(external)]
 pub fn test_set_env() {
@@ -216,17 +180,48 @@ pub fn test_clone(){
 
 #[test]
 #[verifier(external)]
-pub fn test_overwrite_resources(){
-    let mut container = Container::default();
-    let mut resources = ResourceRequirements::default();
-    let mut requests = StringMap::new();
-    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
-    resources.set_requests(requests);
-    container. overwrite_resources(Some(resources.clone()));
-    assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
-    let mut container_2 = Container::default();
-    let resources_2 = None;
-    container_2.overwrite_resources(resources_2);
-    assert_eq!(None, container_2.into_kube().resources);
+pub fn test_kube() {
+    let container = Container::from_kube(deps_hack::k8s_openapi::api::core::v1::Container {
+        name: "name".to_string(),
+        image: Some("image".to_string()),
+        ..Default::default()
+    });
+
+    assert_eq!(container.into_kube(),
+    deps_hack::k8s_openapi::api::core::v1::Container {
+        name: "name".to_string(),
+        image: Some("image".to_string()),
+        ..Default::default()
+    });
+
+    let container = Container::from_kube(deps_hack::k8s_openapi::api::core::v1::Container {
+        name: "name_2".to_string(),
+        image: Some("image_2".to_string()),
+        command: Some(vec!["command".to_string()]),
+        liveness_probe: Some(deps_hack::k8s_openapi::api::core::v1::Probe {
+            tcp_socket: Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
+                host: Some("liveness".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+
+    assert_eq!(container.into_kube(),
+    deps_hack::k8s_openapi::api::core::v1::Container {
+        name: "name_2".to_string(),
+        image: Some("image_2".to_string()),
+        command: Some(vec!["command".to_string()]),
+        liveness_probe: Some(deps_hack::k8s_openapi::api::core::v1::Probe {
+            tcp_socket: Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
+                host: Some("liveness".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+
 }
 }

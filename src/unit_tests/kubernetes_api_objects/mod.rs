@@ -6,6 +6,7 @@ pub mod config_map;
 pub mod configmap_projection;
 pub mod configmap_volume_source;
 pub mod container;
+pub mod container_port;
 pub mod daemon_set;
 pub mod daemon_set_spec;
 pub mod downwardapi_volume_file;

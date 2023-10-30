@@ -39,4 +39,19 @@ pub fn test_clone() {
     assert_eq!(exec_action.into_kube(), exec_action_clone.into_kube());
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let exec_action = ExecAction::from_kube(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+        command: Some(vec!["command".to_string()]),
+    });
+
+    assert_eq!(
+        exec_action.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ExecAction {
+            command: Some(vec!["command".to_string()]),
+        }
+    );
+}
+
 }
