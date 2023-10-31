@@ -152,7 +152,7 @@ pub fn test_kube() {
             ..Default::default()
         };
 
-    let mut role_binding = RoleBinding::default();
+    let mut role_binding = RoleBinding::from_kube(kube_role_binding.clone());
 
     assert_eq!(
         role_binding.into_kube(),
