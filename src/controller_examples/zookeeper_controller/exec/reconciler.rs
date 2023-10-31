@@ -26,21 +26,21 @@ pub struct ZookeeperReconciler {}
 
 #[verifier(external)]
 impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, ZKAPIInput, ZKAPIOutput, ZKAPIShimLayer> for ZookeeperReconciler {
-    fn reconcile_init_state(&self) -> ZookeeperReconcileState {
+    fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     fn reconcile_core(
-        &self, zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
+        zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
     ) -> (ZookeeperReconcileState, Option<Request<ZKAPIInput>>) {
         reconcile_core(zk, resp_o, state)
     }
 
-    fn reconcile_done(&self, state: &ZookeeperReconcileState) -> bool {
+    fn reconcile_done(state: &ZookeeperReconcileState) -> bool {
         reconcile_done(state)
     }
 
-    fn reconcile_error(&self, state: &ZookeeperReconcileState) -> bool {
+    fn reconcile_error(state: &ZookeeperReconcileState) -> bool {
         reconcile_error(state)
     }
 }

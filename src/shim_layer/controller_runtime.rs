@@ -125,7 +125,7 @@ where
     println!("{} Get cr {}", log_header, deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
-    let mut state = reconciler.reconcile_init_state();
+    let mut state = ReconcilerType::reconcile_init_state();
     let mut resp_option: Option<Response<ExternalAPIOutputType>> = None;
     // check_fault_timing is only set to true right after the controller issues any create, update or delete request,
     // or external request
@@ -135,16 +135,16 @@ where
     loop {
         check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
-        if reconciler.reconcile_done(&state) {
+        if ReconcilerType::reconcile_done(&state) {
             println!("{} done", log_header);
             break;
         }
-        if reconciler.reconcile_error(&state) {
+        if ReconcilerType::reconcile_error(&state) {
             println!("{} error", log_header);
             return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, request_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
+        let (state_prime, request_option) = ReconcilerType::reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match request_option {
             Some(request) => match request {

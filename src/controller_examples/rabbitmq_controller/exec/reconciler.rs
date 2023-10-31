@@ -26,19 +26,19 @@ pub struct RabbitmqReconciler {}
 
 #[verifier(external)]
 impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
-    fn reconcile_init_state(&self) -> RabbitmqReconcileState {
+    fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
+    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
-    fn reconcile_done(&self, state: &RabbitmqReconcileState) -> bool {
+    fn reconcile_done(state: &RabbitmqReconcileState) -> bool {
         reconcile_done(state)
     }
 
-    fn reconcile_error(&self, state: &RabbitmqReconcileState) -> bool {
+    fn reconcile_error(state: &RabbitmqReconcileState) -> bool {
         reconcile_error(state)
     }
 }
