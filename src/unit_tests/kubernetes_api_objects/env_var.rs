@@ -58,7 +58,7 @@ pub fn test_overwrite_value_from(){
 #[test]
 #[verifier(external)]
 pub fn test_kube(){
-    let env_var = EnvVar::from_kube(deps_hack::k8s_openapi::api::core::v1::EnvVar {
+    let kube_env_var = deps_hack::k8s_openapi::api::core::v1::EnvVar {
         name: "name".to_string(),
         value: Some("value".to_string()),
         value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
@@ -69,19 +69,10 @@ pub fn test_kube(){
             ..Default::default()
         }),
         ..Default::default()
-    });
+    };
 
-    assert_eq!(env_var.into_kube(), deps_hack::k8s_openapi::api::core::v1::EnvVar {
-        name: "name".to_string(),
-        value: Some("value".to_string()),
-        value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-                field_path: "field_path".to_string(),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        ..Default::default()
-    });
+    let env_var = EnvVar::from_kube(kube_env_var.clone());
+
+    assert_eq!(env_var.into_kube(), kube_env_var);
 }
 }

@@ -65,19 +65,16 @@ pub fn test_new_with(){
 #[test]
 #[verifier(external)]
 pub fn test_kube(){
-    let volume_mount = VolumeMount::from_kube(deps_hack::k8s_openapi::api::core::v1::VolumeMount{
+    let kube_volume_mount = deps_hack::k8s_openapi::api::core::v1::VolumeMount{
         mount_path: "mount_path".to_string(),
         name: "name".to_string(),
         sub_path: Some("sub_path".to_string()),
         read_only: Some(true),
         ..Default::default()
-    });
-    assert_eq!(volume_mount.into_kube(), deps_hack::k8s_openapi::api::core::v1::VolumeMount{
-        mount_path: "mount_path".to_string(),
-        name: "name".to_string(),
-        sub_path: Some("sub_path".to_string()),
-        read_only: Some(true),
-        ..Default::default()
-    });
+    };
+
+    let volume_mount = VolumeMount::from_kube(kube_volume_mount.clone());
+
+    assert_eq!(volume_mount.into_kube(), kube_volume_mount.clone());
 }
 }

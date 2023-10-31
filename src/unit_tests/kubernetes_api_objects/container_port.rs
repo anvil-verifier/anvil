@@ -37,21 +37,17 @@ pub fn test_set_name() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let container_port = ContainerPort::from_kube(deps_hack::k8s_openapi::api::core::v1::ContainerPort {
+    let kube_container_port = deps_hack::k8s_openapi::api::core::v1::ContainerPort {
         container_port: 8080,
         host_ip: Some("host_ip".to_string()),
         host_port: Some(8080),
         name: Some("name".to_string()),
         ..Default::default()
-    });
+    };
+
+    let container_port = ContainerPort::from_kube(kube_container_port.clone());
 
     assert_eq!(container_port.into_kube(),
-    deps_hack::k8s_openapi::api::core::v1::ContainerPort {
-        container_port: 8080,
-        host_ip: Some("host_ip".to_string()),
-        host_port: Some(8080),
-        name: Some("name".to_string()),
-        ..Default::default()
-    });
+                kube_container_port);
 }
 }

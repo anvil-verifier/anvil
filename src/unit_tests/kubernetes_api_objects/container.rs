@@ -181,20 +181,18 @@ pub fn test_clone(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let container = Container::from_kube(deps_hack::k8s_openapi::api::core::v1::Container {
+    let kube_container = deps_hack::k8s_openapi::api::core::v1::Container {
         name: "name".to_string(),
         image: Some("image".to_string()),
         ..Default::default()
-    });
+    };
+
+    let container = Container::from_kube(kube_container.clone());
 
     assert_eq!(container.into_kube(),
-    deps_hack::k8s_openapi::api::core::v1::Container {
-        name: "name".to_string(),
-        image: Some("image".to_string()),
-        ..Default::default()
-    });
+                kube_container.clone());
 
-    let container = Container::from_kube(deps_hack::k8s_openapi::api::core::v1::Container {
+    let kube_container = deps_hack::k8s_openapi::api::core::v1::Container {
         name: "name_2".to_string(),
         image: Some("image_2".to_string()),
         command: Some(vec!["command".to_string()]),
@@ -206,22 +204,12 @@ pub fn test_kube() {
             ..Default::default()
         }),
         ..Default::default()
-    });
+    };
+
+    let container = Container::from_kube(kube_container.clone());
 
     assert_eq!(container.into_kube(),
-    deps_hack::k8s_openapi::api::core::v1::Container {
-        name: "name_2".to_string(),
-        image: Some("image_2".to_string()),
-        command: Some(vec!["command".to_string()]),
-        liveness_probe: Some(deps_hack::k8s_openapi::api::core::v1::Probe {
-            tcp_socket: Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
-                host: Some("liveness".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        ..Default::default()
-    });
+                kube_container.clone());
 
 }
 }

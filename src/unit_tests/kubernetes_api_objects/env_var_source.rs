@@ -43,20 +43,16 @@ pub fn test_clone(){
 #[test]
 #[verifier(external)]
 pub fn test_kube(){
-    let env_var_source = EnvVarSource::from_kube(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+    let kube_env_var_source = deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
         field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
             field_path: "field_path".to_string(),
             ..Default::default()
         }),
         ..Default::default()
-    });
+    };
 
-    assert_eq!(env_var_source.into_kube(), deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-        field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-            field_path: "field_path".to_string(),
-            ..Default::default()
-        }),
-        ..Default::default()
-    });
+    let env_var_source = EnvVarSource::from_kube(kube_env_var_source.clone());
+
+    assert_eq!(env_var_source.into_kube(), kube_env_var_source);
 }
 }
