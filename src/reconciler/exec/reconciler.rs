@@ -12,10 +12,10 @@ verus! {
 pub trait Reconciler<R, T, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>
     where ExternalAPIInput: View, ExternalAPIOutput: View, ExternalAPIType: ExternalAPIShimLayer<ExternalAPIInput, ExternalAPIOutput>
 {
-    fn reconcile_init_state(&self) -> T;
-    fn reconcile_core(&self, cr: &R, resp_o: Option<Response<ExternalAPIOutput>>, state: T) -> (T, Option<Request<ExternalAPIInput>>);
-    fn reconcile_done(&self, state: &T) -> bool;
-    fn reconcile_error(&self, state: &T) -> bool;
+    fn reconcile_init_state() -> T;
+    fn reconcile_core(cr: &R, resp_o: Option<Response<ExternalAPIOutput>>, state: T) -> (T, Option<Request<ExternalAPIInput>>);
+    fn reconcile_done(state: &T) -> bool;
+    fn reconcile_error(state: &T) -> bool;
 }
 
 pub open spec fn resource_version_check<I, O>(prev_resp_opt: Option<ResponseView<O>>, cur_req_opt: Option<RequestView<I>>) -> bool {

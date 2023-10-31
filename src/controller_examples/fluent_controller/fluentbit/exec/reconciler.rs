@@ -21,19 +21,19 @@ pub struct FluentBitReconciler {}
 
 #[verifier(external)]
 impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for FluentBitReconciler {
-    fn reconcile_init_state(&self) -> FluentBitReconcileState {
+    fn reconcile_init_state() -> FluentBitReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<Request<EmptyType>>) {
+    fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<Request<EmptyType>>) {
         reconcile_core(fb, resp_o, state)
     }
 
-    fn reconcile_done(&self, state: &FluentBitReconcileState) -> bool {
+    fn reconcile_done(state: &FluentBitReconcileState) -> bool {
         reconcile_done(state)
     }
 
-    fn reconcile_error(&self, state: &FluentBitReconcileState) -> bool {
+    fn reconcile_error(state: &FluentBitReconcileState) -> bool {
         reconcile_error(state)
     }
 }
