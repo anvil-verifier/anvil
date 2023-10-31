@@ -43,12 +43,15 @@ pub fn test_set_namespace() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let subject = Subject::from_kube(deps_hack::k8s_openapi::api::rbac::v1::Subject {
+    let kube_subject = deps_hack::k8s_openapi::api::rbac::v1::Subject {
         kind: "kind".to_string(),
         name: "name".to_string(),
         namespace: Some("namespace".to_string()),
         ..Default::default()
-    });
+    };
+
+    let subject = Subject::from_kube(kube_subject.clone());
+
     assert_eq!(subject.into_kube(),
                 deps_hack::k8s_openapi::api::rbac::v1::Subject {
                      kind: "kind".to_string(),

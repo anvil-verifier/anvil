@@ -46,21 +46,18 @@ pub fn test_set_app_protocol() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let service_port = ServicePort::from_kube(deps_hack::k8s_openapi::api::core::v1::ServicePort {
+    let kube_service_port = deps_hack::k8s_openapi::api::core::v1::ServicePort {
         name: Some("name".to_string()),
         port: 1,
         app_protocol: Some("protocol".to_string()),
         ..Default::default()
-    });
+    };
+
+    let service_port = ServicePort::from_kube(kube_service_port.clone());
 
     assert_eq!(
         service_port.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ServicePort {
-            name: Some("name".to_string()),
-            port: 1,
-            app_protocol: Some("protocol".to_string()),
-            ..Default::default()
-        }
+        kube_service_port
     );
 }
 }

@@ -38,15 +38,14 @@ pub fn test_clone(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let host_path_volume_source = HostPathVolumeSource::from_kube(deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource{
+    let kube_host_path_volume_source = deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource{
         path: "path".to_string(),
         ..Default::default()
-    });
+    };
+
+    let host_path_volume_source = HostPathVolumeSource::from_kube(kube_host_path_volume_source.clone());
 
     assert_eq!(host_path_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource{
-            path: "path".to_string(),
-            ..Default::default()
-        });
+        kube_host_path_volume_source);
 }
 }

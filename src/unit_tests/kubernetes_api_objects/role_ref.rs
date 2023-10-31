@@ -54,17 +54,15 @@ pub fn test_clone() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let role_ref = RoleRef::from_kube(deps_hack::k8s_openapi::api::rbac::v1::RoleRef{
+    let kube_role_ref = deps_hack::k8s_openapi::api::rbac::v1::RoleRef{
         api_group: "api_group".to_string(),
         kind: "kind".to_string(),
         name: "name".to_string(),
-    });
+    };
+
+    let role_ref = RoleRef::from_kube(kube_role_ref.clone());
 
     assert_eq!(role_ref.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::RoleRef{
-            api_group: "api_group".to_string(),
-            kind: "kind".to_string(),
-            name: "name".to_string(),
-    });
+                kube_role_ref);
 }
 }

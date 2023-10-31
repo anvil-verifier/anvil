@@ -73,7 +73,7 @@ pub fn test_api_resource() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let pod = Pod::from_kube(deps_hack::k8s_openapi::api::core::v1::Pod {
+    let kube_pod = deps_hack::k8s_openapi::api::core::v1::Pod {
         metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
@@ -86,24 +86,13 @@ pub fn test_kube() {
             ..Default::default()
         }),
         ..Default::default()
-    });
+    };
+
+    let pod = Pod::from_kube(kube_pod.clone());
 
     assert_eq!(
         pod.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Pod {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                ..Default::default()
-            },
-            spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
-                containers: vec![deps_hack::k8s_openapi::api::core::v1::Container {
-                    name: "name".to_string(),
-                    ..Default::default()
-                }],
-                ..Default::default()
-            }),
-            ..Default::default()
-        }
+        kube_pod
     );
 }
 }

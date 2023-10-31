@@ -38,19 +38,17 @@ pub fn test_clone(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let secret_volume_source = SecretVolumeSource::from_kube(
+    let kube_secret_volume_source =
         deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource{
             secret_name: Some("secret_name".to_string()),
             ..Default::default()
-        }
-    );
+        };
+
+    let secret_volume_source = SecretVolumeSource::from_kube(kube_secret_volume_source.clone());
 
     assert_eq!(
         secret_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource{
-            secret_name: Some("secret_name".to_string()),
-            ..Default::default()
-        }
-    )
+        kube_secret_volume_source
+    );
 }
 }

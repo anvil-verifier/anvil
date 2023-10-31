@@ -68,7 +68,7 @@ pub fn test_api_resource() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let service = Service::from_kube(
+    let kube_service =
         deps_hack::k8s_openapi::api::core::v1::Service {
             metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                 name: Some("name".to_string()),
@@ -79,21 +79,12 @@ pub fn test_kube() {
                 ..Default::default()
             }),
             ..Default::default()
-        }
-    );
+        };
+
+    let service = Service::from_kube(kube_service.clone());
 
     assert_eq!(service.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Service {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                ..Default::default()
-            },
-            spec: Some(deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
-                cluster_ip: Some("ip".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        });
+                kube_service);
 }
 
 }

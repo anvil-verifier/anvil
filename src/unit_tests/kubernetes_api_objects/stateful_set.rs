@@ -76,7 +76,7 @@ pub fn test_api_resource() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let stateful_set = StatefulSet::from_kube(
+    let kube_stateful_set =
         deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
             metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                 name: Some("name".to_string()),
@@ -113,48 +113,13 @@ pub fn test_kube() {
                 ..Default::default()
             }),
             ..Default::default()
-        },
-    );
+        };
+
+    let stateful_set = StatefulSet::from_kube(kube_stateful_set.clone());
 
     assert_eq!(
         stateful_set.into_kube(),
-        deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                namespace: Some("namespace".to_string()),
-                ..Default::default()
-            },
-            spec: Some(deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
-                replicas: Some(1),
-                selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
-                    match_labels: Some(vec![(
-                        "key".to_string(),
-                        "value".to_string(),
-                    )].into_iter().collect()),
-                    ..Default::default()
-                },
-                template: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
-                    metadata: Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                        name: Some("name".to_string()),
-                        namespace: Some("namespace".to_string()),
-                        ..Default::default()
-                    }),
-                    spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
-                        containers: vec![
-                            deps_hack::k8s_openapi::api::core::v1::Container {
-                                name: "name".to_string(),
-                                image: Some("image".to_string()),
-                                ..Default::default()
-                            },
-                        ],
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        kube_stateful_set
     );
 }
 }

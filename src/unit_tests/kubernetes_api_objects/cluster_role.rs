@@ -72,24 +72,18 @@ pub fn test_api_resource(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
+    let kube_cluster_role = deps_hack::k8s_openapi::api::rbac::v1::ClusterRole {
+        metadata:deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    ..Default::default()
+                },
+        ..Default::default()
+    };
     let cluster_role = ClusterRole::from_kube(
-        deps_hack::k8s_openapi::api::rbac::v1::ClusterRole {
-            metadata:deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                        name: Some("name".to_string()),
-                        ..Default::default()
-                    },
-            ..Default::default()
-        },
+        kube_cluster_role.clone(),
     );
     assert_eq!(cluster_role.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::ClusterRole {
-            metadata:deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                        name: Some("name".to_string()),
-                        ..Default::default()
-                    },
-            ..Default::default()
-        },
-    );
+                kube_cluster_role);
 }
 
 }

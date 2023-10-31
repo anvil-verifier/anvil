@@ -34,7 +34,7 @@ pub fn test_set_field_ref() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let downward_api_volume_file = DownwardAPIVolumeFile::from_kube(deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
+    let kube_downward_api_volume_file = deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
         field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
             api_version: None,
             field_path: "field_path".to_string(),
@@ -42,17 +42,11 @@ pub fn test_kube() {
         mode: None,
         path: "path".to_string(),
         resource_field_ref: None,
-    });
+    };
+
+    let downward_api_volume_file = DownwardAPIVolumeFile::from_kube(kube_downward_api_volume_file.clone());
 
     assert_eq!(downward_api_volume_file.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
-            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
-                api_version: None,
-                field_path: "field_path".to_string(),
-            }),
-            mode: None,
-            path: "path".to_string(),
-            resource_field_ref: None,
-        });
+                kube_downward_api_volume_file);
 }
 }

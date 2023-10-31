@@ -64,7 +64,7 @@ pub fn test_clone(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let downward_api_volume_source = DownwardAPIVolumeSource::from_kube(deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource{
+    let kube_downward_api_volume_source = deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource{
         default_mode: None,
         items: Some(vec![deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
             field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
@@ -75,20 +75,10 @@ pub fn test_kube() {
             path: "path".to_string(),
             resource_field_ref: None,
         }]),
-    });
+    };
 
+    let downward_api_volume_source = DownwardAPIVolumeSource::from_kube(kube_downward_api_volume_source.clone());
     assert_eq!(downward_api_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource{
-            default_mode: None,
-            items: Some(vec![deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
-                field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
-                    api_version: None,
-                    field_path: "field_path".to_string(),
-                }),
-                mode: None,
-                path: "path".to_string(),
-                resource_field_ref: None,
-            }]),
-        });
+                kube_downward_api_volume_source);
 }
 }

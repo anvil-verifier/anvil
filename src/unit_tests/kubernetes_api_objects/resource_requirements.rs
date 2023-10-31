@@ -56,7 +56,7 @@ pub fn test_clone(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let resource_requirements = ResourceRequirements::from_kube(deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+    let kube_resource_requirements = deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
         limits: Some(
             vec![("cpu".to_string(), Quantity("100m".to_string()))]
                 .into_iter()
@@ -68,24 +68,15 @@ pub fn test_kube() {
                 .collect(),
         ),
         ..Default::default()
-    });
+    };
+
+    let resource_requirements = ResourceRequirements::from_kube(kube_resource_requirements.clone());
 
     assert_eq!(
         resource_requirements.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
-            limits: Some(
-                vec![("cpu".to_string(), Quantity("100m".to_string()))]
-                    .into_iter()
-                    .collect(),
-            ),
-            requests: Some(
-                vec![("cpu".to_string(), Quantity("100m".to_string()))]
-                    .into_iter()
-                    .collect(),
-            ),
-            ..Default::default()
-        }
-    )
+        kube_resource_requirements
+    );
+
 }
 
 }

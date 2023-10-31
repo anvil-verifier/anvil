@@ -41,7 +41,7 @@ pub fn test_set_secrets() {
 #[test]
 #[verifier(external)]
 pub fn test_kube(){
-    let volume_projection = VolumeProjection::from_kube(deps_hack::k8s_openapi::api::core::v1::VolumeProjection {
+    let kube_volume_projection = deps_hack::k8s_openapi::api::core::v1::VolumeProjection {
         config_map: Some(deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
             name: Some("name".to_string()),
             ..Default::default()
@@ -51,19 +51,12 @@ pub fn test_kube(){
             ..Default::default()
         }),
         ..Default::default()
-    });
+    };
+
+    let volume_projection = VolumeProjection::from_kube(kube_volume_projection.clone());
+
     assert_eq!(volume_projection.into_kube(),
-                deps_hack::k8s_openapi::api::core::v1::VolumeProjection {
-                     config_map: Some(deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
-                         name: Some("name".to_string()),
-                         ..Default::default()
-                     }),
-                     secret: Some(deps_hack::k8s_openapi::api::core::v1::SecretProjection {
-                         name: Some("name".to_string()),
-                         ..Default::default()
-                     }),
-                     ..Default::default()
-                });
+                kube_volume_projection);
 
 }
 }

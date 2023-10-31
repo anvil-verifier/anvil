@@ -80,41 +80,28 @@ pub fn test_api_resource(){
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
+    let kube_config_map = deps_hack::k8s_openapi::api::core::v1::ConfigMap {
+        metadata:
+            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                ..Default::default()
+            },
+        data: Some(
+            vec![(
+                "key".to_string(),
+                "value".to_string(),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        ..Default::default()
+    };
     let config_map = ConfigMap::from_kube(
-        deps_hack::k8s_openapi::api::core::v1::ConfigMap {
-            metadata:
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                    name: Some("name".to_string()),
-                    ..Default::default()
-                },
-            data: Some(
-                vec![(
-                    "key".to_string(),
-                    "value".to_string(),
-                )]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        },
+        kube_config_map.clone(),
     );
+
     assert_eq!(config_map.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ConfigMap {
-            metadata:
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                    name: Some("name".to_string()),
-                    ..Default::default()
-                },
-            data: Some(
-                vec![(
-                    "key".to_string(),
-                    "value".to_string(),
-                )]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        });
+                kube_config_map);
 }
 
 

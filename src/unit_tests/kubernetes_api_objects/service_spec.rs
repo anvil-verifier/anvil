@@ -122,7 +122,7 @@ pub fn test_publish_not_ready_addresses() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let service_spec = ServiceSpec::from_kube(
+    let kube_service_spec =
         deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
             cluster_ip: Some("ip".to_string()),
             ports: Some(vec![
@@ -144,34 +144,14 @@ pub fn test_kube() {
             ),
             publish_not_ready_addresses: Some(true),
             ..Default::default()
-        }
-    );
+        };
+
+    let service_spec = ServiceSpec::from_kube(kube_service_spec.clone());
 
     assert_eq!(
         service_spec.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
-            cluster_ip: Some("ip".to_string()),
-            ports: Some(vec![
-                deps_hack::k8s_openapi::api::core::v1::ServicePort {
-                    port: 1,
-                    app_protocol: Some("http".to_string()),
-                    ..Default::default()
-                },
-                deps_hack::k8s_openapi::api::core::v1::ServicePort {
-                    port: 2048,
-                    app_protocol: Some("tcp".to_string()),
-                    ..Default::default()
-                },
-            ]),
-            selector: Some(
-                vec![
-                    ("key".to_string(), "value".to_string())
-                ].into_iter().collect()
-            ),
-            publish_not_ready_addresses: Some(true),
-            ..Default::default()
-        }
-    )
+        kube_service_spec
+    );
 }
 
 }

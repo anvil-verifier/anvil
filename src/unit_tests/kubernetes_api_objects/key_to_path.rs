@@ -37,17 +37,14 @@ pub fn test_set_path() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let key_to_path = KeyToPath::from_kube(deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+    let kube_key_to_path = deps_hack::k8s_openapi::api::core::v1::KeyToPath{
         key: "key".to_string(),
         path: "path".to_string(),
         ..Default::default()
-    });
+    };
 
+    let key_to_path = KeyToPath::from_kube(kube_key_to_path.clone());
     assert_eq!(key_to_path.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::KeyToPath{
-            key: "key".to_string(),
-            path: "path".to_string(),
-            ..Default::default()
-    });
+        kube_key_to_path);
 }
 }

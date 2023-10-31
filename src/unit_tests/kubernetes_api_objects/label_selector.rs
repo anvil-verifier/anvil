@@ -52,7 +52,7 @@ pub fn test_clone() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let label_selector = LabelSelector::from_kube(
+    let kube_label_selector =
         deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
             match_labels: Some(
                 vec![
@@ -69,28 +69,13 @@ pub fn test_kube() {
                 .collect(),
             ),
             ..Default::default()
-        },
-    );
+        };
+
+    let label_selector = LabelSelector::from_kube(kube_label_selector.clone());
 
     assert_eq!(
         label_selector.into_kube(),
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
-            match_labels: Some(
-                vec![
-                    (
-                        "key".to_string(),
-                        "value".to_string(),
-                    ),
-                    (
-                        "key_2".to_string(),
-                        "value_2".to_string(),
-                    ),
-                ]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        }
+        kube_label_selector
     );
 }
 }

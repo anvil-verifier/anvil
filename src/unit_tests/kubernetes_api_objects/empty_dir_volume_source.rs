@@ -29,13 +29,13 @@ pub fn test_clone() {
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let empty_dir_volume_source = EmptyDirVolumeSource::from_kube(deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
+    let kube_empty_dir_volume_source = deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
         ..Default::default()
-    });
+    };
+
+    let empty_dir_volume_source = EmptyDirVolumeSource::from_kube(kube_empty_dir_volume_source.clone());
 
     assert_eq!(empty_dir_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
-            ..Default::default()
-        });
+                kube_empty_dir_volume_source);
 }
 }
