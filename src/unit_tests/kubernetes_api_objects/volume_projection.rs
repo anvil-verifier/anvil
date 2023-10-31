@@ -29,11 +29,34 @@ pub fn test_set_config_map() {
 }
 
 #[test]
+#[verifier(external)]
 pub fn test_set_secrets() {
     let mut volume_projection = VolumeProjection::default();
     let mut secret_projection = SecretProjection::default();
     secret_projection.set_name(new_strlit("name").to_string());
     volume_projection.set_secret(secret_projection.clone());
     assert_eq!(secret_projection.into_kube(), volume_projection.into_kube().secret.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_kube(){
+    let kube_volume_projection = deps_hack::k8s_openapi::api::core::v1::VolumeProjection {
+        config_map: Some(deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
+            name: Some("name".to_string()),
+            ..Default::default()
+        }),
+        secret: Some(deps_hack::k8s_openapi::api::core::v1::SecretProjection {
+            name: Some("name".to_string()),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let volume_projection = VolumeProjection::from_kube(kube_volume_projection.clone());
+
+    assert_eq!(volume_projection.into_kube(),
+                kube_volume_projection);
+
 }
 }

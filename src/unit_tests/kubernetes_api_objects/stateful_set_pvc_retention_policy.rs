@@ -9,38 +9,54 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
-// Tests for stateful set spec
+// Tests for stateful set pvc retention policy
 #[test]
 #[verifier(external)]
 pub fn test_default() {
-    let stateful_set_spec = StatefulSetSpec::default();
+    let stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
     assert_eq!(
-        stateful_set_spec.into_kube(),
-        deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec::default()
+        stateful_set_pvc_retention_policy.into_kube(),
+        deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default()
     );
 }
 
 #[test]
 #[verifier(external)]
-pub fn test_set_replicas() {
-    let mut stateful_set_spec = StatefulSetSpec::default();
-    stateful_set_spec.set_replicas(1);
-    assert_eq!(1, stateful_set_spec.into_kube().replicas.unwrap());
+pub fn test_set_when_deleted() {
+    let mut stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
+    stateful_set_pvc_retention_policy.set_when_deleted(new_strlit("Retain").to_string());
+    assert_eq!(
+        "Retain".to_string(),
+        stateful_set_pvc_retention_policy.into_kube().when_deleted.unwrap()
+    );
 }
 
 #[test]
 #[verifier(external)]
-pub fn test_set_selector() {
-    let mut label_selector = LabelSelector::default();
-    let mut match_labels = StringMap::new();
-    match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
-    label_selector.set_match_labels(match_labels);
-    let mut stateful_set_spec = StatefulSetSpec::default();
-    stateful_set_spec.set_selector(label_selector.clone());
+pub fn test_set_when_scaled() {
+    let mut stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
+    stateful_set_pvc_retention_policy.set_when_scaled(new_strlit("Delete").to_string());
     assert_eq!(
-        label_selector.into_kube(),
-        stateful_set_spec.into_kube().selector
+        "Delete".to_string(),
+        stateful_set_pvc_retention_policy.into_kube().when_scaled.unwrap()
     );
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_stateful_set_pvc_retention_policy =
+        deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy{
+            when_deleted: Some("Retain".to_string()),
+            when_scaled: Some("Delete".to_string()),
+            ..Default::default()
+        };
+
+    let stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(kube_stateful_set_pvc_retention_policy.clone());
+
+    assert_eq!(
+        stateful_set_pvc_retention_policy.into_kube(),
+        kube_stateful_set_pvc_retention_policy
+    );
+}
 }

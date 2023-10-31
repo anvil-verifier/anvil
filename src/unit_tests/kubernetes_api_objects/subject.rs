@@ -39,4 +39,25 @@ pub fn test_set_namespace() {
     subject.set_namespace(new_strlit("namespace").to_string());
     assert_eq!("namespace".to_string(), subject.into_kube().namespace.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_subject = deps_hack::k8s_openapi::api::rbac::v1::Subject {
+        kind: "kind".to_string(),
+        name: "name".to_string(),
+        namespace: Some("namespace".to_string()),
+        ..Default::default()
+    };
+
+    let subject = Subject::from_kube(kube_subject.clone());
+
+    assert_eq!(subject.into_kube(),
+                deps_hack::k8s_openapi::api::rbac::v1::Subject {
+                     kind: "kind".to_string(),
+                     name: "name".to_string(),
+                     namespace: Some("namespace".to_string()),
+                     ..Default::default()
+                });
+}
 }

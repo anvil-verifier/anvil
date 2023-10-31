@@ -20,7 +20,7 @@ pub fn test_default() {
 
 #[test]
 #[verifier(external)]
-pub fn test_set_resources() {
+pub fn test_set_sources() {
     let mut projected_volume_source = ProjectedVolumeSource::default();
     let volume_projections_gen = || {
         let mut volume_projection_1 = VolumeProjection::default();
@@ -59,5 +59,32 @@ pub fn test_clone(){
     projected_volume_source.set_sources(volume_projections_gen());
     let projected_volume_source_clone = projected_volume_source.clone();
     assert_eq!(projected_volume_source.into_kube(), projected_volume_source_clone.into_kube());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_projected_volume_source = deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource{
+        sources: Some(
+            vec![
+                deps_hack::k8s_openapi::api::core::v1::VolumeProjection{
+                    config_map: Some(deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default()),
+                    ..Default::default()
+                },
+                deps_hack::k8s_openapi::api::core::v1::VolumeProjection{
+                    secret: Some(deps_hack::k8s_openapi::api::core::v1::SecretProjection::default()),
+                    ..Default::default()
+                }
+            ]
+        ),
+       ..Default::default()
+    };
+
+    let projected_volume_source = ProjectedVolumeSource::from_kube(kube_projected_volume_source.clone());
+
+    assert_eq!(
+        projected_volume_source.into_kube(),
+        kube_projected_volume_source
+    );
 }
 }

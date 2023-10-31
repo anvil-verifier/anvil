@@ -88,6 +88,12 @@ impl RoleBinding {
         self.inner
     }
 
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding) -> (role_binding: RoleBinding)
+    {
+        RoleBinding { inner: inner }
+    }
+
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
@@ -176,6 +182,12 @@ impl RoleRef {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef) -> (role_ref: RoleRef)
+    {
+        RoleRef { inner: inner }
+    }
 }
 
 #[verifier(external_body)]
@@ -223,6 +235,12 @@ impl Subject {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Subject {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Subject) -> (subject: Subject)
+    {
+        Subject { inner: inner }
     }
 }
 

@@ -70,4 +70,30 @@ pub fn test_clone() {
     let config_map_projection_clone = config_map_projection.clone();
     assert_eq!(config_map_projection.into_kube(), config_map_projection_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube(){
+    let kube_config_map_projection =
+        deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
+            name: Some("name".to_string()),
+            items: Some(vec![
+                deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+                    key: "key1".to_string(),
+                    path: "path1".to_string(),
+                    mode: None,
+                },
+                deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+                    key: "key2".to_string(),
+                    path: "path2".to_string(),
+                    mode: None,
+                },
+            ]),
+            optional: None,
+        };
+
+    let config_map_projection = ConfigMapProjection::from_kube(kube_config_map_projection.clone());
+    assert_eq!(config_map_projection.into_kube(),
+                kube_config_map_projection);
+}
 }

@@ -185,4 +185,49 @@ pub fn test_persistent_volume_claim_retention_policy() {
         stateful_set_spec.persistent_volume_claim_retention_policy().unwrap().into_kube()
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_sts_spec =
+        deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
+            replicas: Some(1),
+            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+                match_labels: Some(vec![(
+                    "key".to_string(),
+                    "value".to_string(),
+                )].into_iter().collect()),
+                ..Default::default()
+            },
+            service_name: "name".to_string(),
+            template: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
+                metadata: Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            volume_claim_templates: Some(vec![deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
+                metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }]),
+            pod_management_policy: Some("policy".to_string()),
+            persistent_volume_claim_retention_policy: Some(
+                deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
+                    when_deleted: Some("Delete".to_string()),
+                    when_scaled: Some("Retain".to_string()),
+                }
+            ),
+            ..Default::default()
+        };
+
+    let sts_spec = StatefulSetSpec::from_kube(kube_sts_spec.clone());
+    assert_eq!(
+        sts_spec.into_kube(),
+        kube_sts_spec
+    );
+}
 }

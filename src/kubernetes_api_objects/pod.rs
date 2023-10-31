@@ -83,6 +83,12 @@ impl Pod {
         self.inner
     }
 
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Pod) -> (pod: Pod)
+    {
+        Pod { inner: inner }
+    }
+
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
@@ -242,7 +248,7 @@ impl PodSpec {
             Some(n) => self.inner.runtime_class_name = Some(n.into_rust_string()),
             None => self.inner.runtime_class_name = None,
         }
-        
+
     }
 
     #[verifier(external_body)]
@@ -254,7 +260,7 @@ impl PodSpec {
             Some(n) => self.inner.dns_policy = Some(n.into_rust_string()),
             None => self.inner.dns_policy = None,
         }
-        
+
     }
 
     #[verifier(external_body)]

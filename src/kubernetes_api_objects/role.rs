@@ -79,6 +79,12 @@ impl Role {
         self.inner
     }
 
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Role) -> (role: Role)
+    {
+        Role { inner: inner }
+    }
+
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
@@ -163,6 +169,12 @@ impl PolicyRule {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule) -> (policy_rule: PolicyRule)
+    {
+        PolicyRule { inner: inner }
     }
 }
 

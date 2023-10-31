@@ -103,4 +103,50 @@ pub fn test_set_owner_references() {
     assert_eq!(own_refs_gen().into_iter().map(|s: OwnerReference| s.into_kube()).collect::<Vec<_>>(), object_meta.into_kube().owner_references.unwrap());
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_object_meta =
+        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
+            labels: Some(
+                vec![
+                    (
+                        "key".to_string(),
+                        "value".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            annotations: Some(
+                vec![
+                    (
+                        "key".to_string(),
+                        "value".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            finalizers: Some(
+                vec![
+                    "finalizer".to_string(),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            owner_references: Some(
+                vec![
+                    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default(),
+                ]
+            ),
+            ..Default::default()
+        };
+
+    let object_meta = ObjectMeta::from_kube(kube_object_meta.clone());
+    assert_eq!(object_meta.into_kube(),
+                kube_object_meta);
+}
 }

@@ -30,4 +30,23 @@ pub fn test_set_field_ref() {
         downward_api_volume_file.into_kube().field_ref.unwrap()
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_downward_api_volume_file = deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
+        field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{
+            api_version: None,
+            field_path: "field_path".to_string(),
+        }),
+        mode: None,
+        path: "path".to_string(),
+        resource_field_ref: None,
+    };
+
+    let downward_api_volume_file = DownwardAPIVolumeFile::from_kube(kube_downward_api_volume_file.clone());
+
+    assert_eq!(downward_api_volume_file.into_kube(),
+                kube_downward_api_volume_file);
+}
 }

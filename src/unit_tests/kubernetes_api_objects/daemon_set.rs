@@ -91,4 +91,34 @@ pub fn test_clone() {
     let daemon_set_clone = daemon_set.clone();
     assert_eq!(daemon_set.into_kube(), daemon_set_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_daemon_set =
+        deps_hack::k8s_openapi::api::apps::v1::DaemonSet {
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                ..Default::default()
+            },
+            spec: Some(deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
+                selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+                    match_labels: Some(
+                        vec![("key".to_string(), "value".to_string())]
+                            .into_iter()
+                            .collect(),
+                    ),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+    let daemon_set = DaemonSet::from_kube(kube_daemon_set.clone());
+    assert_eq!(
+        daemon_set.into_kube(),
+        kube_daemon_set
+    );
+}
 }

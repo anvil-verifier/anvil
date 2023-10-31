@@ -34,4 +34,21 @@ pub fn test_clone(){
     let config_map_volume_source_clone = config_map_volume_source.clone();
     assert_eq!(config_map_volume_source.into_kube(), config_map_volume_source_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube(){
+    let kube_config_map_volume_source = deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource{
+        default_mode: None,
+        items: None,
+        name: Some("name".to_string()),
+        optional: None,
+    };
+
+    let config_map_volume_source = ConfigMapVolumeSource::from_kube(kube_config_map_volume_source.clone());
+
+    assert_eq!(config_map_volume_source.into_kube(),
+                kube_config_map_volume_source);
+}
+
 }

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
@@ -65,4 +67,41 @@ pub fn test_set_storage_class_name() {
         persistent_volume_claim_spec.into_kube().storage_class_name.unwrap()
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube() {
+    let kube_persistent_volume_claim_spec =
+        deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
+            access_modes: Some(
+                vec![
+                    "ReadWriteOnce".to_string(),
+                    "ReadOnlyMany".to_string(),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            resources: Some(
+                deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+                    requests: Some(
+                        BTreeMap::from([
+                            (
+                                "storage".to_string(), deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("1Gi".to_string())
+                            ),
+                        ])
+                    ),
+                    ..Default::default()
+                },
+            ),
+            storage_class_name: Some("storage_class_name".to_string()),
+            ..Default::default()
+        };
+
+    let persistent_volume_claim_spec = PersistentVolumeClaimSpec::from_kube(kube_persistent_volume_claim_spec.clone());
+    assert_eq!(
+        persistent_volume_claim_spec.into_kube(),
+        kube_persistent_volume_claim_spec
+    );
+}
+
 }
