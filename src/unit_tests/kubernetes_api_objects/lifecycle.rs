@@ -42,4 +42,23 @@ pub fn test_clone(){
     let handler_clone = handler.clone();
     assert_eq!(handler.into_kube(), handler_clone.into_kube());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_kube(){
+    let kube_lifecycle = deps_hack::k8s_openapi::api::core::v1::Lifecycle {
+        pre_stop: Some(deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
+            exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+                command: Some(vec!["command".to_string()]),
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let lifecycle = Lifecycle::from_kube(kube_lifecycle.clone());
+
+    assert_eq!(lifecycle.into_kube(), kube_lifecycle);
+}
+
 }

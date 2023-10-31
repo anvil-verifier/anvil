@@ -150,6 +150,11 @@ impl Container {
     }
 
     #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Container) -> Container {
+        Container { inner: inner }
+    }
+
+    #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container {
         self.inner
     }
@@ -198,6 +203,11 @@ impl ContainerPort {
             self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort) -> ContainerPort {
+        ContainerPort { inner: inner }
     }
 
     #[verifier(external)]
@@ -276,6 +286,11 @@ impl VolumeMount {
             Some(n) => self.inner.mount_propagation = Some(n.into_rust_string()),
             None => self.inner.mount_propagation = None,
         }
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount) -> VolumeMount {
+        VolumeMount { inner: inner }
     }
 
     #[verifier(external)]
@@ -510,6 +525,11 @@ impl Lifecycle {
     }
 
     #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle) -> Lifecycle {
+        Lifecycle { inner: inner }
+    }
+
+    #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Lifecycle {
         self.inner
     }
@@ -547,6 +567,11 @@ impl LifecycleHandler {
             self@ == old(self)@.set_exec(exec@),
     {
         self.inner.exec = Some(exec.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler) -> LifecycleHandler {
+        LifecycleHandler { inner: inner }
     }
 
     #[verifier(external)]
