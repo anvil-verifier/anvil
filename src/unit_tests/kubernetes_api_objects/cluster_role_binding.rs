@@ -110,4 +110,37 @@ pub fn test_kube() {
     assert_eq!(cluster_role_binding.into_kube(),
                 kube_cluster_role_binding);
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_marshal() {
+    let kube_cluster_role_binding = deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
+        role_ref: deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
+            api_group: "api_group".to_string(),
+            kind: "kind".to_string(),
+            name: "name".to_string(),
+        },
+        subjects: Some(vec![deps_hack::k8s_openapi::api::rbac::v1::Subject {
+            kind: "kind".to_string(),
+            name: "name".to_string(),
+            namespace: Some("namespace".to_string()),
+            ..Default::default()
+        }]),
+        ..Default::default()
+    };
+
+    let cluster_role_binding = ClusterRoleBinding::from_kube(
+        kube_cluster_role_binding.clone(),
+    );
+
+    assert_eq!(
+        kube_cluster_role_binding,
+        ClusterRoleBinding::unmarshal(cluster_role_binding.marshal()).unwrap().into_kube()
+    );
+}
+
 }
