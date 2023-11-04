@@ -1020,7 +1020,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCluster>, p
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,
-        set![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::DaemonSet]
+        set![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::Service, SubResource::DaemonSet]
     );
 }
 
