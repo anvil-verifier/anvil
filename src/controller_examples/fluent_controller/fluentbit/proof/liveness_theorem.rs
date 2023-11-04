@@ -69,6 +69,21 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, fb:FluentBitV
             &&& obj.metadata.labels == make_role_binding(fb).metadata.labels
             &&& obj.metadata.annotations == make_role_binding(fb).metadata.annotations
         },
+        SubResource::Service => {
+            let key = make_service_key(fb);
+            let obj = resources[key];
+            let made_spec = make_service(fb).spec.get_Some_0();
+            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            &&& resources.contains_key(key)
+            &&& ServiceView::unmarshal(obj).is_Ok()
+            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& made_spec == ServiceSpecView {
+                cluster_ip: made_spec.cluster_ip,
+                ..spec
+            }
+            &&& obj.metadata.labels == make_service(fb).metadata.labels
+            &&& obj.metadata.annotations == make_service(fb).metadata.annotations
+        },
         SubResource::DaemonSet => {
             let key = make_daemon_set_key(fb);
             let obj = resources[key];

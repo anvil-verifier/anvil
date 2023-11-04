@@ -526,6 +526,7 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_daemo
                                                 SubResource::ServiceAccount => {},
                                                 SubResource::Role => {},
                                                 SubResource::RoleBinding => {},
+                                                SubResource::Service => {},
                                                 SubResource::DaemonSet => {},
                                             }
                                         },
@@ -592,6 +593,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                                             SubResource::ServiceAccount => {},
                                             SubResource::Role => {},
                                             SubResource::RoleBinding => {},
+                                            SubResource::Service => {},
                                             SubResource::DaemonSet => {},
                                         }
                                     },
@@ -1018,7 +1020,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCluster>, p
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,
-        set![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::DaemonSet]
+        set![SubResource::ServiceAccount, SubResource::Role, SubResource::RoleBinding, SubResource::Service, SubResource::DaemonSet]
     );
 }
 

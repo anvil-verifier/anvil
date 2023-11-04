@@ -24,6 +24,7 @@ pub open spec fn get_request(sub_resource: SubResource, fb: FluentBitView) -> Ge
         SubResource::ServiceAccount => ServiceAccountBuilder::get_request(fb),
         SubResource::Role => RoleBuilder::get_request(fb),
         SubResource::RoleBinding => RoleBindingBuilder::get_request(fb),
+        SubResource::Service => ServiceBuilder::get_request(fb),
         SubResource::DaemonSet => DaemonSetBuilder::get_request(fb),
     }
 }
@@ -33,6 +34,7 @@ pub open spec fn make(sub_resource: SubResource, fb: FluentBitView, state: Fluen
         SubResource::ServiceAccount => ServiceAccountBuilder::make(fb, state),
         SubResource::Role => RoleBuilder::make(fb, state),
         SubResource::RoleBinding => RoleBindingBuilder::make(fb, state),
+        SubResource::Service => ServiceBuilder::make(fb, state),
         SubResource::DaemonSet => DaemonSetBuilder::make(fb, state),
     }
 }
@@ -42,6 +44,7 @@ pub open spec fn update(sub_resource: SubResource, fb: FluentBitView, state: Flu
         SubResource::ServiceAccount => ServiceAccountBuilder::update(fb, state, obj),
         SubResource::Role => RoleBuilder::update(fb, state, obj),
         SubResource::RoleBinding => RoleBindingBuilder::update(fb, state, obj),
+        SubResource::Service => ServiceBuilder::update(fb, state, obj),
         SubResource::DaemonSet => DaemonSetBuilder::update(fb, state, obj),
     }
 }
@@ -51,6 +54,7 @@ pub open spec fn state_after_create(sub_resource: SubResource, fb: FluentBitView
         SubResource::ServiceAccount => ServiceAccountBuilder::state_after_create(fb, obj, state),
         SubResource::Role => RoleBuilder::state_after_create(fb, obj, state),
         SubResource::RoleBinding => RoleBindingBuilder::state_after_create(fb, obj, state),
+        SubResource::Service => ServiceBuilder::state_after_create(fb, obj, state),
         SubResource::DaemonSet => DaemonSetBuilder::state_after_create(fb, obj, state),
     }
 }
@@ -60,6 +64,7 @@ pub open spec fn state_after_update(sub_resource: SubResource, fb: FluentBitView
         SubResource::ServiceAccount => ServiceAccountBuilder::state_after_update(fb, obj, state),
         SubResource::Role => RoleBuilder::state_after_update(fb, obj, state),
         SubResource::RoleBinding => RoleBindingBuilder::state_after_update(fb, obj, state),
+        SubResource::Service => ServiceBuilder::state_after_update(fb, obj, state),
         SubResource::DaemonSet => DaemonSetBuilder::state_after_update(fb, obj, state),
     }
 }
@@ -69,6 +74,7 @@ pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectVi
         SubResource::ServiceAccount => ServiceAccountBuilder::unchangeable(object, fb),
         SubResource::Role => RoleBuilder::unchangeable(object, fb),
         SubResource::RoleBinding => RoleBindingBuilder::unchangeable(object, fb),
+        SubResource::Service => ServiceBuilder::unchangeable(object, fb),
         SubResource::DaemonSet => DaemonSetBuilder::unchangeable(object, fb),
     }
 }

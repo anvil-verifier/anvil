@@ -638,6 +638,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+            SubResource::Service => ServiceView::marshal_preserves_integrity(),
             SubResource::DaemonSet => DaemonSetView::marshal_preserves_integrity(),
         }
     }
@@ -817,6 +818,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+            SubResource::Service => ServiceView::marshal_preserves_integrity(),
             _ => {}
         }
     }
@@ -968,6 +970,7 @@ pub proof fn lemma_resource_object_is_stable(
             SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
             SubResource::Role => RoleView::marshal_preserves_integrity(),
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+            SubResource::Service => ServiceView::marshal_preserves_integrity(),
             _ => {}
         }
     }

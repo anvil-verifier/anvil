@@ -148,7 +148,8 @@ pub open spec fn next_resource_after(sub_resource: SubResource) -> FluentBitReco
     match sub_resource {
         SubResource::ServiceAccount => after_get_k_request_step(SubResource::Role),
         SubResource::Role => after_get_k_request_step(SubResource::RoleBinding),
-        SubResource::RoleBinding => after_get_k_request_step(SubResource::DaemonSet),
+        SubResource::RoleBinding => after_get_k_request_step(SubResource::Service),
+        SubResource::Service => after_get_k_request_step(SubResource::DaemonSet),
         _ => FluentBitReconcileStep::Done,
     }
 }

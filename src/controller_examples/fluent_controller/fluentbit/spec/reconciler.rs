@@ -102,6 +102,7 @@ pub open spec fn reconcile_core(
                 SubResource::ServiceAccount => { reconcile_helper::<ServiceAccountBuilder>(fb, resp_o, state) },
                 SubResource::Role => { reconcile_helper::<RoleBuilder>(fb, resp_o, state) },
                 SubResource::RoleBinding => { reconcile_helper::<RoleBindingBuilder>(fb, resp_o, state) },
+                SubResource::Service => { reconcile_helper::<ServiceBuilder>(fb, resp_o, state) },
                 SubResource::DaemonSet => { reconcile_helper::<DaemonSetBuilder>(fb, resp_o, state) },
             }
         },
