@@ -137,7 +137,7 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView
                     ..ServicePortView::default()
                 }
             ]),
-            selector: Some(make_labels(fb)),
+            selector: Some(make_base_labels(fb)),
             ..ServiceSpecView::default()
         }),
         ..ServiceView::default()
