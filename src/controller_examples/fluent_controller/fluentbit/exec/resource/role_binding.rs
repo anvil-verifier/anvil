@@ -4,7 +4,7 @@
 use super::common::*;
 use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::common::*;
-use crate::fluent_controller::fluentbit::exec::resource::daemon_set::DaemonSetBuilder;
+use crate::fluent_controller::fluentbit::exec::resource::service::ServiceBuilder;
 use crate::fluent_controller::fluentbit::exec::resource::role::make_role_name;
 use crate::fluent_controller::fluentbit::exec::resource::service_account::make_service_account_name;
 use crate::fluent_controller::fluentbit::exec::types::*;
@@ -56,10 +56,10 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::RoleBind
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
                 ..state
             };
-            let req = KubeAPIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+            let req = KubeAPIRequest::GetRequest(ServiceBuilder::get_request(fb));
             Ok((state_prime, Some(req)))
         } else {
             Err(())
@@ -70,10 +70,10 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::RoleBind
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
                 ..state
             };
-            let req = KubeAPIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+            let req = KubeAPIRequest::GetRequest(ServiceBuilder::get_request(fb));
             Ok((state_prime, Some(req)))
         } else {
             Err(())

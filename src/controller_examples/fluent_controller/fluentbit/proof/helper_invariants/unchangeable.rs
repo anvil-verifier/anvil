@@ -94,6 +94,9 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
                     SubResource::ServiceAccount => {
                         ServiceAccountView::marshal_preserves_integrity();
                     },
+                    SubResource::Service => {
+                        ServiceView::marshal_preserves_integrity();
+                    },
                     SubResource::DaemonSet => {
                         DaemonSetView::marshal_preserves_integrity();
                     },
@@ -180,6 +183,10 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
                 ServiceAccountView::marshal_preserves_integrity();
                 ServiceAccountView::marshal_spec_preserves_integrity();
             },
+            SubResource::Service => {
+                ServiceView::marshal_preserves_integrity();
+                ServiceView::marshal_spec_preserves_integrity();
+            },
             SubResource::DaemonSet => {
                 DaemonSetView::marshal_preserves_integrity();
                 DaemonSetView::marshal_spec_preserves_integrity();
@@ -237,6 +244,9 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
                 SubResource::ServiceAccount => {
                     ServiceAccountView::marshal_preserves_integrity();
                 },
+                SubResource::Service => {
+                    ServiceView::marshal_preserves_integrity();
+                }
                 SubResource::DaemonSet => {
                     DaemonSetView::marshal_preserves_integrity();
                 },

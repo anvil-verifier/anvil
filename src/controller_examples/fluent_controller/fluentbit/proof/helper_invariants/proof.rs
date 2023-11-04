@@ -526,6 +526,7 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_daemo
                                                 SubResource::ServiceAccount => {},
                                                 SubResource::Role => {},
                                                 SubResource::RoleBinding => {},
+                                                SubResource::Service => {},
                                                 SubResource::DaemonSet => {},
                                             }
                                         },
@@ -592,6 +593,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                                             SubResource::ServiceAccount => {},
                                             SubResource::Role => {},
                                             SubResource::RoleBinding => {},
+                                            SubResource::Service => {},
                                             SubResource::DaemonSet => {},
                                         }
                                     },

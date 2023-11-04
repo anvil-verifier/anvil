@@ -158,6 +158,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fb: FluentBi
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, fb)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::Role, fb)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::RoleBinding, fb)),
+        lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::Service, fb)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb))
     );
 

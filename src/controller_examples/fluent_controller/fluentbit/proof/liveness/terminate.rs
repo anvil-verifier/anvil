@@ -63,7 +63,8 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCluster>, fb: Flue
 
     // Second, prove that the sub resource that every intermediate steps can lead to reconcile idle.
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fb, SubResource::DaemonSet, FluentBitReconcileStep::Done);
-    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fb, SubResource::RoleBinding, after_get_k_request_step(SubResource::DaemonSet));
+    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fb, SubResource::Service, after_get_k_request_step(SubResource::DaemonSet));
+    lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fb, SubResource::RoleBinding, after_get_k_request_step(SubResource::Service));
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fb, SubResource::Role, after_get_k_request_step(SubResource::RoleBinding));
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fb, SubResource::ServiceAccount, after_get_k_request_step(SubResource::Role));
 
@@ -93,6 +94,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCluster>, fb: Flue
         lift_state(state_pred_regarding_sub_resource(fb, SubResource::ServiceAccount)),
         lift_state(state_pred_regarding_sub_resource(fb, SubResource::Role)),
         lift_state(state_pred_regarding_sub_resource(fb, SubResource::RoleBinding)),
+        lift_state(state_pred_regarding_sub_resource(fb, SubResource::Service)),
         lift_state(state_pred_regarding_sub_resource(fb, SubResource::DaemonSet)),
         lift_state(at_step_state_pred(fb, FluentBitReconcileStep::Done)),
         lift_state(at_step_state_pred(fb, FluentBitReconcileStep::Error));

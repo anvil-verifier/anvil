@@ -29,6 +29,7 @@ pub enum SubResource {
     ServiceAccount,
     Role,
     RoleBinding,
+    Service,
     DaemonSet,
 }
 

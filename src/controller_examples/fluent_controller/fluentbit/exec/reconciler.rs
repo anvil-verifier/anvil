@@ -121,6 +121,7 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
                 SubResource::ServiceAccount => reconcile_helper::<spec_resource::ServiceAccountBuilder, ServiceAccountBuilder>(fb, resp_o, state),
                 SubResource::Role => reconcile_helper::<spec_resource::RoleBuilder, RoleBuilder>(fb, resp_o, state),
                 SubResource::RoleBinding => reconcile_helper::<spec_resource::RoleBindingBuilder, RoleBindingBuilder>(fb, resp_o, state),
+                SubResource::Service => reconcile_helper::<spec_resource::ServiceBuilder, ServiceBuilder>(fb, resp_o, state),
                 SubResource::DaemonSet => reconcile_helper::<spec_resource::DaemonSetBuilder, DaemonSetBuilder>(fb, resp_o, state),
             }
         },
