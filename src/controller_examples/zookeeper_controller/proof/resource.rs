@@ -75,11 +75,7 @@ pub open spec fn state_after_update(
 
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, zookeeper: ZookeeperClusterView) -> bool {
     match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::unchangeable(object, zookeeper),
-        SubResource::ClientService => ClientServiceBuilder::unchangeable(object, zookeeper),
-        SubResource::AdminServerService => AdminServerServiceBuilder::unchangeable(object, zookeeper),
-        SubResource::ConfigMap => ConfigMapBuilder::unchangeable(object, zookeeper),
-        SubResource::StatefulSet => StatefulSetBuilder::unchangeable(object, zookeeper),
+        _ => true,
     }
 }
 

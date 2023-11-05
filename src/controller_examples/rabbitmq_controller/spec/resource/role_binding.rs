@@ -67,12 +67,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        let rb = RoleBindingView::unmarshal(object).get_Ok_0();
-        &&& RoleBindingView::unmarshal(object).is_Ok()
-        &&& rb.role_ref == make_role_binding(rabbitmq).role_ref
-    }
 }
 
 pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView

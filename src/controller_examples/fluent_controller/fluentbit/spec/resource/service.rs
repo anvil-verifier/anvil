@@ -64,13 +64,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
-        let service = ServiceView::unmarshal(object);
-        &&& service.is_Ok()
-        &&& service.get_Ok_0().spec.is_Some()
-        &&& service.get_Ok_0().spec.get_Some_0().publish_not_ready_addresses.is_None()
-    }
 }
 
 pub open spec fn make_service_name(fb: FluentBitView) -> StringView

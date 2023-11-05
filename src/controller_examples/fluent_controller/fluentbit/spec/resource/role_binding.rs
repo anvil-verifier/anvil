@@ -66,12 +66,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
-        let rb = RoleBindingView::unmarshal(object).get_Ok_0();
-        &&& RoleBindingView::unmarshal(object).is_Ok()
-        &&& rb.role_ref == make_role_binding(fb).role_ref
-    }
 }
 
 pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView

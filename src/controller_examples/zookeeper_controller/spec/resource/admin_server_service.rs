@@ -65,10 +65,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_admin_server_service_key(zk: ZookeeperClusterView) -> ObjectRef

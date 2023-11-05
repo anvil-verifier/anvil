@@ -67,10 +67,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsCon
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView

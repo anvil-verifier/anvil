@@ -85,10 +85,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef
