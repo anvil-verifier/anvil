@@ -114,4 +114,33 @@ pub fn test_kube() {
         kube_secret
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_marshal() {
+    let kube_secret =
+        deps_hack::k8s_openapi::api::core::v1::Secret {
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
+            },
+            data: Some(
+                std::collections::BTreeMap::from_iter(vec![(
+                    "key".to_string(),
+                    deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
+                )]),
+            ),
+            ..Default::default()
+        };
+
+    let secret = Secret::from_kube(kube_secret.clone());
+
+    assert_eq!(
+        kube_secret,
+        Secret::unmarshal(secret.marshal())
+            .unwrap()
+            .into_kube()
+    );
+}
 }

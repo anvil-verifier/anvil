@@ -72,4 +72,26 @@ pub fn test_kube() {
         kube_service_account
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_marshal() {
+    let kube_service_account = deps_hack::k8s_openapi::api::core::v1::ServiceAccount {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let service_account = ServiceAccount::from_kube(kube_service_account.clone());
+
+    assert_eq!(
+        kube_service_account,
+        ServiceAccount::unmarshal(service_account.marshal())
+            .unwrap()
+            .into_kube()
+    );
+}
+
 }

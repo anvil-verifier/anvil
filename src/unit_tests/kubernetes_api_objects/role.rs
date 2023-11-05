@@ -182,4 +182,41 @@ pub fn test_kube() {
         kube_role
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_marshal() {
+    let kube_role =
+        deps_hack::k8s_openapi::api::rbac::v1::Role {
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
+            },
+            rules: Some(
+                vec![
+                    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+                        api_groups: Some(vec!["api_groups_1_1".to_string(), "api_groups_1_2".to_string()]),
+                        resources: Some(vec!["resources_1_1".to_string(), "resources_1_2".to_string()]),
+                        verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
+                        ..Default::default()
+                    },
+                    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+                        api_groups: Some(vec!["api_groups_2_1".to_string(), "api_groups_2_2".to_string()]),
+                        resources: Some(vec!["resources_2_1".to_string(), "resources_2_2".to_string()]),
+                        verbs: vec!["verbs_2_1".to_string(), "verbs_2_2".to_string()],
+                        ..Default::default()
+                    }
+                ]
+            ),
+            ..Default::default()
+        };
+
+    let role = Role::from_kube(kube_role.clone());
+
+    assert_eq!(
+        kube_role,
+        Role::unmarshal(role.marshal()).unwrap().into_kube()
+    );
+}
 }
