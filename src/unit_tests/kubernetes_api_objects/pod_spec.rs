@@ -127,6 +127,68 @@ pub fn test_set_node_selector() {
 
 #[test]
 #[verifier(external)]
+pub fn test_overwrite_runtime_class_name() {
+    let mut pod_spec = PodSpec::default();
+    if pod_spec.clone().into_kube().runtime_class_name.is_some() {
+        panic!("runtime_class_name should be None");
+    };
+    pod_spec.overwrite_runtime_class_name(Some(new_strlit("name").to_string()));
+    assert_eq!("name".to_string(), pod_spec.clone().into_kube().runtime_class_name.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_overwrite_dns_policy() {
+    let mut pod_spec = PodSpec::default();
+    if pod_spec.clone().into_kube().dns_policy.is_some() {
+        panic!("dns_policy should be None");
+    };
+    pod_spec.overwrite_dns_policy(Some(new_strlit("name").to_string()));
+    assert_eq!("name".to_string(), pod_spec.clone().into_kube().dns_policy.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_overwrite_scheduler_name() {
+    let mut pod_spec = PodSpec::default();
+    if pod_spec.clone().into_kube().scheduler_name.is_some() {
+        panic!("scheduler_name should be None");
+    };
+    pod_spec.overwrite_scheduler_name(Some(new_strlit("name").to_string()));
+    assert_eq!("name".to_string(), pod_spec.clone().into_kube().scheduler_name.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_overwrite_priority_class_name() {
+    let mut pod_spec = PodSpec::default();
+    if pod_spec.clone().into_kube().priority_class_name.is_some() {
+        panic!("priority_class_name should be None");
+    };
+    pod_spec.overwrite_priority_class_name(Some(new_strlit("name").to_string()));
+    assert_eq!("name".to_string(), pod_spec.clone().into_kube().priority_class_name.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_security_context() {
+    let mut pod_spec = PodSpec::default();
+    let security_context = PodSecurityContext::from_kube(deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default());
+    pod_spec.set_security_context(security_context);
+    assert_eq!(deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default(), pod_spec.into_kube().security_context.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_host_network() {
+    let mut pod_spec = PodSpec::default();
+    pod_spec.set_host_network(true);
+    assert_eq!(true, pod_spec.into_kube().host_network.unwrap());
+}
+
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_pod_spec =
         deps_hack::k8s_openapi::api::core::v1::PodSpec {

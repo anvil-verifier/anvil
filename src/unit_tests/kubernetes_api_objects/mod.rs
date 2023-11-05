@@ -25,6 +25,7 @@ pub mod object_meta;
 pub mod persistent_volume_claim;
 pub mod persistent_volume_claim_spec;
 pub mod pod;
+pub mod pod_security_context;
 pub mod pod_spec;
 pub mod pod_template_spec;
 pub mod policy_rule;

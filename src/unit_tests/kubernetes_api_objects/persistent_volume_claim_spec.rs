@@ -56,6 +56,21 @@ pub fn test_set_resources() {
         persistent_volume_claim_spec.into_kube().resources.unwrap()
     );
 }
+#[test]
+#[verifier(external)]
+pub fn test_clone(){
+    let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
+    let mut resources = ResourceRequirements::default();
+    let mut requests = StringMap::new();
+    requests.insert(new_strlit("storage").to_string(), new_strlit("1Gi").to_string());
+    resources.set_requests(requests);
+    persistent_volume_claim_spec.set_resources(resources.clone());
+    let persistent_volume_claim_spec_clone = persistent_volume_claim_spec.clone();
+    assert_eq!(
+        resources.into_kube(),
+        persistent_volume_claim_spec_clone.into_kube().resources.unwrap()
+    );
+}
 
 #[test]
 #[verifier(external)]
