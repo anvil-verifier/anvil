@@ -93,7 +93,7 @@ pub fn test_owner_references_only_contains() {
 
 #[test]
 #[verifier(external)]
-pub fn test_resurce_version() {
+pub fn test_resource_version() {
     let object_meta = ObjectMeta::default();
     let temp = object_meta.resource_version();
     if !temp.is_none() {
