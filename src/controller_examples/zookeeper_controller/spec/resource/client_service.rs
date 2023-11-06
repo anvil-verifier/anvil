@@ -67,10 +67,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientSe
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef

@@ -64,10 +64,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBuilder {
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_role_name(fb: FluentBitView) -> StringView

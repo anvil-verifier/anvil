@@ -63,10 +63,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef

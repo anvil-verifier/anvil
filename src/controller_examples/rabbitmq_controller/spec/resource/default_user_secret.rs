@@ -67,10 +67,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView

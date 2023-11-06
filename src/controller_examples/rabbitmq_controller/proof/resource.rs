@@ -100,16 +100,20 @@ pub open spec fn state_after_update(
 
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
     match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::unchangeable(object, rabbitmq),
-        SubResource::Service => ServiceBuilder::unchangeable(object, rabbitmq),
-        SubResource::ErlangCookieSecret => ErlangCookieBuilder::unchangeable(object, rabbitmq),
-        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::unchangeable(object, rabbitmq),
-        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::unchangeable(object, rabbitmq),
-        SubResource::ServerConfigMap => ServerConfigMapBuilder::unchangeable(object, rabbitmq),
-        SubResource::ServiceAccount => ServiceAccountBuilder::unchangeable(object, rabbitmq),
-        SubResource::Role => RoleBuilder::unchangeable(object, rabbitmq),
-        SubResource::RoleBinding => RoleBindingBuilder::unchangeable(object, rabbitmq),
-        SubResource::StatefulSet => StatefulSetBuilder::unchangeable(object, rabbitmq),
+        SubResource::ErlangCookieSecret => {
+            &&& SecretView::unmarshal(object).is_Ok()
+            &&& SecretView::unmarshal(object).get_Ok_0().data == make_erlang_secret(rabbitmq).data
+        },
+        SubResource::ServiceAccount => {
+            &&& ServiceAccountView::unmarshal(object).is_Ok()
+            &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
+        },
+        SubResource::RoleBinding => {
+            let rb = RoleBindingView::unmarshal(object).get_Ok_0();
+            &&& RoleBindingView::unmarshal(object).is_Ok()
+            &&& rb.role_ref == make_role_binding(rabbitmq).role_ref
+        },
+        _ => true,
     }
 }
 

@@ -69,10 +69,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {

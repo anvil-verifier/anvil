@@ -68,10 +68,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView

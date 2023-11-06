@@ -67,10 +67,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef

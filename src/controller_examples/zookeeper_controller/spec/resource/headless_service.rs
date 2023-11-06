@@ -67,10 +67,6 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Headless
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_headless_service_key(zk: ZookeeperClusterView) -> ObjectRef

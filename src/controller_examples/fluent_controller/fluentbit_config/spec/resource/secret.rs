@@ -64,10 +64,6 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, fbc: FluentBitConfigView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_secret_name(fbc: FluentBitConfigView) -> StringView

@@ -67,11 +67,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        &&& ServiceAccountView::unmarshal(object).is_Ok()
-        &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
-    }
 }
 
 pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView

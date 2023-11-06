@@ -20,8 +20,6 @@ pub trait ResourceBuilder<K, T> {
     spec fn state_after_create(cr: K, obj: DynamicObjectView, state: T) -> Result<(T, Option<APIRequest>), ()>;
 
     spec fn state_after_update(cr: K, obj: DynamicObjectView, state: T) -> Result<(T, Option<APIRequest>), ()>;
-
-    spec fn unchangeable(object: DynamicObjectView, cr: K) -> bool;
 }
 
 }

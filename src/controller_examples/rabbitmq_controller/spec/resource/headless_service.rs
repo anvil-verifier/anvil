@@ -68,10 +68,6 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessSe
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        true
-    }
 }
 
 pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView

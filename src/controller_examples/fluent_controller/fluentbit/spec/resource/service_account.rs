@@ -64,11 +64,6 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
             Err(())
         }
     }
-
-    open spec fn unchangeable(object: DynamicObjectView, fb: FluentBitView) -> bool {
-        &&& ServiceAccountView::unmarshal(object).is_Ok()
-        &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(fb).automount_service_account_token
-    }
 }
 
 pub open spec fn make_service_account_name(fb: FluentBitView) -> StringView
