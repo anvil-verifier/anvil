@@ -188,6 +188,26 @@ pub fn test_persistent_volume_claim_retention_policy() {
 
 #[test]
 #[verifier(external)]
+pub fn test_clone() {
+    let mut stateful_set_spec = StatefulSetSpec::default();
+    let mut pod_template_spec = PodTemplateSpec::default();
+    let mut object_meta = ObjectMeta::default();
+    object_meta.set_name(new_strlit("name").to_string());
+    pod_template_spec.set_metadata(object_meta);
+    stateful_set_spec.set_template(pod_template_spec.clone());
+    let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
+    pvc_retention_policy.set_when_deleted(new_strlit("Delete").to_string());
+    pvc_retention_policy.set_when_scaled(new_strlit("Retain").to_string());
+    stateful_set_spec.set_pvc_retention_policy(pvc_retention_policy.clone());
+    let stateful_set_spec_clone = stateful_set_spec.clone();
+    assert_eq!(
+        stateful_set_spec.into_kube(),
+        stateful_set_spec_clone.into_kube()
+    );
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_sts_spec =
         deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {

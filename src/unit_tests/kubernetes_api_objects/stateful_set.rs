@@ -75,6 +75,48 @@ pub fn test_api_resource() {
 
 #[test]
 #[verifier(external)]
+pub fn test_clone() {
+    let mut object_meta = ObjectMeta::default();
+    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_namespace(new_strlit("namespace").to_string());
+    let mut stateful_set = StatefulSet::default();
+    stateful_set.set_metadata(object_meta.clone());
+    let mut stateful_set_spec = StatefulSetSpec::default();
+    stateful_set_spec.set_replicas(1024);
+    stateful_set.set_spec(stateful_set_spec.clone());
+    let cloned_stateful_set = stateful_set.clone();
+    assert_eq!(
+        stateful_set.into_kube(),
+        cloned_stateful_set.into_kube()
+    );
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_status() {
+    let stateful_set = StatefulSet::default();
+    let temp = stateful_set.status();
+    if !temp.is_none() {
+        panic!("StatefulSet status should be None, but it's not.");
+    }
+    let stateful_set_status = StatefulSetStatus::from_kube(deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
+        replicas: 1024,
+        ready_replicas: Some(1024),
+        ..Default::default()
+    });
+    let stateful_set = StatefulSet::from_kube(deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
+        status: Some(deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
+            replicas: 1024,
+            ready_replicas: Some(1024),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    assert_eq!(stateful_set_status.into_kube(), stateful_set.status().unwrap().into_kube());
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_stateful_set =
         deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
