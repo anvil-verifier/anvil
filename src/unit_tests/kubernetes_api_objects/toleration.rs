@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::object_meta::*;
-use crate::kubernetes_api_objects::owner_reference::*;
 use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_api_objects::toleration::*;
 use crate::vstd_ext::string_map::*;
 use deps_hack::chrono::{DateTime, Utc};
 use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
@@ -10,22 +10,23 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
-// Tests for owner reference
+// Tests for toleration
 #[test]
 #[verifier(external)]
 pub fn test_kube() {
-    let kube_owner_reference =
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference {
-            api_version: "api_version".to_string(),
-            kind: "kind".to_string(),
-            name: "name".to_string(),
-            uid: "uid".to_string(),
+    let kube_toleration =
+        deps_hack::k8s_openapi::api::core::v1::Toleration {
+            key: Some("key".to_string()),
+            operator: Some("operator".to_string()),
+            value: Some("value".to_string()),
+            effect: Some("effect".to_string()),
+            toleration_seconds: Some(1),
             ..Default::default()
         };
-    let owner_reference = OwnerReference::from_kube(kube_owner_reference.clone());
+    let toleration = Toleration::from_kube(kube_toleration.clone());
     assert_eq!(
-        owner_reference.into_kube(),
-        kube_owner_reference
+        toleration.into_kube(),
+        kube_toleration
     );
 }
 }

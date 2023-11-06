@@ -67,6 +67,20 @@ pub fn test_api_resource() {
 
 #[test]
 #[verifier(external)]
+pub fn test_clone() {
+    let mut service = Service::default();
+    let mut metadata = ObjectMeta::default();
+    metadata.set_name(new_strlit("name").to_string());
+    service.set_metadata(metadata.clone());
+    let mut spec = ServiceSpec::default();
+    spec.set_cluster_ip(new_strlit("ip").to_string());
+    service.set_spec(spec.clone());
+    let service_clone = service.clone();
+    assert_eq!(service.into_kube(), service_clone.into_kube());
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_service =
         deps_hack::k8s_openapi::api::core::v1::Service {
