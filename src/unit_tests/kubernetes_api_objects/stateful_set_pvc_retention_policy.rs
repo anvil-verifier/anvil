@@ -44,6 +44,19 @@ pub fn test_set_when_scaled() {
 
 #[test]
 #[verifier(external)]
+pub fn test_clone() {
+    let mut stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
+    stateful_set_pvc_retention_policy.set_when_deleted(new_strlit("Retain").to_string());
+    stateful_set_pvc_retention_policy.set_when_scaled(new_strlit("Delete").to_string());
+    let cloned_stateful_set_pvc_retention_policy = stateful_set_pvc_retention_policy.clone();
+    assert_eq!(
+        stateful_set_pvc_retention_policy.into_kube(),
+        cloned_stateful_set_pvc_retention_policy.into_kube()
+    );
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_stateful_set_pvc_retention_policy =
         deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy{

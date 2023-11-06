@@ -134,4 +134,52 @@ pub fn test_kube() {
         kube_persistent_volume_claim
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_marshal() {
+    let kube_persistent_volume_claim =
+        deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
+            metadata:
+                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                    name: Some("name".to_string()),
+                    namespace: Some("namespace".to_string()),
+                    ..Default::default()
+                },
+            spec: Some(
+                deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
+                    access_modes: Some(
+                        vec![
+                            "ReadWriteOnce".to_string(),
+                            "ReadOnlyMany".to_string(),
+                        ]
+                        .into_iter()
+                        .collect(),
+                    ),
+                    resources: Some(
+                        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+                            requests: Some(
+                                BTreeMap::from([
+                                    (
+                                        "storage".to_string(), deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("1Gi".to_string())
+                                    ),
+                                ])
+                            ),
+                            ..Default::default()
+                        },
+                    ),
+                    storage_class_name: Some("storage_class_name".to_string()),
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        };
+
+    let persistent_volume_claim = PersistentVolumeClaim::from_kube(kube_persistent_volume_claim.clone());
+
+    assert_eq!(
+        kube_persistent_volume_claim,
+        PersistentVolumeClaim::unmarshal(persistent_volume_claim.marshal()).unwrap().into_kube()
+    );
+}
 }

@@ -1,5 +1,6 @@
 pub use anyhow;
 pub use base64;
+pub use chrono;
 pub use futures;
 pub use k8s_openapi;
 pub use kube;
