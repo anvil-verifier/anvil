@@ -531,6 +531,9 @@ spec:
                     syncLimit:
                       format: int32
                       type: integer
+                      x-kubernetes-validations:
+                        - rule: "self >= 1"
+                          message: syncLimit must be greater than or equal to 1
                     tickTime:
                       format: int32
                       type: integer
@@ -551,6 +554,9 @@ spec:
                     - syncLimit
                     - tickTime
                   type: object
+                  x-kubernetes-validations:
+                    - rule: "self.minSessionTimeout <= self.maxSessionTimeout"
+                      message: minSessionTimeout must be less than or equal to maxSessionTimeout
                 image:
                   type: string
                 labels:
