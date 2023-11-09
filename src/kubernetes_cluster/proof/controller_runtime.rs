@@ -193,7 +193,6 @@ pub open spec fn the_object_in_schedule_satisfies_state_validation() -> StatePre
     |s: Self| {
         forall |key: ObjectRef|
         #[trigger] s.scheduled_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
         ==> s.scheduled_reconciles()[key].state_validation()
     }
 }

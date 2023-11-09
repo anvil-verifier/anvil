@@ -245,7 +245,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                     }
                 }
             );
-            assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
+            assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies ZKCluster::resource_create_response_msg(resource_key, s_prime)(msg) by {
                 assert(msg.src.is_KubernetesAPI());
                 assert(msg.content.is_create_response());
                 if msg.content.get_create_response().res.is_Ok() {
@@ -393,7 +393,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                 }
             );
 
-            assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
+            assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies ZKCluster::resource_update_response_msg(resource_key, s_prime)(msg) by {
                 assert(msg.src.is_KubernetesAPI());
                 assert(msg.content.is_update_response());
                 if msg.content.get_update_response().res.is_Ok() {

@@ -18,6 +18,42 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
+pub open spec fn resource_get_response_msg(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_get_response()
+        && (
+            msg.content.get_get_response().res.is_Ok()
+            ==> msg.content.get_get_response().res.get_Ok_0().object_ref() == key
+        )
+}
+
+pub open spec fn resource_update_response_msg(key: ObjectRef, s: Self) -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_update_response()
+        && (
+            msg.content.get_update_response().res.is_Ok()
+            ==> (
+                s.resources().contains_key(key)
+                && msg.content.get_update_response().res.get_Ok_0() == s.resources()[key]
+            )
+        )
+}
+
+pub open spec fn resource_create_response_msg(key: ObjectRef, s: Self) -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_create_response()
+        && (
+            msg.content.get_create_response().res.is_Ok()
+            ==> (
+                s.resources().contains_key(key)
+                && msg.content.get_create_response().res.get_Ok_0() == s.resources()[key]
+            )
+        )
+}
+
 pub open spec fn every_in_flight_msg_has_lower_id_than_allocator() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|

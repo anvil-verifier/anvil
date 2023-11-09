@@ -45,7 +45,7 @@ pub proof fn lemma_always_rabbitmq_is_well_formed(spec: TempPred<RMQCluster>, ra
     );
 }
 
-proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<RMQCluster>)
+pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred<RMQCluster>)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -255,7 +255,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
                     }
                 }
             );
-            assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
+            assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) implies RMQCluster::resource_create_response_msg(resource_key, s_prime)(msg) by {
                 object_in_response_at_after_create_resource_step_is_same_as_etcd_helper(s, s_prime, rabbitmq);
             }
         }
@@ -286,12 +286,12 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
         forall |msg: RMQMessage|
             s_prime.in_flight().contains(msg)
             && #[trigger] Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
-            ==> resource_create_response_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key, s_prime)(msg),
+            ==> RMQCluster::resource_create_response_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key, s_prime)(msg),
 {
     let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let key = rabbitmq.object_ref();
     let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
-    assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
+    assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies RMQCluster::resource_create_response_msg(resource_key, s_prime)(msg) by {
         assert(msg.src.is_KubernetesAPI());
         assert(msg.content.is_create_response());
         if msg.content.get_create_response().res.is_Ok() {
@@ -313,7 +313,7 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                                 assert(resource_create_request_msg(resource_key)(req));
                             } else {
                                 assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                                assert(resource_create_response_msg(resource_key, s_prime)(msg));
+                                assert(RMQCluster::resource_create_response_msg(resource_key, s_prime)(msg));
                             }
                         }
                         _ => {
@@ -466,12 +466,12 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
         forall |msg: RMQMessage| #[trigger]
             s_prime.in_flight().contains(msg)
             && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
-            ==> resource_update_response_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key, s_prime)(msg),
+            ==> RMQCluster::resource_update_response_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key, s_prime)(msg),
 {
     let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
     let key = rabbitmq.object_ref();
     let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
-    assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
+    assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies RMQCluster::resource_update_response_msg(resource_key, s_prime)(msg) by {
         assert(msg.src.is_KubernetesAPI());
         assert(msg.content.is_update_response());
         if msg.content.get_update_response().res.is_Ok() {
