@@ -218,7 +218,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(res, rabbitmq)))))
     .and(always(lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq))))
-    .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref()))))
+    .and(always(lift_state(RMQCluster::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref()))))
     .and(always(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref()))))
     .and(always(lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref()))))
     .and(always(lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref()))))
@@ -252,7 +252,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())),
+        lift_state(RMQCluster::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
@@ -477,7 +477,7 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
         lift_state(helper_invariants::no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())),
+        lift_state(RMQCluster::the_object_in_reconcile_satisfies_state_validation(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),

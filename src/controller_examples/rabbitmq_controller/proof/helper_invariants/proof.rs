@@ -50,9 +50,9 @@ proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
+        spec.entails(always(lift_state(RMQCluster::cr_objects_in_etcd_satisfy_state_validation()))),
 {
-    let inv = cr_objects_in_etcd_satisfy_state_validation();
+    let inv = RMQCluster::cr_objects_in_etcd_satisfy_state_validation();
     RabbitmqClusterView::marshal_status_preserves_integrity();
     init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
 }
@@ -62,18 +62,18 @@ proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: Te
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_schedule_satisfies_state_validation()))),
 {
-    let inv = the_object_in_schedule_satisfies_state_validation();
+    let inv = RMQCluster::the_object_in_schedule_satisfies_state_validation();
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
-        &&& cr_objects_in_etcd_satisfy_state_validation()(s)
+        &&& RMQCluster::cr_objects_in_etcd_satisfy_state_validation()(s)
     };
     lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
-        lift_state(cr_objects_in_etcd_satisfy_state_validation())
+        lift_state(RMQCluster::cr_objects_in_etcd_satisfy_state_validation())
     );
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
@@ -83,9 +83,9 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_satisfies_state_validation(key)))),
 {
-    let inv = the_object_in_reconcile_satisfies_state_validation(key);
+    let inv = RMQCluster::the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& the_object_in_schedule_satisfies_state_validation()(s)
@@ -94,7 +94,7 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
-        lift_state(the_object_in_schedule_satisfies_state_validation())
+        lift_state(RMQCluster::the_object_in_schedule_satisfies_state_validation())
     );
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }

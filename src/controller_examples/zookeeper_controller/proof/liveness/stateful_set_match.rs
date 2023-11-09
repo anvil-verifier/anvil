@@ -37,7 +37,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
@@ -84,7 +84,7 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
@@ -397,7 +397,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
@@ -430,7 +430,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& ZKCluster::each_object_in_etcd_is_well_formed()(s)
         &&& ZKCluster::desired_state_is(zookeeper)(s)
-        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
+        &&& ZKCluster::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)(s)
@@ -448,7 +448,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
         lift_state(ZKCluster::desired_state_is(zookeeper)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
+        lift_state(ZKCluster::the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)),

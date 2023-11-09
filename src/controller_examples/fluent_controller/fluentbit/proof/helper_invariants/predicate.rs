@@ -28,35 +28,6 @@ pub open spec fn fb_is_well_formed(fb: FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| fb.well_formed()
 }
 
-pub open spec fn the_object_in_reconcile_satisfies_state_validation(key: ObjectRef) -> StatePred<FBCluster>
-{
-    |s: FBCluster| {
-        s.ongoing_reconciles().contains_key(key)
-        ==> s.ongoing_reconciles()[key].triggering_cr.state_validation()
-    }
-}
-
-pub open spec fn the_object_in_schedule_satisfies_state_validation() -> StatePred<FBCluster>
-{
-    |s: FBCluster| {
-        forall |key: ObjectRef|
-        #[trigger] s.scheduled_reconciles().contains_key(key)
-        && key.kind.is_CustomResourceKind()
-        ==> s.scheduled_reconciles()[key].state_validation()
-    }
-}
-
-pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<FBCluster>
-{
-    |s: FBCluster| {
-        forall |key: ObjectRef|
-        #[trigger] s.resources().contains_key(key)
-        && key.kind.is_CustomResourceKind()
-        ==> FluentBitView::unmarshal(s.resources()[key]).is_Ok()
-            && FluentBitView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-    }
-}
-
 pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource: SubResource, fb: FluentBitView) -> StatePred<FBCluster> {
     let key = get_request(sub_resource, fb).key;
     |s: FBCluster| {

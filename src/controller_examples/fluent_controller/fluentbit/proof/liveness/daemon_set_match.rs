@@ -40,7 +40,7 @@ pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)))),
@@ -84,7 +84,7 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)))),
@@ -382,7 +382,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-        spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
+        spec.entails(always(lift_state(FBCluster::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)))),
@@ -417,7 +417,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
         &&& resource_well_formed(s)
         &&& desired_state_is(fb)(s)
-        &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())(s)
+        &&& FBCluster::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)(s)
         &&& helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)(s)
@@ -434,7 +434,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(resource_well_formed),
         lift_state(desired_state_is(fb)),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())),
+        lift_state(FBCluster::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)),
         lift_state(helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)),

@@ -50,9 +50,9 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
     ensures
-        spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
+        spec.entails(always(lift_state(ZKCluster::cr_objects_in_etcd_satisfy_state_validation()))),
 {
-    let inv = cr_objects_in_etcd_satisfy_state_validation();
+    let inv = ZKCluster::cr_objects_in_etcd_satisfy_state_validation();
     ZookeeperClusterView::marshal_status_preserves_integrity();
     init_invariant(spec, ZKCluster::init(), ZKCluster::next(), inv);
 }
@@ -62,18 +62,18 @@ pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_schedule_satisfies_state_validation()))),
 {
-    let inv = the_object_in_schedule_satisfies_state_validation();
+    let inv = ZKCluster::the_object_in_schedule_satisfies_state_validation();
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
-        &&& cr_objects_in_etcd_satisfy_state_validation()(s)
+        &&& ZKCluster::cr_objects_in_etcd_satisfy_state_validation()(s)
     };
     lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(ZKCluster::next()),
-        lift_state(cr_objects_in_etcd_satisfy_state_validation())
+        lift_state(ZKCluster::cr_objects_in_etcd_satisfy_state_validation())
     );
     init_invariant(spec, ZKCluster::init(), stronger_next, inv);
 }
@@ -83,18 +83,18 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
     ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_satisfies_state_validation(key)))),
 {
-    let inv = the_object_in_reconcile_satisfies_state_validation(key);
+    let inv = ZKCluster::the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
-        &&& the_object_in_schedule_satisfies_state_validation()(s)
+        &&& ZKCluster::the_object_in_schedule_satisfies_state_validation()(s)
     };
     lemma_always_the_object_in_schedule_satisfies_state_validation(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(ZKCluster::next()),
-        lift_state(the_object_in_schedule_satisfies_state_validation())
+        lift_state(ZKCluster::the_object_in_schedule_satisfies_state_validation())
     );
     init_invariant(spec, ZKCluster::init(), stronger_next, inv);
 }
