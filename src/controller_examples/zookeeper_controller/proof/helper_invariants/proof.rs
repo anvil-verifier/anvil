@@ -57,48 +57,6 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
     init_invariant(spec, ZKCluster::init(), ZKCluster::next(), inv);
 }
 
-pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<ZKCluster>)
-    requires
-        spec.entails(lift_state(ZKCluster::init())),
-        spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(ZKCluster::the_object_in_schedule_satisfies_state_validation()))),
-{
-    let inv = ZKCluster::the_object_in_schedule_satisfies_state_validation();
-    let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
-        &&& ZKCluster::next()(s, s_prime)
-        &&& ZKCluster::cr_objects_in_etcd_satisfy_state_validation()(s)
-    };
-    lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(ZKCluster::next()),
-        lift_state(ZKCluster::cr_objects_in_etcd_satisfy_state_validation())
-    );
-    init_invariant(spec, ZKCluster::init(), stronger_next, inv);
-}
-
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<ZKCluster>, key: ObjectRef)
-    requires
-        spec.entails(lift_state(ZKCluster::init())),
-        spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_satisfies_state_validation(key)))),
-{
-    let inv = ZKCluster::the_object_in_reconcile_satisfies_state_validation(key);
-    let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
-        &&& ZKCluster::next()(s, s_prime)
-        &&& ZKCluster::the_object_in_schedule_satisfies_state_validation()(s)
-    };
-    lemma_always_the_object_in_schedule_satisfies_state_validation(spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(ZKCluster::next()),
-        lift_state(ZKCluster::the_object_in_schedule_satisfies_state_validation())
-    );
-    init_invariant(spec, ZKCluster::init(), stronger_next, inv);
-}
-
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),

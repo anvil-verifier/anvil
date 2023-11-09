@@ -57,48 +57,6 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
     init_invariant(spec, FBCluster::init(), FBCluster::next(), inv);
 }
 
-pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<FBCluster>)
-    requires
-        spec.entails(lift_state(FBCluster::init())),
-        spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(FBCluster::the_object_in_schedule_satisfies_state_validation()))),
-{
-    let inv = FBCluster::the_object_in_schedule_satisfies_state_validation();
-    let stronger_next = |s: FBCluster, s_prime: FBCluster| {
-        &&& FBCluster::next()(s, s_prime)
-        &&& FBCluster::cr_objects_in_etcd_satisfy_state_validation()(s)
-    };
-    lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(FBCluster::next()),
-        lift_state(FBCluster::cr_objects_in_etcd_satisfy_state_validation())
-    );
-    init_invariant(spec, FBCluster::init(), stronger_next, inv);
-}
-
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<FBCluster>, key: ObjectRef)
-    requires
-        spec.entails(lift_state(FBCluster::init())),
-        spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(FBCluster::the_object_in_reconcile_satisfies_state_validation(key)))),
-{
-    let inv = FBCluster::the_object_in_reconcile_satisfies_state_validation(key);
-    let stronger_next = |s: FBCluster, s_prime: FBCluster| {
-        &&& FBCluster::next()(s, s_prime)
-        &&& FBCluster::the_object_in_schedule_satisfies_state_validation()(s)
-    };
-    lemma_always_the_object_in_schedule_satisfies_state_validation(spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(FBCluster::next()),
-        lift_state(FBCluster::the_object_in_schedule_satisfies_state_validation())
-    );
-    init_invariant(spec, FBCluster::init(), stronger_next, inv);
-}
-
 #[verifier(spinoff_prover)]
 pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView

@@ -211,6 +211,49 @@ pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(
     init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
+pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(always(lift_state(Self::cr_objects_in_etcd_satisfy_state_validation()))),
+    ensures
+        spec.entails(always(lift_state(Self::the_object_in_schedule_satisfies_state_validation()))),
+{
+    let inv = Self::the_object_in_schedule_satisfies_state_validation();
+    let stronger_next = |s: Self, s_prime: Self| {
+        &&& Self::next()(s, s_prime)
+        &&& Self::cr_objects_in_etcd_satisfy_state_validation()(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Self::next()),
+        lift_state(Self::cr_objects_in_etcd_satisfy_state_validation())
+    );
+    init_invariant(spec, Self::init(), stronger_next, inv);
+}
+
+pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<Self>, key: ObjectRef)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(always(lift_state(Self::cr_objects_in_etcd_satisfy_state_validation()))),
+    ensures
+        spec.entails(always(lift_state(Self::the_object_in_reconcile_satisfies_state_validation(key)))),
+{
+    let inv = Self::the_object_in_reconcile_satisfies_state_validation(key);
+    let stronger_next = |s: Self, s_prime: Self| {
+        &&& Self::next()(s, s_prime)
+        &&& Self::the_object_in_schedule_satisfies_state_validation()(s)
+    };
+    Self::lemma_always_the_object_in_schedule_satisfies_state_validation(spec);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Self::next()),
+        lift_state(Self::the_object_in_schedule_satisfies_state_validation())
+    );
+    init_invariant(spec, Self::init(), stronger_next, inv);
+}
+
 }
 
 }

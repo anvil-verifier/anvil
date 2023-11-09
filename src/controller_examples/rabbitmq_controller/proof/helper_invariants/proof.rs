@@ -57,48 +57,6 @@ proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: TempPred
     init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
 }
 
-proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec: TempPred<RMQCluster>)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(RMQCluster::the_object_in_schedule_satisfies_state_validation()))),
-{
-    let inv = RMQCluster::the_object_in_schedule_satisfies_state_validation();
-    let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::cr_objects_in_etcd_satisfy_state_validation()(s)
-    };
-    lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::cr_objects_in_etcd_satisfy_state_validation())
-    );
-    init_invariant(spec, RMQCluster::init(), stronger_next, inv);
-}
-
-pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spec: TempPred<RMQCluster>, key: ObjectRef)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_satisfies_state_validation(key)))),
-{
-    let inv = RMQCluster::the_object_in_reconcile_satisfies_state_validation(key);
-    let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& the_object_in_schedule_satisfies_state_validation()(s)
-    };
-    lemma_always_the_object_in_schedule_satisfies_state_validation(spec);
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::the_object_in_schedule_satisfies_state_validation())
-    );
-    init_invariant(spec, RMQCluster::init(), stronger_next, inv);
-}
-
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
