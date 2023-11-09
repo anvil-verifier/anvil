@@ -94,7 +94,6 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-#[verifier(spinoff_prover)]
 proof fn object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references_helper(
     s: RMQCluster, s_prime: RMQCluster, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, msg: RMQMessage
 )

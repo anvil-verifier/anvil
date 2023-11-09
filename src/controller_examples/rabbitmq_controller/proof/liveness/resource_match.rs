@@ -420,7 +420,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
@@ -506,7 +505,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     );
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
@@ -864,7 +862,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )

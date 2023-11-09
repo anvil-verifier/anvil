@@ -439,7 +439,6 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
     );
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(
     spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool
 )

@@ -200,7 +200,6 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
     temp_pred_equality(stateful_set_matches.or(stateful_set_not_matches), pre);
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_step(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
@@ -297,7 +296,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
     );
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_step(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
@@ -389,7 +387,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     RMQCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, RMQCluster::continue_reconcile(), pre, post);
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -487,7 +484,6 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, RMQCluster::handle_request(), pre, post);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_stateful_set_is_stable(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )

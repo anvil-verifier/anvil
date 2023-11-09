@@ -57,7 +57,6 @@ pub open spec fn stateful_set_in_etcd_satisfies_unchangeable(rabbitmq: RabbitmqC
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
@@ -210,7 +209,6 @@ pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -275,7 +273,6 @@ pub open spec fn stateful_set_in_create_request_msg_satisfies_unchangeable(rabbi
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),

@@ -415,7 +415,6 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView, req_msg: FBMessage
 )
@@ -501,7 +500,6 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     );
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView, resp_msg: FBMessage
 )
@@ -843,7 +841,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     );
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView, resp_msg: FBMessage
 )

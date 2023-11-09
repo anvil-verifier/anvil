@@ -200,7 +200,6 @@ spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterV
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),

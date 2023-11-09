@@ -192,7 +192,6 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
     temp_pred_equality(daemon_set_matches.or(daemon_set_not_matches), pre);
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
     spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage
 )
@@ -286,7 +285,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
     );
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_daemon_set_step_to_after_update_daemon_set_step(
     spec: TempPred<FBCluster>, fb: FluentBitView, resp_msg: FBMessage
 )
@@ -372,7 +370,6 @@ proof fn lemma_from_after_get_daemon_set_step_to_after_update_daemon_set_step(
     FBCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, FBCluster::continue_reconcile(), pre, post);
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
@@ -467,7 +464,6 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
     FBCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, FBCluster::handle_request(), pre, post);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_daemon_set_is_stable(
     spec: TempPred<FBCluster>, fb: FluentBitView, p: TempPred<FBCluster>
 )

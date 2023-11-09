@@ -39,7 +39,6 @@ pub open spec fn stateful_set_has_at_least_one_replica(zookeeper: ZookeeperClust
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_stateful_set_has_at_least_one_replica(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
@@ -88,7 +87,6 @@ pub open spec fn stateful_set_in_create_req_has_at_least_one_replica(zookeeper: 
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_always_stateful_set_in_create_req_has_at_least_one_replica(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
@@ -167,7 +165,6 @@ pub open spec fn stateful_set_in_update_req_has_at_least_one_replica(zookeeper: 
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_always_stateful_set_in_update_req_has_at_least_one_replica(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
@@ -244,7 +241,6 @@ pub open spec fn every_zk_set_data_request_implies_at_after_update_zk_node_step(
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_update_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -325,7 +321,6 @@ pub open spec fn every_zk_create_node_request_implies_at_after_create_zk_node_st
     }
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_after_create_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -392,7 +387,6 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
     );
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_zk_request_implies_step_helper(zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster, msg: ZKMessage, step: ZKStep)
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),

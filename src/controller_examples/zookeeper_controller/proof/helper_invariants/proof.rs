@@ -120,7 +120,6 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
     lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec, zookeeper);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -207,7 +206,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
     lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(spec, zookeeper);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd(
     spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
 )
@@ -354,7 +352,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(spec, zookeeper);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd(
     spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
 )
@@ -477,7 +474,6 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -566,7 +562,6 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper)));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -705,7 +700,6 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -797,7 +791,6 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -867,7 +860,6 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         lift_state(ZKCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -934,7 +926,6 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
     init_invariant(spec, ZKCluster::init(), stronger_next, inv);
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(
     spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
 )
@@ -1073,7 +1064,6 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
     }
 }
 
-#[verifier(spinoff_prover)]
 proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -1151,7 +1141,6 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 /// After the action, the controller stays at After(Create/Update, SubResource) step.
 ///
 /// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
-#[verifier(spinoff_prover)]
 pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(
     sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster, msg: ZKMessage, step: ZKStep
 )
@@ -1337,7 +1326,6 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 ///     as long as it is in flight.
 ///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 ///     and the original statepred.
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -1443,7 +1431,6 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper)));
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
     spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
 )
@@ -1496,7 +1483,6 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ZKCluster>, p
 
 // Below are invariants that only hold after the config map matches the desired state
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(
     spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
 )
@@ -1594,7 +1580,6 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
     );
 }
 
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
