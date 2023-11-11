@@ -122,17 +122,11 @@ impl ExternalAPI for ZKAPI {
     }
 }
 
-pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
-    let cm_key = ObjectRef {
-        kind: Kind::ConfigMapKind,
-        namespace: namespace,
-        name: name + new_strlit("-configmap")@,
-    };
-    let cm_data = ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data.get_Some_0();
+pub open spec fn validate_config_map_data(object: DynamicObjectView) -> bool {
+    let cm_data = ConfigMapView::unmarshal(object).get_Ok_0().data.get_Some_0();
     let zk_config = cm_data[new_strlit("zoo.cfg")@];
-    &&& resources.contains_key(cm_key)
-    &&& ConfigMapView::unmarshal(resources[cm_key]).is_Ok()
-    &&& ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data.is_Some()
+    &&& ConfigMapView::unmarshal(object).is_Ok()
+    &&& ConfigMapView::unmarshal(object).get_Ok_0().data.is_Some()
     &&& cm_data.contains_key(new_strlit("zoo.cfg")@)
     &&& forall |min_i, min_j, max_i, max_j, min, max|
             zk_config.subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
@@ -141,6 +135,16 @@ pub open spec fn validate_config_map(name: StringView, namespace: StringView, re
     &&& forall |i, j, sync_limit|
             zk_config.subrange(i, j) == new_strlit("syncLimit=")@ + int_to_string_view(sync_limit)
             ==> sync_limit >= 1
+}
+
+pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
+    let cm_key = ObjectRef {
+        kind: Kind::ConfigMapKind,
+        namespace: namespace,
+        name: name + new_strlit("-configmap")@,
+    };
+    &&& resources.contains_key(cm_key)
+    &&& validate_config_map_data(resources[cm_key])
 }
 
 pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, resources: StoredState) -> bool {
