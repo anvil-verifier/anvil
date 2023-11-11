@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{common::*, dynamic::*, resource::*, stateful_set::*};
+use crate::kubernetes_api_objects::{
+    common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
+};
 use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
 use vstd::{prelude::*, string::*};
@@ -126,11 +128,12 @@ pub open spec fn validate_config_map(name: StringView, namespace: StringView, re
         namespace: namespace,
         name: name + new_strlit("-configmap")@,
     };
-    let cm_data = ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data;
+    let cm_data = ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data.get_Some_0();
     &&& resources.contains_key(cm_key)
     &&& ConfigMapView::unmarshal(resources[cm_key]).is_Ok()
+    &&& ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data.is_Some()
     &&& cm_data.contains_key(new_strlit("zoo.cfg")@)
-    &&& forall |min_i, min_j, max_i, max_j, min, max| 
+    &&& forall |min_i, min_j, max_i, max_j, min, max|
             cm_data[new_strlit("zoo.cfg")@].subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
             && cm_data[new_strlit("zoo.cfg")@].subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max)
             ==> min <= max

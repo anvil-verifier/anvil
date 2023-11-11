@@ -67,6 +67,7 @@ pub proof fn lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set
     temp_pred_equality(key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)));
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -143,6 +144,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_g
     });
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -481,10 +483,10 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
         or_leads_to_combine_temp(spec, addr_exists_and_after_exists_zk_node_step_pending, addr_not_exists_and_after_exists_zk_node_step_pending, post);
         temp_pred_equality(addr_exists_and_after_exists_zk_node_step_pending.or(addr_not_exists_and_after_exists_zk_node_step_pending), after_exists_zk_node_step_pending);
     });
-
     leads_to_trans_temp(spec, pre, after_exists_zk_node_step_pending, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -559,10 +561,10 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });
     }
-
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -630,6 +632,7 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -711,10 +714,10 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
         });
     }
-
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_exists_stateful_set_step_to_after_exists_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -788,6 +791,7 @@ proof fn lemma_from_after_exists_stateful_set_step_to_after_exists_zk_node_step(
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -883,6 +887,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
     ZKCluster::lemma_pre_leads_to_post_by_external_api(spec, input, stronger_next, ZKCluster::handle_external_request(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_exists_zk_node_step_to_after_update_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -963,6 +968,7 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_update_zk_node_step(spec:
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1054,6 +1060,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
     ZKCluster::lemma_pre_leads_to_post_by_external_api(spec, input, stronger_next, ZKCluster::handle_external_request(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_update_zk_node_step_to_after_get_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1103,6 +1110,7 @@ proof fn lemma_from_after_update_zk_node_step_to_after_get_stateful_set_step(spe
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1202,6 +1210,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
     ZKCluster::lemma_pre_leads_to_post_by_external_api(spec, input, stronger_next, ZKCluster::handle_external_request(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_exists_zk_node_step_to_after_create_zk_parent_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1282,6 +1291,7 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_create_zk_parent_node_ste
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_create_zk_parent_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1383,6 +1393,7 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
     ZKCluster::lemma_pre_leads_to_post_by_external_api(spec, input, stronger_next, ZKCluster::handle_external_request(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_after_create_zk_parent_node_step_to_after_create_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, resp_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1467,6 +1478,7 @@ proof fn lemma_from_after_create_zk_parent_node_step_to_after_create_zk_node_ste
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::continue_reconcile(), pre, post);
 }
 
+#[verifier(external_body)]
 proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
