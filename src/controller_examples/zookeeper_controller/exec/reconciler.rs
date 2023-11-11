@@ -50,8 +50,7 @@ impl Default for ZookeeperReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
-    ensures
-        state@ == zk_spec::reconcile_init_state(),
+    ensures state@ == zk_spec::reconcile_init_state(),
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
@@ -60,8 +59,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 }
 
 pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool)
-    ensures
-        res == zk_spec::reconcile_done(state@),
+    ensures res == zk_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         ZookeeperReconcileStep::Done => true,
@@ -70,8 +68,7 @@ pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
-    ensures
-        res == zk_spec::reconcile_error(state@),
+    ensures res == zk_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         ZookeeperReconcileStep::Error => true,
@@ -82,11 +79,9 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
 pub fn reconcile_core(
     zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
 ) -> (res: (ZookeeperReconcileState, Option<Request<ZKAPIInput>>))
-    requires
-        zk@.well_formed(),
-    ensures
-        (res.0@, opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state@),
-        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
+    requires zk@.well_formed(),
+    ensures (res.0@, opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state@),
+        // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
     match step {

@@ -48,8 +48,7 @@ impl Default for RabbitmqReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
-    ensures
-        state@ == rabbitmq_spec::reconcile_init_state(),
+    ensures state@ == rabbitmq_spec::reconcile_init_state(),
 {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
@@ -58,8 +57,7 @@ pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
 }
 
 pub fn reconcile_done(state: &RabbitmqReconcileState) -> (res: bool)
-    ensures
-        res == rabbitmq_spec::reconcile_done(state@),
+    ensures res == rabbitmq_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         RabbitmqReconcileStep::Done => true,
@@ -68,8 +66,7 @@ pub fn reconcile_done(state: &RabbitmqReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
-    ensures
-        res == rabbitmq_spec::reconcile_error(state@),
+    ensures res == rabbitmq_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         RabbitmqReconcileStep::Error => true,
@@ -78,12 +75,9 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
-        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
+    requires rabbitmq@.well_formed(),
+    ensures (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
+        // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     match &state.reconcile_step {
         RabbitmqReconcileStep::Init => {

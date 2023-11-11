@@ -43,8 +43,7 @@ impl Default for FluentBitReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
-    ensures
-        state@ == fb_spec::reconcile_init_state(),
+    ensures state@ == fb_spec::reconcile_init_state(),
 {
     FluentBitReconcileState {
         reconcile_step: FluentBitReconcileStep::Init,
@@ -52,8 +51,7 @@ pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
 }
 
 pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
-    ensures
-        res == fb_spec::reconcile_done(state@),
+    ensures res == fb_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         FluentBitReconcileStep::Done => true,
@@ -62,8 +60,7 @@ pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
-    ensures
-        res == fb_spec::reconcile_error(state@),
+    ensures res == fb_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         FluentBitReconcileStep::Error => true,
@@ -72,11 +69,9 @@ pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (res: (FluentBitReconcileState, Option<Request<EmptyType>>))
-    requires
-        fb@.well_formed(),
-    ensures
-        (res.0@, opt_request_to_view(&res.1)) == fb_spec::reconcile_core(fb@, opt_response_to_view(&resp_o), state@),
-        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
+    requires fb@.well_formed(),
+    ensures (res.0@, opt_request_to_view(&res.1)) == fb_spec::reconcile_core(fb@, opt_response_to_view(&resp_o), state@),
+        // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
     match step{

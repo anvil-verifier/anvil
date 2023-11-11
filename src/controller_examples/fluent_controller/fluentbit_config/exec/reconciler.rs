@@ -43,8 +43,7 @@ impl Default for FluentBitConfigReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: FluentBitConfigReconcileState)
-    ensures
-        state@ == fbc_spec::reconcile_init_state(),
+    ensures state@ == fbc_spec::reconcile_init_state(),
 {
     FluentBitConfigReconcileState {
         reconcile_step: FluentBitConfigReconcileStep::Init,
@@ -52,8 +51,7 @@ pub fn reconcile_init_state() -> (state: FluentBitConfigReconcileState)
 }
 
 pub fn reconcile_done(state: &FluentBitConfigReconcileState) -> (res: bool)
-    ensures
-        res == fbc_spec::reconcile_done(state@),
+    ensures res == fbc_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         FluentBitConfigReconcileStep::Done => true,
@@ -62,8 +60,7 @@ pub fn reconcile_done(state: &FluentBitConfigReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &FluentBitConfigReconcileState) -> (res: bool)
-    ensures
-        res == fbc_spec::reconcile_error(state@),
+    ensures res == fbc_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         FluentBitConfigReconcileStep::Error => true,
@@ -72,10 +69,8 @@ pub fn reconcile_error(state: &FluentBitConfigReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_core(fbc: &FluentBitConfig, resp_o: Option<Response<EmptyType>>, state: FluentBitConfigReconcileState) -> (res: (FluentBitConfigReconcileState, Option<Request<EmptyType>>))
-    requires
-        fbc@.well_formed(),
-    ensures
-        (res.0@, opt_request_to_view(&res.1)) == fbc_spec::reconcile_core(fbc@, opt_response_to_view(&resp_o), state@),
+    requires fbc@.well_formed(),
+    ensures (res.0@, opt_request_to_view(&res.1)) == fbc_spec::reconcile_core(fbc@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step;
     match step{
