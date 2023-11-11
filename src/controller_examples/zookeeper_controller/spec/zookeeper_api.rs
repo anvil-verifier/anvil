@@ -120,6 +120,38 @@ impl ExternalAPI for ZKAPI {
     }
 }
 
+pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
+    let cm_key = ObjectRef {
+        kind: Kind::ConfigMapKind,
+        namespace: namespace,
+        name: name + new_strlit("-configmap")@,
+    };
+    let cm_data = ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data;
+    &&& resources.contains_key(cm_key)
+    &&& ConfigMapView::unmarshal(resources[cm_key]).is_Ok()
+    &&& cm_data.contains_key(new_strlit("zoo.cfg")@)
+    &&& forall |min_i, min_j, max_i, max_j, min, max| 
+            cm_data[new_strlit("zoo.cfg")@].subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
+            && cm_data[new_strlit("zoo.cfg")@].subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max)
+            ==> min <= max
+}
+
+pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, resources: StoredState) -> bool {
+    let sts_key = ObjectRef {
+        kind: Kind::StatefulSetKind,
+        namespace: namespace,
+        name: name,
+    };
+    let sts_spec = StatefulSetView::unmarshal(resources[sts_key]).get_Ok_0().spec;
+    // The stateful set object exists
+    &&& resources.contains_key(sts_key)
+    &&& StatefulSetView::unmarshal(resources[sts_key]).is_Ok()
+    &&& sts_spec.is_Some()
+    &&& sts_spec.get_Some_0().replicas.is_Some()
+    // and it has at least one replica to handle the request
+    &&& sts_spec.get_Some_0().replicas.get_Some_0() > 0
+}
+
 // validate checks the stateful set object (the end point that the client connects to in the exec implementation)
 // exists, and the path is valid.
 //
@@ -128,19 +160,9 @@ impl ExternalAPI for ZKAPI {
 // checking whether the stateful set is really ready,
 // and checking whether the port number is correct.
 pub open spec fn validate(name: StringView, namespace: StringView, port: int, path: Seq<StringView>, resources: StoredState) -> bool {
-    let key = ObjectRef {
-        kind: Kind::StatefulSetKind,
-        namespace: namespace,
-        name: name,
-    };
     &&& path.len() > 0
-    // The stateful set object exists
-    &&& resources.contains_key(key)
-    &&& StatefulSetView::unmarshal(resources[key]).is_Ok()
-    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.is_Some()
-    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.get_Some_0().replicas.is_Some()
-    // and it has at least one replica to handle the request
-    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
+    &&& validate_stateful_set(name, namespace, resources)
+    &&& validate_config_map(name, namespace, resources)
 }
 
 // handle_exists models the behavior of the zookeeper server handling the exists request.
