@@ -129,14 +129,18 @@ pub open spec fn validate_config_map(name: StringView, namespace: StringView, re
         name: name + new_strlit("-configmap")@,
     };
     let cm_data = ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data.get_Some_0();
+    let zk_config = cm_data[new_strlit("zoo.cfg")@];
     &&& resources.contains_key(cm_key)
     &&& ConfigMapView::unmarshal(resources[cm_key]).is_Ok()
     &&& ConfigMapView::unmarshal(resources[cm_key]).get_Ok_0().data.is_Some()
     &&& cm_data.contains_key(new_strlit("zoo.cfg")@)
     &&& forall |min_i, min_j, max_i, max_j, min, max|
-            cm_data[new_strlit("zoo.cfg")@].subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
-            && cm_data[new_strlit("zoo.cfg")@].subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max)
+            zk_config.subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
+            && zk_config.subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max)
             ==> min <= max
+    &&& forall |i, j, sync_limit|
+            zk_config.subrange(i, j) == new_strlit("syncLimit=")@ + int_to_string_view(sync_limit)
+            ==> sync_limit >= 1
 }
 
 pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, resources: StoredState) -> bool {
