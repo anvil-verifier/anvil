@@ -21,7 +21,7 @@ pub trait ExternalAPIShimLayer<Input: View, Output: View> {
 pub struct EmptyAPIShimLayer {}
 
 impl ExternalAPIShimLayer<EmptyType, EmptyType> for EmptyAPIShimLayer {
-    fn call_external_api(input: EmptyType) -> EmptyType {
+    fn call_external_api(_input: EmptyType) -> EmptyType {
         EmptyType {}
     }
 }

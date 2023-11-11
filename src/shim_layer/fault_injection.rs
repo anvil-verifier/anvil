@@ -22,7 +22,7 @@ pub async fn crash_or_continue(client: &Client, cr_key: &String, log_header: &St
     let config_map_name = "fault-injection-config";
     let config_map_api = Api::<ConfigMap>::namespaced(client.clone(), "default");
     let mut config_map = config_map_api.get(&config_map_name).await
-        .map_err(|e| "Fail to get fault injection config".to_string())?;
+        .map_err(|_e| "Fail to get fault injection config".to_string())?;
     println!("{} Get {}: {}", log_header, config_map_name, deps_hack::k8s_openapi::serde_json::to_string(&config_map).unwrap());
     let data = config_map.data.as_ref().ok_or_else(|| "Fail to unwrap data".to_string())?;
     // The configuration should tell us a cr_key and we will crash the controller when it is managing that object
@@ -36,13 +36,13 @@ pub async fn crash_or_continue(client: &Client, cr_key: &String, log_header: &St
     // 1. the current number of requests that the controller has issued, and
     // 2. the expected number of requests after which the controller should crash
     let current_val = data.get("current").ok_or_else(|| "Fail to get current".to_string())?;
-    let current = current_val.parse::<i32>().map_err(|e| "Fail to parse current value to i32".to_string())?;
+    let current = current_val.parse::<i32>().map_err(|_e| "Fail to parse current value to i32".to_string())?;
     let expected_val = data.get("expected").ok_or_else(|| "Fail to get expected".to_string())?;
-    let expected = expected_val.parse::<i32>().map_err(|e| "Fail to parse expected value to i32".to_string())?;
+    let expected = expected_val.parse::<i32>().map_err(|_e| "Fail to parse expected value to i32".to_string())?;
     // We increment current entry here before panic, otherwise we might end up crashing at the same point forever
     config_map.data.as_mut().unwrap().insert("current".to_string(), (current + 1).to_string());
     config_map_api.replace(config_map_name, &PostParams::default(), &config_map).await
-        .map_err(|e| "Fail to update fault injection config".to_string())?;
+        .map_err(|_e| "Fail to update fault injection config".to_string())?;
     if current == expected {
         // Now it is time to crash according to fault-injection-config
         panic!();

@@ -72,7 +72,7 @@ pub fn test_kube() {
         ..Default::default()
     };
 
-    let mut secret_projection = SecretProjection::from_kube(kube_secret_projection.clone());
+    let secret_projection = SecretProjection::from_kube(kube_secret_projection.clone());
 
     assert_eq!(
         secret_projection.into_kube(),

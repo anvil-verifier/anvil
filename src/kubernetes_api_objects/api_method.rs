@@ -7,8 +7,8 @@ use crate::kubernetes_api_objects::{
     error::*,
 };
 use crate::vstd_ext::string_view::*;
-use vstd::{prelude::*, view::*};
 use vstd::string::*;
+use vstd::{prelude::*, view::*};
 
 use vstd::pervasive::unreached;
 
@@ -484,7 +484,7 @@ impl KubeAPIResponse {
             res == self.is_GetResponse(),
     {
         match self {
-            KubeAPIResponse::GetResponse(resp) => true,
+            KubeAPIResponse::GetResponse(_) => true,
             _ => false,
         }
     }
@@ -518,7 +518,7 @@ impl KubeAPIResponse {
             res == self.is_CreateResponse(),
     {
         match self {
-            KubeAPIResponse::CreateResponse(resp) => true,
+            KubeAPIResponse::CreateResponse(_) => true,
             _ => false,
         }
     }
@@ -552,7 +552,7 @@ impl KubeAPIResponse {
             res == self.is_UpdateResponse(),
     {
         match self {
-            KubeAPIResponse::UpdateResponse(resp) => true,
+            KubeAPIResponse::UpdateResponse(_) => true,
             _ => false,
         }
     }
@@ -586,7 +586,7 @@ impl KubeAPIResponse {
             res == self.is_UpdateStatusResponse(),
     {
         match self {
-            KubeAPIResponse::UpdateStatusResponse(resp) => true,
+            KubeAPIResponse::UpdateStatusResponse(_) => true,
             _ => false,
         }
     }

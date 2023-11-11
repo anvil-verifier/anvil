@@ -32,7 +32,7 @@ pub fn test_kube() {
 #[test]
 #[verifier(external)]
 pub fn test_number_ready() {
-    let mut daemon_set_status = DaemonSetStatus::from_kube(
+    let daemon_set_status = DaemonSetStatus::from_kube(
         deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus {
             number_ready: 1,
             ..Default::default()
