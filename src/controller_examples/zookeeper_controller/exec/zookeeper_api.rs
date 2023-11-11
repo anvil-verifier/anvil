@@ -207,7 +207,7 @@ pub fn zk_exists(name: String, namespace: String, port: i32, path: Vec<String>) 
 
 #[verifier(external)]
 pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<String>) -> Result<Option<i32>, ZKAPIError> {
-    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| ZKAPIError::ZKNodeExistsFailed)?;
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeExistsFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     println!("Checking existence of {} ...", &path_as_string);
     match zk_client.exists(path_as_string.as_str(), false) {
@@ -231,7 +231,7 @@ pub fn zk_create(name: String, namespace: String, port: i32, path: Vec<String>, 
 
 #[verifier(external)]
 pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String) -> Result<(), ZKAPIError> {
-    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| ZKAPIError::ZKNodeCreateFailed)?;
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeCreateFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Creating {} {} ...", &path_as_string, &data_as_string);
@@ -256,7 +256,7 @@ pub fn zk_set_data(name: String, namespace: String, port: i32, path: Vec<String>
 
 #[verifier(external)]
 pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String, version: i32) -> Result<(), ZKAPIError> {
-    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| ZKAPIError::ZKNodeSetDataFailed)?;
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeSetDataFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);

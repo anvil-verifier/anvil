@@ -37,7 +37,7 @@ pub fn test_kube() {
 #[test]
 #[verifier(external)]
 pub fn test_ready_replicas() {
-    let mut stateful_set_status = StatefulSetStatus::from_kube(
+    let stateful_set_status = StatefulSetStatus::from_kube(
         deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
             replicas: 1,
             ready_replicas: Some(1),
