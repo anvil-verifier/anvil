@@ -22,9 +22,12 @@ def parse_table_and_collect_lines(file_path, controller_name):
     spec_lines = empty_counting_map()
     impl_lines = empty_counting_map()
     liveness_proof_lines = empty_counting_map()
+    liveness_inv_lines = empty_counting_map()
     safety_theorem_lines = empty_counting_map()
     safety_proof_lines = empty_counting_map()
     external_model_lines = empty_counting_map()
+    exec_cr_lines = empty_counting_map()
+    spec_cr_lines = empty_counting_map()
     # total_lines = empty_counting_map()
 
     with open(file_path, "r") as file:
@@ -96,6 +99,18 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 external_model_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 external_model_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 external_model_lines["Spec"] += int(stripped_cols[SPEC_COL])
+            elif "/exec/types.rs" in stripped_cols[FILE_COL]:
+                exec_cr_lines["Exec"] += int(stripped_cols[EXEC_COL])
+                exec_cr_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                exec_cr_lines["Proof"] += int(stripped_cols[PROOF_COL])
+                exec_cr_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                exec_cr_lines["Spec"] += int(stripped_cols[SPEC_COL])
+            elif "/spec/types.rs" in stripped_cols[FILE_COL]:
+                spec_cr_lines["Exec"] += int(stripped_cols[EXEC_COL])
+                spec_cr_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                spec_cr_lines["Proof"] += int(stripped_cols[PROOF_COL])
+                spec_cr_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                spec_cr_lines["Spec"] += int(stripped_cols[SPEC_COL])
             elif "/exec/" in stripped_cols[FILE_COL]:
                 impl_lines["Exec"] += int(stripped_cols[EXEC_COL])
                 impl_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
@@ -124,6 +139,13 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 safety_theorem_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 safety_theorem_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 safety_theorem_lines["Spec"] += int(stripped_cols[SPEC_COL])
+            elif "/proof/helper_invariants" in stripped_cols[FILE_COL]:
+                liveness_inv_lines["Exec"] += int(stripped_cols[EXEC_COL])
+                liveness_inv_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                liveness_inv_lines["Proof"] += int(stripped_cols[PROOF_COL])
+                liveness_inv_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                # Here we intentionally count spec code as proof code
+                liveness_inv_lines["Proof"] += int(stripped_cols[SPEC_COL])
             elif "/proof/" in stripped_cols[FILE_COL]:
                 liveness_proof_lines["Exec"] += int(stripped_cols[EXEC_COL])
                 liveness_proof_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
@@ -140,12 +162,15 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 impl_lines["Spec"] += int(stripped_cols[SPEC_COL])
     all_lines = {
         "liveness_theorem": liveness_theorem_lines,
-        "spec": spec_lines,
-        "impl": impl_lines,
+        "reconcile_spec": spec_lines,
+        "reconcile_impl": impl_lines,
         "liveness_proof": liveness_proof_lines,
+        "liveness_inv": liveness_inv_lines,
         "safety_theorem": safety_theorem_lines,
         "safety_proof": safety_proof_lines,
         "external_model": external_model_lines,
+        "exec_cr": exec_cr_lines,
+        "spec_cr": spec_cr_lines,
         # "total": total_lines,
     }
     json.dump(all_lines, open(controller_name + "-lines.json", "w"), indent=4)
