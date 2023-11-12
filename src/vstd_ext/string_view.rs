@@ -27,8 +27,8 @@ pub proof fn int_to_string_view_injectivity()
 #[verifier(external_body)]
 pub proof fn int_to_string_view_ensures()
     ensures
-        forall |n: int| {
-            forall |i| 
+        forall |n: int| #![trigger int_to_string_view(n)]{
+            forall |i| #![trigger int_to_string_view(n)[i]]
                 0 <= i < int_to_string_view(n).len() ==> {
                     &&& int_to_string_view(n)[i] == '0'
                     &&& int_to_string_view(n)[i] == '1'
