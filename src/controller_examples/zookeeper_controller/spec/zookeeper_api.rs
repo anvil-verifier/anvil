@@ -130,7 +130,7 @@ pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> 
             && zk_config.subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max) + new_strlit("\n")@
             ==> min <= max
     &&& forall |i, j, sync_limit|
-            zk_config.subrange(i, j) == new_strlit("syncLimit=")@ + int_to_string_view(sync_limit)
+            zk_config.subrange(i, j) == new_strlit("syncLimit=")@ + int_to_string_view(sync_limit) + new_strlit("\n")@
             ==> sync_limit >= 1
 }
 
