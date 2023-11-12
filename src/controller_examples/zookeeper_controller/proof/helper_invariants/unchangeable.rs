@@ -21,7 +21,7 @@ use crate::zookeeper_controller::{
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*},
+    spec::{reconciler::*, resource::*, types::*, zookeeper_api::validate_config_map_data},
 };
 use vstd::{multiset::*, prelude::*, string::*};
 
@@ -72,13 +72,16 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
     };
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     ZKCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, zookeeper.object_ref());
     combine_spec_entails_always_n!(
         spec, lift_action(next),
         lift_action(ZKCluster::next()),
-        lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
+        lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
     );
     let resource_key = get_request(sub_resource, zookeeper).key;
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
@@ -87,6 +90,14 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
             if !s.in_flight().contains(msg) {
                 let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, zookeeper, s, s_prime, msg, step);
+                match sub_resource {
+                    SubResource::ConfigMap => {
+                        ConfigMapView::marshal_preserves_integrity();
+                        ConfigMapView::marshal_spec_preserves_integrity();
+                        made_config_map_data_satisfies_validation(s.ongoing_reconciles()[zookeeper.object_ref()].triggering_cr);
+                    },
+                    _ => {},
+                }
             }
         }
     }
@@ -116,6 +127,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)(s)
         &&& object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)(s)
+        &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
     };
     ZKCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
@@ -124,6 +136,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, sub_resource, zookeeper);
     lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec, sub_resource, zookeeper);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, zookeeper);
+    lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, zookeeper.object_ref());
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
@@ -132,7 +145,8 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
         lift_state(ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(resource_key)),
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)),
         lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)),
-        lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper))
+        lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)),
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
     );
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         object_in_etcd_satisfies_unchangeable_induction(sub_resource, zookeeper, s, s_prime);
@@ -158,18 +172,22 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
         object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
+    let step = choose |step| ZKCluster::next_step(s, s_prime, step);
     if s_prime.resources().contains_key(resource_key) {
-        // match sub_resource {
-        //     SubResource::StatefulSet => {
-        //         StatefulSetView::marshal_preserves_integrity();
-        //         StatefulSetView::marshal_spec_preserves_integrity();
-        //     },
-        //     _ => {},
-        // }
-        if s.resources().contains_key(resource_key) {
-            assert(unchangeable(sub_resource, s_prime.resources()[resource_key], zookeeper));
-        } else {
-            assert(unchangeable(sub_resource, s_prime.resources()[resource_key], zookeeper));
+        match sub_resource {
+            SubResource::ConfigMap => {
+                ConfigMapView::marshal_preserves_integrity();
+                ConfigMapView::marshal_spec_preserves_integrity();
+            },
+            _ => {},
+        }
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                let req = input.get_Some_0();
+                if resource_create_request_msg(resource_key)(req) {} else {}
+                if resource_update_request_msg(resource_key)(req) {} else {}
+            },
+            _ => {}
         }
     }
 }
@@ -186,6 +204,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
         response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)(s),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s),
+        the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s),
     ensures
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
 {
@@ -208,14 +227,30 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
             lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, zookeeper, s, s_prime, msg, step);
             match sub_resource {
-                // SubResource::StatefulSet => {
-                //     StatefulSetView::marshal_preserves_integrity();
-                // },
+                SubResource::ConfigMap => {
+                    ConfigMapView::marshal_preserves_integrity();
+                    ConfigMapView::marshal_spec_preserves_integrity();
+                    made_config_map_data_satisfies_validation(s.ongoing_reconciles()[zookeeper.object_ref()].triggering_cr);
+                },
                 _ => {},
             }
         }
     }
 }
 
+#[verifier(external_body)]
+proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterView)
+    requires
+        zookeeper.state_validation(),
+    ensures
+        make_config_map(zookeeper).data.is_Some(),
+        validate_config_map_data(make_config_map(zookeeper).data.get_Some_0()),
+{
+    reveal_strlit("zoo.cfg");
+    reveal_strlit("log4j.properties");
+    reveal_strlit("log4j-quiet.properties");
+    reveal_strlit("env.sh");
+    assert(new_strlit("zoo.cfg")@.len() == 7);
+}
 
 }

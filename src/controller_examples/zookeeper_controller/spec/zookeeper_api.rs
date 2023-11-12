@@ -122,12 +122,9 @@ impl ExternalAPI for ZKAPI {
     }
 }
 
-pub open spec fn validate_config_map_data(object: DynamicObjectView) -> bool {
-    let cm_data = ConfigMapView::unmarshal(object).get_Ok_0().data.get_Some_0();
-    let zk_config = cm_data[new_strlit("zoo.cfg")@];
-    &&& ConfigMapView::unmarshal(object).is_Ok()
-    &&& ConfigMapView::unmarshal(object).get_Ok_0().data.is_Some()
-    &&& cm_data.contains_key(new_strlit("zoo.cfg")@)
+pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
+    let zk_config = data[new_strlit("zoo.cfg")@];
+    &&& data.contains_key(new_strlit("zoo.cfg")@)
     &&& forall |min_i, min_j, max_i, max_j, min, max|
             zk_config.subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
             && zk_config.subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max)
@@ -137,6 +134,12 @@ pub open spec fn validate_config_map_data(object: DynamicObjectView) -> bool {
             ==> sync_limit >= 1
 }
 
+pub open spec fn validate_config_map_object(object: DynamicObjectView) -> bool {
+    &&& ConfigMapView::unmarshal(object).is_Ok()
+    &&& ConfigMapView::unmarshal(object).get_Ok_0().data.is_Some()
+    &&& validate_config_map_data(ConfigMapView::unmarshal(object).get_Ok_0().data.get_Some_0())
+}
+
 pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
     let cm_key = ObjectRef {
         kind: Kind::ConfigMapKind,
@@ -144,7 +147,7 @@ pub open spec fn validate_config_map(name: StringView, namespace: StringView, re
         name: name + new_strlit("-configmap")@,
     };
     &&& resources.contains_key(cm_key)
-    &&& validate_config_map_data(resources[cm_key])
+    &&& validate_config_map_object(resources[cm_key])
 }
 
 pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, resources: StoredState) -> bool {
