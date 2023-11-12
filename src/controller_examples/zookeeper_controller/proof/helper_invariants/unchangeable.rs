@@ -96,6 +96,10 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
                         ConfigMapView::marshal_spec_preserves_integrity();
                         made_config_map_data_satisfies_validation(s.ongoing_reconciles()[zookeeper.object_ref()].triggering_cr);
                     },
+                    SubResource::StatefulSet => {
+                        StatefulSetView::marshal_preserves_integrity();
+                        StatefulSetView::marshal_spec_preserves_integrity();
+                    },
                     _ => {},
                 }
             }
@@ -179,6 +183,10 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
                 ConfigMapView::marshal_preserves_integrity();
                 ConfigMapView::marshal_spec_preserves_integrity();
             },
+            SubResource::StatefulSet => {
+                StatefulSetView::marshal_preserves_integrity();
+                StatefulSetView::marshal_spec_preserves_integrity();
+            },
             _ => {},
         }
         match step {
@@ -231,6 +239,10 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
                     ConfigMapView::marshal_preserves_integrity();
                     ConfigMapView::marshal_spec_preserves_integrity();
                     made_config_map_data_satisfies_validation(s.ongoing_reconciles()[zookeeper.object_ref()].triggering_cr);
+                },
+                SubResource::StatefulSet => {
+                    StatefulSetView::marshal_preserves_integrity();
+                    StatefulSetView::marshal_spec_preserves_integrity();
                 },
                 _ => {},
             }
