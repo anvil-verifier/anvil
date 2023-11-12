@@ -126,8 +126,8 @@ pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> 
     let zk_config = data[new_strlit("zoo.cfg")@];
     &&& data.contains_key(new_strlit("zoo.cfg")@)
     &&& forall |min_i, min_j, max_i, max_j, min, max|
-            zk_config.subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min)
-            && zk_config.subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max)
+            zk_config.subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min) + new_strlit("\n")@
+            && zk_config.subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max) + new_strlit("\n")@
             ==> min <= max
     &&& forall |i, j, sync_limit|
             zk_config.subrange(i, j) == new_strlit("syncLimit=")@ + int_to_string_view(sync_limit)

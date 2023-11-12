@@ -246,11 +246,15 @@ proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterVi
         make_config_map(zookeeper).data.is_Some(),
         validate_config_map_data(make_config_map(zookeeper).data.get_Some_0()),
 {
+    let data = make_config_map(zookeeper).data.get_Some_0();
     reveal_strlit("zoo.cfg");
     reveal_strlit("log4j.properties");
     reveal_strlit("log4j-quiet.properties");
     reveal_strlit("env.sh");
     assert(new_strlit("zoo.cfg")@.len() == 7);
+    assert(data.contains_key(new_strlit("zoo.cfg")@));
+    let zk_config = make_zk_config(zookeeper);
+    assert(data[new_strlit("zoo.cfg")@] == zk_config);
 }
 
 }
