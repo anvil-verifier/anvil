@@ -23,7 +23,7 @@ use crate::zookeeper_controller::{
     },
     spec::{reconciler::*, resource::*, types::*, zookeeper_api::validate_config_map_data},
 };
-use vstd::{multiset::*, prelude::*, string::*};
+use vstd::{multiset::*, prelude::*, seq_lib::*, string::*};
 
 verus! {
 
@@ -238,7 +238,6 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
     }
 }
 
-#[verifier(external_body)]
 proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterView)
     requires
         zookeeper.state_validation(),
@@ -255,6 +254,119 @@ proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterVi
     assert(data.contains_key(new_strlit("zoo.cfg")@));
     let zk_config = make_zk_config(zookeeper);
     assert(data[new_strlit("zoo.cfg")@] == zk_config);
+    int_to_string_view_injectivity();
+    int_to_string_view_ensures();
+    bool_to_string_view_ensures();
+    let prefix = new_strlit(
+        "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
+        dataDir=/data\n\
+        standaloneEnabled=false\n\
+        reconfigEnabled=true\n\
+        skipACL=yes\n\
+        metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
+        metricsProvider.httpPort=")@;
+    reveal_strlit("4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
+    dataDir=/data\n\
+    standaloneEnabled=false\n\
+    reconfigEnabled=true\n\
+    skipACL=yes\n\
+    metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
+    metricsProvider.httpPort=");
+    reveal_strlit("\n\
+    metricsProvider.exportJvmInfo=true\n\
+    initLimit=");
+    reveal_strlit("\n\
+    syncLimit=");
+    reveal_strlit("\n\
+    tickTime=");
+    reveal_strlit("\n\
+    globalOutstandingLimit=");
+    reveal_strlit("\n\
+    preAllocSize=");
+    reveal_strlit("\n\
+    snapCount=");
+    reveal_strlit("\n\
+    commitLogCount=");
+    reveal_strlit("\n\
+    snapSizeLimitInKb=");
+    reveal_strlit("\n\
+    maxCnxns=");
+    reveal_strlit("\n\
+    maxClientCnxns=");
+    reveal_strlit("\n\
+    minSessionTimeout=");
+    reveal_strlit("\n\
+    maxSessionTimeout=");
+    reveal_strlit("\n\
+    autopurge.snapRetainCount=");
+    reveal_strlit("\n\
+    autopurge.purgeInterval=");
+    reveal_strlit("\n\
+    quorumListenOnAllIPs=");
+    reveal_strlit("\n\
+    admin.serverPort=");
+    reveal_strlit("\n\
+    dynamicConfigFile=/data/zoo.cfg.dynamic\n");
+    assert forall |min_i, min_j, min| #![trigger zk_config.subrange(min_i,min_j), int_to_string_view(min)]
+    zk_config.subrange(min_i,min_j) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min) + new_strlit("\n")@
+    implies min == zookeeper.spec.conf.min_session_timeout by {
+        let len = zk_config.subrange(min_i,min_j).len();
+        reveal_strlit("minSessionTimeout=");
+        reveal_strlit("\n");
+        assert_seqs_equal!(zk_config.subrange(min_i, min_j).subrange(0, 18), new_strlit("minSessionTimeout=")@);
+        assert(zk_config.subrange(min_i, min_j).subrange(0, 18) == new_strlit("minSessionTimeout=")@);
+        let min_session_timeout_string = int_to_string_view(zookeeper.spec.conf.min_session_timeout);
+        let min_string = int_to_string_view(min);
+        assert(forall |i| 0 <= i < min_session_timeout_string.len() ==> min_session_timeout_string[i] != '\n');
+        assert(forall |i| 0 <= i < min_string.len() ==> min_string[i] != '\n');
+        assert(forall |i| 0 <= i < zk_config.subrange(min_i, min_j).len() - 1 ==> zk_config.subrange(min_i, min_j)[i] != '\n');
+        if min_string.len() > min_session_timeout_string.len() {
+            assert(min_string[min_session_timeout_string.len() as int] == '\n');
+        } else if min_string.len() < min_session_timeout_string.len(){
+            assert(min_session_timeout_string[min_string.len() as int] == '\n');
+        }
+        assert_seqs_equal!(min_string, min_session_timeout_string);
+    }
+    assert forall |max_i, max_j, max| #![trigger zk_config.subrange(max_i,max_j), int_to_string_view(max)]
+    zk_config.subrange(max_i,max_j) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max) + new_strlit("\n")@
+    implies max == zookeeper.spec.conf.max_session_timeout by {
+        let len = zk_config.subrange(max_i,max_j).len();
+        reveal_strlit("maxSessionTimeout=");
+        reveal_strlit("\n");
+        assert_seqs_equal!(zk_config.subrange(max_i, max_j).subrange(0, 18), new_strlit("maxSessionTimeout=")@);
+        assert(zk_config.subrange(max_i, max_j).subrange(0, 18) == new_strlit("maxSessionTimeout=")@);
+        let max_session_timeout_string = int_to_string_view(zookeeper.spec.conf.max_session_timeout);
+        let max_string = int_to_string_view(max);
+        assert(forall |i| 0 <= i < max_session_timeout_string.len() ==> max_session_timeout_string[i] != '\n');
+        assert(forall |i| 0 <= i < max_string.len() ==> max_string[i] != '\n');
+        assert(forall |i| 0 <= i < zk_config.subrange(max_i, max_j).len() - 1 ==> zk_config.subrange(max_i, max_j)[i] != '\n');
+        if max_string.len() > max_session_timeout_string.len() {
+            assert(max_string[max_session_timeout_string.len() as int] == '\n');
+        } else if max_string.len() < max_session_timeout_string.len(){
+            assert(max_session_timeout_string[max_string.len() as int] == '\n');
+        }
+        assert_seqs_equal!(max_string, max_session_timeout_string);
+    }
+    assert forall |limit_i, limit_j, limit| #![trigger zk_config.subrange(limit_i,limit_j), int_to_string_view(limit)]
+    zk_config.subrange(limit_i,limit_j) == new_strlit("syncLimit=")@ + int_to_string_view(limit) + new_strlit("\n")@
+    implies limit == zookeeper.spec.conf.sync_limit by {
+        let len = zk_config.subrange(limit_i,limit_j).len();
+        reveal_strlit("syncLimit=");
+        reveal_strlit("\n");
+        assert_seqs_equal!(zk_config.subrange(limit_i, limit_j).subrange(0, 10), new_strlit("syncLimit=")@);
+        assert(zk_config.subrange(limit_i, limit_j).subrange(0, 10) == new_strlit("syncLimit=")@);
+        let sync_limit_string = int_to_string_view(zookeeper.spec.conf.sync_limit);
+        let limit_string = int_to_string_view(limit);
+        assert(forall |i| 0 <= i < sync_limit_string.len() ==> sync_limit_string[i] != '\n');
+        assert(forall |i| 0 <= i < limit_string.len() ==> limit_string[i] != '\n');
+        assert(forall |i| 0 <= i < zk_config.subrange(limit_i, limit_j).len() - 1 ==> zk_config.subrange(limit_i, limit_j)[i] != '\n');
+        if limit_string.len() > sync_limit_string.len() {
+            assert(limit_string[sync_limit_string.len() as int] == '\n');
+        } else if limit_string.len() < sync_limit_string.len(){
+            assert(sync_limit_string[limit_string.len() as int] == '\n');
+        }
+        assert_seqs_equal!(limit_string, sync_limit_string);
+    }
 }
 
 }
