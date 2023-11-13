@@ -46,7 +46,8 @@ pub proof fn lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper))
@@ -164,7 +165,8 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
@@ -481,7 +483,6 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
         or_leads_to_combine_temp(spec, addr_exists_and_after_exists_zk_node_step_pending, addr_not_exists_and_after_exists_zk_node_step_pending, post);
         temp_pred_equality(addr_exists_and_after_exists_zk_node_step_pending.or(addr_not_exists_and_after_exists_zk_node_step_pending), after_exists_zk_node_step_pending);
     });
-
     leads_to_trans_temp(spec, pre, after_exists_zk_node_step_pending, post);
 }
 
@@ -559,7 +560,6 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });
     }
-
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
 }
 
@@ -711,7 +711,6 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
         });
     }
-
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
 }
 
@@ -797,7 +796,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
@@ -831,7 +832,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
-        &&& helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)(s)
+        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -841,7 +844,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
-        lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)),
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -973,7 +978,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
@@ -1000,7 +1007,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
-        &&& helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)(s)
+        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1011,7 +1020,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
-        lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)),
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1113,7 +1124,9 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
@@ -1148,7 +1161,9 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
-        &&& helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)(s)
+        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1159,7 +1174,9 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
-        lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)),
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1292,7 +1309,9 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
@@ -1329,7 +1348,9 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
-        &&& helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)(s)
+        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1340,7 +1361,9 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
-        lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)),
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1477,7 +1500,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)))),
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
@@ -1485,8 +1510,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
                 &&& !s.external_state().data.contains_key(zk_node_addr(s, zookeeper))
                 &&& s.external_state().data.contains_key(zk_parent_node_addr(s, zookeeper))
                 &&& req_msg_is_the_in_flight_pending_req_at_after_create_zk_node_step(zookeeper, req_msg)(s)
-            })
-                .leads_to(lift_state(at_after_create_zk_node_step_and_exists_ok_resp_in_flight(zookeeper)))
+            }).leads_to(lift_state(at_after_create_zk_node_step_and_exists_ok_resp_in_flight(zookeeper)))
         ),
 {
     let pre = |s: ZKCluster| {
@@ -1505,7 +1529,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)(s)
         &&& helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)(s)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)(s)
-        &&& helper_invariants::stateful_set_has_at_least_one_replica(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)(s)
+        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1516,7 +1542,9 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)),
         lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper)),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)),
-        lift_state(helper_invariants::stateful_set_has_at_least_one_replica(zookeeper))
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)),
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ConfigMap, zookeeper))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {

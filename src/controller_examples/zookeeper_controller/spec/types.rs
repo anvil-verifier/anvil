@@ -146,6 +146,8 @@ impl ResourceView for ZookeeperClusterView {
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.replicas >= 3
+        &&& self.spec.conf.sync_limit >= 1
+        &&& self.spec.conf.min_session_timeout <= self.spec.conf.max_session_timeout
     }
 
     open spec fn transition_validation(self, old_obj: ZookeeperClusterView) -> bool {

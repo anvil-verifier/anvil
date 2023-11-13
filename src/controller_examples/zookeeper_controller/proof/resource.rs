@@ -10,6 +10,7 @@ use crate::kubernetes_api_objects::{
 use crate::reconciler::spec::resource_builder::*;
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
+use crate::zookeeper_controller::spec::zookeeper_api::validate_config_map_object;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::resource::*;
 use crate::zookeeper_controller::spec::types::{ZookeeperClusterView, ZookeeperReconcileState};
@@ -75,6 +76,15 @@ pub open spec fn state_after_update(
 
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, zookeeper: ZookeeperClusterView) -> bool {
     match sub_resource {
+        SubResource::ConfigMap => {
+            validate_config_map_object(object)
+        },
+        SubResource::StatefulSet => {
+            &&& StatefulSetView::unmarshal(object).is_Ok()
+            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.is_Some()
+            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.get_Some_0().replicas.is_Some()
+            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
+        },
         _ => true,
     }
 }

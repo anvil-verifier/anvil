@@ -1,9 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{common::*, dynamic::*, resource::*, stateful_set::*};
+use crate::kubernetes_api_objects::{
+    common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
+};
 use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::{types::ZookeeperClusterView, resource::make_zk_config};
 use vstd::{prelude::*, string::*};
 
 verus! {
@@ -120,6 +123,46 @@ impl ExternalAPI for ZKAPI {
     }
 }
 
+pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
+    let zk_config = data[new_strlit("zoo.cfg")@];
+    &&& data.contains_key(new_strlit("zoo.cfg")@)
+    &&& exists |zk: ZookeeperClusterView| 
+        zk.state_validation()
+        && (#[trigger] make_zk_config(zk)) == zk_config
+}
+
+pub open spec fn validate_config_map_object(object: DynamicObjectView) -> bool {
+    &&& ConfigMapView::unmarshal(object).is_Ok()
+    &&& ConfigMapView::unmarshal(object).get_Ok_0().data.is_Some()
+    &&& validate_config_map_data(ConfigMapView::unmarshal(object).get_Ok_0().data.get_Some_0())
+}
+
+pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
+    let cm_key = ObjectRef {
+        kind: Kind::ConfigMapKind,
+        namespace: namespace,
+        name: name + new_strlit("-configmap")@,
+    };
+    &&& resources.contains_key(cm_key)
+    &&& validate_config_map_object(resources[cm_key])
+}
+
+pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, resources: StoredState) -> bool {
+    let sts_key = ObjectRef {
+        kind: Kind::StatefulSetKind,
+        namespace: namespace,
+        name: name,
+    };
+    let sts_spec = StatefulSetView::unmarshal(resources[sts_key]).get_Ok_0().spec;
+    // The stateful set object exists
+    &&& resources.contains_key(sts_key)
+    &&& StatefulSetView::unmarshal(resources[sts_key]).is_Ok()
+    &&& sts_spec.is_Some()
+    &&& sts_spec.get_Some_0().replicas.is_Some()
+    // and it has at least one replica to handle the request
+    &&& sts_spec.get_Some_0().replicas.get_Some_0() > 0
+}
+
 // validate checks the stateful set object (the end point that the client connects to in the exec implementation)
 // exists, and the path is valid.
 //
@@ -128,19 +171,9 @@ impl ExternalAPI for ZKAPI {
 // checking whether the stateful set is really ready,
 // and checking whether the port number is correct.
 pub open spec fn validate(name: StringView, namespace: StringView, port: int, path: Seq<StringView>, resources: StoredState) -> bool {
-    let key = ObjectRef {
-        kind: Kind::StatefulSetKind,
-        namespace: namespace,
-        name: name,
-    };
     &&& path.len() > 0
-    // The stateful set object exists
-    &&& resources.contains_key(key)
-    &&& StatefulSetView::unmarshal(resources[key]).is_Ok()
-    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.is_Some()
-    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.get_Some_0().replicas.is_Some()
-    // and it has at least one replica to handle the request
-    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
+    &&& validate_stateful_set(name, namespace, resources)
+    &&& validate_config_map(name, namespace, resources)
 }
 
 // handle_exists models the behavior of the zookeeper server handling the exists request.
