@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::{types::ZookeeperClusterView, resource::make_zk_config};
 use vstd::{prelude::*, string::*};
 
 verus! {
@@ -125,16 +126,9 @@ impl ExternalAPI for ZKAPI {
 pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
     let zk_config = data[new_strlit("zoo.cfg")@];
     &&& data.contains_key(new_strlit("zoo.cfg")@)
-    &&& forall |min, max| #![trigger int_to_string_view(min), int_to_string_view(max)]
-            (exists |min_i, min_j| 0 <= min_i < min_j <= zk_config.len()
-                && (#[trigger] zk_config.subrange(min_i,min_j)) == new_strlit("minSessionTimeout=")@ + int_to_string_view(min) + new_strlit("\n")@)
-            && ( exists |max_i, max_j| 0 <= max_i < max_j <= zk_config.len()
-                && (#[trigger] zk_config.subrange(max_i,max_j)) == new_strlit("maxSessionTimeout=")@ + int_to_string_view(max) + new_strlit("\n")@)
-            ==> min <= max
-    &&& forall |sync_limit| #![trigger int_to_string_view(sync_limit)]
-            (exists |i, j| 0 <= i < j <= zk_config.len()
-                && (#[trigger] zk_config.subrange(i, j)) == new_strlit("syncLimit=")@ + int_to_string_view(sync_limit) + new_strlit("\n")@)
-            ==> sync_limit >= 1
+    &&& exists |zk: ZookeeperClusterView| 
+        zk.state_validation()
+        && (#[trigger] make_zk_config(zk)) == zk_config
 }
 
 pub open spec fn validate_config_map_object(object: DynamicObjectView) -> bool {
