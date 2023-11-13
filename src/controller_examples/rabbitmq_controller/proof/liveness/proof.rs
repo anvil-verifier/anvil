@@ -13,7 +13,6 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
-    common::*,
     proof::{
         helper_invariants,
         liveness::{
@@ -25,11 +24,11 @@ use crate::rabbitmq_controller::{
             },
             terminate,
         },
-        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*},
+    spec::{reconciler::*, resource::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
@@ -40,17 +39,17 @@ verus! {
 // We prove init /\ []next /\ []wf |= []RMQCluster::desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq) holds for each rabbitmq.
 proof fn liveness_proof_forall_rabbitmq()
     ensures
-        liveness_theorem(),
+        liveness_theorem::<RabbitmqMaker>(),
 {
-    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness(rabbitmq)) by {
+    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)) by {
         liveness_proof(rabbitmq);
     };
-    spec_entails_tla_forall(cluster_spec(), |rabbitmq: RabbitmqClusterView| liveness(rabbitmq));
+    spec_entails_tla_forall(cluster_spec(), |rabbitmq: RabbitmqClusterView| liveness::<RabbitmqMaker>(rabbitmq));
 }
 
 proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     ensures
-        cluster_spec().entails(liveness(rabbitmq)),
+        cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)),
 {
     assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
     lemma_true_leads_to_always_current_state_matches(rabbitmq);
@@ -64,12 +63,12 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     spec_before_phase_n_entails_true_leads_to_current_state_matches(1, rabbitmq);
 
     let assumption = always(lift_state(RMQCluster::desired_state_is(rabbitmq)));
-    unpack_conditions_from_spec(invariants(rabbitmq), assumption, true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+    unpack_conditions_from_spec(invariants(rabbitmq), assumption, true_pred(), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
     valid_implies_trans(
         cluster_spec().and(derived_invariants_since_beginning(rabbitmq)), invariants(rabbitmq),
-        always(lift_state(RMQCluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
+        always(lift_state(RMQCluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))
     );
     sm_spec_entails_all_invariants(rabbitmq);
     simplify_predicate(cluster_spec(), derived_invariants_since_beginning(rabbitmq));
@@ -79,38 +78,38 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     requires
         1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, rabbitmq))),
-        spec_before_phase_n(i + 1, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq)))))
+        spec_before_phase_n(i + 1, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq)))))
     ensures
-        spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
+        spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, rabbitmq), spec_before_phase_n(i, rabbitmq).and(invariants_since_phase_n(i, rabbitmq)));
     spec_of_previous_phases_entails_eventually_new_invariants(i, rabbitmq);
-    unpack_conditions_from_spec(spec_before_phase_n(i, rabbitmq), invariants_since_phase_n(i, rabbitmq), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+    unpack_conditions_from_spec(spec_before_phase_n(i, rabbitmq), invariants_since_phase_n(i, rabbitmq), true_pred(), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, rabbitmq)), invariants_since_phase_n(i, rabbitmq));
-    leads_to_trans_temp(spec_before_phase_n(i, rabbitmq), true_pred(), invariants_since_phase_n(i, rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
+    leads_to_trans_temp(spec_before_phase_n(i, rabbitmq), true_pred(), invariants_since_phase_n(i, rabbitmq), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClusterView)
     ensures
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
+            true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
     lemma_true_leads_to_always_state_matches_for_all_resources(rabbitmq);
     let a_to_p = |res: SubResource| lift_state(sub_resource_state_matches(res, rabbitmq));
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
-    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches(rabbitmq)).satisfied_by(ex) by {
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq)).satisfied_by(ex) by {
         let s = ex.head();
-        assert forall |res: SubResource| #[trigger] resource_state_matches(res, rabbitmq, s.resources()) by {
+        assert forall |res: SubResource| #[trigger] resource_state_matches::<RabbitmqMaker>(res, rabbitmq, s.resources()) by {
             tla_forall_apply(a_to_p, res);
             assert(a_to_p(res).satisfied_by(ex));
             assert(sub_resource_state_matches(res, rabbitmq)(s));
         }
     }
-    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, rabbitmq))), lift_state(current_state_matches(rabbitmq)));
+    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, rabbitmq))), lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq)));
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_resources(rabbitmq: RabbitmqClusterView)

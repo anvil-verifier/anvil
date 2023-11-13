@@ -14,11 +14,9 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
-    common::*,
-    proof::{
-        helper_invariants, liveness::terminate, liveness_theorem::*, predicate::*, resource::*,
-    },
-    spec::{reconciler::*, types::*},
+    proof::{helper_invariants, liveness::terminate, predicate::*, resource::*},
+    spec::reconciler::*,
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;

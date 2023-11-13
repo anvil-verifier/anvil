@@ -7,12 +7,12 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::*;
-use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types as spec_types;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
@@ -24,8 +24,11 @@ verus! {
 
 pub struct RabbitmqReconciler {}
 
-#[verifier(external)]
 impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
+    open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool {
+        rabbitmq@.well_formed()
+    }
+
     fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }

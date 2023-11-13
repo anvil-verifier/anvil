@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
     stateful_set::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
-use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 

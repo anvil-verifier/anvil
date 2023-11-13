@@ -12,8 +12,10 @@ verus! {
 pub trait Reconciler<R, T, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>
     where ExternalAPIInput: View, ExternalAPIOutput: View, ExternalAPIType: ExternalAPIShimLayer<ExternalAPIInput, ExternalAPIOutput>
 {
+    spec fn well_formed(cr: &R) -> bool;
     fn reconcile_init_state() -> T;
-    fn reconcile_core(cr: &R, resp_o: Option<Response<ExternalAPIOutput>>, state: T) -> (T, Option<Request<ExternalAPIInput>>);
+    fn reconcile_core(cr: &R, resp_o: Option<Response<ExternalAPIOutput>>, state: T) -> (T, Option<Request<ExternalAPIInput>>)
+        requires Self::well_formed(cr);
     fn reconcile_done(state: &T) -> bool;
     fn reconcile_error(state: &T) -> bool;
 }

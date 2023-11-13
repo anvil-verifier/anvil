@@ -7,9 +7,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::resource::*;
-use crate::rabbitmq_controller::spec::types::{RabbitmqClusterView, RabbitmqReconcileState};
+use crate::rabbitmq_controller::trusted::spec_types::{
+    RabbitmqClusterView, RabbitmqReconcileState,
+};
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::spec::resource_builder::*;
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;

@@ -6,8 +6,8 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::spec::types::*;
+use crate::rabbitmq_controller::trusted::spec_types::*;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;

@@ -11,9 +11,11 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
-use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::proof::{liveness_theorem::resource_state_matches, resource::*};
-use crate::rabbitmq_controller::spec::{reconciler::*, resource::*, types::*};
+use crate::rabbitmq_controller::proof::resource::*;
+use crate::rabbitmq_controller::spec::{reconciler::*, resource::*};
+use crate::rabbitmq_controller::trusted::{
+    liveness_theorem::resource_state_matches, spec_types::*, step::*,
+};
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
@@ -21,7 +23,7 @@ verus! {
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        resource_state_matches(sub_resource, rabbitmq, s.resources())
+        resource_state_matches::<RabbitmqMaker>(sub_resource, rabbitmq, s.resources())
     }
 }
 

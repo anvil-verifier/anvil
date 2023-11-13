@@ -13,15 +13,14 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
-    common::*,
     proof::{
         helper_invariants,
         liveness::{resource_match::*, spec::assumption_and_invariants_of_all_phases},
-        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*},
+    spec::{reconciler::*, resource::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};

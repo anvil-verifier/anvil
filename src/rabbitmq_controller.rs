@@ -18,7 +18,7 @@ use builtin_macros::*;
 
 use crate::external_api::exec::*;
 use crate::rabbitmq_controller::exec::reconciler::RabbitmqReconciler;
-use crate::rabbitmq_controller::exec::types::{RabbitmqCluster, RabbitmqReconcileState};
+use crate::rabbitmq_controller::trusted::exec_types::{RabbitmqCluster, RabbitmqReconcileState};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
