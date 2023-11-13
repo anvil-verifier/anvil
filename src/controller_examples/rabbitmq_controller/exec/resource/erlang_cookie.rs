@@ -131,13 +131,4 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }
 
-#[verifier(external_body)]
-pub fn random_encoded_string(data_len: usize) -> (cookie: String)
-    ensures
-        cookie@ == spec_resource::random_encoded_string(data_len),
-{
-    let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| deps_hack::rand::random::<std::primitive::u8>()).collect();
-    String::from_rust_string(deps_hack::base64::encode(random_bytes))
-}
-
 }

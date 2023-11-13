@@ -185,4 +185,6 @@ pub struct RabbitmqClusterPersistenceSpecView {
     pub storage: StringView,
 }
 
+pub closed spec fn random_encoded_string(length: usize) -> StringView;
+
 }

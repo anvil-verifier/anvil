@@ -117,6 +117,4 @@ pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }
 
-pub closed spec fn random_encoded_string(length: usize) -> StringView;
-
 }
