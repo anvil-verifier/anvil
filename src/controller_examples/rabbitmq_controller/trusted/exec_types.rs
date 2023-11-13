@@ -67,54 +67,43 @@ impl View for RabbitmqCluster {
 impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: RabbitmqClusterSpec)
-        ensures
-            spec@ == self@.spec,
+        ensures spec@ == self@.spec,
     {
         RabbitmqClusterSpec { inner: self.inner.spec.clone() }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::RabbitmqCluster {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::RabbitmqCluster { self.inner }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == spec_types::RabbitmqClusterView::kind(),
+        ensures res@.kind == spec_types::RabbitmqClusterView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::RabbitmqCluster>(&()))
     }
 
     #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-        ensures
-            owner_reference@ == self@.controller_owner_ref(),
+        ensures owner_reference@ == self@.controller_owner_ref(),
     {
-        OwnerReference::from_kube(
-            // We can safely unwrap here because the trait method implementation always returns a Some(...)
-            self.inner.controller_owner_ref(&()).unwrap()
-        )
+        // We can safely unwrap here because the trait method implementation always returns a Some(...)
+        OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -135,16 +124,10 @@ impl RabbitmqCluster {
 
 impl ResourceWrapper<deps_hack::RabbitmqCluster> for RabbitmqCluster {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::RabbitmqCluster) -> RabbitmqCluster {
-        RabbitmqCluster {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::RabbitmqCluster) -> RabbitmqCluster { RabbitmqCluster { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::RabbitmqCluster {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::RabbitmqCluster { self.inner }
 }
 
 #[verifier(external_body)]
@@ -157,16 +140,14 @@ impl RabbitmqClusterSpec {
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: i32)
-        ensures
-            replicas as int == self@.replicas,
+        ensures replicas as int == self@.replicas,
     {
         self.inner.replicas
     }
 
     #[verifier(external_body)]
     pub fn image(&self) -> (image: String)
-        ensures
-            image@ == self@.image,
+        ensures image@ == self@.image,
     {
         String::from_rust_string(self.inner.image.clone())
     }
@@ -185,8 +166,7 @@ impl RabbitmqClusterSpec {
 
     #[verifier(external_body)]
     pub fn persistence(&self) -> (persistence: RabbitmqClusterPersistenceSpec)
-        ensures
-            persistence@ == self@.persistence,
+        ensures persistence@ == self@.persistence,
     {
         RabbitmqClusterPersistenceSpec { inner: self.inner.persistence.clone() }
     }
@@ -217,16 +197,14 @@ impl RabbitmqClusterSpec {
 
     #[verifier(external_body)]
     pub fn labels(&self) -> (labels: StringMap)
-        ensures
-            labels@ == self@.labels,
+        ensures labels@ == self@.labels,
     {
         StringMap::from_rust_map(self.inner.labels.clone())
     }
 
     #[verifier(external_body)]
     pub fn annotations(&self) -> (annotations: StringMap)
-        ensures
-            annotations@ == self@.annotations,
+        ensures annotations@ == self@.annotations,
     {
         StringMap::from_rust_map(self.inner.annotations.clone())
     }
@@ -245,8 +223,7 @@ impl RabbitmqClusterSpec {
 
     #[verifier(external_body)]
     pub fn pod_management_policy(&self) -> (policy: String)
-        ensures
-            policy@ == self@.pod_management_policy,
+        ensures policy@ == self@.pod_management_policy,
     {
         String::from_rust_string(self.inner.pod_management_policy.clone())
     }
@@ -319,16 +296,14 @@ impl RabbitmqClusterPersistenceSpec {
 
     #[verifier(external_body)]
     pub fn storage(&self) -> (storage: String)
-        ensures
-            storage@ == self@.storage,
+        ensures storage@ == self@.storage,
     {
         String::from_rust_string(self.inner.storage.clone().0)
     }
 
     #[verifier(external_body)]
     pub fn storage_class_name(&self) -> (storage_class_name: String)
-        ensures
-            storage_class_name@ == self@.storage_class_name,
+        ensures storage_class_name@ == self@.storage_class_name,
     {
         String::from_rust_string(self.inner.storage_class_name.clone())
     }
