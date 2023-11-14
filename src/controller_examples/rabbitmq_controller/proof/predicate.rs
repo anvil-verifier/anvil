@@ -11,8 +11,8 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
+use crate::rabbitmq_controller::model::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::proof::resource::*;
-use crate::rabbitmq_controller::spec::{reconciler::*, resource::*};
 use crate::rabbitmq_controller::trusted::{
     liveness_theorem::resource_state_matches, spec_types::*, step::*,
 };

@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::spec::resource::*;
+use crate::rabbitmq_controller::model::resource::*;
 use crate::rabbitmq_controller::trusted::spec_types::{
     RabbitmqClusterView, RabbitmqReconcileState,
 };

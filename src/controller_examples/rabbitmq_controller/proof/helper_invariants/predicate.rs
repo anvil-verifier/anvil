@@ -13,8 +13,8 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
+    model::reconciler::*,
     proof::{predicate::*, resource::*},
-    spec::reconciler::*,
     trusted::{spec_types::*, step::*},
 };
 use crate::reconciler::spec::reconciler::*;

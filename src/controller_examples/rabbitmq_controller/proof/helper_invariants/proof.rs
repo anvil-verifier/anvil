@@ -12,10 +12,10 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
+    model::resource::make_stateful_set,
     proof::{
         helper_invariants::stateful_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
     },
-    spec::resource::make_stateful_set,
     trusted::{liveness_theorem::desired_state_is, spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};

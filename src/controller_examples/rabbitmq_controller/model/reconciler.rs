@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::rabbitmq_controller::spec::resource::*;
+use crate::rabbitmq_controller::model::resource::*;
 use crate::rabbitmq_controller::trusted::maker::*;
 use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;

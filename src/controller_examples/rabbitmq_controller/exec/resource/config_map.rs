@@ -8,11 +8,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
+use crate::rabbitmq_controller::exec::resource::service_account::ServiceAccountBuilder;
+use crate::rabbitmq_controller::model::resource as model_resource;
 use crate::rabbitmq_controller::trusted::exec_types::*;
 use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
 use crate::rabbitmq_controller::trusted::step::*;
-use crate::rabbitmq_controller::exec::resource::service_account::ServiceAccountBuilder;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct ServerConfigMapBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -87,7 +87,7 @@ pub fn update_server_config_map(rabbitmq: &RabbitmqCluster, found_config_map: Co
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        config_map@ == spec_resource::update_server_config_map(rabbitmq@, found_config_map@),
+        config_map@ == model_resource::update_server_config_map(rabbitmq@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_server_cm = make_server_config_map(rabbitmq);
@@ -112,7 +112,7 @@ pub fn make_server_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_server_config_map_name(rabbitmq@),
+        name@ == model_resource::make_server_config_map_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-server-conf"))
 }
@@ -122,7 +122,7 @@ pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Config
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        config_map@ == spec_resource::make_server_config_map(rabbitmq@),
+        config_map@ == model_resource::make_server_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
     config_map.set_metadata({
@@ -165,7 +165,7 @@ pub fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        s@ == spec_resource::default_rbmq_config(rabbitmq@),
+        s@ == model_resource::default_rbmq_config(rabbitmq@),
 {
     new_strlit(
         "queue_master_locator = min-masters\n\

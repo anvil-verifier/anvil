@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::rabbitmq_controller::spec::resource::config_map::make_server_config_map_key;
+use crate::rabbitmq_controller::model::resource::config_map::make_server_config_map_key;
 use crate::rabbitmq_controller::trusted::spec_types::*;
 use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};

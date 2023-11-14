@@ -9,7 +9,7 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::rabbitmq_controller::exec::resource::config_map::ServerConfigMapBuilder;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
+use crate::rabbitmq_controller::model::resource as model_resource;
 use crate::rabbitmq_controller::trusted::exec_types::*;
 use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
 use crate::rabbitmq_controller::trusted::step::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct PluginsConfigMapBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::PluginsConfigMapBuilder> for PluginsConfigMapBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::PluginsConfigMapBuilder> for PluginsConfigMapBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -85,7 +85,7 @@ pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: C
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        config_map@ == spec_resource::update_plugins_config_map(rabbitmq@, found_config_map@),
+        config_map@ == model_resource::update_plugins_config_map(rabbitmq@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_plugins_config_map(rabbitmq);
@@ -106,7 +106,7 @@ pub fn make_plugins_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_plugins_config_map_name(rabbitmq@),
+        name@ == model_resource::make_plugins_config_map_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-plugins-conf"))
 }
@@ -116,7 +116,7 @@ pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Confi
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        config_map@ == spec_resource::make_plugins_config_map(rabbitmq@),
+        config_map@ == model_resource::make_plugins_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
     config_map.set_metadata({

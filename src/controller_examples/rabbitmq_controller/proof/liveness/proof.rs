@@ -13,6 +13,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
+    model::{reconciler::*, resource::*},
     proof::{
         helper_invariants,
         liveness::{
@@ -27,7 +28,6 @@ use crate::rabbitmq_controller::{
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};

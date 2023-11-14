@@ -9,7 +9,7 @@ use crate::kubernetes_api_objects::{
     volume::*,
 };
 use crate::rabbitmq_controller::exec::resource::service::ServiceBuilder;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
+use crate::rabbitmq_controller::model::resource as model_resource;
 use crate::rabbitmq_controller::trusted::exec_types::*;
 use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
 use crate::rabbitmq_controller::trusted::step::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct HeadlessServiceBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -88,7 +88,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
         rabbitmq@.metadata.namespace.is_Some(),
         found_headless_service@.spec.is_Some(),
     ensures
-        service@ == spec_resource::update_headless_service(rabbitmq@, found_headless_service@),
+        service@ == model_resource::update_headless_service(rabbitmq@, found_headless_service@),
 {
     let made_service = make_headless_service(rabbitmq);
 
@@ -118,7 +118,7 @@ pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_headless_service_name(rabbitmq@),
+        name@ == model_resource::make_headless_service_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-nodes"))
 }
@@ -128,7 +128,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == spec_resource::make_headless_service(rabbitmq@),
+        service@ == model_resource::make_headless_service(rabbitmq@),
 {
     let mut ports = Vec::new();
     ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));
@@ -136,7 +136,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            spec_resource::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
     make_service(rabbitmq, make_headless_service_name(rabbitmq), ports, false)
