@@ -1,10 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::exec::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::zookeeper_api::{
-    ZKAPICreateResultView, ZKAPIExistsResultView, ZKAPIInputView, ZKAPIOutputView,
-    ZKAPISetDataResultView,
+use crate::zookeeper_controller::trusted::{
+    step::*,
+    zookeeper_api_model::{
+        ZKAPICreateResultView, ZKAPIExistsResultView, ZKAPIInputView, ZKAPIOutputView,
+        ZKAPISetDataResultView,
+    },
 };
 use core::time::Duration;
 use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZkResult, ZooKeeper};

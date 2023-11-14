@@ -14,12 +14,11 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use crate::zookeeper_controller::{
-    common::*,
+    model::resource::make_stateful_set,
     proof::{
-        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable,
-        liveness_theorem::desired_state_is, predicate::*, resource::*,
+        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
     },
-    spec::{resource::make_stateful_set, types::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use vstd::{multiset::*, prelude::*, string::*};
 

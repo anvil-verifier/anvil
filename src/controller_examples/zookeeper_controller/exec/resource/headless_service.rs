@@ -9,13 +9,13 @@ use crate::kubernetes_api_objects::{
 };
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
-use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::resource::{
     client_service::ClientServiceBuilder, common::*,
 };
-use crate::zookeeper_controller::exec::types::*;
-use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::zookeeper_controller::spec::types::ZookeeperClusterView;
+use crate::zookeeper_controller::model::resource as model_resource;
+use crate::zookeeper_controller::trusted::{
+    exec_types::*, spec_types::ZookeeperClusterView, step::*,
+};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct HeadlessServiceBuilder {}
 
-impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
+impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
     open spec fn requirements(zk: ZookeeperClusterView) -> bool {
         zk.well_formed()
     }
@@ -85,7 +85,7 @@ pub fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == spec_resource::make_headless_service_name(zk@),
+        name@ == model_resource::make_headless_service_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-headless"))
 }
@@ -95,7 +95,7 @@ pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &S
         zk@.well_formed(),
         found_headless_service@.spec.is_Some(),
     ensures
-        headless_service@ == spec_resource::update_headless_service(zk@, found_headless_service@),
+        headless_service@ == model_resource::update_headless_service(zk@, found_headless_service@),
 {
     let mut headless_service = found_headless_service.clone();
     let made_headless_service = make_headless_service(zk);
@@ -122,7 +122,7 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.well_formed(),
     ensures
-        service@ == spec_resource::make_headless_service(zk@),
+        service@ == model_resource::make_headless_service(zk@),
 {
     let mut ports = Vec::new();
 
@@ -135,7 +135,7 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            spec_resource::make_headless_service(zk@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_headless_service(zk@).spec.get_Some_0().ports.get_Some_0()
         );
     }
 

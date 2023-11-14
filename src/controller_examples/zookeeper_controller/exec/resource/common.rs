@@ -9,9 +9,10 @@ use crate::kubernetes_api_objects::{
 };
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::types::*;
-use crate::zookeeper_controller::spec::resource as spec_resource;
+use crate::zookeeper_controller::model::resource as model_resource;
+use crate::zookeeper_controller::trusted::{
+    exec_types::*, spec_types::ZookeeperClusterView, step::*,
+};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -22,7 +23,7 @@ pub fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     requires
         zk@.well_formed(),
     ensures
-        labels@ == spec_resource::make_base_labels(zk@),
+        labels@ == model_resource::make_base_labels(zk@),
 {
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
@@ -33,7 +34,7 @@ pub fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     requires
         zk@.well_formed(),
     ensures
-        labels@ == spec_resource::make_labels(zk@),
+        labels@ == model_resource::make_labels(zk@),
 {
     let mut labels = zk.spec().labels();
     labels.extend(make_base_labels(zk));
@@ -44,14 +45,14 @@ pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<Ow
     requires
         zk@.well_formed(),
     ensures
-        owner_references@.map_values(|or: OwnerReference| or@) == spec_resource::make_owner_references(zk@),
+        owner_references@.map_values(|or: OwnerReference| or@) == model_resource::make_owner_references(zk@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(zk.controller_owner_ref());
     proof {
         assert_seqs_equal!(
             owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            spec_resource::make_owner_references(zk@)
+            model_resource::make_owner_references(zk@)
         );
     }
     owner_references
@@ -62,7 +63,7 @@ pub fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>
     requires
         zk@.well_formed(),
     ensures
-        service@ == spec_resource::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
+        service@ == model_resource::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
     let mut service = Service::default();
     service.set_metadata({

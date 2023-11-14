@@ -10,9 +10,8 @@ use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::resource::{common::*, stateful_set::StatefulSetBuilder};
-use crate::zookeeper_controller::spec::types::*;
+use crate::zookeeper_controller::model::resource::{common::*, stateful_set::StatefulSetBuilder};
+use crate::zookeeper_controller::trusted::{spec_types::*, step::*};
 use vstd::prelude::*;
 use vstd::string::*;
 

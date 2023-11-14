@@ -6,8 +6,7 @@ use crate::kubernetes_api_objects::{
     toleration::*,
 };
 use crate::vstd_ext::{string_map::*, string_view::*};
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::types as spec_types;
+use crate::zookeeper_controller::trusted::{spec_types, step::*};
 use deps_hack::kube::Resource;
 use vstd::{prelude::*, view::*};
 

@@ -9,11 +9,11 @@ use crate::kubernetes_api_objects::{
 };
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
-use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::resource::{common::*, stateful_set::StatefulSetBuilder};
-use crate::zookeeper_controller::exec::types::*;
-use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::zookeeper_controller::spec::types::ZookeeperClusterView;
+use crate::zookeeper_controller::model::resource as model_resource;
+use crate::zookeeper_controller::trusted::{
+    exec_types::*, spec_types::ZookeeperClusterView, step::*,
+};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -22,7 +22,7 @@ verus! {
 
 pub struct ConfigMapBuilder {}
 
-impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::ConfigMapBuilder> for ConfigMapBuilder {
+impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::ConfigMapBuilder> for ConfigMapBuilder {
     open spec fn requirements(zk: ZookeeperClusterView) -> bool {
         zk.well_formed()
     }
@@ -82,7 +82,7 @@ pub fn make_config_map_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == spec_resource::make_config_map_name(zk@),
+        name@ == model_resource::make_config_map_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-configmap"))
 }
@@ -91,7 +91,7 @@ pub fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) ->
     requires
         zk@.well_formed(),
     ensures
-        config_map@ == spec_resource::update_config_map(zk@, found_config_map@),
+        config_map@ == model_resource::update_config_map(zk@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_config_map(zk);
@@ -112,7 +112,7 @@ pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
         zk@.well_formed(),
     ensures
-        config_map@ == spec_resource::make_config_map(zk@),
+        config_map@ == model_resource::make_config_map(zk@),
 {
     let mut config_map = ConfigMap::default();
 
@@ -138,7 +138,7 @@ pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
 
 pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
     ensures
-        s@ == spec_resource::make_zk_config(zk@),
+        s@ == model_resource::make_zk_config(zk@),
 {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
@@ -171,7 +171,7 @@ pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
 
 pub fn make_log4j_config() -> (s: String)
     ensures
-        s@ == spec_resource::make_log4j_config(),
+        s@ == model_resource::make_log4j_config(),
 {
     new_strlit(
         "zookeeper.root.logger=CONSOLE\n\
@@ -186,7 +186,7 @@ pub fn make_log4j_config() -> (s: String)
 
 pub fn make_log4j_quiet_config() -> (s: String)
     ensures
-        s@ == spec_resource::make_log4j_quiet_config(),
+        s@ == model_resource::make_log4j_quiet_config(),
 {
     new_strlit(
         "log4j.rootLogger=ERROR, CONSOLE\n\
@@ -201,7 +201,7 @@ pub fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     requires
         zk@.well_formed(),
     ensures
-        s@ == spec_resource::make_env_config(zk@),
+        s@ == model_resource::make_env_config(zk@),
 {
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();

@@ -15,7 +15,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use crate::zookeeper_controller::{
-    common::*,
+    model::{reconciler::*, resource::*},
     proof::{
         helper_invariants,
         liveness::{
@@ -28,11 +28,10 @@ use crate::zookeeper_controller::{
             terminate,
             zookeeper_api::lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set_step,
         },
-        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use vstd::{prelude::*, string::*};
 
@@ -41,17 +40,17 @@ verus! {
 // We prove init /\ []next /\ []wf |= []ZKCluster::desired_state_is(zookeeper) ~> []current_state_matches(zookeeper) holds for each zookeeper.
 proof fn liveness_proof_forall_zookeeper()
     ensures
-        liveness_theorem(),
+        liveness_theorem::<ZookeeperMaker>(),
 {
-    assert forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness(zookeeper)) by {
+    assert forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness::<ZookeeperMaker>(zookeeper)) by {
         liveness_proof(zookeeper);
     };
-    spec_entails_tla_forall(cluster_spec(), |zookeeper: ZookeeperClusterView| liveness(zookeeper));
+    spec_entails_tla_forall(cluster_spec(), |zookeeper: ZookeeperClusterView| liveness::<ZookeeperMaker>(zookeeper));
 }
 
 proof fn liveness_proof(zookeeper: ZookeeperClusterView)
     ensures
-        cluster_spec().entails(liveness(zookeeper)),
+        cluster_spec().entails(liveness::<ZookeeperMaker>(zookeeper)),
 {
     assumption_and_invariants_of_all_phases_is_stable(zookeeper);
     lemma_true_leads_to_always_current_state_matches(zookeeper);
@@ -65,12 +64,12 @@ proof fn liveness_proof(zookeeper: ZookeeperClusterView)
     spec_before_phase_n_entails_true_leads_to_current_state_matches(1, zookeeper);
 
     let assumption = always(lift_state(ZKCluster::desired_state_is(zookeeper)));
-    unpack_conditions_from_spec(invariants(zookeeper), assumption, true_pred(), always(lift_state(current_state_matches(zookeeper))));
+    unpack_conditions_from_spec(invariants(zookeeper), assumption, true_pred(), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
     valid_implies_trans(
         cluster_spec().and(derived_invariants_since_beginning(zookeeper)), invariants(zookeeper),
-        always(lift_state(ZKCluster::desired_state_is(zookeeper))).leads_to(always(lift_state(current_state_matches(zookeeper))))
+        always(lift_state(ZKCluster::desired_state_is(zookeeper))).leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))
     );
     sm_spec_entails_all_invariants(zookeeper);
     simplify_predicate(cluster_spec(), derived_invariants_since_beginning(zookeeper));
@@ -80,38 +79,38 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     requires
         1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, zookeeper))),
-        spec_before_phase_n(i + 1, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches(zookeeper)))))
+        spec_before_phase_n(i + 1, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper)))))
     ensures
-        spec_before_phase_n(i, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches(zookeeper))))),
+        spec_before_phase_n(i, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, zookeeper), spec_before_phase_n(i, zookeeper).and(invariants_since_phase_n(i, zookeeper)));
     spec_of_previous_phases_entails_eventually_new_invariants(i, zookeeper);
-    unpack_conditions_from_spec(spec_before_phase_n(i, zookeeper), invariants_since_phase_n(i, zookeeper), true_pred(), always(lift_state(current_state_matches(zookeeper))));
+    unpack_conditions_from_spec(spec_before_phase_n(i, zookeeper), invariants_since_phase_n(i, zookeeper), true_pred(), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, zookeeper)), invariants_since_phase_n(i, zookeeper));
-    leads_to_trans_temp(spec_before_phase_n(i, zookeeper), true_pred(), invariants_since_phase_n(i, zookeeper), always(lift_state(current_state_matches(zookeeper))));
+    leads_to_trans_temp(spec_before_phase_n(i, zookeeper), true_pred(), invariants_since_phase_n(i, zookeeper), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(zookeeper: ZookeeperClusterView)
     ensures
         assumption_and_invariants_of_all_phases(zookeeper)
         .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches(zookeeper))))
+            true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(zookeeper);
     lemma_true_leads_to_always_state_matches_for_all_resources(zookeeper);
     let a_to_p = |res: SubResource| lift_state(sub_resource_state_matches(res, zookeeper));
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
-    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches(zookeeper)).satisfied_by(ex) by {
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches::<ZookeeperMaker>(zookeeper)).satisfied_by(ex) by {
         let s = ex.head();
-        assert forall |res: SubResource| #[trigger] resource_state_matches(res, zookeeper, s.resources()) by {
+        assert forall |res: SubResource| #[trigger] resource_state_matches::<ZookeeperMaker>(res, zookeeper, s.resources()) by {
             tla_forall_apply(a_to_p, res);
             assert(a_to_p(res).satisfied_by(ex));
             assert(sub_resource_state_matches(res, zookeeper)(s));
         }
     }
-    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, zookeeper))), lift_state(current_state_matches(zookeeper)));
+    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, zookeeper))), lift_state(current_state_matches::<ZookeeperMaker>(zookeeper)));
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_resources(zookeeper: ZookeeperClusterView)

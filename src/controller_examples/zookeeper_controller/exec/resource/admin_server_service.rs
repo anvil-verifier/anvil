@@ -9,11 +9,11 @@ use crate::kubernetes_api_objects::{
 };
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
-use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::resource::{common::*, config_map::ConfigMapBuilder};
-use crate::zookeeper_controller::exec::types::*;
-use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::zookeeper_controller::spec::types::ZookeeperClusterView;
+use crate::zookeeper_controller::model::resource as model_resource;
+use crate::zookeeper_controller::trusted::{
+    exec_types::*, spec_types::ZookeeperClusterView, step::*,
+};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -22,7 +22,7 @@ verus! {
 
 pub struct AdminServerServiceBuilder {}
 
-impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::AdminServerServiceBuilder> for AdminServerServiceBuilder {
+impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::AdminServerServiceBuilder> for AdminServerServiceBuilder {
     open spec fn requirements(zk: ZookeeperClusterView) -> bool {
         zk.well_formed()
     }
@@ -83,7 +83,7 @@ pub fn make_admin_server_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == spec_resource::make_admin_server_service_name(zk@),
+        name@ == model_resource::make_admin_server_service_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-admin-server"))
 }
@@ -93,7 +93,7 @@ pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_ser
         zk@.well_formed(),
         found_admin_server_service@.spec.is_Some(),
     ensures
-        admin_server_service@ == spec_resource::update_admin_server_service(zk@, found_admin_server_service@),
+        admin_server_service@ == model_resource::update_admin_server_service(zk@, found_admin_server_service@),
 {
     let mut admin_server_service = found_admin_server_service.clone();
     let made_admin_server_service = make_admin_server_service(zk);
@@ -120,7 +120,7 @@ pub fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.well_formed(),
     ensures
-        service@ == spec_resource::make_admin_server_service(zk@),
+        service@ == model_resource::make_admin_server_service(zk@),
 {
     let mut ports = Vec::new();
 
@@ -129,7 +129,7 @@ pub fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            spec_resource::make_admin_server_service(zk@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_admin_server_service(zk@).spec.get_Some_0().ports.get_Some_0()
         );
     }
 

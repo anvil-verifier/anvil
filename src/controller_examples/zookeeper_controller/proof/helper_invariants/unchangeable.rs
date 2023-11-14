@@ -15,13 +15,13 @@ use crate::reconciler::spec::{reconciler::*, resource_builder::*};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib::*, string_view::*};
 use crate::zookeeper_controller::{
-    common::*,
+    model::{reconciler::*, resource::*},
     proof::{
         helper_invariants::{owner_ref::*, predicate::*, proof::*, validation::*},
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*, zookeeper_api::validate_config_map_data},
+    trusted::{spec_types::*, step::*, zookeeper_api_model::validate_config_map_data},
 };
 use vstd::{multiset::*, prelude::*, seq_lib::*, string::*};
 

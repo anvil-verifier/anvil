@@ -13,9 +13,9 @@ use crate::kubernetes_cluster::spec::{
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
-    common::*,
+    model::reconciler::*,
     proof::predicate::*,
-    spec::{reconciler::*, types::*},
+    trusted::{spec_types::*, step::*},
 };
 use vstd::prelude::*;
 

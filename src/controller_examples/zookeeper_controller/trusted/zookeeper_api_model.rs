@@ -5,8 +5,8 @@ use crate::kubernetes_api_objects::{
     common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::{types::ZookeeperClusterView, resource::make_zk_config};
+use crate::zookeeper_controller::model::resource::make_zk_config;
+use crate::zookeeper_controller::trusted::{spec_types::ZookeeperClusterView, step::*};
 use vstd::{prelude::*, string::*};
 
 verus! {
@@ -48,6 +48,8 @@ impl ZKNodeAddr {
         }
     }
 }
+
+pub struct ZKAPI {}
 
 pub type ZKNodeValue = StringView;
 
@@ -93,8 +95,6 @@ pub enum ZKAPIOutputView {
     SetDataResponse(ZKAPISetDataResultView),
 }
 
-pub struct ZKAPI {}
-
 impl ExternalAPI for ZKAPI {
 
     type Input = ZKAPIInputView;
@@ -126,7 +126,7 @@ impl ExternalAPI for ZKAPI {
 pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
     let zk_config = data[new_strlit("zoo.cfg")@];
     &&& data.contains_key(new_strlit("zoo.cfg")@)
-    &&& exists |zk: ZookeeperClusterView| 
+    &&& exists |zk: ZookeeperClusterView|
         zk.state_validation()
         && (#[trigger] make_zk_config(zk)) == zk_config
 }

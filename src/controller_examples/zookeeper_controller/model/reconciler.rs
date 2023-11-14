@@ -11,8 +11,10 @@ use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_map::*;
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::{resource::*, types::*, zookeeper_api::*};
+use crate::zookeeper_controller::model::resource::*;
+use crate::zookeeper_controller::trusted::{
+    maker::*, spec_types::*, step::*, zookeeper_api_model::*,
+};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -417,12 +419,48 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView,
     }
 }
 
-pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<APIRequest>) {
-    let state_prime = ZookeeperReconcileState {
-        reconcile_step: ZookeeperReconcileStep::Error,
-        ..state
-    };
-    (state_prime, None)
+pub struct ZookeeperMaker {}
+
+impl Maker for ZookeeperMaker {
+    open spec fn make_headless_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
+        make_headless_service_key(zookeeper)
+    }
+
+    open spec fn make_client_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
+        make_client_service_key(zookeeper)
+    }
+
+    open spec fn make_admin_server_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
+        make_admin_server_service_key(zookeeper)
+    }
+
+    open spec fn make_config_map_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
+        make_config_map_key(zookeeper)
+    }
+
+    open spec fn make_stateful_set_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
+        make_stateful_set_key(zookeeper)
+    }
+
+    open spec fn make_headless_service(zookeeper: ZookeeperClusterView) -> ServiceView {
+        make_headless_service(zookeeper)
+    }
+
+    open spec fn make_client_service(zookeeper: ZookeeperClusterView) -> ServiceView {
+        make_client_service(zookeeper)
+    }
+
+    open spec fn make_admin_server_service(zookeeper: ZookeeperClusterView) -> ServiceView {
+        make_admin_server_service(zookeeper)
+    }
+
+    open spec fn make_config_map(zookeeper: ZookeeperClusterView) -> ConfigMapView {
+        make_config_map(zookeeper)
+    }
+
+    open spec fn make_stateful_set(zookeeper: ZookeeperClusterView, config_map_rv: StringView) -> StatefulSetView {
+        make_stateful_set(zookeeper, config_map_rv)
+    }
 }
 
 }

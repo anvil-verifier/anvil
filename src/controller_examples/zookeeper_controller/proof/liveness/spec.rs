@@ -15,11 +15,9 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
-    common::*,
-    proof::{
-        helper_invariants, liveness::terminate, liveness_theorem::*, predicate::*, resource::*,
-    },
-    spec::{reconciler::*, types::*},
+    model::reconciler::*,
+    proof::{helper_invariants, liveness::terminate, predicate::*, resource::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use vstd::prelude::*;
 
