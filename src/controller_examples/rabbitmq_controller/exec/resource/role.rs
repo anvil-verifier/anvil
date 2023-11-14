@@ -8,11 +8,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::role_binding::RoleBindingBuilder;
-use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::rabbitmq_controller::model::resource as model_resource;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct RoleBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::RoleBuilder> for RoleBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::RoleBuilder> for RoleBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -85,7 +85,7 @@ pub fn update_role(rabbitmq: &RabbitmqCluster, found_role: Role) -> (role: Role)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        role@ == spec_resource::update_role(rabbitmq@, found_role@),
+        role@ == model_resource::update_role(rabbitmq@, found_role@),
 {
     let mut role = found_role.clone();
     let made_role = make_role(rabbitmq);
@@ -106,7 +106,7 @@ pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_role_name(rabbitmq@),
+        name@ == model_resource::make_role_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-peer-discovery"))
 }
@@ -116,7 +116,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        rules@.map_values(|r: PolicyRule| r@) == spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0(),
+        rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(rabbitmq@).policy_rules.get_Some_0(),
 {
     let mut rules = Vec::new();
     rules.push({
@@ -127,7 +127,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
-                    spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                    model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
                 );
             }
             api_groups
@@ -138,7 +138,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
-                    spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                    model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[0].resources.get_Some_0()
                 );
             }
             resources
@@ -149,7 +149,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),
-                    spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[0].verbs
+                    model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[0].verbs
                 );
             }
             verbs
@@ -164,7 +164,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
-                    spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[1].api_groups.get_Some_0()
+                    model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[1].api_groups.get_Some_0()
                 );
             }
             api_groups
@@ -175,7 +175,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
-                    spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[1].resources.get_Some_0()
+                    model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[1].resources.get_Some_0()
                 );
             }
             resources
@@ -186,7 +186,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),
-                    spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[1].verbs
+                    model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()[1].verbs
                 );
             }
             verbs
@@ -196,7 +196,7 @@ pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
     proof{
         assert_seqs_equal!(
             rules@.map_values(|p: PolicyRule| p@),
-            spec_resource::make_role(rabbitmq@).policy_rules.get_Some_0()
+            model_resource::make_role(rabbitmq@).policy_rules.get_Some_0()
         );
     }
     rules
@@ -207,7 +207,7 @@ pub fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        role@ == spec_resource::make_role(rabbitmq@),
+        role@ == model_resource::make_role(rabbitmq@),
 {
     let mut role = Role::default();
     role.set_metadata({

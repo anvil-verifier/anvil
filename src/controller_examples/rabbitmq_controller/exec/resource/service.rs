@@ -8,11 +8,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::erlang_cookie::ErlangCookieBuilder;
-use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::rabbitmq_controller::model::resource as model_resource;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct ServiceBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::ServiceBuilder> for ServiceBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServiceBuilder> for ServiceBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -88,7 +88,7 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
         rabbitmq@.metadata.namespace.is_Some(),
         found_main_service@.spec.is_Some(),
     ensures
-        service@ == spec_resource::update_main_service(rabbitmq@, found_main_service@),
+        service@ == model_resource::update_main_service(rabbitmq@, found_main_service@),
 {
     let mut main_service = found_main_service.clone();
     let made_service = make_main_service(rabbitmq);
@@ -120,7 +120,7 @@ pub fn make_main_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_main_service_name(rabbitmq@),
+        name@ == model_resource::make_main_service_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-client"))
 }
@@ -130,7 +130,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == spec_resource::make_main_service(rabbitmq@)
+        service@ == model_resource::make_main_service(rabbitmq@)
 {
     let mut ports = Vec::new();
     // TODO: check whether the protocols are set to TCP
@@ -152,7 +152,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            spec_resource::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
     make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)

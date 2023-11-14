@@ -19,8 +19,11 @@ verus! {
 
 pub struct FluentBitReconciler {}
 
-#[verifier(external)]
 impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for FluentBitReconciler {
+    open spec fn well_formed(fb: &FluentBit) -> bool {
+        fb@.well_formed()
+    }
+
     fn reconcile_init_state() -> FluentBitReconcileState {
         reconcile_init_state()
     }

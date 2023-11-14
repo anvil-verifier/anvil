@@ -7,12 +7,12 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::*;
-use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types as spec_types;
+use crate::rabbitmq_controller::model::reconciler as model_reconciler;
+use crate::rabbitmq_controller::model::resource as model_resource;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
@@ -24,8 +24,11 @@ verus! {
 
 pub struct RabbitmqReconciler {}
 
-#[verifier(external)]
 impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
+    open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool {
+        rabbitmq@.well_formed()
+    }
+
     fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
@@ -48,7 +51,7 @@ impl Default for RabbitmqReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
-    ensures state@ == rabbitmq_spec::reconcile_init_state(),
+    ensures state@ == model_reconciler::reconcile_init_state(),
 {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
@@ -57,7 +60,7 @@ pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
 }
 
 pub fn reconcile_done(state: &RabbitmqReconcileState) -> (res: bool)
-    ensures res == rabbitmq_spec::reconcile_done(state@),
+    ensures res == model_reconciler::reconcile_done(state@),
 {
     match state.reconcile_step {
         RabbitmqReconcileStep::Done => true,
@@ -66,7 +69,7 @@ pub fn reconcile_done(state: &RabbitmqReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
-    ensures res == rabbitmq_spec::reconcile_error(state@),
+    ensures res == model_reconciler::reconcile_error(state@),
 {
     match state.reconcile_step {
         RabbitmqReconcileStep::Error => true,
@@ -76,7 +79,7 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
 
 pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
     requires rabbitmq@.well_formed(),
-    ensures (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
         // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     match &state.reconcile_step {
@@ -90,16 +93,16 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         },
         RabbitmqReconcileStep::AfterKRequestStep(_, resource) => {
             match resource {
-                SubResource::HeadlessService => reconcile_helper::<spec_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(rabbitmq, resp_o, state),
-                SubResource::Service => reconcile_helper::<spec_resource::ServiceBuilder, ServiceBuilder>(rabbitmq, resp_o, state),
-                SubResource::ErlangCookieSecret => reconcile_helper::<spec_resource::ErlangCookieBuilder, ErlangCookieBuilder>(rabbitmq, resp_o, state),
-                SubResource::DefaultUserSecret => reconcile_helper::<spec_resource::DefaultUserSecretBuilder, DefaultUserSecretBuilder>(rabbitmq, resp_o, state),
-                SubResource::PluginsConfigMap => reconcile_helper::<spec_resource::PluginsConfigMapBuilder, PluginsConfigMapBuilder>(rabbitmq, resp_o, state),
-                SubResource::ServerConfigMap => reconcile_helper::<spec_resource::ServerConfigMapBuilder, ServerConfigMapBuilder>(rabbitmq, resp_o, state),
-                SubResource::ServiceAccount => reconcile_helper::<spec_resource::ServiceAccountBuilder, ServiceAccountBuilder>(rabbitmq, resp_o, state),
-                SubResource::Role => reconcile_helper::<spec_resource::RoleBuilder, RoleBuilder>(rabbitmq, resp_o, state),
-                SubResource::RoleBinding => reconcile_helper::<spec_resource::RoleBindingBuilder, RoleBindingBuilder>(rabbitmq, resp_o, state),
-                SubResource::StatefulSet => reconcile_helper::<spec_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state),
+                SubResource::HeadlessService => reconcile_helper::<model_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(rabbitmq, resp_o, state),
+                SubResource::Service => reconcile_helper::<model_resource::ServiceBuilder, ServiceBuilder>(rabbitmq, resp_o, state),
+                SubResource::ErlangCookieSecret => reconcile_helper::<model_resource::ErlangCookieBuilder, ErlangCookieBuilder>(rabbitmq, resp_o, state),
+                SubResource::DefaultUserSecret => reconcile_helper::<model_resource::DefaultUserSecretBuilder, DefaultUserSecretBuilder>(rabbitmq, resp_o, state),
+                SubResource::PluginsConfigMap => reconcile_helper::<model_resource::PluginsConfigMapBuilder, PluginsConfigMapBuilder>(rabbitmq, resp_o, state),
+                SubResource::ServerConfigMap => reconcile_helper::<model_resource::ServerConfigMapBuilder, ServerConfigMapBuilder>(rabbitmq, resp_o, state),
+                SubResource::ServiceAccount => reconcile_helper::<model_resource::ServiceAccountBuilder, ServiceAccountBuilder>(rabbitmq, resp_o, state),
+                SubResource::Role => reconcile_helper::<model_resource::RoleBuilder, RoleBuilder>(rabbitmq, resp_o, state),
+                SubResource::RoleBinding => reconcile_helper::<model_resource::RoleBindingBuilder, RoleBindingBuilder>(rabbitmq, resp_o, state),
+                SubResource::StatefulSet => reconcile_helper::<model_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state),
             }
         },
         _ => {
@@ -120,7 +123,7 @@ pub fn reconcile_helper<
         Builder::requirements(rabbitmq@),
         state.reconcile_step.is_AfterKRequestStep(),
     ensures
-        (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_helper::<SpecBuilder>(rabbitmq@, opt_response_to_view(&resp_o), state@),
+        (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(rabbitmq@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();
     match step {

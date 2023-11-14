@@ -12,9 +12,9 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
-    common::*,
-    proof::{helper_invariants::*, predicate::*, resource::*, safety_theorem::*},
-    spec::{reconciler::*, resource::*, types::*},
+    model::{reconciler::*, resource::*},
+    proof::{helper_invariants::*, predicate::*, resource::*},
+    trusted::{safety_theorem::*, spec_types::*, step::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
@@ -23,17 +23,17 @@ verus! {
 
 proof fn safety_proof_forall_rabbitmq()
     ensures
-        safety_theorem(),
+        safety_theorem::<RabbitmqMaker>(),
 {
-    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety(rabbitmq)) by {
+    assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)) by {
         safety_proof(rabbitmq);
     };
-    spec_entails_tla_forall(cluster_spec_without_wf(), |rabbitmq: RabbitmqClusterView| safety(rabbitmq));
+    spec_entails_tla_forall(cluster_spec_without_wf(), |rabbitmq: RabbitmqClusterView| safety::<RabbitmqMaker>(rabbitmq));
 }
 
 proof fn safety_proof(rabbitmq: RabbitmqClusterView)
     ensures
-        cluster_spec_without_wf().entails(safety(rabbitmq)),
+        cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)),
 {
     lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster_spec_without_wf(), rabbitmq);
 }
@@ -48,9 +48,9 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_action(stateful_set_not_scaled_down(rabbitmq)))),
+        spec.entails(always(lift_action(stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)))),
 {
-    let inv = stateful_set_not_scaled_down(rabbitmq);
+    let inv = stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq);
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)(s)
@@ -62,7 +62,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, SubResource::StatefulSet, rabbitmq);
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
-    assert forall |s, s_prime| #[trigger] next(s, s_prime) implies stateful_set_not_scaled_down(rabbitmq)(s, s_prime) by {
+    assert forall |s, s_prime| #[trigger] next(s, s_prime) implies stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)(s, s_prime) by {
         let sts_key = make_stateful_set_key(rabbitmq);
         if s.resources().contains_key(sts_key) && s_prime.resources().contains_key(sts_key) {
             if s.resources()[sts_key].spec != s_prime.resources()[sts_key].spec {

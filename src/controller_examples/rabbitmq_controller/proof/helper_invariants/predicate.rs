@@ -13,9 +13,9 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
-    common::*,
+    model::reconciler::*,
     proof::{predicate::*, resource::*},
-    spec::{reconciler::*, types::*},
+    trusted::{spec_types::*, step::*},
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};

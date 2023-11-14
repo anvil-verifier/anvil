@@ -13,13 +13,13 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::{
-    common::*,
+    model::{reconciler::*, resource::*},
     proof::{
         helper_invariants::{owner_ref::*, predicate::*, proof::*},
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*},
+    trusted::{spec_types::*, step::*},
 };
 use crate::reconciler::spec::{reconciler::*, resource_builder::*};
 use crate::temporal_logic::{defs::*, rules::*};

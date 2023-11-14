@@ -8,11 +8,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::role::RoleBuilder;
-use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::rabbitmq_controller::model::resource as model_resource;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct ServiceAccountBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -85,7 +85,7 @@ pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account:
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service_account@ == spec_resource::update_service_account(rabbitmq@, found_service_account@),
+        service_account@ == model_resource::update_service_account(rabbitmq@, found_service_account@),
 {
     let mut service_account = found_service_account.clone();
     let made_service_account = make_service_account(rabbitmq);
@@ -105,7 +105,7 @@ pub fn make_service_account_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_service_account_name(rabbitmq@),
+        name@ == model_resource::make_service_account_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
@@ -115,7 +115,7 @@ pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Ser
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service_account@ == spec_resource::make_service_account(rabbitmq@),
+        service_account@ == model_resource::make_service_account(rabbitmq@),
 {
     let mut service_account = ServiceAccount::default();
     service_account.set_metadata({

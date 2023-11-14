@@ -8,11 +8,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::rabbitmq_plugins::PluginsConfigMapBuilder;
-use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::rabbitmq_controller::model::resource as model_resource;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct DefaultUserSecretBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -85,7 +85,7 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == spec_resource::update_default_user_secret(rabbitmq@, found_secret@),
+        secret@ == model_resource::update_default_user_secret(rabbitmq@, found_secret@),
 {
     let mut user_secret = found_secret.clone();
     let made_user_secret = make_default_user_secret(rabbitmq);
@@ -107,7 +107,7 @@ pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: Strin
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_default_user_secret_name(rabbitmq@),
+        name@ == model_resource::make_default_user_secret_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-default-user"))
 }
@@ -117,7 +117,7 @@ pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: Strin
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        data@ == spec_resource::make_default_user_secret_data(rabbitmq@),
+        data@ == model_resource::make_default_user_secret_data(rabbitmq@),
 {
     let mut data = StringMap::empty();
     data.insert(new_strlit("username").to_string(), new_strlit("user").to_string());
@@ -138,7 +138,7 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == spec_resource::make_default_user_secret(rabbitmq@),
+        secret@ == model_resource::make_default_user_secret(rabbitmq@),
 {
     make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), make_default_user_secret_data(rabbitmq))
 }

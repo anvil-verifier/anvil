@@ -8,11 +8,11 @@ use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::stateful_set::StatefulSetBuilder;
-use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::rabbitmq_controller::model::resource as model_resource;
+use crate::rabbitmq_controller::trusted::exec_types::*;
+use crate::rabbitmq_controller::trusted::spec_types::RabbitmqClusterView;
+use crate::rabbitmq_controller::trusted::step::*;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -24,7 +24,7 @@ verus! {
 
 pub struct RoleBindingBuilder {}
 
-impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::RoleBindingBuilder> for RoleBindingBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
         &&& rabbitmq.metadata.name.is_Some()
         &&& rabbitmq.metadata.namespace.is_Some()
@@ -85,7 +85,7 @@ pub fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleB
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        role_binding@ == spec_resource::update_role_binding(rabbitmq@, found_role_binding@),
+        role_binding@ == model_resource::update_role_binding(rabbitmq@, found_role_binding@),
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(rabbitmq);
@@ -106,7 +106,7 @@ pub fn make_role_binding_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_role_binding_name(rabbitmq@),
+        name@ == model_resource::make_role_binding_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
@@ -115,7 +115,7 @@ pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
     requires
         rabbitmq@.metadata.name.is_Some(),
     ensures
-        role_ref@ == spec_resource::make_role_binding(rabbitmq@).role_ref
+        role_ref@ == model_resource::make_role_binding(rabbitmq@).role_ref
 {
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
@@ -129,7 +129,7 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        subjects@.map_values(|s: Subject| s@) == spec_resource::make_role_binding(rabbitmq@).subjects.get_Some_0(),
+        subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(rabbitmq@).subjects.get_Some_0(),
 {
     let mut subjects = Vec::new();
     subjects.push({
@@ -142,7 +142,7 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     proof{
         assert_seqs_equal!(
             subjects@.map_values(|p: Subject| p@),
-            spec_resource::make_role_binding(rabbitmq@).subjects.get_Some_0()
+            model_resource::make_role_binding(rabbitmq@).subjects.get_Some_0()
         );
     }
     subjects
@@ -153,7 +153,7 @@ pub fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBindi
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        role_binding@ == spec_resource::make_role_binding(rabbitmq@),
+        role_binding@ == model_resource::make_role_binding(rabbitmq@),
 {
     let mut role_binding = RoleBinding::default();
     role_binding.set_metadata({
