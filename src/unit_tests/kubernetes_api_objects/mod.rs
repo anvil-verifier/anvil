@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+pub mod api_method;
 pub mod api_resource;
 pub mod cluster_role;
 pub mod cluster_role_binding;
@@ -17,6 +18,7 @@ pub mod dynamic;
 pub mod empty_dir_volume_source;
 pub mod env_var;
 pub mod env_var_source;
+pub mod error;
 pub mod execaction;
 pub mod hostpath_volume_source;
 pub mod key_to_path;
