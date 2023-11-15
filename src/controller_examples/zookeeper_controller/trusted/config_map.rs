@@ -1,7 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
-use crate::vstd_ext::string_view::int_to_string_view;
 use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::trusted::spec_types::*;
 use vstd::{prelude::*, string::*};
