@@ -327,16 +327,17 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                     && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@
                     && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
                     && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
-                        volume_mounts + seq![
+                        volume_mounts.push(
                             VolumeMountView::default()
                                 .set_name(new_strlit("server-conf")@)
                                 .set_mount_path(new_strlit("/etc/rabbitmq/rabbitmq-env.conf")@)
-                                .set_sub_path(new_strlit("rabbitmq-env.conf")@),
+                                .set_sub_path(new_strlit("rabbitmq-env.conf")@)
+                            ).push(
                             VolumeMountView::default()
                                 .set_name(new_strlit("server-conf")@)
                                 .set_mount_path(new_strlit("/etc/rabbitmq/advanced.config")@)
-                                .set_sub_path(new_strlit("advanced.config")@),
-                        ]
+                                .set_sub_path(new_strlit("advanced.config")@)
+                            )
                     } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
                     && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@ {
                         volume_mounts.push(
