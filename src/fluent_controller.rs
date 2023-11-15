@@ -22,9 +22,9 @@ use crate::fluent_controller::{
         exec::reconciler::FluentBitReconciler,
         trusted::exec_types::{FluentBit, FluentBitReconcileState},
     },
-    fluentbit_config::exec::{
-        reconciler::FluentBitConfigReconciler,
-        types::{FluentBitConfig, FluentBitConfigReconcileState},
+    fluentbit_config::{
+        exec::reconciler::FluentBitConfigReconciler,
+        trusted::exec_types::{FluentBitConfig, FluentBitConfigReconcileState},
     },
 };
 use deps_hack::anyhow::Result;

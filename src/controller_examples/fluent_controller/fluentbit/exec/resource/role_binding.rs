@@ -6,7 +6,7 @@ use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::exec::resource::role::make_role_name;
 use crate::fluent_controller::fluentbit::exec::resource::service::ServiceBuilder;
 use crate::fluent_controller::fluentbit::exec::resource::service_account::make_service_account_name;
-use crate::fluent_controller::fluentbit::model::resource as spec_resource;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
 use crate::fluent_controller::fluentbit::trusted::{
     exec_types::*, spec_types::FluentBitView, step::*,
 };
@@ -26,7 +26,7 @@ verus! {
 
 pub struct RoleBindingBuilder {}
 
-impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
+impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBindingBuilder> for RoleBindingBuilder {
     open spec fn requirements(fb: FluentBitView) -> bool {
         &&& fb.well_formed()
     }
@@ -85,7 +85,7 @@ pub fn update_role_binding(fb: &FluentBit, found_role_binding: RoleBinding) -> (
     requires
         fb@.well_formed(),
     ensures
-        role_binding@ == spec_resource::update_role_binding(fb@, found_role_binding@),
+        role_binding@ == model_resource::update_role_binding(fb@, found_role_binding@),
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(fb);
@@ -105,7 +105,7 @@ pub fn make_role_binding_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
     ensures
-        name@ == spec_resource::make_role_binding_name(fb@),
+        name@ == model_resource::make_role_binding_name(fb@),
 {
     fb.metadata().name().unwrap().concat(new_strlit("-role-binding"))
 }
@@ -114,7 +114,7 @@ pub fn make_role_ref(fb: &FluentBit) -> (role_ref: RoleRef)
     requires
         fb@.well_formed(),
     ensures
-        role_ref@ == spec_resource::make_role_binding(fb@).role_ref
+        role_ref@ == model_resource::make_role_binding(fb@).role_ref
 {
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
@@ -127,7 +127,7 @@ pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
     requires
         fb@.well_formed(),
     ensures
-        subjects@.map_values(|s: Subject| s@) == spec_resource::make_role_binding(fb@).subjects.get_Some_0(),
+        subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(fb@).subjects.get_Some_0(),
 {
     let mut subjects = Vec::new();
     subjects.push({
@@ -140,7 +140,7 @@ pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
     proof{
         assert_seqs_equal!(
             subjects@.map_values(|p: Subject| p@),
-            spec_resource::make_role_binding(fb@).subjects.get_Some_0()
+            model_resource::make_role_binding(fb@).subjects.get_Some_0()
         );
     }
     subjects
@@ -150,7 +150,7 @@ pub fn make_role_binding(fb: &FluentBit) -> (role_binding: RoleBinding)
     requires
         fb@.well_formed(),
     ensures
-        role_binding@ == spec_resource::make_role_binding(fb@),
+        role_binding@ == model_resource::make_role_binding(fb@),
 {
     let mut role_binding = RoleBinding::default();
     role_binding.set_metadata({

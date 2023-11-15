@@ -4,7 +4,7 @@
 use super::common::*;
 use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::exec::resource::role::RoleBuilder;
-use crate::fluent_controller::fluentbit::model::resource as spec_resource;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
 use crate::fluent_controller::fluentbit::trusted::{
     exec_types::*, spec_types::FluentBitView, step::*,
 };
@@ -24,7 +24,7 @@ verus! {
 
 pub struct ServiceAccountBuilder {}
 
-impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
+impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
     open spec fn requirements(fb: FluentBitView) -> bool {
         &&& fb.well_formed()
     }
@@ -83,7 +83,7 @@ pub fn update_service_account(fb: &FluentBit, found_service_account: ServiceAcco
     requires
         fb@.well_formed(),
     ensures
-        service_account@ == spec_resource::update_service_account(fb@, found_service_account@),
+        service_account@ == model_resource::update_service_account(fb@, found_service_account@),
 {
     let mut service_account = found_service_account.clone();
     let made_service_account = make_service_account(fb);
@@ -102,7 +102,7 @@ pub fn make_service_account_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
     ensures
-        name@ == spec_resource::make_service_account_name(fb@),
+        name@ == model_resource::make_service_account_name(fb@),
 {
     fb.metadata().name().unwrap()
 }
@@ -111,7 +111,7 @@ pub fn make_service_account(fb: &FluentBit) -> (service_account: ServiceAccount)
     requires
         fb@.well_formed(),
     ensures
-        service_account@ == spec_resource::make_service_account(fb@),
+        service_account@ == model_resource::make_service_account(fb@),
 {
     let mut service_account = ServiceAccount::default();
     service_account.set_metadata({

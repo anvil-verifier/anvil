@@ -1,9 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::fluent_controller::fluentbit_config::common::*;
-use crate::fluent_controller::fluentbit_config::spec::types as spec_types;
-use crate::fluent_controller::fluentbit_config::spec::types::{
-    FluentBitConfigSpecView, FluentBitConfigView,
+use crate::fluent_controller::fluentbit_config::trusted::{
+    spec_types, spec_types::FluentBitConfigView, step::*,
 };
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
@@ -140,7 +138,7 @@ pub struct FluentBitConfigSpec {
 }
 
 impl FluentBitConfigSpec {
-    pub spec fn view(&self) -> FluentBitConfigSpecView;
+    pub spec fn view(&self) -> spec_types::FluentBitConfigSpecView;
 
     #[verifier(external_body)]
     pub fn fluentbit_config(&self) -> (fluentbit_config: String)

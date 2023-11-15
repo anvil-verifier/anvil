@@ -3,9 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::EmptyAPI;
 use crate::fluent_controller::fluentbit_config::{
-    common::*,
+    model::reconciler::*,
     proof::predicate::*,
-    spec::{reconciler::*, types::*},
+    trusted::{spec_types::*, step::*},
 };
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, dynamic::*, error::*, resource::*, stateful_set::*,

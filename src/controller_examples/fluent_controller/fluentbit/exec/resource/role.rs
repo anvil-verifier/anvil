@@ -4,7 +4,7 @@
 use super::common::*;
 use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::exec::resource::role_binding::RoleBindingBuilder;
-use crate::fluent_controller::fluentbit::model::resource as spec_resource;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
 use crate::fluent_controller::fluentbit::trusted::{
     exec_types::*, spec_types::FluentBitView, step::*,
 };
@@ -24,7 +24,7 @@ verus! {
 
 pub struct RoleBuilder {}
 
-impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::RoleBuilder> for RoleBuilder {
+impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBuilder> for RoleBuilder {
     open spec fn requirements(fb: FluentBitView) -> bool {
         &&& fb.well_formed()
     }
@@ -83,7 +83,7 @@ pub fn update_role(fb: &FluentBit, found_role: Role) -> (role: Role)
     requires
         fb@.well_formed(),
     ensures
-        role@ == spec_resource::update_role(fb@, found_role@),
+        role@ == model_resource::update_role(fb@, found_role@),
 {
     let mut role = found_role.clone();
     let made_role = make_role(fb);
@@ -103,7 +103,7 @@ pub fn make_role_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
     ensures
-        name@ == spec_resource::make_role_name(fb@),
+        name@ == model_resource::make_role_name(fb@),
 {
     fb.metadata().name().unwrap().concat(new_strlit("-role"))
 }
@@ -112,7 +112,7 @@ pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
     requires
         fb@.well_formed(),
     ensures
-        rules@.map_values(|r: PolicyRule| r@) == spec_resource::make_role(fb@).policy_rules.get_Some_0(),
+        rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(fb@).policy_rules.get_Some_0(),
 {
     let mut rules = Vec::new();
     rules.push({
@@ -123,7 +123,7 @@ pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
-                    spec_resource::make_role(fb@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                    model_resource::make_role(fb@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
                 );
             }
             api_groups
@@ -134,7 +134,7 @@ pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
-                    spec_resource::make_role(fb@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                    model_resource::make_role(fb@).policy_rules.get_Some_0()[0].resources.get_Some_0()
                 );
             }
             resources
@@ -145,7 +145,7 @@ pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),
-                    spec_resource::make_role(fb@).policy_rules.get_Some_0()[0].verbs
+                    model_resource::make_role(fb@).policy_rules.get_Some_0()[0].verbs
                 );
             }
             verbs
@@ -155,7 +155,7 @@ pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
     proof{
         assert_seqs_equal!(
             rules@.map_values(|p: PolicyRule| p@),
-            spec_resource::make_role(fb@).policy_rules.get_Some_0()
+            model_resource::make_role(fb@).policy_rules.get_Some_0()
         );
     }
     rules
@@ -165,7 +165,7 @@ pub fn make_role(fb: &FluentBit) -> (role: Role)
     requires
         fb@.well_formed(),
     ensures
-        role@ == spec_resource::make_role(fb@),
+        role@ == model_resource::make_role(fb@),
 {
     let mut role = Role::default();
     role.set_metadata({

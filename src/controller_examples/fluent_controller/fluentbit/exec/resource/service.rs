@@ -4,7 +4,7 @@
 use super::common::*;
 use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::exec::resource::daemon_set::DaemonSetBuilder;
-use crate::fluent_controller::fluentbit::model::resource as spec_resource;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
 use crate::fluent_controller::fluentbit::trusted::{
     exec_types::*, spec_types::FluentBitView, step::*,
 };
@@ -24,7 +24,7 @@ verus! {
 
 pub struct ServiceBuilder {}
 
-impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::ServiceBuilder> for ServiceBuilder {
+impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::ServiceBuilder> for ServiceBuilder {
     open spec fn requirements(fb: FluentBitView) -> bool {
         &&& fb.well_formed()
     }
@@ -86,7 +86,7 @@ pub fn update_service(fb: &FluentBit, found_service: Service) -> (service: Servi
         fb@.well_formed(),
         found_service@.spec.is_Some(),
     ensures
-        service@ == spec_resource::update_service(fb@, found_service@),
+        service@ == model_resource::update_service(fb@, found_service@),
 {
     let mut service = found_service.clone();
     let made_service = make_service(fb);
@@ -112,7 +112,7 @@ pub fn make_service_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
     ensures
-        name@ == spec_resource::make_service_name(fb@),
+        name@ == model_resource::make_service_name(fb@),
 {
     fb.metadata().name().unwrap()
 }
@@ -121,7 +121,7 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
     requires
         fb@.well_formed(),
     ensures
-        service@ == spec_resource::make_service(fb@),
+        service@ == model_resource::make_service(fb@),
 {
     let mut service = Service::default();
     service.set_metadata({
@@ -149,7 +149,7 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
             proof {
                 assert_seqs_equal!(
                     ports@.map_values(|port: ServicePort| port@),
-                    spec_resource::make_service(fb@).spec.get_Some_0().ports.get_Some_0()
+                    model_resource::make_service(fb@).spec.get_Some_0().ports.get_Some_0()
                 );
             }
             ports

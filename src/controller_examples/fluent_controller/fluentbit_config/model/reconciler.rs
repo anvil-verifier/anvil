@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::fluent_controller::fluentbit_config::common::*;
-use crate::fluent_controller::fluentbit_config::spec::resource::*;
-use crate::fluent_controller::fluentbit_config::spec::types::*;
+use crate::fluent_controller::fluentbit_config::model::resource::*;
+use crate::fluent_controller::fluentbit_config::trusted::{maker::*, spec_types::*, step::*};
 use crate::kubernetes_api_objects::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use vstd::{prelude::*, string::*};
@@ -230,6 +229,18 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
             };
             (state_prime, None)
         },
+    }
+}
+
+pub struct FluentBitConfigMaker {}
+
+impl Maker for FluentBitConfigMaker {
+    open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef {
+        make_secret_key(fbc)
+    }
+
+    open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView {
+        make_secret(fbc)
     }
 }
 
