@@ -17,10 +17,7 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
     rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
 }
 
@@ -28,13 +25,7 @@ pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<Own
     seq![rabbitmq.controller_owner_ref()]
 }
 
-pub open spec fn make_secret(
-    rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>
-) -> SecretView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_secret(rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>) -> SecretView {
     SecretView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
@@ -45,13 +36,7 @@ pub open spec fn make_secret(
         ).set_data(data)
 }
 
-pub open spec fn make_service(
-    rabbitmq: RabbitmqClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool
-) -> ServiceView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_service(rabbitmq: RabbitmqClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool) -> ServiceView {
     ServiceView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(name)

@@ -60,10 +60,7 @@ pub open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
 
 pub open spec fn reconcile_core(
     fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
-) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>)
-    recommends
-        fb.well_formed(),
-{
+) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) {
     let step = state.reconcile_step;
     let resp = resp_o.get_Some_0();
     let fb_name = fb.metadata.name.get_Some_0();
@@ -117,20 +114,13 @@ pub open spec fn reconcile_core(
     }
 }
 
-pub open spec fn get_secret_req(fb: FluentBitView) -> GetRequest
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn get_secret_req(fb: FluentBitView) -> GetRequest {
     GetRequest{ key: desired_secret_key(fb) }
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, FluentBitReconcileState>>(
     fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
-) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>)
-    recommends
-        fb.well_formed(),
-        state.reconcile_step.is_AfterKRequestStep(),
-{
+) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) {
     let step = state.reconcile_step;
     match step {
         FluentBitReconcileStep::AfterKRequestStep(action, resource) => {

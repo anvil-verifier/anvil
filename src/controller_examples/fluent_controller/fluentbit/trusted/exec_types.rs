@@ -52,29 +52,21 @@ impl View for FluentBit {
 impl FluentBit {
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: FluentBitSpec)
-        ensures
-            spec@ == self@.spec,
+        ensures spec@ == self@.spec,
     {
         FluentBitSpec { inner: self.inner.spec.clone() }
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::FluentBit {
-        self.inner
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == FluentBitView::kind(),
+        ensures res@.kind == FluentBitView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::FluentBit>(&()))
     }
@@ -120,16 +112,10 @@ impl FluentBit {
 
 impl ResourceWrapper<deps_hack::FluentBit> for FluentBit {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::FluentBit) -> FluentBit {
-        FluentBit {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::FluentBit) -> FluentBit { FluentBit { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::FluentBit {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::FluentBit { self.inner }
 }
 
 #[verifier(external_body)]
@@ -150,8 +136,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn image(&self) -> (image: String)
-        ensures
-            image@ == self@.image,
+        ensures image@ == self@.image,
     {
         String::from_rust_string(self.inner.image.clone())
     }
@@ -182,16 +167,14 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn labels(&self) -> (labels: StringMap)
-        ensures
-            labels@ == self@.labels,
+        ensures labels@ == self@.labels,
     {
         StringMap::from_rust_map(self.inner.labels.clone())
     }
 
     #[verifier(external_body)]
     pub fn annotations(&self) -> (annotations: StringMap)
-        ensures
-            annotations@ == self@.annotations,
+        ensures annotations@ == self@.annotations,
     {
         StringMap::from_rust_map(self.inner.annotations.clone())
     }
@@ -210,16 +193,14 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn node_selector(&self) -> (node_selector: StringMap)
-        ensures
-            node_selector@ == self@.node_selector,
+        ensures node_selector@ == self@.node_selector,
     {
         StringMap::from_rust_map(self.inner.node_selector.clone())
     }
 
     #[verifier(external_body)]
     pub fn runtime_class_name(&self) -> (runtime_class_name: Option<String>)
-        ensures
-            opt_string_to_view(&runtime_class_name) == self@.runtime_class_name,
+        ensures opt_string_to_view(&runtime_class_name) == self@.runtime_class_name,
     {
         match &self.inner.runtime_class_name {
             Some(n) => Some(String::from_rust_string(n.clone())),
@@ -229,8 +210,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn dns_policy(&self) -> (dns_policy: Option<String>)
-        ensures
-            opt_string_to_view(&dns_policy) == self@.dns_policy,
+        ensures opt_string_to_view(&dns_policy) == self@.dns_policy,
     {
         match &self.inner.dns_policy {
             Some(n) => Some(String::from_rust_string(n.clone())),
@@ -240,8 +220,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn priority_class_name(&self) -> (priority_class_name: Option<String>)
-        ensures
-            opt_string_to_view(&priority_class_name) == self@.priority_class_name,
+        ensures opt_string_to_view(&priority_class_name) == self@.priority_class_name,
     {
         match &self.inner.priority_class_name {
             Some(n) => Some(String::from_rust_string(n.clone())),
@@ -251,8 +230,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn scheduler_name(&self) -> (scheduler_name: Option<String>)
-        ensures
-            opt_string_to_view(&scheduler_name) == self@.scheduler_name,
+        ensures opt_string_to_view(&scheduler_name) == self@.scheduler_name,
     {
         match &self.inner.scheduler_name {
             Some(n) => Some(String::from_rust_string(n.clone())),
@@ -271,8 +249,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn internal_mount_propagation(&self) -> (internal_mount_propagation: Option<String>)
-        ensures
-            opt_string_to_view(&internal_mount_propagation) == self@.internal_mount_propagation,
+        ensures opt_string_to_view(&internal_mount_propagation) == self@.internal_mount_propagation,
     {
         match &self.inner.internal_mount_propagation {
             Some(n) => Some(String::from_rust_string(n.clone())),
@@ -294,8 +271,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn host_network(&self) -> (host_network: Option<bool>)
-        ensures
-            host_network == self@.host_network,
+        ensures host_network == self@.host_network,
     {
         self.inner.host_network
     }

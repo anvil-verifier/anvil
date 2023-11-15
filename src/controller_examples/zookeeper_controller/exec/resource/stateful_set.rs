@@ -105,10 +105,8 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
 }
 
 pub fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        name@ == model_resource::make_stateful_set_name(zk@),
+    requires zk@.well_formed(),
+    ensures name@ == model_resource::make_stateful_set_name(zk@),
 {
     zk.metadata().name().unwrap()
 }
@@ -117,8 +115,7 @@ pub fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulS
     requires
         zk@.well_formed(),
         found_stateful_set@.spec.is_Some(),
-    ensures
-        stateful_set@ == model_resource::update_stateful_set(zk@, found_stateful_set@, rv@),
+    ensures stateful_set@ == model_resource::update_stateful_set(zk@, found_stateful_set@, rv@),
 {
     let mut stateful_set = found_stateful_set.clone();
     let made_stateful_set = make_stateful_set(zk, rv);
@@ -143,10 +140,8 @@ pub fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulS
 /// The StatefulSet manages the zookeeper server containers (as Pods)
 /// and the volumes attached to each server (as PersistentVolumeClaims)
 pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: StatefulSet)
-    requires
-        zk@.well_formed(),
-    ensures
-        stateful_set@ == model_resource::make_stateful_set(zk@, rv@),
+    requires zk@.well_formed(),
+    ensures stateful_set@ == model_resource::make_stateful_set(zk@, rv@),
 {
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
@@ -256,10 +251,8 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
 }
 
 pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
-    requires
-        zk@.well_formed(),
-    ensures
-        pod_spec@ == model_resource::make_zk_pod_spec(zk@),
+    requires zk@.well_formed(),
+    ensures pod_spec@ == model_resource::make_zk_pod_spec(zk@),
 {
     let mut pod_spec = PodSpec::default();
 
@@ -448,8 +441,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 }
 
 pub fn update_zk_status(zk: &ZookeeperCluster, ready_replicas: i32) -> (updated_zk: ZookeeperCluster)
-    ensures
-        updated_zk@ == model_resource::update_zk_status(zk@, ready_replicas as int),
+    ensures updated_zk@ == model_resource::update_zk_status(zk@, ready_replicas as int),
 {
     let mut updated_zk = zk.clone();
     updated_zk.set_status({

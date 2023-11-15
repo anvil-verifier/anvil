@@ -67,12 +67,7 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(
-    zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
-) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>)
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) {
     let step = state.reconcile_step;
     let resp = resp_o.get_Some_0();
     let zk_name = zk.metadata.name.get_Some_0();
@@ -230,24 +225,15 @@ pub open spec fn reconcile_core(
     }
 }
 
-pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView> {
     seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()]
 }
 
-pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView> {
     seq![new_strlit("zookeeper-operator")@]
 }
 
-pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView {
     new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
@@ -288,11 +274,7 @@ pub open spec fn zk_create_node_request(zk: ZookeeperClusterView) -> ZKAPIInputV
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState>>(
     zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
-) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>)
-    recommends
-        zk.well_formed(),
-        state.reconcile_step.is_AfterKRequestStep(),
-{
+) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) {
     let step = state.reconcile_step;
     match step {
         ZookeeperReconcileStep::AfterKRequestStep(action, resource) => {

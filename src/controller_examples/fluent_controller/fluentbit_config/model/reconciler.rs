@@ -58,10 +58,7 @@ pub open spec fn reconcile_error(state: FluentBitConfigReconcileState) -> bool {
 
 pub open spec fn reconcile_core(
     fbc: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState
-) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>)
-    recommends
-        fbc.well_formed(),
-{
+) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>) {
     let step = state.reconcile_step;
     let resp = resp_o.get_Some_0();
     let fbc_name = fbc.metadata.name.get_Some_0();
@@ -101,11 +98,7 @@ pub open spec fn reconcile_error_result(state: FluentBitConfigReconcileState) ->
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState>>(
     fbc: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState
-) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>)
-    recommends
-        fbc.well_formed(),
-        state.reconcile_step.is_AfterKRequestStep(),
-{
+) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>) {
     let step = state.reconcile_step;
     match step {
         FluentBitConfigReconcileStep::AfterKRequestStep(action, resource) => {

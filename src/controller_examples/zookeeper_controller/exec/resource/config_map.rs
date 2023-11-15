@@ -79,19 +79,15 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
 }
 
 pub fn make_config_map_name(zk: &ZookeeperCluster) -> (name: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        name@ == model_resource::make_config_map_name(zk@),
+    requires zk@.well_formed(),
+    ensures name@ == model_resource::make_config_map_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-configmap"))
 }
 
 pub fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) -> (config_map: ConfigMap)
-    requires
-        zk@.well_formed(),
-    ensures
-        config_map@ == model_resource::update_config_map(zk@, found_config_map@),
+    requires zk@.well_formed(),
+    ensures config_map@ == model_resource::update_config_map(zk@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_config_map(zk);
@@ -109,10 +105,8 @@ pub fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) ->
 
 /// The ConfigMap stores the configuration data of zookeeper servers
 pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
-    requires
-        zk@.well_formed(),
-    ensures
-        config_map@ == model_resource::make_config_map(zk@),
+    requires zk@.well_formed(),
+    ensures config_map@ == model_resource::make_config_map(zk@),
 {
     let mut config_map = ConfigMap::default();
 
@@ -137,8 +131,7 @@ pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
 }
 
 pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
-    ensures
-        s@ == config_map::make_zk_config(zk@),
+    ensures s@ == config_map::make_zk_config(zk@),
 {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
@@ -170,8 +163,7 @@ pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
 }
 
 pub fn make_log4j_config() -> (s: String)
-    ensures
-        s@ == model_resource::make_log4j_config(),
+    ensures s@ == model_resource::make_log4j_config(),
 {
     new_strlit(
         "zookeeper.root.logger=CONSOLE\n\
@@ -185,8 +177,7 @@ pub fn make_log4j_config() -> (s: String)
 }
 
 pub fn make_log4j_quiet_config() -> (s: String)
-    ensures
-        s@ == model_resource::make_log4j_quiet_config(),
+    ensures s@ == model_resource::make_log4j_quiet_config(),
 {
     new_strlit(
         "log4j.rootLogger=ERROR, CONSOLE\n\
@@ -198,10 +189,8 @@ pub fn make_log4j_quiet_config() -> (s: String)
 }
 
 pub fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        s@ == model_resource::make_env_config(zk@),
+    requires zk@.well_formed(),
+    ensures s@ == model_resource::make_env_config(zk@),
 {
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();

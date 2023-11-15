@@ -82,10 +82,8 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
 }
 
 pub fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        name@ == model_resource::make_headless_service_name(zk@),
+    requires zk@.well_formed(),
+    ensures name@ == model_resource::make_headless_service_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-headless"))
 }
@@ -94,8 +92,7 @@ pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &S
     requires
         zk@.well_formed(),
         found_headless_service@.spec.is_Some(),
-    ensures
-        headless_service@ == model_resource::update_headless_service(zk@, found_headless_service@),
+    ensures headless_service@ == model_resource::update_headless_service(zk@, found_headless_service@),
 {
     let mut headless_service = found_headless_service.clone();
     let made_headless_service = make_headless_service(zk);
@@ -119,10 +116,8 @@ pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &S
 
 /// Headless Service is used to assign DNS entry to each zookeeper server Pod
 pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
-    requires
-        zk@.well_formed(),
-    ensures
-        service@ == model_resource::make_headless_service(zk@),
+    requires zk@.well_formed(),
+    ensures service@ == model_resource::make_headless_service(zk@),
 {
     let mut ports = Vec::new();
 

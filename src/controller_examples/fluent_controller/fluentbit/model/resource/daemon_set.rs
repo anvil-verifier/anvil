@@ -65,10 +65,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
     }
 }
 
-pub open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: DaemonSetView::kind(),
         name: make_daemon_set_name(fb),
@@ -76,18 +73,11 @@ pub open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef
     }
 }
 
-pub open spec fn make_daemon_set_name(fb: FluentBitView) -> StringView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_daemon_set_name(fb: FluentBitView) -> StringView {
     fb.metadata.name.get_Some_0()
 }
 
-pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSetView) -> DaemonSetView
-    recommends
-        fb.well_formed(),
-        found_daemon_set.spec.is_Some(),
-{
+pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSetView) -> DaemonSetView {
     let made_spec = make_daemon_set(fb).spec.get_Some_0();
     DaemonSetView {
         metadata: ObjectMetaView {
@@ -105,10 +95,7 @@ pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSe
     }
 }
 
-pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
     DaemonSetView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_daemon_set_name(fb))
@@ -127,10 +114,7 @@ pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView
         )
 }
 
-pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
     PodSpecView {
         service_account_name: Some(make_service_account_name(fb)),
         volumes: Some(seq![

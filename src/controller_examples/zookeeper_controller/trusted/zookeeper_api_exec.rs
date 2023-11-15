@@ -39,9 +39,7 @@ pub struct ZKAPICreateResult {
 
 impl View for ZKAPICreateResult {
     type V = ZKAPICreateResultView;
-    open spec fn view(&self) -> ZKAPICreateResultView {
-        ZKAPICreateResultView {res: self.res}
-    }
+    open spec fn view(&self) -> ZKAPICreateResultView { ZKAPICreateResultView {res: self.res} }
 }
 
 pub struct ZKAPISetDataResult {
@@ -50,9 +48,7 @@ pub struct ZKAPISetDataResult {
 
 impl View for ZKAPISetDataResult {
     type V = ZKAPISetDataResultView;
-    open spec fn view(&self) -> ZKAPISetDataResultView {
-        ZKAPISetDataResultView {res: self.res}
-    }
+    open spec fn view(&self) -> ZKAPISetDataResultView { ZKAPISetDataResultView {res: self.res} }
 }
 
 #[is_variant]
@@ -90,74 +86,6 @@ impl View for ZKAPIOutput {
             ZKAPIOutput::ExistsResponse(result) => ZKAPIOutputView::ExistsResponse(result@),
             ZKAPIOutput::CreateResponse(result) => ZKAPIOutputView::CreateResponse(result@),
             ZKAPIOutput::SetDataResponse(result) => ZKAPIOutputView::SetDataResponse(result@),
-        }
-    }
-}
-
-impl ZKAPIOutput {
-    pub fn is_exists_response(&self) -> (res: bool)
-        ensures
-            res == self.is_ExistsResponse(),
-    {
-        match self {
-            ZKAPIOutput::ExistsResponse(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn unwrap_exists_response(self) -> (result: ZKAPIExistsResult)
-        requires
-            self.is_ExistsResponse(),
-        ensures
-            result == self.get_ExistsResponse_0(),
-    {
-        match self {
-            ZKAPIOutput::ExistsResponse(result) => result,
-            _ => unreached(),
-        }
-    }
-
-    pub fn is_create_response(&self) -> (res: bool)
-        ensures
-            res == self.is_CreateResponse(),
-    {
-        match self {
-            ZKAPIOutput::CreateResponse(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn unwrap_create_response(self) -> (result: ZKAPICreateResult)
-        requires
-            self.is_CreateResponse(),
-        ensures
-            result == self.get_CreateResponse_0(),
-    {
-        match self {
-            ZKAPIOutput::CreateResponse(result) => result,
-            _ => unreached(),
-        }
-    }
-
-    pub fn is_set_data_response(&self) -> (res: bool)
-        ensures
-            res == self.is_SetDataResponse(),
-    {
-        match self {
-            ZKAPIOutput::SetDataResponse(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn unwrap_set_data_response(self) -> (result: ZKAPISetDataResult)
-        requires
-            self.is_SetDataResponse(),
-        ensures
-            result == self.get_SetDataResponse_0(),
-    {
-        match self {
-            ZKAPIOutput::SetDataResponse(result) => result,
-            _ => unreached(),
         }
     }
 }

@@ -69,18 +69,11 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
     }
 }
 
-pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@
 }
 
-pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
         name: make_default_user_secret_name(rabbitmq),
@@ -88,11 +81,7 @@ pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> 
     }
 }
 
-pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found_secret: SecretView) -> SecretView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found_secret: SecretView) -> SecretView {
     let made_secret = make_default_user_secret(rabbitmq);
     SecretView {
         metadata: ObjectMetaView {
@@ -107,11 +96,7 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
     }
 }
 
-pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
     Map::empty()
         .insert(new_strlit("username")@, new_strlit("user")@)
         .insert(new_strlit("password")@, new_strlit("changeme")@)
@@ -124,11 +109,7 @@ pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) ->
         .insert(new_strlit("port")@, new_strlit("5672")@)
 }
 
-pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView {
     make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), make_default_user_secret_data(rabbitmq))
 }
 

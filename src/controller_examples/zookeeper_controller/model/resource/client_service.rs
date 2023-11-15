@@ -10,10 +10,10 @@ use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::trusted::{step::*, spec_types::*};
 use crate::zookeeper_controller::model::resource::{
     admin_server_service::AdminServerServiceBuilder, common::*,
 };
+use crate::zookeeper_controller::trusted::{spec_types::*, step::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -68,10 +68,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientSe
     }
 }
 
-pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_client_service_name(zk),
@@ -79,17 +76,11 @@ pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef
     }
 }
 
-pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some()
-{
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView {
     zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
-pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_service: ServiceView) -> ServiceView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_service: ServiceView) -> ServiceView {
     ServiceView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(zk)),
@@ -108,10 +99,7 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
     }
 }
 
-pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.ports.client)];
 
     make_service(zk, make_client_service_name(zk), ports, true)

@@ -80,10 +80,8 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
 }
 
 pub fn make_admin_server_service_name(zk: &ZookeeperCluster) -> (name: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        name@ == model_resource::make_admin_server_service_name(zk@),
+    requires zk@.well_formed(),
+    ensures name@ == model_resource::make_admin_server_service_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-admin-server"))
 }
@@ -92,8 +90,7 @@ pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_ser
     requires
         zk@.well_formed(),
         found_admin_server_service@.spec.is_Some(),
-    ensures
-        admin_server_service@ == model_resource::update_admin_server_service(zk@, found_admin_server_service@),
+    ensures admin_server_service@ == model_resource::update_admin_server_service(zk@, found_admin_server_service@),
 {
     let mut admin_server_service = found_admin_server_service.clone();
     let made_admin_server_service = make_admin_server_service(zk);
@@ -117,10 +114,8 @@ pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_ser
 
 /// Admin-server Service is used for client to connect to admin server
 pub fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
-    requires
-        zk@.well_formed(),
-    ensures
-        service@ == model_resource::make_admin_server_service(zk@),
+    requires zk@.well_formed(),
+    ensures service@ == model_resource::make_admin_server_service(zk@),
 {
     let mut ports = Vec::new();
 

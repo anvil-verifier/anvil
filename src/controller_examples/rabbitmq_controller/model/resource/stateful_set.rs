@@ -73,11 +73,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 }
 
-pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: StatefulSetView::kind(),
         name: make_stateful_set_name(rabbitmq),
@@ -85,10 +81,7 @@ pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     }
 }
 
-pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
 }
 
@@ -96,14 +89,7 @@ pub open spec fn sts_restart_annotation() -> StringView {
     new_strlit("anvil.dev/lastRestartAt")@
 }
 
-pub open spec fn update_stateful_set(
-    rabbitmq: RabbitmqClusterView, found_stateful_set: StatefulSetView, config_map_rv: StringView
-) -> StatefulSetView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-        found_stateful_set.spec.is_Some(),
-{
+pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_stateful_set: StatefulSetView, config_map_rv: StringView) -> StatefulSetView {
     let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();
     StatefulSetView {
         metadata: ObjectMetaView {
@@ -123,11 +109,7 @@ pub open spec fn update_stateful_set(
     }
 }
 
-pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView {
     let name = rabbitmq.metadata.name.get_Some_0();
     let sts_name = make_stateful_set_name(rabbitmq);
     let namespace = rabbitmq.metadata.namespace.get_Some_0();
@@ -185,11 +167,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
 }
 
-pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpecView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpecView {
     let volumes = seq![
         VolumeView::default()
             .set_name(new_strlit("plugins-conf")@)

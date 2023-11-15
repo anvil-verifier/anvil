@@ -20,9 +20,7 @@ impl std::clone::Clone for FluentBitReconcileStep {
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 pub enum SubResource {
@@ -39,9 +37,7 @@ impl std::clone::Clone for SubResource {
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 #[is_variant]
@@ -57,9 +53,7 @@ impl std::clone::Clone for ActionKind {
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 }

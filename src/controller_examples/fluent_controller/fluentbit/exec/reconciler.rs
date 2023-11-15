@@ -142,8 +142,7 @@ pub fn reconcile_helper<
         fb@.well_formed(),
         Builder::requirements(fb@),
         state.reconcile_step.is_AfterKRequestStep(),
-    ensures
-        (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(fb@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(fb@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();
     match step {

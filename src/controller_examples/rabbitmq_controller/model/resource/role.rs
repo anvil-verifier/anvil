@@ -69,18 +69,11 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
     }
 }
 
-pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@
 }
 
-pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: RoleView::kind(),
         name: make_role_name(rabbitmq),
@@ -88,11 +81,7 @@ pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
     }
 }
 
-pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView) -> RoleView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView) -> RoleView {
     let made_role = make_role(rabbitmq);
     RoleView {
         policy_rules: made_role.policy_rules,
@@ -107,11 +96,7 @@ pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView
     }
 }
 
-pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView {
     RoleView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_role_name(rabbitmq))

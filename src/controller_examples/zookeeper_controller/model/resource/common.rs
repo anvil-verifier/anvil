@@ -28,12 +28,7 @@ pub open spec fn make_owner_references(zk: ZookeeperClusterView) -> Seq<OwnerRef
     seq![zk.controller_owner_ref()]
 }
 
-pub open spec fn make_service(
-    zk: ZookeeperClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool
-) -> ServiceView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_service(zk: ZookeeperClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool) -> ServiceView {
     ServiceView {
         metadata: ObjectMetaView {
             name: Some(name),

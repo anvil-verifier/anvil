@@ -52,37 +52,28 @@ impl View for FluentBitConfig {
 impl FluentBitConfig {
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: FluentBitConfigSpec)
-        ensures
-            spec@ == self@.spec,
+        ensures spec@ == self@.spec,
     {
         FluentBitConfigSpec { inner: self.inner.spec.clone() }
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::FluentBitConfig {
-        self.inner
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == FluentBitConfigView::kind(),
+        ensures res@.kind == FluentBitConfigView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::FluentBitConfig>(&()))
     }
 
     #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-        ensures
-            owner_reference@ == self@.controller_owner_ref(),
+        ensures owner_reference@ == self@.controller_owner_ref(),
     {
         OwnerReference::from_kube(
             // We can safely unwrap here because the trait method implementation always returns a Some(...)
@@ -93,8 +84,7 @@ impl FluentBitConfig {
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         // TODO: this might be unnecessarily slow
         DynamicObject::from_kube(
@@ -120,16 +110,10 @@ impl FluentBitConfig {
 
 impl ResourceWrapper<deps_hack::FluentBitConfig> for FluentBitConfig {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::FluentBitConfig) -> FluentBitConfig {
-        FluentBitConfig {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::FluentBitConfig) -> FluentBitConfig { FluentBitConfig { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::FluentBitConfig {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::FluentBitConfig { self.inner }
 }
 
 #[verifier(external_body)]
@@ -142,16 +126,14 @@ impl FluentBitConfigSpec {
 
     #[verifier(external_body)]
     pub fn fluentbit_config(&self) -> (fluentbit_config: String)
-        ensures
-            fluentbit_config@ == self@.fluentbit_config,
+        ensures fluentbit_config@ == self@.fluentbit_config,
     {
         String::from_rust_string(self.inner.fluentbit_config.to_string())
     }
 
     #[verifier(external_body)]
     pub fn parsers_config(&self) -> (parsers_config: String)
-        ensures
-            parsers_config@ == self@.parsers_config,
+        ensures parsers_config@ == self@.parsers_config,
     {
         String::from_rust_string(self.inner.parsers_config.to_string())
     }

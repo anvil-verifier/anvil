@@ -64,13 +64,9 @@ impl ResourceView for RabbitmqClusterView {
         }
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
+    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind {
-        Kind::CustomResourceKind
-    }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
@@ -82,13 +78,9 @@ impl ResourceView for RabbitmqClusterView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn spec(self) -> RabbitmqClusterSpecView {
-        self.spec
-    }
+    open spec fn spec(self) -> RabbitmqClusterSpecView { self.spec }
 
-    open spec fn status(self) -> Option<RabbitmqClusterStatusView> {
-        self.status
-    }
+    open spec fn status(self) -> Option<RabbitmqClusterStatusView> { self.status }
 
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
@@ -171,8 +163,6 @@ pub struct RabbitmqClusterSpecView {
     pub pod_management_policy: StringView,
     pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
-
-impl RabbitmqClusterSpecView {}
 
 pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,

@@ -70,18 +70,11 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
     }
 }
 
-pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
-pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_main_service_name(rabbitmq),
@@ -89,12 +82,7 @@ pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     }
 }
 
-pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_service: ServiceView) -> ServiceView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-        found_main_service.spec.is_Some(),
-{
+pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_service: ServiceView) -> ServiceView {
     let made_main_service = make_main_service(rabbitmq);
     ServiceView {
         metadata: ObjectMetaView {
@@ -114,11 +102,7 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
     }
 }
 
-pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("amqp")@).set_port(5672).set_app_protocol(new_strlit("amqp")@),
         ServicePortView::default().set_name(new_strlit("management")@).set_port(15672).set_app_protocol(new_strlit("http")@),

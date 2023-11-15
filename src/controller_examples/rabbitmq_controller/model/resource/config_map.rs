@@ -85,18 +85,11 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     }
 }
 
-pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@
 }
 
-pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ConfigMapView::kind(),
         name: make_server_config_map_name(rabbitmq),
@@ -104,11 +97,7 @@ pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> Ob
     }
 }
 
-pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView {
     ConfigMapView {
         metadata: ObjectMetaView {
             name: Some(make_server_config_map_name(rabbitmq)),
@@ -151,11 +140,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
     }
 }
 
-pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView {
     let name = rabbitmq.metadata.name.get_Some_0();
 
     new_strlit(
