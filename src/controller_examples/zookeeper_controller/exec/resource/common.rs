@@ -20,10 +20,8 @@ use vstd::string::*;
 verus! {
 
 pub fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
-    requires
-        zk@.well_formed(),
-    ensures
-        labels@ == model_resource::make_base_labels(zk@),
+    requires zk@.well_formed(),
+    ensures labels@ == model_resource::make_base_labels(zk@),
 {
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
@@ -31,10 +29,8 @@ pub fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
 }
 
 pub fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
-    requires
-        zk@.well_formed(),
-    ensures
-        labels@ == model_resource::make_labels(zk@),
+    requires zk@.well_formed(),
+    ensures labels@ == model_resource::make_labels(zk@),
 {
     let mut labels = zk.spec().labels();
     labels.extend(make_base_labels(zk));
@@ -42,10 +38,8 @@ pub fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
 }
 
 pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<OwnerReference>)
-    requires
-        zk@.well_formed(),
-    ensures
-        owner_references@.map_values(|or: OwnerReference| or@) == model_resource::make_owner_references(zk@),
+    requires zk@.well_formed(),
+    ensures owner_references@.map_values(|or: OwnerReference| or@) == model_resource::make_owner_references(zk@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(zk.controller_owner_ref());
@@ -60,10 +54,8 @@ pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<Ow
 
 /// make_service constructs the Service object given the name, ports and cluster_ip
 pub fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
-    requires
-        zk@.well_formed(),
-    ensures
-        service@ == model_resource::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
+    requires zk@.well_formed(),
+    ensures service@ == model_resource::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
     let mut service = Service::default();
     service.set_metadata({

@@ -68,10 +68,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Headless
     }
 }
 
-pub open spec fn make_headless_service_key(zk: ZookeeperClusterView) -> ObjectRef
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_headless_service_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_headless_service_name(zk),
@@ -79,17 +76,11 @@ pub open spec fn make_headless_service_key(zk: ZookeeperClusterView) -> ObjectRe
     }
 }
 
-pub open spec fn make_headless_service_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-{
+pub open spec fn make_headless_service_name(zk: ZookeeperClusterView) -> StringView {
     zk.metadata.name.get_Some_0() + new_strlit("-headless")@
 }
 
-pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headless_service: ServiceView) -> ServiceView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headless_service: ServiceView) -> ServiceView {
     ServiceView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(zk)),
@@ -108,10 +99,7 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
     }
 }
 
-pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView {
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.ports.client),
         ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(zk.spec.ports.quorum),

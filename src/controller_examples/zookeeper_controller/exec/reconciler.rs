@@ -275,8 +275,7 @@ pub fn reconcile_helper<
         zk@.well_formed(),
         Builder::requirements(zk@),
         state.reconcile_step.is_AfterKRequestStep(),
-    ensures
-        (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(zk@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(zk@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();
     match step {
@@ -377,39 +376,29 @@ pub fn reconcile_helper<
 }
 
 fn zk_node_path(zk: &ZookeeperCluster) -> (path: Vec<String>)
-    requires
-        zk@.well_formed(),
-    ensures
-        path@.map_values(|s: String| s@) == model_reconciler::zk_node_path(zk@),
+    requires zk@.well_formed(),
+    ensures path@.map_values(|s: String| s@) == model_reconciler::zk_node_path(zk@),
 {
     let mut path = Vec::new();
     path.push(new_strlit("zookeeper-operator").to_string());
     path.push(zk.metadata().name().unwrap());
-    proof {
-        assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_node_path(zk@));
-    }
+    proof { assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_node_path(zk@)); }
     path
 }
 
 fn zk_parent_node_path(zk: &ZookeeperCluster) -> (path: Vec<String>)
-    requires
-        zk@.well_formed(),
-    ensures
-        path@.map_values(|s: String| s@) == model_reconciler::zk_parent_node_path(zk@),
+    requires zk@.well_formed(),
+    ensures path@.map_values(|s: String| s@) == model_reconciler::zk_parent_node_path(zk@),
 {
     let mut path = Vec::new();
     path.push(new_strlit("zookeeper-operator").to_string());
-    proof {
-        assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_parent_node_path(zk@));
-    }
+    proof { assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_parent_node_path(zk@)); }
     path
 }
 
 fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        data@ == model_reconciler::zk_node_data(zk@),
+    requires zk@.well_formed(),
+    ensures data@ == model_reconciler::zk_node_data(zk@),
 {
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }

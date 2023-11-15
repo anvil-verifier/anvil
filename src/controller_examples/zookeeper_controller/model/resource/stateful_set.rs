@@ -86,10 +86,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
     }
 }
 
-pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: StatefulSetView::kind(),
         name: make_stateful_set_name(zk),
@@ -97,17 +94,11 @@ pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef
     }
 }
 
-pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-{
+pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView {
     zk.metadata.name.get_Some_0()
 }
 
-pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView, rv: StringView) -> StatefulSetView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView, rv: StringView) -> StatefulSetView {
     StatefulSetView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(zk)),
@@ -126,10 +117,7 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
     }
 }
 
-pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> StatefulSetView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> StatefulSetView {
     let name = make_stateful_set_name(zk);
     let namespace = zk.metadata.namespace.get_Some_0();
 
@@ -180,10 +168,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
 }
 
-pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
     PodSpecView {
         affinity: zk.spec.affinity,
         containers: seq![
@@ -259,10 +244,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
     }
 }
 
-pub open spec fn update_zk_status(zk: ZookeeperClusterView, ready_replicas: int) -> ZookeeperClusterView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn update_zk_status(zk: ZookeeperClusterView, ready_replicas: int) -> ZookeeperClusterView {
     ZookeeperClusterView {
         status: Some(ZookeeperClusterStatusView {
             ready_replicas: ready_replicas,

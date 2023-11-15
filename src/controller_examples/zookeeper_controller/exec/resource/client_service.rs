@@ -82,10 +82,8 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
 }
 
 pub fn make_client_service_name(zk: &ZookeeperCluster) -> (name: String)
-    requires
-        zk@.well_formed(),
-    ensures
-        name@ == model_resource::make_client_service_name(zk@),
+    requires zk@.well_formed(),
+    ensures name@ == model_resource::make_client_service_name(zk@),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-client"))
 }
@@ -94,8 +92,7 @@ pub fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Servi
     requires
         zk@.well_formed(),
         found_client_service@.spec.is_Some(),
-    ensures
-        client_service@ == model_resource::update_client_service(zk@, found_client_service@),
+    ensures client_service@ == model_resource::update_client_service(zk@, found_client_service@),
 {
     let mut client_service = found_client_service.clone();
     let made_client_service = make_client_service(zk);
@@ -119,10 +116,8 @@ pub fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Servi
 
 /// Client Service is used for any client to connect to the zookeeper server
 pub fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
-    requires
-        zk@.well_formed(),
-    ensures
-        service@ == model_resource::make_client_service(zk@),
+    requires zk@.well_formed(),
+    ensures service@ == model_resource::make_client_service(zk@),
 {
     let mut ports = Vec::new();
 

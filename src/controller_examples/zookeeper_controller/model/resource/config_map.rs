@@ -68,10 +68,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
     }
 }
 
-pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: ConfigMapView::kind(),
         name: make_config_map_name(zk),
@@ -79,17 +76,11 @@ pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef
     }
 }
 
-pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-{
+pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView {
     zk.metadata.name.get_Some_0() + new_strlit("-configmap")@
 }
 
-pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView {
     ConfigMapView {
         metadata: ObjectMetaView {
             name: Some(make_config_map_name(zk)),
@@ -108,10 +99,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     }
 }
 
-pub open spec fn update_config_map(zk: ZookeeperClusterView, found_config_map: ConfigMapView) -> ConfigMapView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn update_config_map(zk: ZookeeperClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
     ConfigMapView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(zk)),
@@ -147,10 +135,7 @@ pub open spec fn make_log4j_quiet_config() -> StringView {
     )@
 }
 
-pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.well_formed(),
-{
+pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView {
     let name = zk.metadata.name.get_Some_0();
     let namespace = zk.metadata.namespace.get_Some_0();
     let client_port = int_to_string_view(zk.spec.ports.client);
