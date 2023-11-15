@@ -164,8 +164,6 @@ pub struct RabbitmqClusterSpecView {
     pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
-impl RabbitmqClusterSpecView {}
-
 pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
     pub advanced_config: Option<StringView>,

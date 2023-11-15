@@ -68,13 +68,9 @@ impl ResourceView for ZookeeperClusterView {
         }
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
+    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind {
-        Kind::CustomResourceKind
-    }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
@@ -86,13 +82,9 @@ impl ResourceView for ZookeeperClusterView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn spec(self) -> ZookeeperClusterSpecView {
-        self.spec
-    }
+    open spec fn spec(self) -> ZookeeperClusterSpecView { self.spec }
 
-    open spec fn status(self) -> Option<ZookeeperClusterStatusView> {
-        self.status
-    }
+    open spec fn status(self) -> Option<ZookeeperClusterStatusView> { self.status }
 
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
@@ -171,8 +163,6 @@ pub struct ZookeeperClusterSpecView {
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
 }
-
-impl ZookeeperClusterSpecView {}
 
 pub struct ZookeeperPortsView {
     pub client: int,

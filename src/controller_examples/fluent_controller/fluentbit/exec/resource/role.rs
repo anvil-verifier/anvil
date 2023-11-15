@@ -80,10 +80,8 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBui
 }
 
 pub fn update_role(fb: &FluentBit, found_role: Role) -> (role: Role)
-    requires
-        fb@.well_formed(),
-    ensures
-        role@ == model_resource::update_role(fb@, found_role@),
+    requires fb@.well_formed(),
+    ensures role@ == model_resource::update_role(fb@, found_role@),
 {
     let mut role = found_role.clone();
     let made_role = make_role(fb);
@@ -100,19 +98,15 @@ pub fn update_role(fb: &FluentBit, found_role: Role) -> (role: Role)
 }
 
 pub fn make_role_name(fb: &FluentBit) -> (name: String)
-    requires
-        fb@.well_formed(),
-    ensures
-        name@ == model_resource::make_role_name(fb@),
+    requires fb@.well_formed(),
+    ensures name@ == model_resource::make_role_name(fb@),
 {
     fb.metadata().name().unwrap().concat(new_strlit("-role"))
 }
 
 pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
-    requires
-        fb@.well_formed(),
-    ensures
-        rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(fb@).policy_rules.get_Some_0(),
+    requires fb@.well_formed(),
+    ensures rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(fb@).policy_rules.get_Some_0(),
 {
     let mut rules = Vec::new();
     rules.push({
@@ -162,10 +156,8 @@ pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
 }
 
 pub fn make_role(fb: &FluentBit) -> (role: Role)
-    requires
-        fb@.well_formed(),
-    ensures
-        role@ == model_resource::make_role(fb@),
+    requires fb@.well_formed(),
+    ensures role@ == model_resource::make_role(fb@),
 {
     let mut role = Role::default();
     role.set_metadata({

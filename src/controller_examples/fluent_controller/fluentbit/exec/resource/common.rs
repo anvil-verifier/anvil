@@ -19,10 +19,8 @@ verus! {
 
 
 pub fn make_base_labels(fb: &FluentBit) -> (labels: StringMap)
-    requires
-        fb@.well_formed(),
-    ensures
-        labels@ == model_resource::make_base_labels(fb@),
+    requires fb@.well_formed(),
+    ensures labels@ == model_resource::make_base_labels(fb@),
 {
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), fb.metadata().name().unwrap());
@@ -30,10 +28,8 @@ pub fn make_base_labels(fb: &FluentBit) -> (labels: StringMap)
 }
 
 pub fn make_labels(fb: &FluentBit) -> (labels: StringMap)
-    requires
-        fb@.well_formed(),
-    ensures
-        labels@ == model_resource::make_labels(fb@),
+    requires fb@.well_formed(),
+    ensures labels@ == model_resource::make_labels(fb@),
 {
     let mut labels = fb.spec().labels();
     labels.extend(make_base_labels(fb));
@@ -41,10 +37,8 @@ pub fn make_labels(fb: &FluentBit) -> (labels: StringMap)
 }
 
 pub fn make_owner_references(fb: &FluentBit) -> (owner_references: Vec<OwnerReference>)
-    requires
-        fb@.well_formed(),
-    ensures
-        owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(fb@),
+    requires fb@.well_formed(),
+    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(fb@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(fb.controller_owner_ref());

@@ -67,17 +67,11 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
     }
 }
 
-pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView {
     fb.metadata.name.get_Some_0() + new_strlit("-role-binding")@
 }
 
-pub open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: RoleBindingView::kind(),
         name: make_role_binding_name(fb),
@@ -85,10 +79,7 @@ pub open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef
     }
 }
 
-pub open spec fn update_role_binding(fb: FluentBitView, found_role_binding: RoleBindingView) -> RoleBindingView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn update_role_binding(fb: FluentBitView, found_role_binding: RoleBindingView) -> RoleBindingView {
     let made_role_binding = make_role_binding(fb);
     RoleBindingView {
         metadata: ObjectMetaView {
@@ -103,10 +94,7 @@ pub open spec fn update_role_binding(fb: FluentBitView, found_role_binding: Role
     }
 }
 
-pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView {
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_role_binding_name(fb))

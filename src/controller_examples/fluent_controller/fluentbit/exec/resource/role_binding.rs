@@ -82,10 +82,8 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBin
 }
 
 pub fn update_role_binding(fb: &FluentBit, found_role_binding: RoleBinding) -> (role_binding: RoleBinding)
-    requires
-        fb@.well_formed(),
-    ensures
-        role_binding@ == model_resource::update_role_binding(fb@, found_role_binding@),
+    requires fb@.well_formed(),
+    ensures role_binding@ == model_resource::update_role_binding(fb@, found_role_binding@),
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(fb);
@@ -102,19 +100,15 @@ pub fn update_role_binding(fb: &FluentBit, found_role_binding: RoleBinding) -> (
 }
 
 pub fn make_role_binding_name(fb: &FluentBit) -> (name: String)
-    requires
-        fb@.well_formed(),
-    ensures
-        name@ == model_resource::make_role_binding_name(fb@),
+    requires fb@.well_formed(),
+    ensures name@ == model_resource::make_role_binding_name(fb@),
 {
     fb.metadata().name().unwrap().concat(new_strlit("-role-binding"))
 }
 
 pub fn make_role_ref(fb: &FluentBit) -> (role_ref: RoleRef)
-    requires
-        fb@.well_formed(),
-    ensures
-        role_ref@ == model_resource::make_role_binding(fb@).role_ref
+    requires fb@.well_formed(),
+    ensures role_ref@ == model_resource::make_role_binding(fb@).role_ref
 {
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
@@ -124,10 +118,8 @@ pub fn make_role_ref(fb: &FluentBit) -> (role_ref: RoleRef)
 }
 
 pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
-    requires
-        fb@.well_formed(),
-    ensures
-        subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(fb@).subjects.get_Some_0(),
+    requires fb@.well_formed(),
+    ensures subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(fb@).subjects.get_Some_0(),
 {
     let mut subjects = Vec::new();
     subjects.push({
@@ -147,10 +139,8 @@ pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
 }
 
 pub fn make_role_binding(fb: &FluentBit) -> (role_binding: RoleBinding)
-    requires
-        fb@.well_formed(),
-    ensures
-        role_binding@ == model_resource::make_role_binding(fb@),
+    requires fb@.well_formed(),
+    ensures role_binding@ == model_resource::make_role_binding(fb@),
 {
     let mut role_binding = RoleBinding::default();
     role_binding.set_metadata({

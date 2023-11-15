@@ -22,10 +22,7 @@ pub open spec fn liveness<M: Maker>(fb:FluentBitView) -> TempPred<FBCluster> {
     always(lift_state(desired_state_is(fb))).leads_to(always(lift_state(current_state_matches::<M>(fb))))
 }
 
-pub open spec fn desired_secret_key(fb: FluentBitView) -> ObjectRef
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn desired_secret_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
         namespace: fb.metadata.namespace.get_Some_0(),

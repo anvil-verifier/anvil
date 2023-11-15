@@ -66,17 +66,11 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
     }
 }
 
-pub open spec fn make_service_name(fb: FluentBitView) -> StringView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_service_name(fb: FluentBitView) -> StringView {
     fb.metadata.name.get_Some_0()
 }
 
-pub open spec fn make_service_key(fb: FluentBitView) -> ObjectRef
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_service_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_service_name(fb),
@@ -84,10 +78,7 @@ pub open spec fn make_service_key(fb: FluentBitView) -> ObjectRef
     }
 }
 
-pub open spec fn update_service(fb: FluentBitView, found_service: ServiceView) -> ServiceView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn update_service(fb: FluentBitView, found_service: ServiceView) -> ServiceView {
     let made_service = make_service(fb);
     ServiceView {
         metadata: ObjectMetaView {
@@ -106,10 +97,7 @@ pub open spec fn update_service(fb: FluentBitView, found_service: ServiceView) -
     }
 }
 
-pub open spec fn make_service(fb: FluentBitView) -> ServiceView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
     ServiceView {
         metadata: ObjectMetaView {
             name: Some(make_service_name(fb)),

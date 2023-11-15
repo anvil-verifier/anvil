@@ -85,8 +85,7 @@ pub fn update_service(fb: &FluentBit, found_service: Service) -> (service: Servi
     requires
         fb@.well_formed(),
         found_service@.spec.is_Some(),
-    ensures
-        service@ == model_resource::update_service(fb@, found_service@),
+    ensures service@ == model_resource::update_service(fb@, found_service@),
 {
     let mut service = found_service.clone();
     let made_service = make_service(fb);
@@ -109,19 +108,15 @@ pub fn update_service(fb: &FluentBit, found_service: Service) -> (service: Servi
 }
 
 pub fn make_service_name(fb: &FluentBit) -> (name: String)
-    requires
-        fb@.well_formed(),
-    ensures
-        name@ == model_resource::make_service_name(fb@),
+    requires fb@.well_formed(),
+    ensures name@ == model_resource::make_service_name(fb@),
 {
     fb.metadata().name().unwrap()
 }
 
 pub fn make_service(fb: &FluentBit) -> (service: Service)
-    requires
-        fb@.well_formed(),
-    ensures
-        service@ == model_resource::make_service(fb@),
+    requires fb@.well_formed(),
+    ensures service@ == model_resource::make_service(fb@),
 {
     let mut service = Service::default();
     service.set_metadata({

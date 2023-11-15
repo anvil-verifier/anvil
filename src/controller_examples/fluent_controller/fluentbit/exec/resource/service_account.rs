@@ -80,10 +80,8 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::Service
 }
 
 pub fn update_service_account(fb: &FluentBit, found_service_account: ServiceAccount) -> (service_account: ServiceAccount)
-    requires
-        fb@.well_formed(),
-    ensures
-        service_account@ == model_resource::update_service_account(fb@, found_service_account@),
+    requires fb@.well_formed(),
+    ensures service_account@ == model_resource::update_service_account(fb@, found_service_account@),
 {
     let mut service_account = found_service_account.clone();
     let made_service_account = make_service_account(fb);
@@ -99,19 +97,15 @@ pub fn update_service_account(fb: &FluentBit, found_service_account: ServiceAcco
 }
 
 pub fn make_service_account_name(fb: &FluentBit) -> (name: String)
-    requires
-        fb@.well_formed(),
-    ensures
-        name@ == model_resource::make_service_account_name(fb@),
+    requires fb@.well_formed(),
+    ensures name@ == model_resource::make_service_account_name(fb@),
 {
     fb.metadata().name().unwrap()
 }
 
 pub fn make_service_account(fb: &FluentBit) -> (service_account: ServiceAccount)
-    requires
-        fb@.well_formed(),
-    ensures
-        service_account@ == model_resource::make_service_account(fb@),
+    requires fb@.well_formed(),
+    ensures service_account@ == model_resource::make_service_account(fb@),
 {
     let mut service_account = ServiceAccount::default();
     service_account.set_metadata({

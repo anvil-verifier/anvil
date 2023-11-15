@@ -66,17 +66,11 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBuilder {
     }
 }
 
-pub open spec fn make_role_name(fb: FluentBitView) -> StringView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_role_name(fb: FluentBitView) -> StringView {
     fb.metadata.name.get_Some_0() + new_strlit("-role")@
 }
 
-pub open spec fn make_role_key(fb: FluentBitView) -> ObjectRef
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_role_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: RoleView::kind(),
         name: make_role_name(fb),
@@ -84,10 +78,7 @@ pub open spec fn make_role_key(fb: FluentBitView) -> ObjectRef
     }
 }
 
-pub open spec fn update_role(fb: FluentBitView, found_role: RoleView) -> RoleView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn update_role(fb: FluentBitView, found_role: RoleView) -> RoleView {
     let made_role = make_role(fb);
     RoleView {
         metadata: ObjectMetaView {
@@ -102,10 +93,7 @@ pub open spec fn update_role(fb: FluentBitView, found_role: RoleView) -> RoleVie
     }
 }
 
-pub open spec fn make_role(fb: FluentBitView) -> RoleView
-    recommends
-        fb.well_formed(),
-{
+pub open spec fn make_role(fb: FluentBitView) -> RoleView {
     RoleView {
         metadata: ObjectMetaView {
             name: Some(make_role_name(fb)),

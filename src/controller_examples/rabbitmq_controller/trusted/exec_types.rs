@@ -78,9 +78,6 @@ impl RabbitmqCluster {
         RabbitmqClusterSpec { inner: self.inner.spec.clone() }
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::RabbitmqCluster { self.inner }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures res@.kind == spec_types::RabbitmqClusterView::kind(),

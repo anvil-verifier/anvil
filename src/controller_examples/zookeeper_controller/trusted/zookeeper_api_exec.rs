@@ -39,9 +39,7 @@ pub struct ZKAPICreateResult {
 
 impl View for ZKAPICreateResult {
     type V = ZKAPICreateResultView;
-    open spec fn view(&self) -> ZKAPICreateResultView {
-        ZKAPICreateResultView {res: self.res}
-    }
+    open spec fn view(&self) -> ZKAPICreateResultView { ZKAPICreateResultView {res: self.res} }
 }
 
 pub struct ZKAPISetDataResult {
@@ -50,9 +48,7 @@ pub struct ZKAPISetDataResult {
 
 impl View for ZKAPISetDataResult {
     type V = ZKAPISetDataResultView;
-    open spec fn view(&self) -> ZKAPISetDataResultView {
-        ZKAPISetDataResultView {res: self.res}
-    }
+    open spec fn view(&self) -> ZKAPISetDataResultView { ZKAPISetDataResultView {res: self.res} }
 }
 
 #[is_variant]

@@ -63,9 +63,7 @@ pub struct ZKState {
 }
 
 impl ZKState {
-    pub open spec fn init() -> ZKState {
-        ZKState { data: Map::empty() }
-    }
+    pub open spec fn init() -> ZKState { ZKState { data: Map::empty() } }
 }
 
 pub struct ZKAPIExistsResultView {
@@ -117,9 +115,7 @@ impl ExternalAPI for ZKAPI {
         }
     }
 
-    open spec fn init_state() -> ZKState {
-        ZKState::init()
-    }
+    open spec fn init_state() -> ZKState { ZKState::init() }
 }
 
 pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
@@ -204,9 +200,7 @@ pub open spec fn handle_create(name: StringView, namespace: StringView, port: in
             if path.len() > 1 && !state.data.contains_key(addr.parent_addr()) {
                 (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateFailed)})
             } else {
-                let state_prime = ZKState {
-                    data: state.data.insert(addr, (data, 0)),
-                };
+                let state_prime = ZKState { data: state.data.insert(addr, (data, 0)) };
                 (state_prime, ZKAPICreateResultView{res: Ok(())})
             }
         } else {
@@ -230,9 +224,7 @@ pub open spec fn handle_set_data(name: StringView, namespace: StringView, port: 
             if current_version != version {
                 (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
             } else {
-                let state_prime = ZKState {
-                    data: state.data.insert(addr, (data, current_version + 1)),
-                };
+                let state_prime = ZKState { data: state.data.insert(addr, (data, current_version + 1)) };
                 (state_prime, ZKAPISetDataResultView{res: Ok(())})
             }
         }

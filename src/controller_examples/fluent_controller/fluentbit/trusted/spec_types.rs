@@ -63,13 +63,9 @@ impl ResourceView for FluentBitView {
         }
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
+    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind {
-        Kind::CustomResourceKind
-    }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
@@ -81,13 +77,9 @@ impl ResourceView for FluentBitView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn spec(self) -> FluentBitSpecView {
-        self.spec
-    }
+    open spec fn spec(self) -> FluentBitSpecView { self.spec }
 
-    open spec fn status(self) -> Option<FluentBitStatusView> {
-        self.status
-    }
+    open spec fn status(self) -> Option<FluentBitStatusView> { self.status }
 
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
@@ -139,13 +131,9 @@ impl ResourceView for FluentBitView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
-    open spec fn state_validation(self) -> bool {
-        true
-    }
+    open spec fn state_validation(self) -> bool { true }
 
-    open spec fn transition_validation(self, old_obj: FluentBitView) -> bool {
-        true
-    }
+    open spec fn transition_validation(self, old_obj: FluentBitView) -> bool { true }
 }
 
 pub struct FluentBitSpecView {
@@ -166,7 +154,5 @@ pub struct FluentBitSpecView {
     pub security_context: Option<PodSecurityContextView>,
     pub host_network: Option<bool>,
 }
-
-impl FluentBitSpecView {}
 
 }

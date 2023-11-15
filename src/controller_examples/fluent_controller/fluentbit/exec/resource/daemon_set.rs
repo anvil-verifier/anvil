@@ -82,8 +82,7 @@ pub fn update_daemon_set(fb: &FluentBit, found_daemon_set: DaemonSet) -> (daemon
     requires
         fb@.well_formed(),
         found_daemon_set@.spec.is_Some(),
-    ensures
-        daemon_set@ == model_resource::update_daemon_set(fb@, found_daemon_set@),
+    ensures daemon_set@ == model_resource::update_daemon_set(fb@, found_daemon_set@),
 {
     let made_ds = make_daemon_set(fb);
 
@@ -108,8 +107,7 @@ pub fn update_daemon_set(fb: &FluentBit, found_daemon_set: DaemonSet) -> (daemon
 pub fn make_daemon_set_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
-    ensures
-        name@ == model_resource::make_daemon_set_name(fb@),
+    ensures name@ == model_resource::make_daemon_set_name(fb@),
 {
     fb.metadata().name().unwrap()
 }
@@ -117,8 +115,7 @@ pub fn make_daemon_set_name(fb: &FluentBit) -> (name: String)
 pub fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
     requires
         fb@.well_formed(),
-    ensures
-        daemon_set@ == model_resource::make_daemon_set(fb@),
+    ensures daemon_set@ == model_resource::make_daemon_set(fb@),
 {
     let mut daemon_set = DaemonSet::default();
     daemon_set.set_metadata({
@@ -157,8 +154,7 @@ pub fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
 fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     requires
         fb@.well_formed(),
-    ensures
-        pod_spec@ == model_resource::make_fluentbit_pod_spec(fb@),
+    ensures pod_spec@ == model_resource::make_fluentbit_pod_spec(fb@),
 {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name(fb.metadata().name().unwrap());
@@ -316,8 +312,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
 }
 
 fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
-    ensures
-        env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env(fb@),
+    ensures env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env(fb@),
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
@@ -335,10 +330,7 @@ fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
         }))
     ));
     proof {
-        assert_seqs_equal!(
-            env_vars@.map_values(|v: EnvVar| v@),
-            model_resource::make_env(fb@),
-        );
+        assert_seqs_equal!(env_vars@.map_values(|v: EnvVar| v@), model_resource::make_env(fb@));
     }
     env_vars
 }
