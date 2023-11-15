@@ -77,11 +77,7 @@ pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> St
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@
 }
 
-pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_headless_service_name(rabbitmq),
@@ -89,12 +85,7 @@ pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> Obj
     }
 }
 
-pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_headless_service: ServiceView) -> ServiceView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-        found_headless_service.spec.is_Some(),
-{
+pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_headless_service: ServiceView) -> ServiceView {
     let made_headless_service = make_headless_service(rabbitmq);
     ServiceView {
         metadata: ObjectMetaView {
@@ -114,11 +105,7 @@ pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_he
     }
 }
 
-pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
     let mut ports = seq![
         ServicePortView::default().set_name(new_strlit("epmd")@).set_port(4369),
         ServicePortView::default().set_name(new_strlit("cluster-rpc")@).set_port(25672)

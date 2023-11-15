@@ -69,18 +69,11 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
     }
 }
 
-pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
 }
 
-pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceAccountView::kind(),
         name: make_service_account_name(rabbitmq),
@@ -88,11 +81,7 @@ pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> Obje
     }
 }
 
-pub open spec fn update_service_account(rabbitmq: RabbitmqClusterView, found_service_account: ServiceAccountView) -> ServiceAccountView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn update_service_account(rabbitmq: RabbitmqClusterView, found_service_account: ServiceAccountView) -> ServiceAccountView {
     let made_service_account = make_service_account(rabbitmq);
     ServiceAccountView {
         metadata: ObjectMetaView {
@@ -106,11 +95,7 @@ pub open spec fn update_service_account(rabbitmq: RabbitmqClusterView, found_ser
     }
 }
 
-pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView {
     ServiceAccountView {
         metadata: ObjectMetaView {
             name: Some(make_service_account_name(rabbitmq)),

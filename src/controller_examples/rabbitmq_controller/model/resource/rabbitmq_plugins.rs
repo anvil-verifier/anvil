@@ -69,18 +69,11 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsCon
     }
 }
 
-pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@
 }
 
-pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ConfigMapView::kind(),
         name: make_plugins_config_map_name(rabbitmq),
@@ -88,11 +81,7 @@ pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> O
     }
 }
 
-pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
     let made_config_map = make_plugins_config_map(rabbitmq);
     ConfigMapView {
         data: made_config_map.data,
@@ -107,11 +96,7 @@ pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_
     }
 }
 
-pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView {
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_plugins_config_map_name(rabbitmq))

@@ -69,18 +69,11 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
     }
 }
 
-pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
+pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView {
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
 }
 
-pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: RoleBindingView::kind(),
         name: make_role_binding_name(rabbitmq),
@@ -88,11 +81,7 @@ pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     }
 }
 
-pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_binding: RoleBindingView) -> RoleBindingView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_binding: RoleBindingView) -> RoleBindingView {
     let made_role_binding = make_role_binding(rabbitmq);
     RoleBindingView {
         metadata: ObjectMetaView {
@@ -107,11 +96,7 @@ pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_b
     }
 }
 
-pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-{
+pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView {
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_role_binding_name(rabbitmq))

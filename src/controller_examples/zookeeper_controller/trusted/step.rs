@@ -22,13 +22,10 @@ pub enum ZookeeperReconcileStep {
 impl std::marker::Copy for ZookeeperReconcileStep {}
 
 impl std::clone::Clone for ZookeeperReconcileStep {
-
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 #[is_variant]
@@ -81,25 +78,19 @@ impl std::fmt::Debug for ZKAPIError {
 impl std::marker::Copy for SubResource {}
 
 impl std::clone::Clone for SubResource {
-
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 impl std::marker::Copy for ActionKind {}
 
 impl std::clone::Clone for ActionKind {
-
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 }

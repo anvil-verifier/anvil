@@ -65,17 +65,11 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
     }
 }
 
-pub open spec fn make_secret_name(fbc: FluentBitConfigView) -> StringView
-    recommends
-        fbc.well_formed(),
-{
+pub open spec fn make_secret_name(fbc: FluentBitConfigView) -> StringView {
     fbc.metadata.name.get_Some_0()
 }
 
-pub open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef
-    recommends
-        fbc.well_formed(),
-{
+pub open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
         name: make_secret_name(fbc),
@@ -83,10 +77,7 @@ pub open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef
     }
 }
 
-pub open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView
-    recommends
-        fbc.well_formed(),
-{
+pub open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView {
     SecretView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_secret_name(fbc))
@@ -97,10 +88,7 @@ pub open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView
         )
 }
 
-pub open spec fn update_secret(fbc: FluentBitConfigView, found_secret: SecretView) -> SecretView
-    recommends
-        fbc.well_formed(),
-{
+pub open spec fn update_secret(fbc: FluentBitConfigView, found_secret: SecretView) -> SecretView {
     let made_secret = make_secret(fbc);
     SecretView {
         metadata: ObjectMetaView {

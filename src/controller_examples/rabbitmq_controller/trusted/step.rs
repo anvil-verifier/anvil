@@ -16,13 +16,10 @@ pub enum RabbitmqReconcileStep {
 impl std::marker::Copy for RabbitmqReconcileStep {}
 
 impl std::clone::Clone for RabbitmqReconcileStep {
-
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 pub enum SubResource {
@@ -48,25 +45,19 @@ pub enum ActionKind {
 impl std::marker::Copy for SubResource {}
 
 impl std::clone::Clone for SubResource {
-
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 impl std::marker::Copy for ActionKind {}
 
 impl std::clone::Clone for ActionKind {
-
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
-    {
-        *self
-    }
+    { *self }
 }
 
 }
