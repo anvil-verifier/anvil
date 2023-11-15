@@ -3,10 +3,10 @@
 #![allow(unused_imports)]
 use super::common::*;
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit_config::common::*;
-use crate::fluent_controller::fluentbit_config::exec::types::*;
-use crate::fluent_controller::fluentbit_config::spec::resource as spec_resource;
-use crate::fluent_controller::fluentbit_config::spec::types::FluentBitConfigView;
+use crate::fluent_controller::fluentbit_config::model::resource as model_resource;
+use crate::fluent_controller::fluentbit_config::trusted::{
+    exec_types::*, spec_types::FluentBitConfigView, step::*,
+};
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
@@ -23,7 +23,7 @@ verus! {
 
 pub struct SecretBuilder {}
 
-impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, spec_resource::SecretBuilder> for SecretBuilder {
+impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resource::SecretBuilder> for SecretBuilder {
     open spec fn requirements(fbc: FluentBitConfigView) -> bool {
         &&& fbc.well_formed()
     }
@@ -80,7 +80,7 @@ pub fn update_secret(fbc: &FluentBitConfig, found_secret: Secret) -> (secret: Se
     requires
         fbc@.well_formed(),
     ensures
-        secret@ == spec_resource::update_secret(fbc@, found_secret@),
+        secret@ == model_resource::update_secret(fbc@, found_secret@),
 {
     let mut secret = found_secret.clone();
     let made_secret = make_secret(fbc);
@@ -98,7 +98,7 @@ pub fn make_secret_name(fbc: &FluentBitConfig) -> (name: String)
     requires
         fbc@.well_formed(),
     ensures
-        name@ == spec_resource::make_secret_name(fbc@),
+        name@ == model_resource::make_secret_name(fbc@),
 {
     fbc.metadata().name().unwrap()
 }
@@ -107,7 +107,7 @@ pub fn make_secret(fbc: &FluentBitConfig) -> (secret: Secret)
     requires
         fbc@.well_formed(),
     ensures
-        secret@ == spec_resource::make_secret(fbc@),
+        secret@ == model_resource::make_secret(fbc@),
 {
     let mut secret = Secret::default();
     secret.set_metadata({

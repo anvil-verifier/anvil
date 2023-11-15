@@ -10,11 +10,12 @@ use crate::kubernetes_api_objects::{
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::*, string_view::*};
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{resource::*, types::*, zookeeper_api::*};
-use crate::zookeeper_controller::spec::reconciler as zk_spec;
-use crate::zookeeper_controller::spec::resource as spec_resource;
-use crate::zookeeper_controller::spec::types as spec_types;
+use crate::zookeeper_controller::exec::resource::*;
+use crate::zookeeper_controller::model::reconciler as model_reconciler;
+use crate::zookeeper_controller::model::resource as model_resource;
+use crate::zookeeper_controller::trusted::{
+    exec_types::*, spec_types, step::*, zookeeper_api_exec::*, zookeeper_api_spec::*,
+};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -53,7 +54,7 @@ impl Default for ZookeeperReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
-    ensures state@ == zk_spec::reconcile_init_state(),
+    ensures state@ == model_reconciler::reconcile_init_state(),
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
@@ -62,7 +63,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 }
 
 pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool)
-    ensures res == zk_spec::reconcile_done(state@),
+    ensures res == model_reconciler::reconcile_done(state@),
 {
     match state.reconcile_step {
         ZookeeperReconcileStep::Done => true,
@@ -71,7 +72,7 @@ pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
-    ensures res == zk_spec::reconcile_error(state@),
+    ensures res == model_reconciler::reconcile_error(state@),
 {
     match state.reconcile_step {
         ZookeeperReconcileStep::Error => true,
@@ -83,7 +84,7 @@ pub fn reconcile_core(
     zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
 ) -> (res: (ZookeeperReconcileState, Option<Request<ZKAPIInput>>))
     requires zk@.well_formed(),
-    ensures (res.0@, opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(zk@, opt_response_to_view(&resp_o), state@),
         // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
@@ -98,11 +99,11 @@ pub fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterKRequestStep(_, resource) => {
             match resource {
-                SubResource::HeadlessService => reconcile_helper::<spec_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(zk, resp_o, state),
-                SubResource::ClientService => reconcile_helper::<spec_resource::ClientServiceBuilder, ClientServiceBuilder>(zk, resp_o, state),
-                SubResource::AdminServerService => reconcile_helper::<spec_resource::AdminServerServiceBuilder, AdminServerServiceBuilder>(zk, resp_o, state),
-                SubResource::ConfigMap => reconcile_helper::<spec_resource::ConfigMapBuilder, ConfigMapBuilder>(zk, resp_o, state),
-                SubResource::StatefulSet => reconcile_helper::<spec_resource::StatefulSetBuilder, StatefulSetBuilder>(zk, resp_o, state),
+                SubResource::HeadlessService => reconcile_helper::<model_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(zk, resp_o, state),
+                SubResource::ClientService => reconcile_helper::<model_resource::ClientServiceBuilder, ClientServiceBuilder>(zk, resp_o, state),
+                SubResource::AdminServerService => reconcile_helper::<model_resource::AdminServerServiceBuilder, AdminServerServiceBuilder>(zk, resp_o, state),
+                SubResource::ConfigMap => reconcile_helper::<model_resource::ConfigMapBuilder, ConfigMapBuilder>(zk, resp_o, state),
+                SubResource::StatefulSet => reconcile_helper::<model_resource::StatefulSetBuilder, StatefulSetBuilder>(zk, resp_o, state),
             }
         },
         ZookeeperReconcileStep::AfterExistsStatefulSet => {
@@ -275,7 +276,7 @@ pub fn reconcile_helper<
         Builder::requirements(zk@),
         state.reconcile_step.is_AfterKRequestStep(),
     ensures
-        (res.0@, opt_request_to_view(&res.1)) == zk_spec::reconcile_helper::<SpecBuilder>(zk@, opt_response_to_view(&resp_o), state@),
+        (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(zk@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();
     match step {
@@ -379,13 +380,13 @@ fn zk_node_path(zk: &ZookeeperCluster) -> (path: Vec<String>)
     requires
         zk@.well_formed(),
     ensures
-        path@.map_values(|s: String| s@) == zk_spec::zk_node_path(zk@),
+        path@.map_values(|s: String| s@) == model_reconciler::zk_node_path(zk@),
 {
     let mut path = Vec::new();
     path.push(new_strlit("zookeeper-operator").to_string());
     path.push(zk.metadata().name().unwrap());
     proof {
-        assert_seqs_equal!(path@.map_values(|s: String| s@), zk_spec::zk_node_path(zk@));
+        assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_node_path(zk@));
     }
     path
 }
@@ -394,12 +395,12 @@ fn zk_parent_node_path(zk: &ZookeeperCluster) -> (path: Vec<String>)
     requires
         zk@.well_formed(),
     ensures
-        path@.map_values(|s: String| s@) == zk_spec::zk_parent_node_path(zk@),
+        path@.map_values(|s: String| s@) == model_reconciler::zk_parent_node_path(zk@),
 {
     let mut path = Vec::new();
     path.push(new_strlit("zookeeper-operator").to_string());
     proof {
-        assert_seqs_equal!(path@.map_values(|s: String| s@), zk_spec::zk_parent_node_path(zk@));
+        assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_parent_node_path(zk@));
     }
     path
 }
@@ -408,7 +409,7 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     requires
         zk@.well_formed(),
     ensures
-        data@ == zk_spec::zk_node_data(zk@),
+        data@ == model_reconciler::zk_node_data(zk@),
 {
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }

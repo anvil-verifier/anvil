@@ -3,10 +3,10 @@
 #![allow(unused_imports)]
 use super::common::*;
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit::common::*;
-use crate::fluent_controller::fluentbit::exec::types::*;
-use crate::fluent_controller::fluentbit::spec::resource as spec_resource;
-use crate::fluent_controller::fluentbit::spec::types::FluentBitView;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
+use crate::fluent_controller::fluentbit::trusted::{
+    exec_types::*, spec_types::FluentBitView, step::*,
+};
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
@@ -23,7 +23,7 @@ verus! {
 
 pub struct DaemonSetBuilder {}
 
-impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::DaemonSetBuilder> for DaemonSetBuilder {
+impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::DaemonSetBuilder> for DaemonSetBuilder {
     open spec fn requirements(fb: FluentBitView) -> bool {
         &&& fb.well_formed()
     }
@@ -83,7 +83,7 @@ pub fn update_daemon_set(fb: &FluentBit, found_daemon_set: DaemonSet) -> (daemon
         fb@.well_formed(),
         found_daemon_set@.spec.is_Some(),
     ensures
-        daemon_set@ == spec_resource::update_daemon_set(fb@, found_daemon_set@),
+        daemon_set@ == model_resource::update_daemon_set(fb@, found_daemon_set@),
 {
     let made_ds = make_daemon_set(fb);
 
@@ -109,7 +109,7 @@ pub fn make_daemon_set_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
     ensures
-        name@ == spec_resource::make_daemon_set_name(fb@),
+        name@ == model_resource::make_daemon_set_name(fb@),
 {
     fb.metadata().name().unwrap()
 }
@@ -118,7 +118,7 @@ pub fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
     requires
         fb@.well_formed(),
     ensures
-        daemon_set@ == spec_resource::make_daemon_set(fb@),
+        daemon_set@ == model_resource::make_daemon_set(fb@),
 {
     let mut daemon_set = DaemonSet::default();
     daemon_set.set_metadata({
@@ -158,7 +158,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     requires
         fb@.well_formed(),
     ensures
-        pod_spec@ == spec_resource::make_fluentbit_pod_spec(fb@),
+        pod_spec@ == model_resource::make_fluentbit_pod_spec(fb@),
 {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name(fb.metadata().name().unwrap());
@@ -211,7 +211,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
-                        spec_resource::make_fluentbit_pod_spec(fb@).containers[0].volume_mounts.get_Some_0()
+                        model_resource::make_fluentbit_pod_spec(fb@).containers[0].volume_mounts.get_Some_0()
                     );
                 }
                 volume_mounts
@@ -223,7 +223,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         ports@.map_values(|port: ContainerPort| port@),
-                        spec_resource::make_fluentbit_pod_spec(fb@).containers[0].ports.get_Some_0()
+                        model_resource::make_fluentbit_pod_spec(fb@).containers[0].ports.get_Some_0()
                     );
                 }
                 ports
@@ -234,7 +234,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 containers@.map_values(|container: Container| container@),
-                spec_resource::make_fluentbit_pod_spec(fb@).containers
+                model_resource::make_fluentbit_pod_spec(fb@).containers
             );
         }
         containers
@@ -294,7 +294,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),
-                spec_resource::make_fluentbit_pod_spec(fb@).volumes.get_Some_0()
+                model_resource::make_fluentbit_pod_spec(fb@).volumes.get_Some_0()
             );
         }
         volumes
@@ -317,7 +317,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
 
 fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
     ensures
-        env_vars@.map_values(|v: EnvVar| v@) == spec_resource::make_env(fb@),
+        env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env(fb@),
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
@@ -337,7 +337,7 @@ fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
     proof {
         assert_seqs_equal!(
             env_vars@.map_values(|v: EnvVar| v@),
-            spec_resource::make_env(fb@),
+            model_resource::make_env(fb@),
         );
     }
     env_vars

@@ -2,4 +2,3 @@
 // SPDX-License-Identifier: MIT
 pub mod reconciler;
 pub mod resource;
-pub mod types;

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
-use crate::fluent_controller::fluentbit_config::common::*;
-use crate::fluent_controller::fluentbit_config::proof::{liveness_theorem::*, resource::*};
-use crate::fluent_controller::fluentbit_config::spec::{reconciler::*, resource::*, types::*};
+use crate::fluent_controller::fluentbit_config::model::{reconciler::*, resource::*};
+use crate::fluent_controller::fluentbit_config::proof::resource::*;
+use crate::fluent_controller::fluentbit_config::trusted::{
+    liveness_theorem::*, spec_types::*, step::*,
+};
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, prelude::*, resource::*, stateful_set::*,
 };
@@ -22,7 +24,7 @@ verus! {
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, fbc: FluentBitConfigView) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
-        resource_state_matches(sub_resource, fbc, s.resources())
+        resource_state_matches::<FluentBitConfigMaker>(sub_resource, fbc, s.resources())
     }
 }
 

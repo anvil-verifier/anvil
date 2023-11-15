@@ -12,16 +12,18 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::temporal_logic::defs::*;
-use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::proof::{liveness_theorem::*, resource::*};
-use crate::zookeeper_controller::spec::{reconciler::*, resource::*, types::*, zookeeper_api::*};
+use crate::zookeeper_controller::model::{reconciler::*, resource::*};
+use crate::zookeeper_controller::proof::resource::*;
+use crate::zookeeper_controller::trusted::{
+    liveness_theorem::*, spec_types::*, step::*, zookeeper_api_spec::*,
+};
 use vstd::prelude::*;
 
 verus! {
 
 pub open spec fn sub_resource_state_matches(sub_resource: SubResource, zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        resource_state_matches(sub_resource, zk, s.resources())
+        resource_state_matches::<ZookeeperMaker>(sub_resource, zk, s.resources())
     }
 }
 

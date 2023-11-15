@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::{
-    common::*,
+    model::{reconciler::*, resource::*},
     proof::{
         helper_invariants,
         liveness::{
@@ -15,11 +15,10 @@ use crate::fluent_controller::fluentbit::{
             spec::*,
             terminate,
         },
-        liveness_theorem::*,
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, resource::*, types::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
@@ -40,17 +39,17 @@ verus! {
 // We prove init /\ []next /\ []wf |= []desired_state_is(fb) ~> []current_state_matches(fb) holds for each fb.
 proof fn liveness_proof_forall_fb()
     ensures
-        liveness_theorem(),
+        liveness_theorem::<FluentBitMaker>(),
 {
-    assert forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness(fb)) by {
+    assert forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness::<FluentBitMaker>(fb)) by {
         liveness_proof(fb);
     };
-    spec_entails_tla_forall(cluster_spec(), |fb: FluentBitView| liveness(fb));
+    spec_entails_tla_forall(cluster_spec(), |fb: FluentBitView| liveness::<FluentBitMaker>(fb));
 }
 
 proof fn liveness_proof(fb: FluentBitView)
     ensures
-        cluster_spec().entails(liveness(fb)),
+        cluster_spec().entails(liveness::<FluentBitMaker>(fb)),
 {
     assumption_and_invariants_of_all_phases_is_stable(fb);
     lemma_true_leads_to_always_current_state_matches(fb);
@@ -64,12 +63,12 @@ proof fn liveness_proof(fb: FluentBitView)
     spec_before_phase_n_entails_true_leads_to_current_state_matches(1, fb);
 
     let assumption = always(lift_state(desired_state_is(fb)));
-    unpack_conditions_from_spec(invariants(fb), assumption, true_pred(), always(lift_state(current_state_matches(fb))));
+    unpack_conditions_from_spec(invariants(fb), assumption, true_pred(), always(lift_state(current_state_matches::<FluentBitMaker>(fb))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
     valid_implies_trans(
         cluster_spec().and(derived_invariants_since_beginning(fb)), invariants(fb),
-        always(lift_state(desired_state_is(fb))).leads_to(always(lift_state(current_state_matches(fb))))
+        always(lift_state(desired_state_is(fb))).leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))
     );
     sm_spec_entails_all_invariants(fb);
     simplify_predicate(cluster_spec(), derived_invariants_since_beginning(fb));
@@ -79,38 +78,38 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     requires
         1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, fb))),
-        spec_before_phase_n(i + 1, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches(fb)))))
+        spec_before_phase_n(i + 1, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb)))))
     ensures
-        spec_before_phase_n(i, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches(fb))))),
+        spec_before_phase_n(i, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, fb), spec_before_phase_n(i, fb).and(invariants_since_phase_n(i, fb)));
     spec_of_previous_phases_entails_eventually_new_invariants(i, fb);
-    unpack_conditions_from_spec(spec_before_phase_n(i, fb), invariants_since_phase_n(i, fb), true_pred(), always(lift_state(current_state_matches(fb))));
+    unpack_conditions_from_spec(spec_before_phase_n(i, fb), invariants_since_phase_n(i, fb), true_pred(), always(lift_state(current_state_matches::<FluentBitMaker>(fb))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, fb)), invariants_since_phase_n(i, fb));
-    leads_to_trans_temp(spec_before_phase_n(i, fb), true_pred(), invariants_since_phase_n(i, fb), always(lift_state(current_state_matches(fb))));
+    leads_to_trans_temp(spec_before_phase_n(i, fb), true_pred(), invariants_since_phase_n(i, fb), always(lift_state(current_state_matches::<FluentBitMaker>(fb))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
     ensures
         assumption_and_invariants_of_all_phases(fb)
         .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches(fb))))
+            true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(fb);
     lemma_true_leads_to_always_state_matches_for_all_resources(fb);
     let a_to_p = |res: SubResource| lift_state(sub_resource_state_matches(res, fb));
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
-    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches(fb)).satisfied_by(ex) by {
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches::<FluentBitMaker>(fb)).satisfied_by(ex) by {
         let s = ex.head();
-        assert forall |res: SubResource| #[trigger] resource_state_matches(res, fb, s.resources()) by {
+        assert forall |res: SubResource| #[trigger] resource_state_matches::<FluentBitMaker>(res, fb, s.resources()) by {
             tla_forall_apply(a_to_p, res);
             assert(a_to_p(res).satisfied_by(ex));
             assert(sub_resource_state_matches(res, fb)(s));
         }
     }
-    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, fb))), lift_state(current_state_matches(fb)));
+    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, fb))), lift_state(current_state_matches::<FluentBitMaker>(fb)));
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fb: FluentBitView)

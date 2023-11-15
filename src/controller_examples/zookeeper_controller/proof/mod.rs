@@ -2,7 +2,5 @@
 // SPDX-License-Identifier: MIT
 pub mod helper_invariants;
 pub mod liveness;
-pub mod liveness_theorem;
 pub mod predicate;
 pub mod resource;
-// pub mod safety;

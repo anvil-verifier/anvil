@@ -14,12 +14,11 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use crate::zookeeper_controller::{
-    common::*,
+    model::resource::make_stateful_set,
     proof::{
-        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable,
-        liveness_theorem::desired_state_is, predicate::*, resource::*,
+        helper_invariants::stateful_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
     },
-    spec::{resource::make_stateful_set, types::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use vstd::{multiset::*, prelude::*, string::*};
 
@@ -138,11 +137,15 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
 {
     let key = zookeeper.object_ref();
     let inv = cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper);
+    let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
+    let cm_well_formed = |s: ZKCluster| {
+        s.resources().contains_key(cm_key) ==> ZKCluster::etcd_object_is_well_formed(cm_key)(s)
+    };
     let next = |s: ZKCluster, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& ZKCluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& cm_well_formed(s_prime)
         &&& no_delete_resource_request_msg_in_flight(SubResource::ConfigMap, zookeeper)(s)
         &&& no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ConfigMap, zookeeper)(s)
         &&& object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper)(s)

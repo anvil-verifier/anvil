@@ -3,13 +3,13 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::{
-    common::*,
+    model::reconciler::*,
     proof::{
         helper_invariants::{predicate::*, proof::*},
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, types::*},
+    trusted::{spec_types::*, step::*},
 };
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, owner_reference::*,

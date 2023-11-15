@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::exec::resource::*;
-use crate::fluent_controller::fluentbit::exec::types::*;
-use crate::fluent_controller::fluentbit::spec::reconciler as fb_spec;
-use crate::fluent_controller::fluentbit::spec::resource as spec_resource;
-use crate::fluent_controller::fluentbit::spec::types as spec_types;
+use crate::fluent_controller::fluentbit::model::reconciler as model_reconciler;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
+use crate::fluent_controller::fluentbit::trusted::{exec_types::*, spec_types, step::*};
 use crate::kubernetes_api_objects::prelude::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
@@ -46,7 +44,7 @@ impl Default for FluentBitReconciler {
 }
 
 pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
-    ensures state@ == fb_spec::reconcile_init_state(),
+    ensures state@ == model_reconciler::reconcile_init_state(),
 {
     FluentBitReconcileState {
         reconcile_step: FluentBitReconcileStep::Init,
@@ -54,7 +52,7 @@ pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
 }
 
 pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
-    ensures res == fb_spec::reconcile_done(state@),
+    ensures res == model_reconciler::reconcile_done(state@),
 {
     match state.reconcile_step {
         FluentBitReconcileStep::Done => true,
@@ -63,7 +61,7 @@ pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
 }
 
 pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
-    ensures res == fb_spec::reconcile_error(state@),
+    ensures res == model_reconciler::reconcile_error(state@),
 {
     match state.reconcile_step {
         FluentBitReconcileStep::Error => true,
@@ -73,7 +71,7 @@ pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
 
 pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (res: (FluentBitReconcileState, Option<Request<EmptyType>>))
     requires fb@.well_formed(),
-    ensures (res.0@, opt_request_to_view(&res.1)) == fb_spec::reconcile_core(fb@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(fb@, opt_response_to_view(&resp_o), state@),
         // resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
@@ -116,11 +114,11 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
         },
         FluentBitReconcileStep::AfterKRequestStep(_, resource) => {
             match resource {
-                SubResource::ServiceAccount => reconcile_helper::<spec_resource::ServiceAccountBuilder, ServiceAccountBuilder>(fb, resp_o, state),
-                SubResource::Role => reconcile_helper::<spec_resource::RoleBuilder, RoleBuilder>(fb, resp_o, state),
-                SubResource::RoleBinding => reconcile_helper::<spec_resource::RoleBindingBuilder, RoleBindingBuilder>(fb, resp_o, state),
-                SubResource::Service => reconcile_helper::<spec_resource::ServiceBuilder, ServiceBuilder>(fb, resp_o, state),
-                SubResource::DaemonSet => reconcile_helper::<spec_resource::DaemonSetBuilder, DaemonSetBuilder>(fb, resp_o, state),
+                SubResource::ServiceAccount => reconcile_helper::<model_resource::ServiceAccountBuilder, ServiceAccountBuilder>(fb, resp_o, state),
+                SubResource::Role => reconcile_helper::<model_resource::RoleBuilder, RoleBuilder>(fb, resp_o, state),
+                SubResource::RoleBinding => reconcile_helper::<model_resource::RoleBindingBuilder, RoleBindingBuilder>(fb, resp_o, state),
+                SubResource::Service => reconcile_helper::<model_resource::ServiceBuilder, ServiceBuilder>(fb, resp_o, state),
+                SubResource::DaemonSet => reconcile_helper::<model_resource::DaemonSetBuilder, DaemonSetBuilder>(fb, resp_o, state),
             }
         },
         _ => {
@@ -145,7 +143,7 @@ pub fn reconcile_helper<
         Builder::requirements(fb@),
         state.reconcile_step.is_AfterKRequestStep(),
     ensures
-        (res.0@, opt_request_to_view(&res.1)) == fb_spec::reconcile_helper::<SpecBuilder>(fb@, opt_response_to_view(&resp_o), state@),
+        (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_helper::<SpecBuilder>(fb@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();
     match step {

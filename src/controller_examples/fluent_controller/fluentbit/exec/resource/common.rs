@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit::common::*;
-use crate::fluent_controller::fluentbit::exec::types::*;
-use crate::fluent_controller::fluentbit::spec::resource as spec_resource;
+use crate::fluent_controller::fluentbit::model::resource as model_resource;
+use crate::fluent_controller::fluentbit::trusted::{exec_types::*, step::*};
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
@@ -23,7 +22,7 @@ pub fn make_base_labels(fb: &FluentBit) -> (labels: StringMap)
     requires
         fb@.well_formed(),
     ensures
-        labels@ == spec_resource::make_base_labels(fb@),
+        labels@ == model_resource::make_base_labels(fb@),
 {
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), fb.metadata().name().unwrap());
@@ -34,7 +33,7 @@ pub fn make_labels(fb: &FluentBit) -> (labels: StringMap)
     requires
         fb@.well_formed(),
     ensures
-        labels@ == spec_resource::make_labels(fb@),
+        labels@ == model_resource::make_labels(fb@),
 {
     let mut labels = fb.spec().labels();
     labels.extend(make_base_labels(fb));
@@ -45,14 +44,14 @@ pub fn make_owner_references(fb: &FluentBit) -> (owner_references: Vec<OwnerRefe
     requires
         fb@.well_formed(),
     ensures
-        owner_references@.map_values(|or: OwnerReference| or@) ==  spec_resource::make_owner_references(fb@),
+        owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(fb@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(fb.controller_owner_ref());
     proof {
         assert_seqs_equal!(
             owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            spec_resource::make_owner_references(fb@)
+            model_resource::make_owner_references(fb@)
         );
     }
     owner_references

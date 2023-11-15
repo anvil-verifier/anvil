@@ -15,13 +15,13 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
-    common::*,
+    model::reconciler::*,
     proof::{
         helper_invariants::{predicate::*, proof::*},
         predicate::*,
         resource::*,
     },
-    spec::{reconciler::*, types::*},
+    trusted::{spec_types::*, step::*},
 };
 use vstd::prelude::*;
 

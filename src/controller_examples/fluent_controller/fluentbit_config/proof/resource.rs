@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit_config::common::*;
-use crate::fluent_controller::fluentbit_config::spec::resource::*;
-use crate::fluent_controller::fluentbit_config::spec::types::{
-    FluentBitConfigReconcileState, FluentBitConfigView,
+use crate::fluent_controller::fluentbit_config::model::resource::*;
+use crate::fluent_controller::fluentbit_config::trusted::{
+    spec_types::{FluentBitConfigReconcileState, FluentBitConfigView},
+    step::*,
 };
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
