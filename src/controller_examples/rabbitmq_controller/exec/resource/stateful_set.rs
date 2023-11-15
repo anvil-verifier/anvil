@@ -505,12 +505,6 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    volume_mount.set_mount_path(new_strlit("/etc/pod-info/").to_string());
-                    volume_mount
-                });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
                     volume_mount.set_mount_path(new_strlit("/tmp/default_user.conf").to_string());
                     volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
                     volume_mount

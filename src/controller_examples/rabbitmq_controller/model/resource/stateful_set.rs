@@ -283,9 +283,6 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         .set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/")@),
                     VolumeMountView::default()
                         .set_name(new_strlit("rabbitmq-confd")@)
-                        .set_mount_path(new_strlit("/etc/pod-info/")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("rabbitmq-confd")@)
                         .set_mount_path(new_strlit("/tmp/default_user.conf")@)
                         .set_sub_path(new_strlit("default_user.conf")@),
                 ])
