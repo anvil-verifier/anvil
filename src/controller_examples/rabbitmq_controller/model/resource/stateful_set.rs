@@ -296,32 +296,67 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 name: new_strlit("rabbitmq")@,
                 image: Some(rabbitmq.spec.image),
                 env: Some(make_env_vars(rabbitmq)),
-                volume_mounts: Some(seq![
-                    VolumeMountView::default()
-                        .set_name(new_strlit("rabbitmq-erlang-cookie")@)
-                        .set_mount_path(new_strlit("/var/lib/rabbitmq/")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("persistence")@)
-                        .set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("rabbitmq-plugins")@)
-                        .set_mount_path(new_strlit("/operator")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("rabbitmq-confd")@)
-                        .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf")@)
-                        .set_sub_path(new_strlit("operatorDefaults.conf")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("rabbitmq-confd")@)
-                        .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf")@)
-                        .set_sub_path(new_strlit("userDefinedConfiguration.conf")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("pod-info")@)
-                        .set_mount_path(new_strlit("/etc/pod-info/")@),
-                    VolumeMountView::default()
-                        .set_name(new_strlit("rabbitmq-confd")@)
-                        .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf")@)
-                        .set_sub_path(new_strlit("default_user.conf")@),
-                ]),
+                volume_mounts: Some({
+                    let volume_mounts = seq![
+                        VolumeMountView::default()
+                            .set_name(new_strlit("rabbitmq-erlang-cookie")@)
+                            .set_mount_path(new_strlit("/var/lib/rabbitmq/")@),
+                        VolumeMountView::default()
+                            .set_name(new_strlit("persistence")@)
+                            .set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/")@),
+                        VolumeMountView::default()
+                            .set_name(new_strlit("rabbitmq-plugins")@)
+                            .set_mount_path(new_strlit("/operator")@),
+                        VolumeMountView::default()
+                            .set_name(new_strlit("rabbitmq-confd")@)
+                            .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf")@)
+                            .set_sub_path(new_strlit("operatorDefaults.conf")@),
+                        VolumeMountView::default()
+                            .set_name(new_strlit("rabbitmq-confd")@)
+                            .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf")@)
+                            .set_sub_path(new_strlit("userDefinedConfiguration.conf")@),
+                        VolumeMountView::default()
+                            .set_name(new_strlit("pod-info")@)
+                            .set_mount_path(new_strlit("/etc/pod-info/")@),
+                        VolumeMountView::default()
+                            .set_name(new_strlit("rabbitmq-confd")@)
+                            .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf")@)
+                            .set_sub_path(new_strlit("default_user.conf")@),
+                    ];
+                    if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
+                    && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@
+                    && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
+                    && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
+                        volume_mounts + seq![
+                            VolumeMountView::default()
+                                .set_name(new_strlit("server-conf")@)
+                                .set_mount_path(new_strlit("/etc/rabbitmq/rabbitmq-env.conf")@)
+                                .set_sub_path(new_strlit("rabbitmq-env.conf")@),
+                            VolumeMountView::default()
+                                .set_name(new_strlit("server-conf")@)
+                                .set_mount_path(new_strlit("/etc/rabbitmq/advanced.config")@)
+                                .set_sub_path(new_strlit("advanced.config")@),
+                        ]
+                    } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
+                    && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@ {
+                        volume_mounts.push(
+                            VolumeMountView::default()
+                                .set_name(new_strlit("server-conf")@)
+                                .set_mount_path(new_strlit("/etc/rabbitmq/advanced.config")@)
+                                .set_sub_path(new_strlit("advanced.config")@),
+                        )
+                    } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
+                    && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
+                        volume_mounts.push(
+                            VolumeMountView::default()
+                                .set_name(new_strlit("server-conf")@)
+                                .set_mount_path(new_strlit("/etc/rabbitmq/rabbitmq-env.conf")@)
+                                .set_sub_path(new_strlit("rabbitmq-env.conf")@),
+                        )
+                    } else {
+                        volume_mounts
+                    }
+                }),
                 ports: Some(seq![
                     ContainerPortView::default().set_name(new_strlit("epmd")@).set_container_port(4369),
                     ContainerPortView::default().set_name(new_strlit("amqp")@).set_container_port(5672),

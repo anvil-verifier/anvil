@@ -589,6 +589,29 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
                     volume_mount
                 });
+
+                if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some()
+                && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("server-conf").to_string());
+                        volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/rabbitmq-env.conf").to_string());
+                        volume_mount.set_sub_path(new_strlit("rabbitmq-env.conf").to_string());
+                        volume_mount
+                    });
+                }
+
+                if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some()
+                && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("server-conf").to_string());
+                        volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/advanced.config").to_string());
+                        volume_mount.set_sub_path(new_strlit("advanced.config").to_string());
+                        volume_mount
+                    });
+                }
+
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
