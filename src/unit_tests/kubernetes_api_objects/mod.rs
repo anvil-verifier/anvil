@@ -14,7 +14,7 @@ pub mod daemon_set_spec;
 pub mod daemon_set_status;
 pub mod downwardapi_volume_file;
 pub mod downwardapi_volume_source;
-pub mod dynamic;
+pub mod dynamic_object;
 pub mod empty_dir_volume_source;
 pub mod env_var;
 pub mod env_var_source;
