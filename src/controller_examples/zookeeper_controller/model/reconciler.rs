@@ -13,7 +13,7 @@ use crate::vstd_ext::string_map::*;
 use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::model::resource::*;
 use crate::zookeeper_controller::trusted::{
-    maker::*, spec_types::*, step::*, zookeeper_api_model::*,
+    maker::*, spec_types::*, step::*, zookeeper_api_spec::*,
 };
 use vstd::prelude::*;
 use vstd::string::*;

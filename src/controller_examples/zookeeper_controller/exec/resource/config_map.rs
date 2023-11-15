@@ -12,7 +12,7 @@ use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use crate::zookeeper_controller::exec::resource::{common::*, stateful_set::StatefulSetBuilder};
 use crate::zookeeper_controller::model::resource as model_resource;
 use crate::zookeeper_controller::trusted::{
-    exec_types::*, spec_types::ZookeeperClusterView, step::*,
+    config_map, exec_types::*, spec_types::ZookeeperClusterView, step::*,
 };
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -138,7 +138,7 @@ pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
 
 pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
     ensures
-        s@ == model_resource::make_zk_config(zk@),
+        s@ == config_map::make_zk_config(zk@),
 {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\

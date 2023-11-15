@@ -15,7 +15,7 @@ use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::model::{reconciler::*, resource::*};
 use crate::zookeeper_controller::proof::resource::*;
 use crate::zookeeper_controller::trusted::{
-    liveness_theorem::*, spec_types::*, step::*, zookeeper_api_model::*,
+    liveness_theorem::*, spec_types::*, step::*, zookeeper_api_spec::*,
 };
 use vstd::prelude::*;
 

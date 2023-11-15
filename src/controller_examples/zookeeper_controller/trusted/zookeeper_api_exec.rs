@@ -3,7 +3,7 @@
 use crate::external_api::exec::*;
 use crate::zookeeper_controller::trusted::{
     step::*,
-    zookeeper_api_model::{
+    zookeeper_api_spec::{
         ZKAPICreateResultView, ZKAPIExistsResultView, ZKAPIInputView, ZKAPIOutputView,
         ZKAPISetDataResultView,
     },

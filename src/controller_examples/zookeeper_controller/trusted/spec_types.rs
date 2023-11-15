@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::trusted::{step::*, zookeeper_api_model::*};
+use crate::zookeeper_controller::trusted::{step::*, zookeeper_api_spec::*};
 use vstd::prelude::*;
 
 verus! {

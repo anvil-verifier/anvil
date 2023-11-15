@@ -21,7 +21,7 @@ use crate::zookeeper_controller::{
         helper_invariants::the_object_in_reconcile_satisfies_state_validation, predicate::*,
         resource::*,
     },
-    trusted::{spec_types::*, step::*, zookeeper_api_model::*},
+    trusted::{spec_types::*, step::*, zookeeper_api_spec::*},
 };
 use vstd::{multiset::*, prelude::*, string::*};
 

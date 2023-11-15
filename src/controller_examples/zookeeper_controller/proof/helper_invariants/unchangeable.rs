@@ -21,7 +21,9 @@ use crate::zookeeper_controller::{
         predicate::*,
         resource::*,
     },
-    trusted::{spec_types::*, step::*, zookeeper_api_model::validate_config_map_data},
+    trusted::{
+        config_map::*, spec_types::*, step::*, zookeeper_api_spec::validate_config_map_data,
+    },
 };
 use vstd::{multiset::*, prelude::*, seq_lib::*, string::*};
 

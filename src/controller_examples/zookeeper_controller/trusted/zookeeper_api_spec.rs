@@ -5,8 +5,9 @@ use crate::kubernetes_api_objects::{
     common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::model::resource::make_zk_config;
-use crate::zookeeper_controller::trusted::{spec_types::ZookeeperClusterView, step::*};
+use crate::zookeeper_controller::trusted::{
+    config_map::*, spec_types::ZookeeperClusterView, step::*,
+};
 use vstd::{prelude::*, string::*};
 
 verus! {

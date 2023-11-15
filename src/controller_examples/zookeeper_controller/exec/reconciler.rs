@@ -14,7 +14,7 @@ use crate::zookeeper_controller::exec::resource::*;
 use crate::zookeeper_controller::model::reconciler as model_reconciler;
 use crate::zookeeper_controller::model::resource as model_resource;
 use crate::zookeeper_controller::trusted::{
-    exec_types::*, spec_types, step::*, zookeeper_api_exec::*, zookeeper_api_model::*,
+    exec_types::*, spec_types, step::*, zookeeper_api_exec::*, zookeeper_api_spec::*,
 };
 use vstd::prelude::*;
 use vstd::seq_lib::*;

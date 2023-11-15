@@ -10,8 +10,10 @@ use crate::kubernetes_api_objects::{
 use crate::reconciler::spec::resource_builder::*;
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
-use crate::zookeeper_controller::trusted::{spec_types::*, step::*, zookeeper_api_model::validate_config_map_object};
 use crate::zookeeper_controller::model::resource::*;
+use crate::zookeeper_controller::trusted::{
+    spec_types::*, step::*, zookeeper_api_spec::validate_config_map_object,
+};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

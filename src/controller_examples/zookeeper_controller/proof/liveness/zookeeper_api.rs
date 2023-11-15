@@ -17,7 +17,7 @@ use crate::vstd_ext::{map_lib::*, string_view::*};
 use crate::zookeeper_controller::{
     model::{reconciler::*, resource::*},
     proof::{helper_invariants, predicate::*, resource::*},
-    trusted::{spec_types::*, step::*, zookeeper_api_model::*},
+    trusted::{spec_types::*, step::*, zookeeper_api_spec::*},
 };
 use vstd::{prelude::*, string::*};
 
