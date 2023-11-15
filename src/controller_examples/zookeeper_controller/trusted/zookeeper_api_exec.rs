@@ -96,8 +96,7 @@ impl View for ZKAPIOutput {
 
 impl ZKAPIOutput {
     pub fn is_exists_response(&self) -> (res: bool)
-        ensures
-            res == self.is_ExistsResponse(),
+        ensures res == self.is_ExistsResponse(),
     {
         match self {
             ZKAPIOutput::ExistsResponse(_) => true,
@@ -106,10 +105,8 @@ impl ZKAPIOutput {
     }
 
     pub fn unwrap_exists_response(self) -> (result: ZKAPIExistsResult)
-        requires
-            self.is_ExistsResponse(),
-        ensures
-            result == self.get_ExistsResponse_0(),
+        requires self.is_ExistsResponse(),
+        ensures result == self.get_ExistsResponse_0(),
     {
         match self {
             ZKAPIOutput::ExistsResponse(result) => result,
@@ -118,8 +115,7 @@ impl ZKAPIOutput {
     }
 
     pub fn is_create_response(&self) -> (res: bool)
-        ensures
-            res == self.is_CreateResponse(),
+        ensures res == self.is_CreateResponse(),
     {
         match self {
             ZKAPIOutput::CreateResponse(_) => true,
@@ -128,10 +124,8 @@ impl ZKAPIOutput {
     }
 
     pub fn unwrap_create_response(self) -> (result: ZKAPICreateResult)
-        requires
-            self.is_CreateResponse(),
-        ensures
-            result == self.get_CreateResponse_0(),
+        requires self.is_CreateResponse(),
+        ensures result == self.get_CreateResponse_0(),
     {
         match self {
             ZKAPIOutput::CreateResponse(result) => result,
@@ -140,8 +134,7 @@ impl ZKAPIOutput {
     }
 
     pub fn is_set_data_response(&self) -> (res: bool)
-        ensures
-            res == self.is_SetDataResponse(),
+        ensures res == self.is_SetDataResponse(),
     {
         match self {
             ZKAPIOutput::SetDataResponse(_) => true,
@@ -150,10 +143,8 @@ impl ZKAPIOutput {
     }
 
     pub fn unwrap_set_data_response(self) -> (result: ZKAPISetDataResult)
-        requires
-            self.is_SetDataResponse(),
-        ensures
-            result == self.get_SetDataResponse_0(),
+        requires self.is_SetDataResponse(),
+        ensures result == self.get_SetDataResponse_0(),
     {
         match self {
             ZKAPIOutput::SetDataResponse(result) => result,

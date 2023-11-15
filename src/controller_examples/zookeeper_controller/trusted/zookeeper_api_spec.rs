@@ -64,9 +64,7 @@ pub struct ZKState {
 
 impl ZKState {
     pub open spec fn init() -> ZKState {
-        ZKState {
-            data: Map::empty(),
-        }
+        ZKState { data: Map::empty() }
     }
 }
 
@@ -127,9 +125,7 @@ impl ExternalAPI for ZKAPI {
 pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
     let zk_config = data[new_strlit("zoo.cfg")@];
     &&& data.contains_key(new_strlit("zoo.cfg")@)
-    &&& exists |zk: ZookeeperClusterView|
-        zk.state_validation()
-        && (#[trigger] make_zk_config(zk)) == zk_config
+    &&& exists |zk: ZookeeperClusterView| zk.state_validation() && (#[trigger] make_zk_config(zk)) == zk_config
 }
 
 pub open spec fn validate_config_map_object(object: DynamicObjectView) -> bool {
@@ -181,9 +177,7 @@ pub open spec fn validate(name: StringView, namespace: StringView, port: int, pa
 // It checks the existence of the node by querying the map.
 // If the node exists, it returns its stat (i.e., version number), otherwise none.
 // Note that it uses the uid to avoid querying the data belonging to the old stateful set object.
-pub open spec fn handle_exists(
-    name: StringView, namespace: StringView, port: int, path: Seq<StringView>, resources: StoredState, state: ZKState
-) -> (ZKState, ZKAPIExistsResultView) {
+pub open spec fn handle_exists(name: StringView, namespace: StringView, port: int, path: Seq<StringView>, resources: StoredState, state: ZKState) -> (ZKState, ZKAPIExistsResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, port, path, resources) {
         (state, ZKAPIExistsResultView{res: Err(ZKAPIError::ZKNodeExistsFailed)})
@@ -200,9 +194,7 @@ pub open spec fn handle_exists(
 
 // handle_create models the behavior of the zookeeper server handling the create request.
 // The creation succeeds only when (1) the node does not exist yet and (2) the parent node exists.
-pub open spec fn handle_create(
-    name: StringView, namespace: StringView, port: int, path: Seq<StringView>, data: ZKNodeValue, resources: StoredState, state: ZKState
-) -> (ZKState, ZKAPICreateResultView) {
+pub open spec fn handle_create(name: StringView, namespace: StringView, port: int, path: Seq<StringView>, data: ZKNodeValue, resources: StoredState, state: ZKState) -> (ZKState, ZKAPICreateResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, port, path, resources) {
         (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateFailed)})
@@ -225,9 +217,7 @@ pub open spec fn handle_create(
 
 // handle_set_data models the behavior of the zookeeper server handling the set data request.
 // To set the data, the node needs to exist and the provided version number must match the current version of the node.
-pub open spec fn handle_set_data(
-    name: StringView, namespace: StringView, port: int, path: Seq<StringView>, data: ZKNodeValue, version: ZKNodeVersion, resources: StoredState, state: ZKState
-) -> (ZKState, ZKAPISetDataResultView) {
+pub open spec fn handle_set_data(name: StringView, namespace: StringView, port: int, path: Seq<StringView>, data: ZKNodeValue, version: ZKNodeVersion, resources: StoredState, state: ZKState) -> (ZKState, ZKAPISetDataResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, port, path, resources) {
         (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
