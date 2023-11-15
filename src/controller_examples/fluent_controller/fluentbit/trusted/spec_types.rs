@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
-use crate::fluent_controller::fluentbit::common::*;
+use crate::fluent_controller::fluentbit::trusted::step::*;
 use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
     marshal::*, object_meta::*, owner_reference::*, prelude::*, resource::*,

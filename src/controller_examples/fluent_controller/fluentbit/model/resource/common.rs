@@ -1,8 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::fluent_controller::fluentbit::common::*;
-use crate::fluent_controller::fluentbit::spec::types::*;
+use crate::fluent_controller::fluentbit::trusted::{spec_types::*, step::*};
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,

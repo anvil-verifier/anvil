@@ -3,11 +3,11 @@
 #![allow(unused_imports)]
 use super::common::*;
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::exec::resource::daemon_set::DaemonSetBuilder;
-use crate::fluent_controller::fluentbit::exec::types::*;
-use crate::fluent_controller::fluentbit::spec::resource as spec_resource;
-use crate::fluent_controller::fluentbit::spec::types::FluentBitView;
+use crate::fluent_controller::fluentbit::model::resource as spec_resource;
+use crate::fluent_controller::fluentbit::trusted::{
+    exec_types::*, spec_types::FluentBitView, step::*,
+};
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
@@ -48,7 +48,7 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, spec_resource::ServiceB
             if found_service.spec().is_some() {
                 return Ok(update_service(fb, found_service).marshal());
             }
-        } 
+        }
         return Err(());
     }
 

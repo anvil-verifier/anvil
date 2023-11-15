@@ -18,9 +18,9 @@ use builtin_macros::*;
 
 use crate::external_api::exec::*;
 use crate::fluent_controller::{
-    fluentbit::exec::{
-        reconciler::FluentBitReconciler,
-        types::{FluentBit, FluentBitReconcileState},
+    fluentbit::{
+        exec::reconciler::FluentBitReconciler,
+        trusted::exec_types::{FluentBit, FluentBitReconcileState},
     },
     fluentbit_config::exec::{
         reconciler::FluentBitConfigReconciler,

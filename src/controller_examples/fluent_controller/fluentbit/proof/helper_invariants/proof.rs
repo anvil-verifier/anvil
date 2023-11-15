@@ -3,12 +3,11 @@
 #![allow(unused_imports)]
 use super::predicate::*;
 use crate::fluent_controller::fluentbit::{
-    common::*,
+    model::resource::make_daemon_set,
     proof::{
-        helper_invariants::daemon_set_in_etcd_satisfies_unchangeable,
-        liveness_theorem::desired_state_is, predicate::*, resource::*,
+        helper_invariants::daemon_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
     },
-    spec::{resource::make_daemon_set, types::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, error::*, owner_reference::*, prelude::*, resource::*,
@@ -1047,12 +1046,12 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
     let ds_key = get_request(SubResource::DaemonSet, fb).key;
     let make_fn = || make_daemon_set(fb);
     implies_preserved_by_always_temp(
-        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)), 
+        lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)),
         lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn))
     );
     valid_implies_trans(
-        spec, 
-        always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb))), 
+        spec,
+        always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb))),
         always(lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn)))
     );
     let inv_for_update = |s: FBCluster| {

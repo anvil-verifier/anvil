@@ -3,13 +3,13 @@
 #![allow(unused_imports)]
 use super::common::*;
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit::common::*;
-use crate::fluent_controller::fluentbit::exec::resource::service::ServiceBuilder;
 use crate::fluent_controller::fluentbit::exec::resource::role::make_role_name;
+use crate::fluent_controller::fluentbit::exec::resource::service::ServiceBuilder;
 use crate::fluent_controller::fluentbit::exec::resource::service_account::make_service_account_name;
-use crate::fluent_controller::fluentbit::exec::types::*;
-use crate::fluent_controller::fluentbit::spec::resource as spec_resource;
-use crate::fluent_controller::fluentbit::spec::types::FluentBitView;
+use crate::fluent_controller::fluentbit::model::resource as spec_resource;
+use crate::fluent_controller::fluentbit::trusted::{
+    exec_types::*, spec_types::FluentBitView, step::*,
+};
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,

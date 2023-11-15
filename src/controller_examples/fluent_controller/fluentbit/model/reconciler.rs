@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::fluent_controller::fluentbit::common::*;
-use crate::fluent_controller::fluentbit::spec::resource::*;
-use crate::fluent_controller::fluentbit::spec::types::*;
+use crate::fluent_controller::fluentbit::model::resource::*;
+use crate::fluent_controller::fluentbit::trusted::{
+    liveness_theorem::desired_secret_key, maker::*, spec_types::*, step::*,
+};
 use crate::kubernetes_api_objects::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use vstd::{prelude::*, string::*};
@@ -116,31 +117,11 @@ pub open spec fn reconcile_core(
     }
 }
 
-pub open spec fn desired_secret_key(fb: FluentBitView) -> ObjectRef
-    recommends
-        fb.well_formed(),
-{
-    ObjectRef {
-        kind: SecretView::kind(),
-        namespace: fb.metadata.namespace.get_Some_0(),
-        name: fb.spec.fluentbit_config_name,
-    }
-}
-
 pub open spec fn get_secret_req(fb: FluentBitView) -> GetRequest
     recommends
         fb.well_formed(),
 {
     GetRequest{ key: desired_secret_key(fb) }
-}
-
-pub open spec fn reconcile_error_result(state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<APIRequest>) {
-    let state_prime = FluentBitReconcileState {
-        reconcile_step: FluentBitReconcileStep::Error,
-        ..state
-    };
-    let req_o = None;
-    (state_prime, req_o)
 }
 
 pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, FluentBitReconcileState>>(
@@ -273,6 +254,50 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
             };
             (state_prime, None)
         },
+    }
+}
+
+pub struct FluentBitMaker {}
+
+impl Maker for FluentBitMaker {
+    open spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef {
+        make_service_account_key(fb)
+    }
+
+    open spec fn make_role_key(fb: FluentBitView) -> ObjectRef {
+        make_role_key(fb)
+    }
+
+    open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef {
+        make_role_binding_key(fb)
+    }
+
+    open spec fn make_service_key(fb: FluentBitView) -> ObjectRef {
+        make_service_key(fb)
+    }
+
+    open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef {
+        make_daemon_set_key(fb)
+    }
+
+    open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView {
+        make_service_account(fb)
+    }
+
+    open spec fn make_role(fb: FluentBitView) -> RoleView {
+        make_role(fb)
+    }
+
+    open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView {
+        make_role_binding(fb)
+    }
+
+    open spec fn make_service(fb: FluentBitView) -> ServiceView {
+        make_service(fb)
+    }
+
+    open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
+        make_daemon_set(fb)
     }
 }
 
