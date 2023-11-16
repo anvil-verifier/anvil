@@ -4,10 +4,11 @@ use crate::fluent_controller::fluentbit::trusted::{
     spec_types, spec_types::FluentBitView, step::*,
 };
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::{
-    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
+use crate::kubernetes_api_objects::exec::{
+    affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*, owner_reference::*,
+    prelude::*, resource::*, resource_requirements::*, toleration::*,
 };
+use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
 use deps_hack::kube::Resource;
 use vstd::prelude::*;

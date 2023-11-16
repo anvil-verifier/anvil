@@ -6,7 +6,7 @@ use crate::fluent_controller::fluentbit::model::resource::{
     common::*, service_account::make_service_account_name,
 };
 use crate::fluent_controller::fluentbit::trusted::{spec_types::*, step::*};
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };

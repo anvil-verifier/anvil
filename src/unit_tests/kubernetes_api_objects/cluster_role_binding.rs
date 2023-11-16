@@ -1,10 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::api_resource::*;
-use crate::kubernetes_api_objects::cluster_role_binding::*;
-use crate::kubernetes_api_objects::object_meta::*;
-use crate::kubernetes_api_objects::resource::*;
-use crate::kubernetes_api_objects::role_binding::*;
+use crate::kubernetes_api_objects::exec::api_resource::*;
+use crate::kubernetes_api_objects::exec::cluster_role_binding::*;
+use crate::kubernetes_api_objects::exec::object_meta::*;
+use crate::kubernetes_api_objects::exec::resource::*;
+use crate::kubernetes_api_objects::exec::role_binding::*;
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;

@@ -1,10 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::daemon_set::*;
-use crate::kubernetes_api_objects::label_selector::*;
-use crate::kubernetes_api_objects::object_meta::*;
-use crate::kubernetes_api_objects::pod_template_spec::*;
-use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_api_objects::exec::daemon_set::*;
+use crate::kubernetes_api_objects::exec::label_selector::*;
+use crate::kubernetes_api_objects::exec::object_meta::*;
+use crate::kubernetes_api_objects::exec::pod_template_spec::*;
+use crate::kubernetes_api_objects::exec::resource::*;
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;

@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::affinity::*;
-use crate::kubernetes_api_objects::container::*;
-use crate::kubernetes_api_objects::object_meta::*;
-use crate::kubernetes_api_objects::pod::*;
-use crate::kubernetes_api_objects::resource::*;
-use crate::kubernetes_api_objects::toleration::*;
-use crate::kubernetes_api_objects::volume::*;
+use crate::kubernetes_api_objects::exec::affinity::*;
+use crate::kubernetes_api_objects::exec::container::*;
+use crate::kubernetes_api_objects::exec::object_meta::*;
+use crate::kubernetes_api_objects::exec::pod::*;
+use crate::kubernetes_api_objects::exec::resource::*;
+use crate::kubernetes_api_objects::exec::toleration::*;
+use crate::kubernetes_api_objects::exec::volume::*;
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;

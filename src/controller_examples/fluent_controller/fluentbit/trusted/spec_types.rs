@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit::trusted::step::*;
-use crate::kubernetes_api_objects::{
-    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
-    marshal::*, object_meta::*, owner_reference::*, prelude::*, resource::*,
-    resource_requirements::*, toleration::*,
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::spec::{
+    affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*,
+    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;

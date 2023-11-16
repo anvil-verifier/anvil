@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit_config::model::resource::*;
 use crate::fluent_controller::fluentbit_config::trusted::{maker::*, spec_types::*, step::*};
-use crate::kubernetes_api_objects::prelude::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use vstd::{prelude::*, string::*};
 

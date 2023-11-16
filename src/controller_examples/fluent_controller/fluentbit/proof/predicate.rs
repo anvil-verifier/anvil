@@ -5,7 +5,7 @@ use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit::model::{reconciler::*, resource::*};
 use crate::fluent_controller::fluentbit::proof::resource::*;
 use crate::fluent_controller::fluentbit::trusted::{liveness_theorem::*, spec_types::*, step::*};
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, prelude::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::proof::controller_runtime::*;

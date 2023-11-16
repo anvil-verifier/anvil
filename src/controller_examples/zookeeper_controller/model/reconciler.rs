@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{
-    container::*, error::*, label_selector::*, pod_template_spec::*, prelude::*,
+use crate::kubernetes_api_objects::spec::{
+    container::*, label_selector::*, pod_template_spec::*, prelude::*,
     resource_requirements::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;

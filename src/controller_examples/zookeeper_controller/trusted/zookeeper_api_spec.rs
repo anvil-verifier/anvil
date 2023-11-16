@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::vstd_ext::string_view::*;

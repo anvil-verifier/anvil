@@ -11,7 +11,7 @@ use crate::fluent_controller::fluentbit_config::{
     },
     trusted::{spec_types::*, step::*},
 };
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, owner_reference::*,
     resource::*,
 };

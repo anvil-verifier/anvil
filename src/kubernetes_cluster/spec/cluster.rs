@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
+use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     client::types::ClientState,
     controller::common::{ControllerState, OngoingReconcile},

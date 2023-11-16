@@ -1,10 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
-use crate::kubernetes_api_objects::{
-    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
-    marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
-    stateful_set::*, toleration::*,
+use crate::kubernetes_api_objects::error::*;
+use crate::kubernetes_api_objects::spec::{
+    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
+    owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::rabbitmq_controller::trusted::step::*;

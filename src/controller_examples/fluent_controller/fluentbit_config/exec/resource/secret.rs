@@ -7,8 +7,8 @@ use crate::fluent_controller::fluentbit_config::model::resource as model_resourc
 use crate::fluent_controller::fluentbit_config::trusted::{
     exec_types::*, spec_types::FluentBitConfigView, step::*,
 };
-use crate::kubernetes_api_objects::resource::ResourceWrapper;
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
+use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };

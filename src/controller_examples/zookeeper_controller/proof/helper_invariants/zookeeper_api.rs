@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::*, error::*, owner_reference::*, resource::*,
+use crate::kubernetes_api_objects::spec::{
+    api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{

@@ -7,8 +7,8 @@ use crate::fluent_controller::fluentbit_config::{
     proof::{predicate::*, resource::*},
     trusted::{liveness_theorem::desired_state_is, spec_types::*, step::*},
 };
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, error::*, owner_reference::*, prelude::*, resource::*,
+use crate::kubernetes_api_objects::spec::{
+    api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,

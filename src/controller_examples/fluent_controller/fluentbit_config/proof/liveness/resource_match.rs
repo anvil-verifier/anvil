@@ -7,7 +7,7 @@ use crate::fluent_controller::fluentbit_config::{
     proof::{helper_invariants, predicate::*, resource::*},
     trusted::{spec_types::*, step::*},
 };
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
