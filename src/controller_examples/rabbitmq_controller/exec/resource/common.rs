@@ -19,10 +19,8 @@ use vstd::string::*;
 verus! {
 
 pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-    ensures
-        labels@ == model_resource::make_labels(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures labels@ == model_resource::make_labels(rabbitmq@),
 {
     let mut labels = rabbitmq.spec().labels();
     labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
@@ -30,11 +28,8 @@ pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
 }
 
 pub fn make_owner_references(rabbitmq: &RabbitmqCluster) -> (owner_references: Vec<OwnerReference>)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(rabbitmq@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(rabbitmq.controller_owner_ref());
@@ -48,11 +43,8 @@ pub fn make_owner_references(rabbitmq: &RabbitmqCluster) -> (owner_references: V
 }
 
 pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) -> (secret: Secret)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        secret@ == model_resource::make_secret(rabbitmq@, name@, data@)
+    requires rabbitmq@.well_formed(),
+    ensures secret@ == model_resource::make_secret(rabbitmq@, name@, data@)
 {
     let mut secret = Secret::default();
     secret.set_metadata({
@@ -69,11 +61,8 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
 }
 
 pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        service@ == model_resource::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
+    requires rabbitmq@.well_formed(),
+    ensures service@ == model_resource::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
 {
     let mut service = Service::default();
     service.set_metadata({

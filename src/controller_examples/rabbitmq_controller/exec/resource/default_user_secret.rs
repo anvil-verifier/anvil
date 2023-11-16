@@ -26,8 +26,7 @@ pub struct DefaultUserSecretBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -81,11 +80,8 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::De
 }
 
 pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secret) -> (secret: Secret)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        secret@ == model_resource::update_default_user_secret(rabbitmq@, found_secret@),
+    requires rabbitmq@.well_formed(),
+    ensures secret@ == model_resource::update_default_user_secret(rabbitmq@, found_secret@),
 {
     let mut user_secret = found_secret.clone();
     let made_user_secret = make_default_user_secret(rabbitmq);
@@ -103,21 +99,15 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
 }
 
 pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_default_user_secret_name(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures name@ == model_resource::make_default_user_secret_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-default-user"))
 }
 
 pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: StringMap)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        data@ == model_resource::make_default_user_secret_data(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures data@ == model_resource::make_default_user_secret_data(rabbitmq@),
 {
     let mut data = StringMap::empty();
     data.insert(new_strlit("username").to_string(), new_strlit("user").to_string());
@@ -134,11 +124,8 @@ pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: Strin
 }
 
 pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        secret@ == model_resource::make_default_user_secret(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures secret@ == model_resource::make_default_user_secret(rabbitmq@),
 {
     make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), make_default_user_secret_data(rabbitmq))
 }

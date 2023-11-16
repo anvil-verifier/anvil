@@ -26,8 +26,7 @@ pub struct ServiceAccountBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -81,11 +80,8 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Se
 }
 
 pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account: ServiceAccount) -> (service_account: ServiceAccount)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        service_account@ == model_resource::update_service_account(rabbitmq@, found_service_account@),
+    requires rabbitmq@.well_formed(),
+    ensures service_account@ == model_resource::update_service_account(rabbitmq@, found_service_account@),
 {
     let mut service_account = found_service_account.clone();
     let made_service_account = make_service_account(rabbitmq);
@@ -101,21 +97,15 @@ pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account:
 }
 
 pub fn make_service_account_name(rabbitmq: &RabbitmqCluster) -> (name: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_service_account_name(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures name@ == model_resource::make_service_account_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
 
 pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: ServiceAccount)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        service_account@ == model_resource::make_service_account(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures service_account@ == model_resource::make_service_account(rabbitmq@),
 {
     let mut service_account = ServiceAccount::default();
     service_account.set_metadata({

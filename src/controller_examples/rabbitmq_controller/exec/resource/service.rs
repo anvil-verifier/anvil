@@ -26,8 +26,7 @@ pub struct ServiceBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServiceBuilder> for ServiceBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -84,11 +83,9 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Se
 
 pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Service) -> (service: Service)
     requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.well_formed(),
         found_main_service@.spec.is_Some(),
-    ensures
-        service@ == model_resource::update_main_service(rabbitmq@, found_main_service@),
+    ensures service@ == model_resource::update_main_service(rabbitmq@, found_main_service@),
 {
     let mut main_service = found_main_service.clone();
     let made_service = make_main_service(rabbitmq);
@@ -116,21 +113,15 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
 }
 
 pub fn make_main_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_main_service_name(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures name@ == model_resource::make_main_service_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-client"))
 }
 
 pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        service@ == model_resource::make_main_service(rabbitmq@)
+    requires rabbitmq@.well_formed(),
+    ensures service@ == model_resource::make_main_service(rabbitmq@)
 {
     let mut ports = Vec::new();
     // TODO: check whether the protocols are set to TCP

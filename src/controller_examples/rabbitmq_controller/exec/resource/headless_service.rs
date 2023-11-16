@@ -26,8 +26,7 @@ pub struct HeadlessServiceBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -84,11 +83,9 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::He
 
 pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_service: Service) -> (service: Service)
     requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.well_formed(),
         found_headless_service@.spec.is_Some(),
-    ensures
-        service@ == model_resource::update_headless_service(rabbitmq@, found_headless_service@),
+    ensures service@ == model_resource::update_headless_service(rabbitmq@, found_headless_service@),
 {
     let made_service = make_headless_service(rabbitmq);
 
@@ -115,7 +112,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
 
 pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires
-        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
         name@ == model_resource::make_headless_service_name(rabbitmq@),
@@ -124,11 +121,8 @@ pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
 }
 
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        service@ == model_resource::make_headless_service(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures service@ == model_resource::make_headless_service(rabbitmq@),
 {
     let mut ports = Vec::new();
     ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));

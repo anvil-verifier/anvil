@@ -25,8 +25,7 @@ pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::StatefulSetBuilder> for StatefulSetBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -93,7 +92,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
 
 pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: StatefulSet, config_map_rv: &String) -> (stateful_set: StatefulSet)
     requires
-        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
         found_stateful_set@.spec.is_Some(),
     ensures
@@ -135,7 +134,7 @@ pub fn sts_restart_annotation() -> (anno: String)
 
 pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires
-        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
         name@ == model_resource::make_stateful_set_name(rabbitmq@),
@@ -145,7 +144,7 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
 
 pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: StatefulSet)
     requires
-        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
         stateful_set@ == model_resource::make_stateful_set(rabbitmq@, config_map_rv@),
@@ -270,7 +269,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
 
 pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     requires
-        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
         pod_spec@ == model_resource::make_rabbitmq_pod_spec(rabbitmq@),
@@ -661,7 +660,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
 pub fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
     requires
-        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.well_formed(),
     ensures
         env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env_vars(rabbitmq@)
 {
