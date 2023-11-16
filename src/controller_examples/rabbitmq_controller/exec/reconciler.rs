@@ -118,8 +118,7 @@ pub fn reconcile_helper<
     rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState
 ) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
     requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.well_formed(),
         Builder::requirements(rabbitmq@),
         state.reconcile_step.is_AfterKRequestStep(),
     ensures

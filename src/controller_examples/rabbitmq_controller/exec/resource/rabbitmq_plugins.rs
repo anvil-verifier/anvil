@@ -26,8 +26,7 @@ pub struct PluginsConfigMapBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::PluginsConfigMapBuilder> for PluginsConfigMapBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -81,11 +80,8 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Pl
 }
 
 pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: ConfigMap) -> (config_map: ConfigMap)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        config_map@ == model_resource::update_plugins_config_map(rabbitmq@, found_config_map@),
+    requires rabbitmq@.well_formed(),
+    ensures config_map@ == model_resource::update_plugins_config_map(rabbitmq@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_plugins_config_map(rabbitmq);
@@ -102,21 +98,15 @@ pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: C
 }
 
 pub fn make_plugins_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_plugins_config_map_name(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures name@ == model_resource::make_plugins_config_map_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-plugins-conf"))
 }
 
 pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        config_map@ == model_resource::make_plugins_config_map(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures config_map@ == model_resource::make_plugins_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
     config_map.set_metadata({

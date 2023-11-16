@@ -26,8 +26,7 @@ pub struct ServerConfigMapBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -83,11 +82,8 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Se
 }
 
 pub fn update_server_config_map(rabbitmq: &RabbitmqCluster, found_config_map: ConfigMap) -> (config_map: ConfigMap)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        config_map@ == model_resource::update_server_config_map(rabbitmq@, found_config_map@),
+    requires rabbitmq@.well_formed(),
+    ensures config_map@ == model_resource::update_server_config_map(rabbitmq@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_server_cm = make_server_config_map(rabbitmq);
@@ -108,21 +104,15 @@ pub fn update_server_config_map(rabbitmq: &RabbitmqCluster, found_config_map: Co
 }
 
 pub fn make_server_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_server_config_map_name(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures name@ == model_resource::make_server_config_map_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-server-conf"))
 }
 
 pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        config_map@ == model_resource::make_server_config_map(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures config_map@ == model_resource::make_server_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
     config_map.set_metadata({
@@ -161,11 +151,8 @@ pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Config
 }
 
 pub fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        s@ == model_resource::default_rbmq_config(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures s@ == model_resource::default_rbmq_config(rabbitmq@),
 {
     new_strlit(
         "queue_master_locator = min-masters\n\

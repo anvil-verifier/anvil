@@ -26,8 +26,7 @@ pub struct ErlangCookieBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ErlangCookieBuilder> for ErlangCookieBuilder {
     open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.metadata.name.is_Some()
-        &&& rabbitmq.metadata.namespace.is_Some()
+        &&& rabbitmq.well_formed()
     }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
@@ -81,11 +80,8 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Er
 }
 
 pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Secret) -> (secret: Secret)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        secret@ == model_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@),
+    requires rabbitmq@.well_formed(),
+    ensures secret@ == model_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@),
 {
     let mut erlang_secret = found_erlang_secret.clone();
     let made_secret = make_erlang_secret(rabbitmq);
@@ -109,21 +105,15 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
 }
 
 pub fn make_erlang_secret_name(rabbitmq: &RabbitmqCluster) -> (name: String)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_erlang_secret_name(rabbitmq@),
+    requires rabbitmq@.well_formed(),
+    ensures name@ == model_resource::make_erlang_secret_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-erlang-cookie"))
 }
 
 pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
-    requires
-        rabbitmq@.metadata.name.is_Some(),
-        rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        secret@ == model_resource::make_erlang_secret(rabbitmq@)
+    requires rabbitmq@.well_formed(),
+    ensures secret@ == model_resource::make_erlang_secret(rabbitmq@)
 {
     let mut data = StringMap::empty();
     let cookie = random_encoded_string(24);
