@@ -33,6 +33,14 @@ pub fn test_set_field_ref() {
 
 #[test]
 #[verifier(external)]
+pub fn test_set_path() {
+    let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
+    downward_api_volume_file.set_path(new_strlit("path").to_string());
+    assert_eq!("path".to_string(), downward_api_volume_file.into_kube().path);
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_downward_api_volume_file = deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile{
         field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector{

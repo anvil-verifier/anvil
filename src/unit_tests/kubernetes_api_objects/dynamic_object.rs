@@ -122,4 +122,29 @@ pub fn test_clone() {
     );
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_fmt() {
+    let dynamic_object = DynamicObject::from_kube(
+        deps_hack::kube::api::DynamicObject {
+            metadata: deps_hack::kube::api::ObjectMeta {
+                name: Some("name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
+            },
+            types: Some(deps_hack::kube::api::TypeMeta {
+                api_version: "api_version".to_string(),
+                kind: "kind".to_string(),
+            }),
+            data: deps_hack::serde_json::json!({
+                "key": "value",
+            }),
+        },
+    );
+    assert_eq!(
+        format!("{:?}", dynamic_object),
+        format!("{:?}", dynamic_object.into_kube())
+    );
+}
+
 }

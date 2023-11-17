@@ -79,4 +79,26 @@ pub fn test_kube() {
         kube_secret_projection
     );
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_clone() {
+    let mut secret_projection = SecretProjection::default();
+    let key_to_paths_gen = || {
+        let mut key_to_path_1 = KeyToPath::default();
+        let mut key_to_path_2 = KeyToPath::default();
+        let mut key_to_paths = Vec::new();
+        key_to_path_1.set_key(new_strlit("key1").to_string());
+        key_to_path_1.set_path(new_strlit("path1").to_string());
+        key_to_path_2.set_key(new_strlit("key2").to_string());
+        key_to_path_2.set_path(new_strlit("path2").to_string());
+        key_to_paths.push(key_to_path_1);
+        key_to_paths.push(key_to_path_2);
+        key_to_paths
+    };
+    secret_projection.set_items(key_to_paths_gen());
+    let secret_projection_clone = secret_projection.clone();
+    assert_eq!(secret_projection.into_kube(), secret_projection_clone.into_kube());
+
+}
 }

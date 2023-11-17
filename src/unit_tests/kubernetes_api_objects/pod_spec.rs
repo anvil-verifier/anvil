@@ -106,7 +106,7 @@ pub fn test_set_tolerations() {
 
 #[test]
 #[verifier(external)]
-pub fn overwrite_tolerations() {
+pub fn test_overwrite_tolerations() {
     let mut pod_spec = PodSpec::default();
     let toleration = Toleration::from_kube(deps_hack::k8s_openapi::api::core::v1::Toleration::default());
     pod_spec.overwrite_tolerations(Some(vec![toleration]));
