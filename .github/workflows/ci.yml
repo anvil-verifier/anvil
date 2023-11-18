@@ -57,7 +57,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify rabbitmq controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 20 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --time
   zookeeper-verification:
     runs-on: ubuntu-20.04
     steps:
