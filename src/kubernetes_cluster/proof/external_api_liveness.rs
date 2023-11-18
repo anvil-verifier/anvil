@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::ExternalAPI;
-use crate::kubernetes_api_objects::prelude::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::*, cluster::*, cluster_state_machine::Step,
     external_api::types::ExternalAPIAction, message::*,

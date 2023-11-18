@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::container::*;
-use crate::kubernetes_api_objects::resource::*;
-use crate::kubernetes_api_objects::resource_requirements::*;
+use crate::kubernetes_api_objects::exec::container::*;
+use crate::kubernetes_api_objects::exec::resource::*;
+use crate::kubernetes_api_objects::exec::resource_requirements::*;
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;

@@ -1,9 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::prelude::*;
-use crate::zookeeper_controller::trusted::spec_types::ZookeeperClusterView;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::zookeeper_controller::trusted::spec_types::ZookeeperClusterView;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 

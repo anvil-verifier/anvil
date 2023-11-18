@@ -6,7 +6,7 @@ use crate::fluent_controller::fluentbit::model::resource::*;
 use crate::fluent_controller::fluentbit::trusted::{
     liveness_theorem::desired_secret_key, maker::*, spec_types::*, step::*,
 };
-use crate::kubernetes_api_objects::prelude::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use vstd::{prelude::*, string::*};
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
     stateful_set::*,
 };

@@ -4,7 +4,7 @@
 use super::common::*;
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit_config::trusted::{spec_types::*, step::*};
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };

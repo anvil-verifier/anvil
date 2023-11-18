@@ -7,7 +7,7 @@ use crate::fluent_controller::fluentbit_config::proof::resource::*;
 use crate::fluent_controller::fluentbit_config::trusted::{
     liveness_theorem::*, spec_types::*, step::*,
 };
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, prelude::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::proof::controller_runtime::*;

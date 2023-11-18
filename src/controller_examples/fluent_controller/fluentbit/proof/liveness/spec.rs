@@ -7,7 +7,7 @@ use crate::fluent_controller::fluentbit::{
     proof::{helper_invariants, liveness::terminate, predicate::*, resource::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
-use crate::kubernetes_api_objects::{
+use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, owner_reference::*,
     resource::*,
 };

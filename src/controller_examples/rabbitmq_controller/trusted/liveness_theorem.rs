@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::prelude::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::Step, message::*};
 use crate::rabbitmq_controller::trusted::{maker::*, spec_types::*, step::*};
 use crate::temporal_logic::defs::*;
