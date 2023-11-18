@@ -534,6 +534,37 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             rabbitmq_container.overwrite_resources(rabbitmq.spec().resources());
             rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
             rabbitmq_container.set_image(rabbitmq.spec().image());
+            rabbitmq_container.set_lifecycle({
+                let mut lifecycle = Lifecycle::default();
+                lifecycle.set_pre_stop({
+                    let mut pre_stop = LifecycleHandler::default();
+                    pre_stop.set_exec({
+                        let mut exec = ExecAction::default();
+                        exec.set_command({
+                            let mut command = Vec::new();
+                            command.push(new_strlit("/bin/bash").to_string());
+                            command.push(new_strlit("-c").to_string());
+                            command.push(new_strlit("if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
+                                rabbitmq-upgrade await_online_quorum_plus_one -t 604800; \
+                                rabbitmq-upgrade await_online_synchronized_mirror -t 604800; \
+                                rabbitmq-upgrade drain -t 604800"
+                            ).to_string());
+
+                            proof {
+                                assert_seqs_equal!(
+                                    command@.map_values(|s: String| s@),
+                                    model_resource::make_rabbitmq_pod_spec(rabbitmq@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                );
+                            }
+
+                            command
+                        });
+                        exec
+                    });
+                    pre_stop
+                });
+                lifecycle
+            });
             rabbitmq_container.set_env(make_env_vars(&rabbitmq));
             rabbitmq_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
@@ -631,7 +662,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             rabbitmq_container.set_readiness_probe({
                 let mut probe = Probe::default();
                 probe.set_failure_threshold(3);
-                probe.set_initial_delay_seconds(50);
+                probe.set_initial_delay_seconds(10);
                 probe.set_period_seconds(10);
                 probe.set_success_threshold(1);
                 probe.set_timeout_seconds(5);
