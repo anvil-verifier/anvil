@@ -270,6 +270,19 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
             ContainerView {
                 name: new_strlit("rabbitmq")@,
                 image: Some(rabbitmq.spec.image),
+                lifecycle: Some(LifecycleView::default()
+                    .set_pre_stop(LifecycleHandlerView::default()
+                        .set_exec(
+                            ExecActionView::default()
+                                .set_command(seq![new_strlit("/bin/bash")@, new_strlit("-c")@,
+                                    new_strlit("if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
+                                    rabbitmq-upgrade await_online_quorum_plus_one -t 604800; \
+                                    rabbitmq-upgrade await_online_synchronized_mirror -t 604800; \
+                                    rabbitmq-upgrade drain -t 604800")@
+                                ])
+                        )
+                    )
+                ),
                 env: Some(make_env_vars(rabbitmq)),
                 volume_mounts: Some({
                     let volume_mounts = seq![
@@ -341,7 +354,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 readiness_probe: Some(
                     ProbeView::default()
                         .set_failure_threshold(3)
-                        .set_initial_delay_seconds(50)
+                        .set_initial_delay_seconds(10)
                         .set_period_seconds(10)
                         .set_success_threshold(1)
                         .set_timeout_seconds(5)
