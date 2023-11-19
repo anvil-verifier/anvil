@@ -704,6 +704,12 @@ impl ObjectFieldSelector {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector) -> (object_field_selector: ObjectFieldSelector)
+    {
+        ObjectFieldSelector { inner }
+    }
 }
 
 }

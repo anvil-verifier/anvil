@@ -130,4 +130,14 @@ pub fn test_kube() {
 
 }
 
+#[test]
+#[verifier(external)]
+pub fn test_clone(){
+    let mut volume = Volume::default();
+    let mut host_path_volume_source = HostPathVolumeSource::default();
+    host_path_volume_source.set_path(new_strlit("path").to_string());
+    volume.set_host_path(host_path_volume_source.clone());
+    let volume_clone = volume.clone();
+    assert_eq!(volume.into_kube(), volume_clone.into_kube());
+}
 }
