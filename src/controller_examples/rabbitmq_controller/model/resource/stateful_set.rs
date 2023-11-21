@@ -373,6 +373,8 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         }),
         affinity: rabbitmq.spec.affinity,
         tolerations: rabbitmq.spec.tolerations,
+        // TODO: do not hardcode this value
+        termination_grace_period_seconds: Some(604800),
         ..PodSpecView::default()
     }
 }

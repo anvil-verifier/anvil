@@ -685,6 +685,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     pod_spec.set_volumes(volumes);
     pod_spec.overwrite_affinity(rabbitmq.spec().affinity());
     pod_spec.overwrite_tolerations(rabbitmq.spec().tolerations());
+    pod_spec.set_termination_grace_period_seconds(604800);
     pod_spec
 }
 

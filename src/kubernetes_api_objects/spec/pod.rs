@@ -150,6 +150,7 @@ pub struct PodSpecView {
     pub scheduler_name: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
     pub host_network: Option<bool>,
+    pub termination_grace_period_seconds: Option<int>,
 }
 
 impl PodSpecView {
@@ -168,6 +169,7 @@ impl PodSpecView {
             scheduler_name: None,
             security_context: None,
             host_network: None,
+            termination_grace_period_seconds: None,
         }
     }
 
@@ -272,6 +274,13 @@ impl PodSpecView {
     pub open spec fn set_host_network(self, host_network: bool) -> PodSpecView {
         PodSpecView {
             host_network: Some(host_network),
+            ..self
+        }
+    }
+
+    pub open spec fn set_termination_grace_period_seconds(self, termination_grace_period_seconds: int) -> PodSpecView {
+        PodSpecView {
+            termination_grace_period_seconds: Some(termination_grace_period_seconds),
             ..self
         }
     }

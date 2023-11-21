@@ -302,6 +302,14 @@ impl PodSpec {
         self.inner.host_network = Some(host_network);
     }
 
+    #[verifier(external_body)]
+    pub fn set_termination_grace_period_seconds(&mut self, termination_grace_period_seconds: i64)
+        ensures
+            self@ == old(self)@.set_termination_grace_period_seconds(termination_grace_period_seconds as int),
+    {
+        self.inner.termination_grace_period_seconds = Some(termination_grace_period_seconds);
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec {
         PodSpec { inner: inner }
