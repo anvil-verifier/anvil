@@ -79,15 +79,10 @@ impl RoleBinding {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding) -> (role_binding: RoleBinding)
-    {
-        RoleBinding { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding) -> RoleBinding { RoleBinding { inner: inner } }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
@@ -100,9 +95,7 @@ impl RoleBinding {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -133,9 +126,7 @@ impl RoleRef {
     pub fn default() -> (role_ref: RoleRef)
         ensures role_ref@ == RoleRefView::default(),
     {
-        RoleRef {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default(),
-        }
+        RoleRef { inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default() }
     }
 
     #[verifier(external_body)]
@@ -167,15 +158,10 @@ impl RoleRef {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef) -> (role_ref: RoleRef)
-    {
-        RoleRef { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef) -> RoleRef { RoleRef { inner: inner } }
 }
 
 #[verifier(external_body)]
@@ -217,15 +203,10 @@ impl Subject {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Subject {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Subject { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Subject) -> (subject: Subject)
-    {
-        Subject { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Subject) -> Subject { Subject { inner: inner } }
 }
 
 }

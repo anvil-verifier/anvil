@@ -69,15 +69,10 @@ impl Role {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Role {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Role { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Role) -> (role: Role)
-    {
-        Role { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Role) -> Role { Role { inner: inner } }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
@@ -90,9 +85,7 @@ impl Role {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -132,18 +125,14 @@ impl PolicyRule {
     pub fn set_api_groups(&mut self, api_groups: Vec<String>)
         ensures self@ == old(self)@.set_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
     {
-        self.inner.api_groups = Some(
-            api_groups.into_iter().map(|a: String| a.into_rust_string()).collect()
-        )
+        self.inner.api_groups = Some(api_groups.into_iter().map(|a: String| a.into_rust_string()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: Vec<String>)
         ensures self@ == old(self)@.set_resources(resources@.map_values(|resource: String| resource@)),
     {
-        self.inner.resources = Some(
-            resources.into_iter().map(|r: String| r.into_rust_string()).collect()
-        )
+        self.inner.resources = Some(resources.into_iter().map(|r: String| r.into_rust_string()).collect())
     }
 
     #[verifier(external_body)]
@@ -155,15 +144,10 @@ impl PolicyRule {
 
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::PolicyRule { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule) -> (policy_rule: PolicyRule)
-    {
-        PolicyRule { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule) -> PolicyRule { PolicyRule { inner: inner } }
 }
 
 }

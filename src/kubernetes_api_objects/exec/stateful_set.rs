@@ -42,9 +42,7 @@ impl StatefulSet {
     pub fn default() -> (stateful_set: StatefulSet)
         ensures stateful_set@ == StatefulSetView::default(),
     {
-        StatefulSet {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet::default(),
-        }
+        StatefulSet { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet::default() }
     }
 
     #[verifier(external_body)]
@@ -159,9 +157,7 @@ impl StatefulSetSpec {
     pub fn default() -> (stateful_set_spec: StatefulSetSpec)
         ensures stateful_set_spec@ == StatefulSetSpecView::default(),
     {
-        StatefulSetSpec {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec::default(),
-        }
+        StatefulSetSpec { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec::default() }
     }
 
     #[verifier(external_body)]
@@ -291,9 +287,7 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
         ensures pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
     {
-        StatefulSetPersistentVolumeClaimRetentionPolicy {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),
-        }
+        StatefulSetPersistentVolumeClaimRetentionPolicy { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default() }
     }
 
     #[verifier(external_body)]
@@ -307,33 +301,23 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     pub fn set_when_deleted(&mut self, when_deleted: String)
         ensures self@ == old(self)@.set_when_deleted(when_deleted@),
     {
-        self.inner.when_deleted = Some(
-            when_deleted.into_rust_string()
-        )
+        self.inner.when_deleted = Some(when_deleted.into_rust_string())
     }
 
     #[verifier(external_body)]
     pub fn set_when_scaled(&mut self, when_scaled: String)
         ensures self@ == old(self)@.set_when_scaled(when_scaled@),
     {
-        self.inner.when_scaled = Some(
-            when_scaled.into_rust_string()
-        )
+        self.inner.when_scaled = Some(when_scaled.into_rust_string())
     }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy {
-        StatefulSetPersistentVolumeClaimRetentionPolicy {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy { StatefulSetPersistentVolumeClaimRetentionPolicy { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy { self.inner }
 }
 
 #[verifier(external_body)]
@@ -356,14 +340,10 @@ impl StatefulSetStatus {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus> for StatefulSetStatus {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus {
-        StatefulSetStatus { inner: inner }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus { StatefulSetStatus { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus { self.inner }
 }
 
 }

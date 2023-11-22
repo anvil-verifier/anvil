@@ -49,20 +49,14 @@ impl ClusterRole {
     pub fn set_policy_rules(&mut self, policy_rules: Vec<PolicyRule>)
         ensures self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
-        self.inner.rules = Some(
-            policy_rules.into_iter().map(|p| p.into_kube()).collect()
-        )
+        self.inner.rules = Some(policy_rules.into_iter().map(|p| p.into_kube()).collect())
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::ClusterRole {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::ClusterRole { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRole) -> ClusterRole {
-        ClusterRole { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRole) -> ClusterRole { ClusterRole { inner } }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
@@ -75,9 +69,7 @@ impl ClusterRole {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]

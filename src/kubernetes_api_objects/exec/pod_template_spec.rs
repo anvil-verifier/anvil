@@ -33,9 +33,7 @@ impl PodTemplateSpec {
     pub fn clone(&self) -> (pod_template_spec: PodTemplateSpec)
         ensures pod_template_spec@ == self@,
     {
-        PodTemplateSpec {
-            inner: self.inner.clone(),
-        }
+        PodTemplateSpec { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]

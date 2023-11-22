@@ -97,16 +97,10 @@ impl Secret {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Secret) -> Secret {
-        Secret {
-            inner: inner
-        }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Secret) -> Secret { Secret { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Secret {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Secret { self.inner }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
@@ -119,9 +113,7 @@ impl Secret {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]

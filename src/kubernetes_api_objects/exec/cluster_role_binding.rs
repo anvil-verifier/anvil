@@ -56,21 +56,14 @@ impl ClusterRoleBinding {
     pub fn set_subjects(&mut self, subjects: Vec<Subject>)
         ensures self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
-        self.inner.subjects = Some(
-            subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
-        );
+        self.inner.subjects = Some(subjects.into_iter().map(|s: Subject| s.into_kube()).collect());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding) -> (role_binding: ClusterRoleBinding)
-    {
-        ClusterRoleBinding { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding) -> ClusterRoleBinding { ClusterRoleBinding { inner: inner } }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
@@ -83,9 +76,7 @@ impl ClusterRoleBinding {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]

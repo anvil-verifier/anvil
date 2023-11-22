@@ -27,9 +27,7 @@ impl View for DynamicObject {
 
 impl DynamicObject {
     #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-        &self.inner.metadata
-    }
+    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta { &self.inner.metadata }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
@@ -48,23 +46,15 @@ impl DynamicObject {
 
 impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::kube::api::DynamicObject) -> DynamicObject {
-        DynamicObject {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::kube::api::DynamicObject) -> DynamicObject { DynamicObject { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::kube::api::DynamicObject {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::kube::api::DynamicObject { self.inner }
 }
 
 impl std::fmt::Debug for DynamicObject {
     #[verifier(external)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner.fmt(f)
-    }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.inner.fmt(f) }
 }
 
 }

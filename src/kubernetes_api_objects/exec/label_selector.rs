@@ -38,9 +38,7 @@ impl LabelSelector {
     pub fn clone(&self) -> (label_selector: LabelSelector)
         ensures label_selector@ == self@,
     {
-        LabelSelector {
-            inner: self.inner.clone(),
-        }
+        LabelSelector { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -53,16 +51,10 @@ impl LabelSelector {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector> for LabelSelector {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector) -> LabelSelector {
-        LabelSelector {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector) -> LabelSelector { LabelSelector { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector { self.inner }
 }
 
 }

@@ -36,35 +36,21 @@ impl ResourceRequirements {
     pub fn set_limits(&mut self, limits: StringMap)
         ensures self@ == old(self)@.set_limits(limits@),
     {
-        self.inner.limits = Some(
-            limits.into_rust_map()
-                .into_iter()
-                .map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v)))
-                .collect()
-        );
+        self.inner.limits = Some(limits.into_rust_map().into_iter().map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v))).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_requests(&mut self, requests: StringMap)
         ensures self@ == old(self)@.set_requests(requests@),
     {
-        self.inner.requests = Some(
-            requests.into_rust_map()
-                .into_iter()
-                .map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v)))
-                .collect()
-        );
+        self.inner.requests = Some(requests.into_rust_map().into_iter().map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v))).collect());
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements) -> ResourceRequirements {
-        ResourceRequirements { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements) -> ResourceRequirements { ResourceRequirements { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ResourceRequirements { self.inner }
 }
 
 }

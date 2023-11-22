@@ -84,17 +84,10 @@ impl Service {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Service {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Service { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Service) -> (service: Service)
-    {
-        Service { inner: inner }
-    }
-
-
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Service) -> Service { Service { inner: inner } }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
@@ -107,9 +100,7 @@ impl Service {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -175,9 +166,7 @@ impl ServiceSpec {
     pub fn set_ports(&mut self, ports: Vec<ServicePort>)
         ensures self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
     {
-        self.inner.ports = Some(
-            ports.into_iter().map(|port: ServicePort| port.into_kube()).collect()
-        )
+        self.inner.ports = Some(ports.into_iter().map(|port: ServicePort| port.into_kube()).collect())
     }
 
     #[verifier(external_body)]
@@ -223,14 +212,10 @@ impl ServiceSpec {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec {
-        ServiceSpec { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec { ServiceSpec { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec { self.inner }
 }
 
 #[verifier(external_body)]
@@ -282,9 +267,7 @@ impl ServicePort {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort {
-        ServicePort { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort { ServicePort { inner: inner } }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort { self.inner }

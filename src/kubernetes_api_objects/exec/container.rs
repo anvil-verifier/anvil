@@ -61,9 +61,7 @@ impl Container {
     pub fn set_ports(&mut self, ports: Vec<ContainerPort>)
         ensures self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
     {
-        self.inner.ports = Some(
-            ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect()
-        )
+        self.inner.ports = Some(ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect())
     }
 
     #[verifier(external_body)]
@@ -87,12 +85,8 @@ impl Container {
             resources.is_Some() ==> self@ == old(self)@.set_resources(resources.get_Some_0()@),
     {
         match resources {
-            Some(r) => {
-                self.inner.resources = Some(r.into_kube())
-            },
-            None => {
-                self.inner.resources = None
-            }
+            Some(r) => self.inner.resources = Some(r.into_kube()),
+            None => self.inner.resources = None,
         }
     }
 
@@ -114,9 +108,7 @@ impl Container {
     pub fn set_command(&mut self, command: Vec<String>)
         ensures self@ == old(self)@.set_command(command@.map_values(|c: String| c@)),
     {
-        self.inner.command = Some(
-            command.into_iter().map(|c: String| c.into_rust_string()).collect()
-        )
+        self.inner.command = Some(command.into_iter().map(|c: String| c.into_rust_string()).collect())
     }
 
     #[verifier(external_body)]
@@ -268,9 +260,7 @@ impl Probe {
     pub fn default() -> (probe: Probe)
         ensures probe@ == ProbeView::default(),
     {
-        Probe {
-            inner: deps_hack::k8s_openapi::api::core::v1::Probe::default(),
-        }
+        Probe { inner: deps_hack::k8s_openapi::api::core::v1::Probe::default() }
     }
 
     #[verifier(external_body)]
@@ -350,9 +340,7 @@ impl ExecAction {
     pub fn default() -> (exec_action: ExecAction)
         ensures exec_action@ == ExecActionView::default(),
     {
-        ExecAction {
-            inner: deps_hack::k8s_openapi::api::core::v1::ExecAction::default(),
-        }
+        ExecAction { inner: deps_hack::k8s_openapi::api::core::v1::ExecAction::default() }
     }
 
     #[verifier(external_body)]
@@ -375,9 +363,7 @@ impl ExecAction {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ExecAction {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ExecAction { self.inner }
 }
 
 #[verifier(external_body)]
@@ -392,9 +378,7 @@ impl TCPSocketAction {
     pub fn default() -> (tcp_socket_action: TCPSocketAction)
         ensures tcp_socket_action@ == TCPSocketActionView::default(),
     {
-        TCPSocketAction {
-            inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default(),
-        }
+        TCPSocketAction { inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default() }
     }
 
     #[verifier(external_body)]
@@ -419,9 +403,7 @@ impl TCPSocketAction {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction) -> TCPSocketAction {
-        TCPSocketAction { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction) -> TCPSocketAction { TCPSocketAction { inner: inner } }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
@@ -441,9 +423,7 @@ impl Lifecycle {
     pub fn default() -> (lifecycle: Lifecycle)
         ensures lifecycle@ == LifecycleView::default(),
     {
-        Lifecycle {
-            inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle::default(),
-        }
+        Lifecycle { inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle::default() }
     }
 
     #[verifier(external_body)]
@@ -461,14 +441,10 @@ impl Lifecycle {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle) -> Lifecycle {
-        Lifecycle { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle) -> Lifecycle { Lifecycle { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Lifecycle {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Lifecycle { self.inner }
 }
 
 #[verifier(external_body)]
@@ -483,9 +459,7 @@ impl LifecycleHandler {
     pub fn default() -> (lifecycle_handler: LifecycleHandler)
         ensures lifecycle_handler@ == LifecycleHandlerView::default(),
     {
-        LifecycleHandler {
-            inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler::default(),
-        }
+        LifecycleHandler { inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler::default() }
     }
 
     #[verifier(external_body)]
@@ -508,9 +482,7 @@ impl LifecycleHandler {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LifecycleHandler { self.inner }
 }
 
 #[verifier(external_body)]
@@ -525,9 +497,7 @@ impl EnvVar {
     pub fn default() -> (env_var: EnvVar)
         ensures env_var@ == EnvVarView::default(),
     {
-        EnvVar {
-            inner: deps_hack::k8s_openapi::api::core::v1::EnvVar::default(),
-        }
+        EnvVar { inner: deps_hack::k8s_openapi::api::core::v1::EnvVar::default() }
     }
 
     #[verifier(external)]
@@ -583,14 +553,10 @@ impl EnvVar {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVar) -> EnvVar {
-        EnvVar { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVar) -> EnvVar { EnvVar { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVar {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVar { self.inner }
 }
 
 #[verifier(external_body)]
@@ -605,15 +571,11 @@ impl EnvVarSource {
     pub fn default() -> (env_var_source: EnvVarSource)
         ensures env_var_source@ == EnvVarSourceView::default(),
     {
-        EnvVarSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default(),
-        }
+        EnvVarSource { inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default() }
     }
 
     #[verifier(external)]
-    pub fn clone(&self) -> (s: Self) {
-        EnvVarSource { inner: self.inner.clone() }
-    }
+    pub fn clone(&self) -> (s: Self) { EnvVarSource { inner: self.inner.clone() } }
 
     pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (env_var_source: EnvVarSource)
         ensures env_var_source@ == EnvVarSourceView::default().set_field_ref(field_ref@)
@@ -631,9 +593,7 @@ impl EnvVarSource {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource) -> EnvVarSource {
-        EnvVarSource { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource) -> EnvVarSource { EnvVarSource { inner: inner } }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVarSource { self.inner }

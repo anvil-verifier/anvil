@@ -29,16 +29,10 @@ impl Affinity {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::Affinity> for Affinity {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Affinity) -> Affinity {
-        Affinity {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Affinity) -> Affinity { Affinity { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Affinity {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Affinity { self.inner }
 }
 
 }

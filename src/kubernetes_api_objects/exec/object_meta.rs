@@ -163,18 +163,14 @@ impl ObjectMeta {
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
         ensures self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
     {
-        self.inner.owner_references = Some(
-            owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
-        );
+        self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),);
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
         ensures self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
     {
-        self.inner.finalizers = Some(
-            finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),
-        );
+        self.inner.finalizers = Some(finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),);
     }
 
     #[verifier(external_body)]
@@ -187,14 +183,10 @@ impl ObjectMeta {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta {
-        ObjectMeta { inner: inner }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta { ObjectMeta { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta { self.inner }
 }
 
 }

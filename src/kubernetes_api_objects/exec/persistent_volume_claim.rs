@@ -82,9 +82,7 @@ impl PersistentVolumeClaim {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -105,9 +103,7 @@ impl PersistentVolumeClaim {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim> for PersistentVolumeClaim {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim) -> PersistentVolumeClaim {
-        PersistentVolumeClaim { inner: inner }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim) -> PersistentVolumeClaim { PersistentVolumeClaim { inner: inner } }
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim { self.inner }
@@ -134,18 +130,14 @@ impl PersistentVolumeClaimSpec {
     pub fn clone(&self) -> (pvc_spec: PersistentVolumeClaimSpec)
         ensures pvc_spec@ == self@,
     {
-        PersistentVolumeClaimSpec {
-            inner: self.inner.clone(),
-        }
+        PersistentVolumeClaimSpec { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
         ensures self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
     {
-        self.inner.access_modes = Some(
-            access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect()
-        );
+        self.inner.access_modes = Some(access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect());
     }
 
     #[verifier(external_body)]
@@ -166,15 +158,11 @@ impl PersistentVolumeClaimSpec {
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec> for PersistentVolumeClaimSpec {
     #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec) -> PersistentVolumeClaimSpec {
-        PersistentVolumeClaimSpec {
-            inner: inner
-        }
+        PersistentVolumeClaimSpec { inner: inner }
     }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec { self.inner }
 }
 
 }

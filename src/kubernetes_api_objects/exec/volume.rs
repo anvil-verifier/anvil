@@ -31,9 +31,7 @@ impl Volume {
     pub fn clone(&self) -> (volume: Volume)
         ensures volume@ == self@,
     {
-        Volume {
-            inner: self.inner.clone(),
-        }
+        Volume { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -82,10 +80,7 @@ impl Volume {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Volume { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> (volume: Volume)
-    {
-        Volume { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> Volume { Volume { inner } }
 
     /// Methods for the fields that Anvil currently does not reason about
 
@@ -118,19 +113,14 @@ impl EmptyDirVolumeSource {
     pub fn clone(&self) -> (empty_dir_volum_source: EmptyDirVolumeSource)
         ensures empty_dir_volum_source@ == self@,
     {
-        EmptyDirVolumeSource {
-            inner: self.inner.clone(),
-        }
+        EmptyDirVolumeSource { inner: self.inner.clone() }
     }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource) -> (empty_dir_volum_source: EmptyDirVolumeSource)
-    {
-        EmptyDirVolumeSource { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource) -> EmptyDirVolumeSource { EmptyDirVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -145,18 +135,14 @@ impl HostPathVolumeSource {
     pub fn default() -> (host_path_volume_source: HostPathVolumeSource)
         ensures host_path_volume_source@ == HostPathVolumeSourceView::default(),
     {
-        HostPathVolumeSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default(),
-        }
+        HostPathVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (host_path_volume_source: HostPathVolumeSource)
         ensures host_path_volume_source@ == self@,
     {
-        HostPathVolumeSource {
-            inner: self.inner.clone(),
-        }
+        HostPathVolumeSource { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -167,15 +153,10 @@ impl HostPathVolumeSource {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource) -> (host_path_volume_source: HostPathVolumeSource)
-    {
-        HostPathVolumeSource { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource) -> HostPathVolumeSource { HostPathVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -190,18 +171,14 @@ impl ConfigMapVolumeSource {
     pub fn default() -> (config_map_volume_source: ConfigMapVolumeSource)
         ensures config_map_volume_source@ == ConfigMapVolumeSourceView::default(),
     {
-        ConfigMapVolumeSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource::default(),
-        }
+        ConfigMapVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (config_map_volume_source: ConfigMapVolumeSource)
         ensures config_map_volume_source@ == self@,
     {
-        ConfigMapVolumeSource {
-            inner: self.inner.clone(),
-        }
+        ConfigMapVolumeSource { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -212,15 +189,10 @@ impl ConfigMapVolumeSource {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource) -> (config_map_volume_source: ConfigMapVolumeSource)
-    {
-        ConfigMapVolumeSource { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource) -> ConfigMapVolumeSource { ConfigMapVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -244,9 +216,7 @@ impl SecretVolumeSource {
     pub fn clone(&self) -> (secret_volume_source: SecretVolumeSource)
         ensures secret_volume_source@ == self@,
     {
-        SecretVolumeSource {
-            inner: self.inner.clone(),
-        }
+        SecretVolumeSource { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -257,15 +227,10 @@ impl SecretVolumeSource {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource) -> (secret_volume_source: SecretVolumeSource)
-    {
-        SecretVolumeSource { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource) -> SecretVolumeSource { SecretVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -280,9 +245,7 @@ impl ProjectedVolumeSource {
     pub fn default() -> (projected_volume_source: ProjectedVolumeSource)
         ensures projected_volume_source@ == ProjectedVolumeSourceView::default(),
     {
-        ProjectedVolumeSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource::default(),
-        }
+        ProjectedVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource::default() }
     }
 
     #[verifier(external_body)]
@@ -296,21 +259,14 @@ impl ProjectedVolumeSource {
     pub fn set_sources(&mut self, sources: Vec<VolumeProjection>)
         ensures self@ == old(self)@.set_sources(sources@.map_values(|v: VolumeProjection| v@)),
     {
-        self.inner.sources = Some(
-            sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect()
-        );
+        self.inner.sources = Some(sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource) -> (projected_volume_source: ProjectedVolumeSource)
-    {
-        ProjectedVolumeSource { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource) -> ProjectedVolumeSource { ProjectedVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -325,9 +281,7 @@ impl VolumeProjection {
     pub fn default() -> (volume_projection: VolumeProjection)
         ensures volume_projection@ == VolumeProjectionView::default(),
     {
-        VolumeProjection {
-            inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection::default(),
-        }
+        VolumeProjection { inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection::default() }
     }
 
     #[verifier(external_body)]
@@ -345,15 +299,10 @@ impl VolumeProjection {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeProjection {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeProjection { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection) -> (volume_projection: VolumeProjection)
-    {
-        VolumeProjection { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection) -> VolumeProjection { VolumeProjection { inner } }
 }
 
 #[verifier(external_body)]
@@ -368,18 +317,14 @@ impl ConfigMapProjection {
     pub fn default() -> (config_map_projection: ConfigMapProjection)
         ensures config_map_projection@ == ConfigMapProjectionView::default(),
     {
-        ConfigMapProjection {
-            inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default(),
-        }
+        ConfigMapProjection { inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (config_map_projection: ConfigMapProjection)
         ensures config_map_projection@ == self@,
     {
-        ConfigMapProjection {
-            inner: self.inner.clone(),
-        }
+        ConfigMapProjection { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -393,21 +338,14 @@ impl ConfigMapProjection {
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
         ensures self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
-        self.inner.items = Some(
-            items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
-        );
+        self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection) -> (config_map_projection: ConfigMapProjection)
-    {
-        ConfigMapProjection { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection) -> ConfigMapProjection { ConfigMapProjection { inner } }
 }
 
 #[verifier(external_body)]
@@ -422,18 +360,14 @@ impl SecretProjection {
     pub fn default() -> (secret_projection: SecretProjection)
         ensures secret_projection@ == SecretProjectionView::default(),
     {
-        SecretProjection {
-            inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection::default(),
-        }
+        SecretProjection { inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (secret_projection: SecretProjection)
         ensures secret_projection@ == self@,
     {
-        SecretProjection {
-            inner: self.inner.clone(),
-        }
+        SecretProjection { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -447,21 +381,14 @@ impl SecretProjection {
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
         ensures self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
-        self.inner.items = Some(
-            items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
-        );
+        self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretProjection {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretProjection { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection) -> (secret_projection: SecretProjection)
-    {
-        SecretProjection { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection) -> SecretProjection { SecretProjection { inner } }
 }
 
 #[verifier(external_body)]
@@ -476,9 +403,7 @@ impl KeyToPath {
     pub fn default() -> (key_to_path: KeyToPath)
         ensures key_to_path@ == KeyToPathView::default(),
     {
-        KeyToPath {
-            inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath::default(),
-        }
+        KeyToPath { inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath::default() }
     }
 
     #[verifier(external_body)]
@@ -496,15 +421,10 @@ impl KeyToPath {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::KeyToPath {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::KeyToPath { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath) -> (key_to_path: KeyToPath)
-    {
-        KeyToPath { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath) -> KeyToPath { KeyToPath { inner } }
 }
 
 #[verifier(external_body)]
@@ -519,39 +439,28 @@ impl DownwardAPIVolumeSource {
     pub fn default() -> (downward_api_volume_source: DownwardAPIVolumeSource)
         ensures downward_api_volume_source@ == DownwardAPIVolumeSourceView::default(),
     {
-        DownwardAPIVolumeSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource::default(),
-        }
+        DownwardAPIVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (downward_api_volume_source: DownwardAPIVolumeSource)
         ensures downward_api_volume_source@ == self@,
     {
-        DownwardAPIVolumeSource {
-            inner: self.inner.clone(),
-        }
+        DownwardAPIVolumeSource { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<DownwardAPIVolumeFile>)
         ensures self@ == old(self)@.set_items(items@.map_values(|v: DownwardAPIVolumeFile| v@)),
     {
-        self.inner.items = Some(
-            items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect()
-        );
+        self.inner.items = Some(items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource) -> (downward_api_volume_source: DownwardAPIVolumeSource)
-    {
-        DownwardAPIVolumeSource { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource) -> DownwardAPIVolumeSource { DownwardAPIVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -566,9 +475,7 @@ impl DownwardAPIVolumeFile {
     pub fn default() -> (downward_api_volume_file: DownwardAPIVolumeFile)
         ensures downward_api_volume_file@ == DownwardAPIVolumeFileView::default(),
     {
-        DownwardAPIVolumeFile {
-            inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile::default(),
-        }
+        DownwardAPIVolumeFile { inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile::default() }
     }
 
     #[verifier(external_body)]
@@ -586,15 +493,10 @@ impl DownwardAPIVolumeFile {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile) -> (downward_api_volume_file: DownwardAPIVolumeFile)
-    {
-        DownwardAPIVolumeFile { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile) -> DownwardAPIVolumeFile { DownwardAPIVolumeFile { inner } }
 }
 
 #[verifier(external_body)]
@@ -609,18 +511,14 @@ impl ObjectFieldSelector {
     pub fn default() -> (object_field_selector: ObjectFieldSelector)
         ensures object_field_selector@ == ObjectFieldSelectorView::default(),
     {
-        ObjectFieldSelector {
-            inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default(),
-        }
+        ObjectFieldSelector { inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (object_field_selector: ObjectFieldSelector)
         ensures object_field_selector@ == self@,
     {
-        ObjectFieldSelector {
-            inner: self.inner.clone(),
-        }
+        ObjectFieldSelector { inner: self.inner.clone() }
     }
 
     pub fn new_with(api_version: String, field_path: String) -> (object_field_selector: ObjectFieldSelector)
@@ -647,15 +545,10 @@ impl ObjectFieldSelector {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector) -> (object_field_selector: ObjectFieldSelector)
-    {
-        ObjectFieldSelector { inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector) -> (object_field_selector: ObjectFieldSelector) { ObjectFieldSelector { inner } }
 }
 
 }

@@ -37,9 +37,7 @@ impl Pod {
     pub fn default() -> (pod: Pod)
         ensures pod@ == PodView::default(),
     {
-        Pod {
-            inner: deps_hack::k8s_openapi::api::core::v1::Pod::default(),
-        }
+        Pod { inner: deps_hack::k8s_openapi::api::core::v1::Pod::default() }
     }
 
     #[verifier(external_body)]
@@ -96,9 +94,7 @@ impl Pod {
     pub fn marshal(self) -> (obj: DynamicObject)
         ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     /// Convert a DynamicObject to a Pod
@@ -130,9 +126,7 @@ impl PodSpec {
     pub fn default() -> (pod_spec: PodSpec)
         ensures pod_spec@ == PodSpecView::default(),
     {
-        PodSpec {
-            inner: deps_hack::k8s_openapi::api::core::v1::PodSpec::default(),
-        }
+        PodSpec { inner: deps_hack::k8s_openapi::api::core::v1::PodSpec::default() }
     }
 
     #[verifier(external_body)]
@@ -156,12 +150,8 @@ impl PodSpec {
             affinity.is_Some() ==> self@ == old(self)@.set_affinity(affinity.get_Some_0()@),
     {
         match affinity {
-            Some(a) => {
-                self.inner.affinity = Some(a.into_kube())
-            },
-            None => {
-                self.inner.affinity = None
-            }
+            Some(a) => self.inner.affinity = Some(a.into_kube()),
+            None => self.inner.affinity = None,
         }
     }
 
@@ -207,12 +197,8 @@ impl PodSpec {
             tolerations.is_Some() ==> self@ == old(self)@.set_tolerations(tolerations.get_Some_0()@.map_values(|toleration: Toleration| toleration@)),
     {
         match tolerations {
-            Some(t) => {
-                self.inner.tolerations = Some(t.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect())
-            },
-            None => {
-                self.inner.tolerations = None
-            }
+            Some(t) => self.inner.tolerations = Some(t.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect()),
+            None => self.inner.tolerations = None,
         }
     }
 
@@ -288,9 +274,7 @@ impl PodSpec {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec {
-        PodSpec { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec { PodSpec { inner: inner } }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec { self.inner }
@@ -309,14 +293,10 @@ impl View for PodSecurityContext {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PodSecurityContext> for PodSecurityContext {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext) -> PodSecurityContext {
-        PodSecurityContext { inner: inner }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext) -> PodSecurityContext { PodSecurityContext { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSecurityContext {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSecurityContext { self.inner }
 }
 
 }
