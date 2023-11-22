@@ -11,7 +11,7 @@ PROOF_AND_EXEC_COL = 6
 
 def empty_counting_map():
     return {
-        "Spec": 0,
+        "Trusted": 0,
         "Exec": 0,
         "Proof": 0,
     }
@@ -19,9 +19,11 @@ def empty_counting_map():
 
 def parse_table_and_collect_lines(file_path):
     test_lines = empty_counting_map()
+    tla_embedding_lines = empty_counting_map()
     k8s_lemma_lines = empty_counting_map()
     tla_lemma_lines = empty_counting_map()
-    object_lines = empty_counting_map()
+    object_model_lines = empty_counting_map()
+    object_wrapper_lines = empty_counting_map()
     other_lines = empty_counting_map()
 
     with open(file_path, "r") as file:
@@ -65,13 +67,18 @@ def parse_table_and_collect_lines(file_path):
                 test_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 test_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 test_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                test_lines["Spec"] += int(stripped_cols[SPEC_COL])
+                test_lines["Proof"] += int(stripped_cols[SPEC_COL])
             elif stripped_cols[FILE_COL] == "temporal_logic/rules.rs":
                 tla_lemma_lines["Exec"] += int(stripped_cols[EXEC_COL])
                 tla_lemma_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 tla_lemma_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 tla_lemma_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                tla_lemma_lines["Spec"] += int(stripped_cols[SPEC_COL])
+                tla_lemma_lines["Proof"] += int(stripped_cols[SPEC_COL])
+            elif stripped_cols[FILE_COL] == "temporal_logic/defs.rs":
+                tla_embedding_lines["Trusted"] += int(stripped_cols[EXEC_COL])
+                tla_embedding_lines["Trusted"] += int(stripped_cols[PROOF_COL])
+                tla_embedding_lines["Trusted"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                tla_embedding_lines["Trusted"] += int(stripped_cols[SPEC_COL])
             elif (
                 "/proof/" in stripped_cols[FILE_COL]
                 or stripped_cols[FILE_COL] == "vstd_ext/multiset_lib.rs"
@@ -81,24 +88,32 @@ def parse_table_and_collect_lines(file_path):
                 k8s_lemma_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 k8s_lemma_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 k8s_lemma_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                k8s_lemma_lines["Spec"] += int(stripped_cols[SPEC_COL])
-            elif "kubernetes_api_objects/" in stripped_cols[FILE_COL]:
-                object_lines["Exec"] += int(stripped_cols[EXEC_COL])
-                object_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                object_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                object_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                object_lines["Spec"] += int(stripped_cols[SPEC_COL])
+                k8s_lemma_lines["Proof"] += int(stripped_cols[SPEC_COL])
+            elif "kubernetes_api_objects/spec" in stripped_cols[FILE_COL]:
+                object_model_lines["Trusted"] += int(stripped_cols[EXEC_COL])
+                object_model_lines["Trusted"] += int(stripped_cols[PROOF_COL])
+                object_model_lines["Trusted"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                object_model_lines["Trusted"] += int(stripped_cols[SPEC_COL])
+            elif "kubernetes_api_objects/exec" in stripped_cols[FILE_COL]:
+                object_wrapper_lines["Trusted"] += int(stripped_cols[EXEC_COL])
+                object_wrapper_lines["Trusted"] += int(stripped_cols[PROOF_COL])
+                object_wrapper_lines["Trusted"] += int(
+                    stripped_cols[PROOF_AND_EXEC_COL]
+                )
+                object_wrapper_lines["Trusted"] += int(stripped_cols[SPEC_COL])
             else:
                 other_lines["Exec"] += int(stripped_cols[EXEC_COL])
                 other_lines["Exec"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                other_lines["Proof"] += int(stripped_cols[PROOF_COL])
-                other_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
-                other_lines["Spec"] += int(stripped_cols[SPEC_COL])
+                other_lines["Trusted"] += int(stripped_cols[PROOF_COL])
+                other_lines["Trusted"] += int(stripped_cols[PROOF_AND_EXEC_COL])
+                other_lines["Trusted"] += int(stripped_cols[SPEC_COL])
     all_lines = {
         "test_lines": test_lines,
+        "tla_embedding_lines": tla_embedding_lines,
         "tla_lemma_lines": tla_lemma_lines,
         "k8s_lemma_lines": k8s_lemma_lines,
-        "object_lines": object_lines,
+        "object_model_lines": object_model_lines,
+        "object_wrapper_lines": object_wrapper_lines,
         "other_lines": other_lines,
     }
     json.dump(all_lines, open("anvil-lines.json", "w"), indent=4)
