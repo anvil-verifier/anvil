@@ -23,13 +23,9 @@ verus! {
 pub struct ServiceBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBuilder {
-    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
-        GetRequest { key: make_main_service_key(rabbitmq) }
-    }
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest { GetRequest { key: make_main_service_key(rabbitmq) } }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_main_service(rabbitmq).marshal())
-    }
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_main_service(rabbitmq).marshal()) }
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);

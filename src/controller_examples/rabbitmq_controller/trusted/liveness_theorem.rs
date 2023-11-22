@@ -10,26 +10,19 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn liveness_theorem<M: Maker>() -> bool {
-    cluster_spec().entails(tla_forall(|rabbitmq: RabbitmqClusterView| liveness::<M>(rabbitmq)))
-}
+pub open spec fn liveness_theorem<M: Maker>() -> bool { cluster_spec().entails(tla_forall(|rabbitmq: RabbitmqClusterView| liveness::<M>(rabbitmq))) }
 
-pub open spec fn cluster_spec() -> TempPred<RMQCluster> {
-    RMQCluster::sm_spec()
-}
+pub open spec fn cluster_spec() -> TempPred<RMQCluster> { RMQCluster::sm_spec() }
 
 pub open spec fn liveness<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches::<M>(rabbitmq))))
 }
 
-pub open spec fn desired_state_is(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    RMQCluster::desired_state_is(rabbitmq)
-}
+pub open spec fn desired_state_is(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> { RMQCluster::desired_state_is(rabbitmq) }
 
 pub open spec fn current_state_matches<M: Maker>(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |sub_resource: SubResource|
-            #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s.resources())
+        forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, rabbitmq, s.resources())
     }
 }
 

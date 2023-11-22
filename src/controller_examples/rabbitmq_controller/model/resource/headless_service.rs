@@ -23,13 +23,9 @@ verus! {
 pub struct HeadlessServiceBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessServiceBuilder {
-    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
-        GetRequest { key: make_headless_service_key(rabbitmq) }
-    }
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest { GetRequest { key: make_headless_service_key(rabbitmq) } }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_headless_service(rabbitmq).marshal())
-    }
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_headless_service(rabbitmq).marshal()) }
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
@@ -70,12 +66,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessSe
     }
 }
 
-pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView
-    recommends
-        rabbitmq.metadata.name.is_Some(),
-{
-    rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@
-}
+pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@ }
 
 pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

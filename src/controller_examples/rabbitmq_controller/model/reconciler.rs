@@ -23,27 +23,16 @@ verus! {
 impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     type T = RabbitmqReconcileState;
 
-    open spec fn reconcile_init_state() -> RabbitmqReconcileState {
-        reconcile_init_state()
-    }
+    open spec fn reconcile_init_state() -> RabbitmqReconcileState { reconcile_init_state() }
 
-    open spec fn reconcile_core(
-        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
-    ) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) {
-        reconcile_core(rabbitmq, resp_o, state)
-    }
+    open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState)
+    -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) { reconcile_core(rabbitmq, resp_o, state)}
 
-    open spec fn reconcile_done(state: RabbitmqReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    open spec fn reconcile_done(state: RabbitmqReconcileState) -> bool { reconcile_done(state) }
 
-    open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool { reconcile_error(state) }
 
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
-        false // Don't expect anything from the user except the cr object
-    }
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* Don't expect anything from the user except the cr object*/ }
 }
 
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {

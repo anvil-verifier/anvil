@@ -25,25 +25,15 @@ verus! {
 pub struct RabbitmqReconciler {}
 
 impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
-    open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool {
-        rabbitmq@.well_formed()
-    }
+    open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool { rabbitmq@.well_formed() }
 
-    fn reconcile_init_state() -> RabbitmqReconcileState {
-        reconcile_init_state()
-    }
+    fn reconcile_init_state() -> RabbitmqReconcileState { reconcile_init_state() }
 
-    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
-        reconcile_core(rabbitmq, resp_o, state)
-    }
+    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) { reconcile_core(rabbitmq, resp_o, state) }
 
-    fn reconcile_done(state: &RabbitmqReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    fn reconcile_done(state: &RabbitmqReconcileState) -> bool { reconcile_done(state) }
 
-    fn reconcile_error(state: &RabbitmqReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    fn reconcile_error(state: &RabbitmqReconcileState) -> bool { reconcile_error(state) }
 }
 
 impl Default for RabbitmqReconciler {
