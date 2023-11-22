@@ -21,13 +21,9 @@ verus! {
 pub struct RoleBindingBuilder {}
 
 impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuilder {
-    open spec fn get_request(fb: FluentBitView) -> GetRequest {
-        GetRequest { key: make_role_binding_key(fb) }
-    }
+    open spec fn get_request(fb: FluentBitView) -> GetRequest { GetRequest { key: make_role_binding_key(fb) } }
 
-    open spec fn make(fb: FluentBitView, state: FluentBitReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_role_binding(fb).marshal())
-    }
+    open spec fn make(fb: FluentBitView, state: FluentBitReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_role_binding(fb).marshal()) }
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let rb = RoleBindingView::unmarshal(obj);
@@ -67,9 +63,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
     }
 }
 
-pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView {
-    fb.metadata.name.get_Some_0() + new_strlit("-role-binding")@
-}
+pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() + new_strlit("-role-binding")@ }
 
 pub open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {

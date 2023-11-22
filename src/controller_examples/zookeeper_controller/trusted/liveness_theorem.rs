@@ -10,26 +10,19 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn liveness_theorem<M: Maker>() -> bool {
-    cluster_spec().entails(tla_forall(|zookeeper: ZookeeperClusterView| liveness::<M>(zookeeper)))
-}
+pub open spec fn liveness_theorem<M: Maker>() -> bool { cluster_spec().entails(tla_forall(|zookeeper: ZookeeperClusterView| liveness::<M>(zookeeper))) }
 
-pub open spec fn cluster_spec() -> TempPred<ZKCluster> {
-    ZKCluster::sm_spec()
-}
+pub open spec fn cluster_spec() -> TempPred<ZKCluster> { ZKCluster::sm_spec() }
 
 pub open spec fn liveness<M: Maker>(zookeeper: ZookeeperClusterView) -> TempPred<ZKCluster> {
     always(lift_state(desired_state_is(zookeeper))).leads_to(always(lift_state(current_state_matches::<M>(zookeeper))))
 }
 
-pub open spec fn desired_state_is(zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
-    ZKCluster::desired_state_is(zookeeper)
-}
+pub open spec fn desired_state_is(zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> { ZKCluster::desired_state_is(zookeeper) }
 
 pub open spec fn current_state_matches<M: Maker>(zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        forall |sub_resource: SubResource|
-            #[trigger] resource_state_matches::<M>(sub_resource, zookeeper, s.resources())
+        forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, zookeeper, s.resources())
     }
 }
 

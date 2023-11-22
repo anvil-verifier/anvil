@@ -22,13 +22,9 @@ verus! {
 pub struct ClientServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientServiceBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
-        GetRequest { key: make_client_service_key(zk) }
-    }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_client_service_key(zk) } }
 
-    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_client_service(zk).marshal())
-    }
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_client_service(zk).marshal()) }
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
@@ -76,9 +72,7 @@ pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef 
     }
 }
 
-pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView {
-    zk.metadata.name.get_Some_0() + new_strlit("-client")@
-}
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + new_strlit("-client")@ }
 
 pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_service: ServiceView) -> ServiceView {
     ServiceView {

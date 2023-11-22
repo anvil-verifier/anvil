@@ -16,17 +16,11 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
-    map![new_strlit("app")@ => zk.metadata.name.get_Some_0()]
-}
+pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { map![new_strlit("app")@ => zk.metadata.name.get_Some_0()] }
 
-pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
-    zk.spec.labels.union_prefer_right(make_base_labels(zk))
-}
+pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { zk.spec.labels.union_prefer_right(make_base_labels(zk)) }
 
-pub open spec fn make_owner_references(zk: ZookeeperClusterView) -> Seq<OwnerReferenceView> {
-    seq![zk.controller_owner_ref()]
-}
+pub open spec fn make_owner_references(zk: ZookeeperClusterView) -> Seq<OwnerReferenceView> { seq![zk.controller_owner_ref()] }
 
 pub open spec fn make_service(zk: ZookeeperClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool) -> ServiceView {
     ServiceView {

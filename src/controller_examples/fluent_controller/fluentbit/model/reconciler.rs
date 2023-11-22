@@ -15,34 +15,19 @@ verus! {
 impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
     type T = FluentBitReconcileState;
 
-    open spec fn reconcile_init_state() -> FluentBitReconcileState {
-        reconcile_init_state()
-    }
+    open spec fn reconcile_init_state() -> FluentBitReconcileState { reconcile_init_state() }
 
-    open spec fn reconcile_core(
-        fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
-    ) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) {
-        reconcile_core(fb, resp_o, state)
-    }
+    open spec fn reconcile_core(fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState) 
+    -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) { reconcile_core(fb, resp_o, state) }
 
-    open spec fn reconcile_done(state: FluentBitReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    open spec fn reconcile_done(state: FluentBitReconcileState) -> bool { reconcile_done(state) }
 
-    open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    open spec fn reconcile_error(state: FluentBitReconcileState) -> bool { reconcile_error(state) }
 
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
-        obj.kind == SecretView::kind() // expect the user might create some secret object
-    }
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { obj.kind == SecretView::kind() /* expect the user might create some secret object */ }
 }
 
-pub open spec fn reconcile_init_state() -> FluentBitReconcileState {
-    FluentBitReconcileState {
-        reconcile_step: FluentBitReconcileStep::Init,
-    }
-}
+pub open spec fn reconcile_init_state() -> FluentBitReconcileState { FluentBitReconcileState { reconcile_step: FluentBitReconcileStep::Init } }
 
 pub open spec fn reconcile_done(state: FluentBitReconcileState) -> bool {
     match state.reconcile_step {
@@ -250,45 +235,25 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitView, Fluent
 pub struct FluentBitMaker {}
 
 impl Maker for FluentBitMaker {
-    open spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef {
-        make_service_account_key(fb)
-    }
+    open spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef { make_service_account_key(fb) }
 
-    open spec fn make_role_key(fb: FluentBitView) -> ObjectRef {
-        make_role_key(fb)
-    }
+    open spec fn make_role_key(fb: FluentBitView) -> ObjectRef { make_role_key(fb) }
 
-    open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef {
-        make_role_binding_key(fb)
-    }
+    open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef { make_role_binding_key(fb) }
 
-    open spec fn make_service_key(fb: FluentBitView) -> ObjectRef {
-        make_service_key(fb)
-    }
+    open spec fn make_service_key(fb: FluentBitView) -> ObjectRef { make_service_key(fb) }
 
-    open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef {
-        make_daemon_set_key(fb)
-    }
+    open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef { make_daemon_set_key(fb) }
 
-    open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView {
-        make_service_account(fb)
-    }
+    open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView { make_service_account(fb) }
 
-    open spec fn make_role(fb: FluentBitView) -> RoleView {
-        make_role(fb)
-    }
+    open spec fn make_role(fb: FluentBitView) -> RoleView { make_role(fb) }
 
-    open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView {
-        make_role_binding(fb)
-    }
+    open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView { make_role_binding(fb) }
 
-    open spec fn make_service(fb: FluentBitView) -> ServiceView {
-        make_service(fb)
-    }
+    open spec fn make_service(fb: FluentBitView) -> ServiceView { make_service(fb) }
 
-    open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
-        make_daemon_set(fb)
-    }
+    open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView { make_daemon_set(fb) }
 }
 
 }

@@ -10,13 +10,9 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn liveness_theorem<M: Maker>() -> bool {
-    cluster_spec().entails(tla_forall(|fb: FluentBitView| liveness::<M>(fb)))
-}
+pub open spec fn liveness_theorem<M: Maker>() -> bool { cluster_spec().entails(tla_forall(|fb: FluentBitView| liveness::<M>(fb))) }
 
-pub open spec fn cluster_spec() -> TempPred<FBCluster> {
-    FBCluster::sm_spec()
-}
+pub open spec fn cluster_spec() -> TempPred<FBCluster> { FBCluster::sm_spec() }
 
 pub open spec fn liveness<M: Maker>(fb:FluentBitView) -> TempPred<FBCluster> {
     always(lift_state(desired_state_is(fb))).leads_to(always(lift_state(current_state_matches::<M>(fb))))
@@ -39,8 +35,7 @@ pub open spec fn desired_state_is(fb: FluentBitView) -> StatePred<FBCluster> {
 
 pub open spec fn current_state_matches<M: Maker>(fb:FluentBitView) -> StatePred<FBCluster> {
     |s: FBCluster| {
-        forall |sub_resource: SubResource|
-            #[trigger] resource_state_matches::<M>(sub_resource, fb, s.resources())
+        forall |sub_resource: SubResource| #[trigger] resource_state_matches::<M>(sub_resource, fb, s.resources())
     }
 }
 

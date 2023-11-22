@@ -18,25 +18,16 @@ verus! {
 pub struct FluentBitReconciler {}
 
 impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for FluentBitReconciler {
-    open spec fn well_formed(fb: &FluentBit) -> bool {
-        fb@.well_formed()
-    }
+    open spec fn well_formed(fb: &FluentBit) -> bool { fb@.well_formed() }
 
-    fn reconcile_init_state() -> FluentBitReconcileState {
-        reconcile_init_state()
-    }
+    fn reconcile_init_state() -> FluentBitReconcileState { reconcile_init_state() }
 
-    fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<Request<EmptyType>>) {
-        reconcile_core(fb, resp_o, state)
-    }
+    fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) 
+    -> (FluentBitReconcileState, Option<Request<EmptyType>>) { reconcile_core(fb, resp_o, state) }
 
-    fn reconcile_done(state: &FluentBitReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    fn reconcile_done(state: &FluentBitReconcileState) -> bool { reconcile_done(state) }
 
-    fn reconcile_error(state: &FluentBitReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    fn reconcile_error(state: &FluentBitReconcileState) -> bool { reconcile_error(state) }
 }
 
 impl Default for FluentBitReconciler {
@@ -46,9 +37,7 @@ impl Default for FluentBitReconciler {
 pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {
-    FluentBitReconcileState {
-        reconcile_step: FluentBitReconcileStep::Init,
-    }
+    FluentBitReconcileState { reconcile_step: FluentBitReconcileStep::Init }
 }
 
 pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)

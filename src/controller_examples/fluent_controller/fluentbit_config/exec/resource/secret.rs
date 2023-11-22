@@ -24,9 +24,7 @@ verus! {
 pub struct SecretBuilder {}
 
 impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resource::SecretBuilder> for SecretBuilder {
-    open spec fn requirements(fbc: FluentBitConfigView) -> bool {
-        &&& fbc.well_formed()
-    }
+    open spec fn requirements(fbc: FluentBitConfigView) -> bool { fbc.well_formed() }
 
     fn get_request(fbc: &FluentBitConfig) -> KubeGetRequest {
         KubeGetRequest {
@@ -36,9 +34,7 @@ impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resou
         }
     }
 
-    fn make(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState) -> Result<DynamicObject, ()> {
-        Ok(make_secret(fbc).marshal())
-    }
+    fn make(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState) -> Result<DynamicObject, ()> { Ok(make_secret(fbc).marshal()) }
 
     fn update(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let secret = Secret::unmarshal(obj);
