@@ -61,8 +61,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(zookeeper)))),
+    ensures spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(zookeeper)))),
 {
     let inv = stateful_set_in_etcd_satisfies_unchangeable(zookeeper);
     let sts_res = SubResource::StatefulSet;
@@ -141,8 +140,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(zookeeper)))),
+    ensures spec.entails(always(lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(zookeeper)))),
 {
     let key = zookeeper.object_ref();
     let sts_key = StatefulSetBuilder::get_request(zookeeper).key;
@@ -211,8 +209,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)))),
 {
     let key = zookeeper.object_ref();
     let sts_key = get_request(sub_resource, zookeeper).key;
@@ -271,8 +268,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper)))),
+    ensures spec.entails(always(lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper)))),
 {
     let inv = stateful_set_in_create_request_msg_satisfies_unchangeable(zookeeper);
     let sts_res = SubResource::StatefulSet;

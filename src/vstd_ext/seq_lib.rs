@@ -8,10 +8,8 @@ use vstd::seq_lib::*;
 verus! {
 
 pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A>)
-    requires
-        s1 != s2
-    ensures
-        s1 + suffix != s2 + suffix
+    requires s1 != s2
+    ensures s1 + suffix != s2 + suffix
 {
     assert(!(s1 =~= s2));
     if s1.len() == s2.len() {
@@ -23,8 +21,7 @@ pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq
 }
 
 pub proof fn seq_equal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A>)
-    ensures
-        s1 == s2 <==> s1 + suffix == s2 + suffix
+    ensures s1 == s2 <==> s1 + suffix == s2 + suffix
 {
     assert_by(
         s1 == s2 ==> s1 + suffix == s2 + suffix,
@@ -61,8 +58,7 @@ pub proof fn seq_equal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A
 }
 
 pub proof fn seq_equal_preserved_by_add_prefix<A>(prefix: Seq<A>, s1: Seq<A>, s2: Seq<A>)
-    ensures
-        s1 == s2 <==> prefix + s1 == prefix + s2
+    ensures s1 == s2 <==> prefix + s1 == prefix + s2
 {
     assert_by(
         s1 == s2 ==> prefix + s1 == prefix + s2,
@@ -100,8 +96,7 @@ pub proof fn seq_equal_preserved_by_add_prefix<A>(prefix: Seq<A>, s1: Seq<A>, s2
 }
 
 pub proof fn seq_unequal_preserved_by_add_auto<A>(suffix: Seq<A>)
-    ensures
-        forall |s1: Seq<A>, s2: Seq<A>| s1 != s2 ==> s1 + suffix != s2 + suffix
+    ensures forall |s1: Seq<A>, s2: Seq<A>| s1 != s2 ==> s1 + suffix != s2 + suffix
 {
     assert forall |s1: Seq<A>, s2: Seq<A>| s1 != s2 implies s1 + suffix != s2 + suffix by {
         seq_unequal_preserved_by_add(s1, s2, suffix);

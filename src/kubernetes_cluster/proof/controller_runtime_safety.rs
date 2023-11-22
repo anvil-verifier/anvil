@@ -32,8 +32,7 @@ pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: Temp
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter()))),
+    ensures spec.entails(always(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter()))),
 {
     let invariant = Self::scheduled_cr_has_lower_uid_than_uid_counter();
     let stronger_next = |s, s_prime| {
@@ -49,8 +48,7 @@ pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: Temp
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }
 
-pub open spec fn triggering_cr_has_lower_uid_than_uid_counter() -> StatePred<Self>
-{
+pub open spec fn triggering_cr_has_lower_uid_than_uid_counter() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
         #[trigger] s.ongoing_reconciles().contains_key(key)
@@ -64,8 +62,7 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: Tem
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::triggering_cr_has_lower_uid_than_uid_counter()))),
+    ensures spec.entails(always(lift_state(Self::triggering_cr_has_lower_uid_than_uid_counter()))),
 {
     let invariant = Self::triggering_cr_has_lower_uid_than_uid_counter();
     let stronger_next = |s, s_prime| {
@@ -89,9 +86,7 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: Tem
 //   - If the pending request is processed by external api, there will be a response in flight.
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-    spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool
-)
+pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool)
     requires
         forall |s| (#[trigger] state(s)) ==> s != R::reconcile_init_state(),
         forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
@@ -99,10 +94,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))
-        ),
+    ensures spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))),
 {
     let invariant = Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state);
     let stronger_next = |s, s_prime: Self| {
@@ -184,17 +176,14 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
-pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(
-    spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool
-)
+pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(spec: TempPred<Self>, key: ObjectRef, state: FnSpec(R::T) -> bool)
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
         forall |cr, resp_o, pre_state|
             #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_None(),
-    ensures
-        spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(key, state)))),
+    ensures spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(key, state)))),
 {
     let invariant = Self::no_pending_req_msg_at_reconcile_state(key, state);
     assert forall |s, s_prime: Self| invariant(s) &&

@@ -13,23 +13,20 @@ impl StringMap {
 
     #[verifier(external_body)]
     pub fn new() -> (m: Self)
-        ensures
-            m@ == Map::<Seq<char>, Seq<char>>::empty(),
+        ensures m@ == Map::<Seq<char>, Seq<char>>::empty(),
     {
         StringMap { inner: std::collections::BTreeMap::new() }
     }
 
     pub fn empty() -> (m: Self)
-        ensures
-            m@ == Map::<Seq<char>, Seq<char>>::empty(),
+        ensures m@ == Map::<Seq<char>, Seq<char>>::empty(),
     {
         StringMap::new()
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (m: Self)
-        ensures
-            m@ == self@,
+        ensures m@ == self@,
     {
         StringMap { inner: self.inner.clone() }
     }
@@ -61,8 +58,7 @@ impl StringMap {
 
     #[verifier(external_body)]
     pub fn extend(&mut self, m2: StringMap)
-        ensures
-            self@ == old(self)@.union_prefer_right(m2@),
+        ensures self@ == old(self)@.union_prefer_right(m2@),
     {
         self.inner.extend(m2.into_rust_map())
     }

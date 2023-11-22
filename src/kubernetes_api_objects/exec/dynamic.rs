@@ -33,16 +33,14 @@ impl DynamicObject {
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (obj: DynamicObject)
-        ensures
-            obj == self,
+        ensures obj == self,
     {
         DynamicObject { inner: self.inner.clone() }
     }

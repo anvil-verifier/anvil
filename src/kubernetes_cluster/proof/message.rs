@@ -30,8 +30,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec: 
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
+    ensures spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
 {
     let invariant = Self::every_in_flight_msg_has_lower_id_than_allocator();
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
@@ -74,8 +73,7 @@ pub proof fn lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator()))),
+    ensures spec.entails(always(lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator()))),
 {
     let invariant = Self::every_pending_req_msg_has_lower_id_than_allocator();
     init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
@@ -100,8 +98,7 @@ pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(spec: Temp
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(key)))),
+    ensures spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(key)))),
 {
     let inv = Self::pending_req_of_key_is_unique_with_unique_id(key);
     let next = |s: Self, s_prime: Self| {
@@ -162,8 +159,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)))),
+    ensures spec.entails(always(lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key)))),
 {
     let invariant = Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(key);
     let stronger_next = |s, s_prime: Self| {
@@ -243,8 +239,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
+    ensures spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
 {
     let invariant = Self::every_in_flight_msg_has_unique_id();
     let stronger_next = |s, s_prime: Self| {
@@ -327,8 +322,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
         s_prime.in_flight().contains(msg_1),
         s_prime.in_flight().contains(msg_2),
         Self::every_in_flight_msg_has_unique_id()(s), // the invariant
-    ensures
-        msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
+    ensures msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
 {
     if (msg_2.content.is_APIResponse()) {
         let next_step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
@@ -418,8 +412,7 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
+    ensures spec.entails(always(lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
 {
     let inv = Self::object_in_ok_get_response_has_smaller_rv_than_etcd();
     let next = |s, s_prime| {
@@ -473,8 +466,7 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key)))),
+    ensures spec.entails(always(lift_state(Self::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key)))),
 {
     let inv = Self::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key);
     let next = |s, s_prime| {
@@ -540,8 +532,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
         key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))),
+    ensures spec.entails(always(lift_state(Self::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))),
 {
     let inv = Self::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key);
     let next = |s, s_prime| {
@@ -636,8 +627,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
         key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)))),
+    ensures spec.entails(always(lift_state(Self::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)))),
 {
     let inv = Self::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key);
     let next = |s, s_prime| {
@@ -735,8 +725,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
         key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)))),
+    ensures spec.entails(always(lift_state(Self::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key)))),
 {
     let inv = Self::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key);
     let next = |s, s_prime| {

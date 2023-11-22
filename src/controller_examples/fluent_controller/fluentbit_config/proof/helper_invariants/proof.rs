@@ -26,8 +26,7 @@ pub proof fn lemma_always_fbc_is_well_formed(spec: TempPred<FBCCluster>, fbc: Fl
     requires
         spec.entails(always(lift_state(desired_state_is(fbc)))),
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
-    ensures
-        spec.entails(always(lift_state(fbc_is_well_formed(fbc)))),
+    ensures spec.entails(always(lift_state(fbc_is_well_formed(fbc)))),
 {
     let stronger_inv = |s: FBCCluster| {
         &&& desired_state_is(fbc)(s)
@@ -46,8 +45,7 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
+    ensures spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
 {
     let inv = cr_objects_in_etcd_satisfy_state_validation();
     FluentBitConfigView::marshal_status_preserves_integrity();
@@ -58,8 +56,7 @@ pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
+    ensures spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
 {
     let inv = the_object_in_schedule_satisfies_state_validation();
     let stronger_next = |s: FBCCluster, s_prime: FBCCluster| {
@@ -79,8 +76,7 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
+    ensures spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
 {
     let inv = the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: FBCCluster, s_prime: FBCCluster| {
@@ -97,14 +93,11 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)))),
+    ensures spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)))),
 {
     let inv = response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc);
     let key = fbc.object_ref();
@@ -147,9 +140,7 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
     init_invariant(spec, FBCCluster::init(), next, inv);
 }
 
-pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(spec: TempPred<FBCCluster>, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
@@ -166,10 +157,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc))))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fbc).key)), sub_resource);
@@ -182,9 +170,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
@@ -201,10 +187,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fbc)))),
         spec.entails(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc))))),
 {
     let key = fbc.object_ref();
     let resource_key = get_request(sub_resource, fbc).key;
@@ -284,9 +267,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         lift_state(FBCCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(spec: TempPred<FBCCluster>, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
@@ -298,10 +279,8 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)))),
     ensures
-        spec.entails(
-            true_pred().leads_to(
-                always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc))))
-        )),
+        spec.entails(true_pred().leads_to(
+            always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc))))) by {
         lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(spec, sub_resource, fbc);
@@ -310,9 +289,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
@@ -323,10 +300,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc))))),
 {
     let key = fbc.object_ref();
     let resource_key = get_request(sub_resource, fbc).key;
@@ -375,9 +349,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         lift_state(FBCCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(spec: TempPred<FBCCluster>, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
@@ -390,10 +362,8 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)))),
         spec.entails(always(lift_state(fbc_is_well_formed(fbc)))),
     ensures
-        spec.entails(
-            true_pred().leads_to(
-                always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))))
-        ),
+        spec.entails(true_pred().leads_to(
+            always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc))))) by {
         lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(spec, sub_resource, fbc);
@@ -402,9 +372,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::kubernetes_api_next().weak_fairness(i))),
@@ -416,10 +384,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)))),
         spec.entails(always(lift_state(fbc_is_well_formed(fbc)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc))))),
 {
     let key = fbc.object_ref();
     let resource_key = get_request(sub_resource, fbc).key;
@@ -472,14 +437,11 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_no_update_status_request_msg_in_flight(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_always_no_update_status_request_msg_in_flight(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc)))),
+    ensures spec.entails(always(lift_state(no_update_status_request_msg_in_flight(sub_resource, fbc)))),
 {
     FBCCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     let inv = no_update_status_request_msg_in_flight(sub_resource, fbc);
@@ -560,14 +522,11 @@ spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> O
     }
 }
 
-pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))),
+    ensures spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))),
 {
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec, sub_resource, fbc);
@@ -609,14 +568,11 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, fbc)))),
+    ensures spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, fbc)))),
 {
     let inv = resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, fbc);
     let stronger_next = |s, s_prime| {
@@ -687,9 +643,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 ///
 /// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(
-    sub_resource: SubResource, fbc: FluentBitConfigView, s: FBCCluster, s_prime: FBCCluster, msg: FBCMessage, step: FBCStep
-)
+pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, fbc: FluentBitConfigView, s: FBCCluster, s_prime: FBCCluster, msg: FBCMessage, step: FBCStep)
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         FBCCluster::next_step(s, s_prime, step),
@@ -738,9 +692,7 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
     }
 }
 
-pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(spec: TempPred<FBCCluster>, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -750,10 +702,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
         spec.entails(tla_forall(|i| FBCCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(fbc)))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] no_delete_resource_request_msg_in_flight(sub_resource, fbc))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(res, fbc)), sub_resource);
@@ -763,9 +712,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_state(FBCCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -775,10 +722,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec.entails(tla_forall(|i| FBCCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(fbc)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fbc))))),
 {
     let key = fbc.object_ref();
     let resource_key = get_request(sub_resource, fbc).key;
@@ -843,9 +787,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     );
 }
 
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(spec: TempPred<FBCCluster>, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_action(FBCCluster::next()))),
@@ -855,8 +797,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc))))),
-    ensures
-        spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))))),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, fbc)), sub_resource);
@@ -868,9 +809,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView
-)
+pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_state(FBCCluster::busy_disabled()))),
         spec.entails(always(lift_action(FBCCluster::next()))),
@@ -880,8 +819,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc))))),
 {
     let key = get_request(sub_resource, fbc).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![fbc.controller_owner_ref()])};
@@ -906,10 +844,8 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCCluster>, p: TempPred<FBCCluster>, a_to_p: FnSpec(SubResource)->TempPred<FBCCluster>)
-    requires
-        forall |a: SubResource| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
-    ensures
-        spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
+    requires forall |a: SubResource| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
+    ensures spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,

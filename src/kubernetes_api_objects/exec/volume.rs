@@ -20,8 +20,7 @@ impl Volume {
 
     #[verifier(external_body)]
     pub fn default() -> (volume: Volume)
-        ensures
-            volume@ == VolumeView::default(),
+        ensures volume@ == VolumeView::default(),
     {
         Volume {
             inner: deps_hack::k8s_openapi::api::core::v1::Volume::default(),
@@ -30,8 +29,7 @@ impl Volume {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (volume: Volume)
-        ensures
-            volume@ == self@,
+        ensures volume@ == self@,
     {
         Volume {
             inner: self.inner.clone(),
@@ -40,56 +38,48 @@ impl Volume {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_host_path(&mut self, host_path: HostPathVolumeSource)
-        ensures
-            self@ == old(self)@.set_host_path(host_path@),
+        ensures self@ == old(self)@.set_host_path(host_path@),
     {
         self.inner.host_path = Some(host_path.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_config_map(&mut self, config_map: ConfigMapVolumeSource)
-        ensures
-            self@ == old(self)@.set_config_map(config_map@),
+        ensures self@ == old(self)@.set_config_map(config_map@),
     {
         self.inner.config_map = Some(config_map.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_projected(&mut self, projected: ProjectedVolumeSource)
-        ensures
-            self@ == old(self)@.set_projected(projected@),
+        ensures self@ == old(self)@.set_projected(projected@),
     {
         self.inner.projected = Some(projected.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_secret(&mut self, secret: SecretVolumeSource)
-        ensures
-            self@ == old(self)@.set_secret(secret@),
+        ensures self@ == old(self)@.set_secret(secret@),
     {
         self.inner.secret = Some(secret.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_downward_api(&mut self, downward_api: DownwardAPIVolumeSource)
-        ensures
-            self@ == old(self)@.set_downward_api(downward_api@),
+        ensures self@ == old(self)@.set_downward_api(downward_api@),
     {
         self.inner.downward_api = Some(downward_api.into_kube());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Volume {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Volume { self.inner }
 
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> (volume: Volume)
@@ -101,8 +91,7 @@ impl Volume {
 
     #[verifier(external_body)]
     pub fn set_empty_dir(&mut self, empty_dir: EmptyDirVolumeSource)
-        ensures
-            self@ == old(self)@.set_empty_dir(empty_dir@),
+        ensures self@ == old(self)@.set_empty_dir(empty_dir@),
     {
         self.inner.empty_dir = Some(empty_dir.into_kube());
     }
@@ -118,8 +107,7 @@ impl EmptyDirVolumeSource {
 
     #[verifier(external_body)]
     pub fn default() -> (empty_dir_volum_source: EmptyDirVolumeSource)
-        ensures
-            empty_dir_volum_source@ == EmptyDirVolumeSourceView::default(),
+        ensures empty_dir_volum_source@ == EmptyDirVolumeSourceView::default(),
     {
         EmptyDirVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default(),
@@ -128,8 +116,7 @@ impl EmptyDirVolumeSource {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (empty_dir_volum_source: EmptyDirVolumeSource)
-        ensures
-            empty_dir_volum_source@ == self@,
+        ensures empty_dir_volum_source@ == self@,
     {
         EmptyDirVolumeSource {
             inner: self.inner.clone(),
@@ -137,9 +124,7 @@ impl EmptyDirVolumeSource {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource { self.inner }
 
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource) -> (empty_dir_volum_source: EmptyDirVolumeSource)
@@ -158,8 +143,7 @@ impl HostPathVolumeSource {
 
     #[verifier(external_body)]
     pub fn default() -> (host_path_volume_source: HostPathVolumeSource)
-        ensures
-            host_path_volume_source@ == HostPathVolumeSourceView::default(),
+        ensures host_path_volume_source@ == HostPathVolumeSourceView::default(),
     {
         HostPathVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default(),
@@ -168,8 +152,7 @@ impl HostPathVolumeSource {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (host_path_volume_source: HostPathVolumeSource)
-        ensures
-            host_path_volume_source@ == self@,
+        ensures host_path_volume_source@ == self@,
     {
         HostPathVolumeSource {
             inner: self.inner.clone(),
@@ -178,8 +161,7 @@ impl HostPathVolumeSource {
 
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
-        ensures
-            self@ == old(self)@.set_path(path@),
+        ensures self@ == old(self)@.set_path(path@),
     {
         self.inner.path = path.into_rust_string();
     }
@@ -206,8 +188,7 @@ impl ConfigMapVolumeSource {
 
     #[verifier(external_body)]
     pub fn default() -> (config_map_volume_source: ConfigMapVolumeSource)
-        ensures
-            config_map_volume_source@ == ConfigMapVolumeSourceView::default(),
+        ensures config_map_volume_source@ == ConfigMapVolumeSourceView::default(),
     {
         ConfigMapVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource::default(),
@@ -216,8 +197,7 @@ impl ConfigMapVolumeSource {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (config_map_volume_source: ConfigMapVolumeSource)
-        ensures
-            config_map_volume_source@ == self@,
+        ensures config_map_volume_source@ == self@,
     {
         ConfigMapVolumeSource {
             inner: self.inner.clone(),
@@ -226,8 +206,7 @@ impl ConfigMapVolumeSource {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
     }
@@ -254,8 +233,7 @@ impl SecretVolumeSource {
 
     #[verifier(external_body)]
     pub fn default() -> (secret_volume_source: SecretVolumeSource)
-        ensures
-            secret_volume_source@ == SecretVolumeSourceView::default(),
+        ensures secret_volume_source@ == SecretVolumeSourceView::default(),
     {
         SecretVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource::default(),
@@ -264,8 +242,7 @@ impl SecretVolumeSource {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (secret_volume_source: SecretVolumeSource)
-        ensures
-            secret_volume_source@ == self@,
+        ensures secret_volume_source@ == self@,
     {
         SecretVolumeSource {
             inner: self.inner.clone(),
@@ -274,8 +251,7 @@ impl SecretVolumeSource {
 
     #[verifier(external_body)]
     pub fn set_secret_name(&mut self, secret_name: String)
-        ensures
-            self@ == old(self)@.set_secret_name(secret_name@),
+        ensures self@ == old(self)@.set_secret_name(secret_name@),
     {
         self.inner.secret_name = Some(secret_name.into_rust_string());
     }
@@ -302,8 +278,7 @@ impl ProjectedVolumeSource {
 
     #[verifier(external_body)]
     pub fn default() -> (projected_volume_source: ProjectedVolumeSource)
-        ensures
-            projected_volume_source@ == ProjectedVolumeSourceView::default(),
+        ensures projected_volume_source@ == ProjectedVolumeSourceView::default(),
     {
         ProjectedVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource::default(),
@@ -312,18 +287,14 @@ impl ProjectedVolumeSource {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (projected_volume_source: ProjectedVolumeSource)
-        ensures
-            projected_volume_source@ == self@,
+        ensures projected_volume_source@ == self@,
     {
-        ProjectedVolumeSource {
-            inner: self.inner.clone(),
-        }
+        ProjectedVolumeSource { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_sources(&mut self, sources: Vec<VolumeProjection>)
-        ensures
-            self@ == old(self)@.set_sources(sources@.map_values(|v: VolumeProjection| v@)),
+        ensures self@ == old(self)@.set_sources(sources@.map_values(|v: VolumeProjection| v@)),
     {
         self.inner.sources = Some(
             sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect()
@@ -352,8 +323,7 @@ impl VolumeProjection {
 
     #[verifier(external_body)]
     pub fn default() -> (volume_projection: VolumeProjection)
-        ensures
-            volume_projection@ == VolumeProjectionView::default(),
+        ensures volume_projection@ == VolumeProjectionView::default(),
     {
         VolumeProjection {
             inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection::default(),
@@ -362,16 +332,14 @@ impl VolumeProjection {
 
     #[verifier(external_body)]
     pub fn set_config_map(&mut self, config_map: ConfigMapProjection)
-        ensures
-            self@ == old(self)@.set_config_map(config_map@),
+        ensures self@ == old(self)@.set_config_map(config_map@),
     {
         self.inner.config_map = Some(config_map.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_secret(&mut self, secret: SecretProjection)
-        ensures
-            self@ == old(self)@.set_secret(secret@),
+        ensures self@ == old(self)@.set_secret(secret@),
     {
         self.inner.secret = Some(secret.into_kube());
     }
@@ -398,8 +366,7 @@ impl ConfigMapProjection {
 
     #[verifier(external_body)]
     pub fn default() -> (config_map_projection: ConfigMapProjection)
-        ensures
-            config_map_projection@ == ConfigMapProjectionView::default(),
+        ensures config_map_projection@ == ConfigMapProjectionView::default(),
     {
         ConfigMapProjection {
             inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default(),
@@ -408,8 +375,7 @@ impl ConfigMapProjection {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (config_map_projection: ConfigMapProjection)
-        ensures
-            config_map_projection@ == self@,
+        ensures config_map_projection@ == self@,
     {
         ConfigMapProjection {
             inner: self.inner.clone(),
@@ -418,16 +384,14 @@ impl ConfigMapProjection {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
-        ensures
-            self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
+        ensures self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
         self.inner.items = Some(
             items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
@@ -456,8 +420,7 @@ impl SecretProjection {
 
     #[verifier(external_body)]
     pub fn default() -> (secret_projection: SecretProjection)
-        ensures
-            secret_projection@ == SecretProjectionView::default(),
+        ensures secret_projection@ == SecretProjectionView::default(),
     {
         SecretProjection {
             inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection::default(),
@@ -466,8 +429,7 @@ impl SecretProjection {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (secret_projection: SecretProjection)
-        ensures
-            secret_projection@ == self@,
+        ensures secret_projection@ == self@,
     {
         SecretProjection {
             inner: self.inner.clone(),
@@ -476,16 +438,14 @@ impl SecretProjection {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
-        ensures
-            self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
+        ensures self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
         self.inner.items = Some(
             items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
@@ -514,8 +474,7 @@ impl KeyToPath {
 
     #[verifier(external_body)]
     pub fn default() -> (key_to_path: KeyToPath)
-        ensures
-            key_to_path@ == KeyToPathView::default(),
+        ensures key_to_path@ == KeyToPathView::default(),
     {
         KeyToPath {
             inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath::default(),
@@ -524,16 +483,14 @@ impl KeyToPath {
 
     #[verifier(external_body)]
     pub fn set_key(&mut self, key: String)
-        ensures
-            self@ == old(self)@.set_key(key@),
+        ensures self@ == old(self)@.set_key(key@),
     {
         self.inner.key = key.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
-        ensures
-            self@ == old(self)@.set_path(path@),
+        ensures self@ == old(self)@.set_path(path@),
     {
         self.inner.path = path.into_rust_string();
     }
@@ -560,8 +517,7 @@ impl DownwardAPIVolumeSource {
 
     #[verifier(external_body)]
     pub fn default() -> (downward_api_volume_source: DownwardAPIVolumeSource)
-        ensures
-            downward_api_volume_source@ == DownwardAPIVolumeSourceView::default(),
+        ensures downward_api_volume_source@ == DownwardAPIVolumeSourceView::default(),
     {
         DownwardAPIVolumeSource {
             inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource::default(),
@@ -570,8 +526,7 @@ impl DownwardAPIVolumeSource {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (downward_api_volume_source: DownwardAPIVolumeSource)
-        ensures
-            downward_api_volume_source@ == self@,
+        ensures downward_api_volume_source@ == self@,
     {
         DownwardAPIVolumeSource {
             inner: self.inner.clone(),
@@ -580,8 +535,7 @@ impl DownwardAPIVolumeSource {
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<DownwardAPIVolumeFile>)
-        ensures
-            self@ == old(self)@.set_items(items@.map_values(|v: DownwardAPIVolumeFile| v@)),
+        ensures self@ == old(self)@.set_items(items@.map_values(|v: DownwardAPIVolumeFile| v@)),
     {
         self.inner.items = Some(
             items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect()
@@ -610,8 +564,7 @@ impl DownwardAPIVolumeFile {
 
     #[verifier(external_body)]
     pub fn default() -> (downward_api_volume_file: DownwardAPIVolumeFile)
-        ensures
-            downward_api_volume_file@ == DownwardAPIVolumeFileView::default(),
+        ensures downward_api_volume_file@ == DownwardAPIVolumeFileView::default(),
     {
         DownwardAPIVolumeFile {
             inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile::default(),
@@ -620,16 +573,14 @@ impl DownwardAPIVolumeFile {
 
     #[verifier(external_body)]
     pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector)
-        ensures
-            self@ == old(self)@.set_field_ref(field_ref@),
+        ensures self@ == old(self)@.set_field_ref(field_ref@),
     {
         self.inner.field_ref = Some(field_ref.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
-        ensures
-            self@ == old(self)@.set_path(path@),
+        ensures self@ == old(self)@.set_path(path@),
     {
         self.inner.path = path.into_rust_string();
     }
@@ -656,8 +607,7 @@ impl ObjectFieldSelector {
 
     #[verifier(external_body)]
     pub fn default() -> (object_field_selector: ObjectFieldSelector)
-        ensures
-            object_field_selector@ == ObjectFieldSelectorView::default(),
+        ensures object_field_selector@ == ObjectFieldSelectorView::default(),
     {
         ObjectFieldSelector {
             inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default(),
@@ -666,8 +616,7 @@ impl ObjectFieldSelector {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (object_field_selector: ObjectFieldSelector)
-        ensures
-            object_field_selector@ == self@,
+        ensures object_field_selector@ == self@,
     {
         ObjectFieldSelector {
             inner: self.inner.clone(),
@@ -675,8 +624,7 @@ impl ObjectFieldSelector {
     }
 
     pub fn new_with(api_version: String, field_path: String) -> (object_field_selector: ObjectFieldSelector)
-        ensures
-            object_field_selector@ == ObjectFieldSelectorView::default().set_api_version(api_version@).set_field_path(field_path@),
+        ensures object_field_selector@ == ObjectFieldSelectorView::default().set_api_version(api_version@).set_field_path(field_path@),
     {
         let mut selector = ObjectFieldSelector::default();
         selector.set_api_version(api_version);
@@ -686,16 +634,14 @@ impl ObjectFieldSelector {
 
     #[verifier(external_body)]
     pub fn set_field_path(&mut self, field_path: String)
-        ensures
-            self@ == old(self)@.set_field_path(field_path@),
+        ensures self@ == old(self)@.set_field_path(field_path@),
     {
         self.inner.field_path = field_path.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_api_version(&mut self, api_version: String)
-        ensures
-            self@ == old(self)@.set_api_version(api_version@),
+        ensures self@ == old(self)@.set_api_version(api_version@),
     {
         self.inner.api_version = Some(api_version.into_rust_string());
     }

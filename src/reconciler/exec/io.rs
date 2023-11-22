@@ -48,8 +48,7 @@ impl <T: View> View for Response<T> {
 
 impl <T: View> Response<T> {
     pub fn is_external_response(&self) -> (res: bool)
-        ensures
-            res == self.is_ExternalResponse(),
+        ensures res == self.is_ExternalResponse(),
     {
         match self {
             Response::ExternalResponse(_) => true,
@@ -58,10 +57,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn as_external_response_ref(&self) -> (resp: &T)
-        requires
-            self.is_ExternalResponse(),
-        ensures
-            resp == self.get_ExternalResponse_0(),
+        requires self.is_ExternalResponse(),
+        ensures resp == self.get_ExternalResponse_0(),
     {
         match self {
             Response::ExternalResponse(resp) => resp,
@@ -70,10 +67,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn into_external_response(self) -> (resp: T)
-        requires
-            self.is_ExternalResponse(),
-        ensures
-            resp == self.get_ExternalResponse_0(),
+        requires self.is_ExternalResponse(),
+        ensures resp == self.get_ExternalResponse_0(),
     {
         match self {
             Response::ExternalResponse(resp) => resp,
@@ -82,8 +77,7 @@ impl <T: View> Response<T> {
     }
 
     pub fn is_k_response(&self) -> (res: bool)
-        ensures
-            res == self.is_KResponse(),
+        ensures res == self.is_KResponse(),
     {
         match self {
             Response::KResponse(_) => true,
@@ -92,10 +86,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn as_k_response_ref(&self) -> (resp: &KubeAPIResponse)
-        requires
-            self.is_KResponse(),
-        ensures
-            resp == self.get_KResponse_0(),
+        requires self.is_KResponse(),
+        ensures resp == self.get_KResponse_0(),
     {
         match self {
             Response::KResponse(resp) => resp,
@@ -104,10 +96,8 @@ impl <T: View> Response<T> {
     }
 
     pub fn into_k_response(self) -> (resp: KubeAPIResponse)
-        requires
-            self.is_KResponse(),
-        ensures
-            resp == self.get_KResponse_0(),
+        requires self.is_KResponse(),
+        ensures resp == self.get_KResponse_0(),
     {
         match self {
             Response::KResponse(resp) => resp,

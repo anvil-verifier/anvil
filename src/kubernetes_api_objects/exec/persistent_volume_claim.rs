@@ -30,8 +30,7 @@ impl PersistentVolumeClaim {
 
     #[verifier(external_body)]
     pub fn default() -> (pvc: PersistentVolumeClaim)
-        ensures
-            pvc@ == PersistentVolumeClaimView::default(),
+        ensures pvc@ == PersistentVolumeClaimView::default(),
     {
         PersistentVolumeClaim {
             inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim::default(),
@@ -40,8 +39,7 @@ impl PersistentVolumeClaim {
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
@@ -68,24 +66,21 @@ impl PersistentVolumeClaim {
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PersistentVolumeClaimSpec)
-        ensures
-            self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == PersistentVolumeClaimView::kind(),
+        ensures res@.kind == PersistentVolumeClaimView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -111,15 +106,11 @@ impl PersistentVolumeClaim {
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim> for PersistentVolumeClaim {
     #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim) -> PersistentVolumeClaim {
-        PersistentVolumeClaim {
-            inner: inner
-        }
+        PersistentVolumeClaim { inner: inner }
     }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim { self.inner }
 }
 
 #[verifier(external_body)]
@@ -132,8 +123,7 @@ impl PersistentVolumeClaimSpec {
 
     #[verifier(external_body)]
     pub fn default() -> (pvc_spec: PersistentVolumeClaimSpec)
-        ensures
-            pvc_spec@ == PersistentVolumeClaimSpecView::default(),
+        ensures pvc_spec@ == PersistentVolumeClaimSpecView::default(),
     {
         PersistentVolumeClaimSpec {
             inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec::default(),
@@ -142,8 +132,7 @@ impl PersistentVolumeClaimSpec {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (pvc_spec: PersistentVolumeClaimSpec)
-        ensures
-            pvc_spec@ == self@,
+        ensures pvc_spec@ == self@,
     {
         PersistentVolumeClaimSpec {
             inner: self.inner.clone(),
@@ -152,8 +141,7 @@ impl PersistentVolumeClaimSpec {
 
     #[verifier(external_body)]
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
-        ensures
-            self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
+        ensures self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
     {
         self.inner.access_modes = Some(
             access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect()
@@ -162,16 +150,14 @@ impl PersistentVolumeClaimSpec {
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: ResourceRequirements)
-        ensures
-            self@ == old(self)@.set_resources(resources@),
+        ensures self@ == old(self)@.set_resources(resources@),
     {
         self.inner.resources = Some(resources.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_storage_class_name(&mut self, storage_class_name: String)
-        ensures
-            self@ == old(self)@.set_storage_class_name(storage_class_name@),
+        ensures self@ == old(self)@.set_storage_class_name(storage_class_name@),
     {
         self.inner.storage_class_name = Some(storage_class_name.into_rust_string());
     }

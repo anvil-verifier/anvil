@@ -36,8 +36,7 @@ impl View for Service {
 impl Service {
     #[verifier(external_body)]
     pub fn default() -> (service: Service)
-        ensures
-            service@ == ServiceView::default(),
+        ensures service@ == ServiceView::default(),
     {
         Service {
             inner: deps_hack::k8s_openapi::api::core::v1::Service::default(),
@@ -46,16 +45,14 @@ impl Service {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         Service { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
@@ -74,16 +71,14 @@ impl Service {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: ServiceSpec)
-        ensures
-            self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -103,16 +98,14 @@ impl Service {
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == ServiceView::kind(),
+        ensures res@.kind == ServiceView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Service>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -145,8 +138,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn default() -> (service_spec: ServiceSpec)
-        ensures
-            service_spec@ == ServiceSpecView::default(),
+        ensures service_spec@ == ServiceSpecView::default(),
     {
         ServiceSpec {
             inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec::default(),
@@ -155,16 +147,14 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         ServiceSpec { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_cluster_ip(&mut self, cluster_ip: String)
-        ensures
-            self@ == old(self)@.set_cluster_ip(cluster_ip@),
+        ensures self@ == old(self)@.set_cluster_ip(cluster_ip@),
     {
         self.inner.cluster_ip = Some(cluster_ip.into_rust_string())
     }
@@ -183,8 +173,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_ports(&mut self, ports: Vec<ServicePort>)
-        ensures
-            self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
+        ensures self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
     {
         self.inner.ports = Some(
             ports.into_iter().map(|port: ServicePort| port.into_kube()).collect()
@@ -205,8 +194,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: StringMap)
-        ensures
-            self@ == old(self)@.set_selector(selector@),
+        ensures self@ == old(self)@.set_selector(selector@),
     {
         self.inner.selector = Some(selector.into_rust_map())
     }
@@ -222,16 +210,14 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_publish_not_ready_addresses(&mut self, publish_not_ready_addresses: bool)
-        ensures
-            self@ == old(self)@.set_publish_not_ready_addresses(publish_not_ready_addresses),
+        ensures self@ == old(self)@.set_publish_not_ready_addresses(publish_not_ready_addresses),
     {
         self.inner.publish_not_ready_addresses = Some(publish_not_ready_addresses);
     }
 
     #[verifier(external_body)]
     pub fn unset_publish_not_ready_addresses(&mut self)
-        ensures
-            self@ == old(self)@.unset_publish_not_ready_addresses(),
+        ensures self@ == old(self)@.unset_publish_not_ready_addresses(),
     {
         self.inner.publish_not_ready_addresses = None;
     }
@@ -257,8 +243,7 @@ impl ServicePort {
 
     #[verifier(external_body)]
     pub fn default() -> (service_port: ServicePort)
-        ensures
-            service_port@ == ServicePortView::default(),
+        ensures service_port@ == ServicePortView::default(),
     {
         ServicePort {
             inner: deps_hack::k8s_openapi::api::core::v1::ServicePort::default(),
@@ -266,8 +251,7 @@ impl ServicePort {
     }
 
     pub fn new_with(name: String, port: i32) -> (service_port: ServicePort)
-        ensures
-            service_port@ == ServicePortView::default().set_name(name@).set_port(port as int),
+        ensures service_port@ == ServicePortView::default().set_name(name@).set_port(port as int),
     {
         let mut service_port = Self::default();
         service_port.set_name(name);
@@ -278,24 +262,21 @@ impl ServicePort {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_port(&mut self, port: i32)
-        ensures
-            self@ == old(self)@.set_port(port as int),
+        ensures self@ == old(self)@.set_port(port as int),
     {
         self.inner.port = port;
     }
 
     #[verifier(external_body)]
     pub fn set_app_protocol(&mut self, app_protocol: String)
-        ensures
-            self@ == old(self)@.set_app_protocol(app_protocol@),
+        ensures self@ == old(self)@.set_app_protocol(app_protocol@),
     {
         self.inner.app_protocol = Some(app_protocol.into_rust_string());
     }
@@ -306,9 +287,7 @@ impl ServicePort {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort { self.inner }
 }
 
 }

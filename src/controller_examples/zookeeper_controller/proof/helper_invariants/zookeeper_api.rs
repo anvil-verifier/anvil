@@ -54,10 +54,7 @@ pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_zk_set_data_request_implies_at_after_update_zk_node_step(zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let requirements = |msg: ZKMessage, s: ZKCluster| {
@@ -135,10 +132,7 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())))
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_zk_create_node_request_implies_at_after_create_zk_node_step(zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let requirements = |msg: ZKMessage, s: ZKCluster| {

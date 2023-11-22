@@ -28,8 +28,7 @@ pub proof fn lemma_always_zookeeper_is_well_formed(spec: TempPred<ZKCluster>, zo
     requires
         spec.entails(always(lift_state(desired_state_is(zookeeper)))),
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
-    ensures
-        spec.entails(always(lift_state(zookeeper_is_well_formed(zookeeper)))),
+    ensures spec.entails(always(lift_state(zookeeper_is_well_formed(zookeeper)))),
 {
     let stronger_inv = |s: ZKCluster| {
         &&& desired_state_is(zookeeper)(s)
@@ -48,8 +47,7 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation(spec: Temp
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
+    ensures spec.entails(always(lift_state(cr_objects_in_etcd_satisfy_state_validation()))),
 {
     let inv = cr_objects_in_etcd_satisfy_state_validation();
     ZookeeperClusterView::marshal_status_preserves_integrity();
@@ -60,8 +58,7 @@ pub proof fn lemma_always_the_object_in_schedule_satisfies_state_validation(spec
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
+    ensures spec.entails(always(lift_state(the_object_in_schedule_satisfies_state_validation()))),
 {
     let inv = the_object_in_schedule_satisfies_state_validation();
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
@@ -81,8 +78,7 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
+    ensures spec.entails(always(lift_state(the_object_in_reconcile_satisfies_state_validation(key)))),
 {
     let inv = the_object_in_reconcile_satisfies_state_validation(key);
     let stronger_next = |s: ZKCluster, s_prime: ZKCluster| {
@@ -110,8 +106,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
         spec.entails(always(tla_forall(|res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, zookeeper))))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(res, zookeeper))))),
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper))))),
 {
     always_tla_forall_apply(spec, |res: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, zookeeper)), SubResource::ConfigMap);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, zookeeper)), SubResource::ConfigMap);
@@ -132,8 +127,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
         spec.entails(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)))),
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let inv = cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper);
@@ -200,8 +194,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, zookeeper))))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, zookeeper))))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
 {
     always_tla_forall_apply(spec, |res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, zookeeper)), SubResource::ConfigMap);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(res, zookeeper)), SubResource::ConfigMap);
@@ -226,8 +219,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let inv = object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper);
@@ -347,8 +339,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, zookeeper))))),
         spec.entails(always(tla_forall(|res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, zookeeper))))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
 {
     always_tla_forall_apply(spec, |res: SubResource| lift_state(no_delete_resource_request_msg_in_flight(res, zookeeper)), SubResource::ConfigMap);
     always_tla_forall_apply(spec, |res: SubResource| lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(res, zookeeper)), SubResource::ConfigMap);
@@ -373,8 +364,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         spec.entails(true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let inv = object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper);
@@ -481,14 +471,11 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)))),
 {
     let inv = response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper);
     let key = zookeeper.object_ref();
@@ -552,10 +539,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, zookeeper))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper)))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, zookeeper).key)), sub_resource);
@@ -591,10 +575,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, zookeeper)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -697,10 +678,8 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
     ensures
-        spec.entails(
-            true_pred().leads_to(
-                always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper))))
-        )),
+        spec.entails(true_pred().leads_to(
+            always(tla_forall(|sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper))))) by {
         lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(spec, sub_resource, zookeeper);
@@ -722,10 +701,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
         spec.entails(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -788,11 +764,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(zookeeper_is_well_formed(zookeeper)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(
-                always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper))))) by {
         lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(spec, sub_resource, zookeeper);
@@ -815,10 +787,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(zookeeper_is_well_formed(zookeeper)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper))))
-        ),
+    ensuresspec.entails(true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -871,14 +840,11 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_stateful_set(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, zookeeper)))),
 {
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     let inv = no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource, zookeeper);
@@ -938,14 +904,11 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(
-    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)))),
+    ensures spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)))),
 {
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     let inv = no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper);
@@ -1028,14 +991,11 @@ spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> O
     }
 }
 
-pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper)))),
 {
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec, sub_resource, zookeeper);
@@ -1077,14 +1037,11 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, zookeeper)))),
 {
     let inv = resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, zookeeper);
     let stronger_next = |s, s_prime| {
@@ -1155,9 +1112,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 ///
 /// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(
-    sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster, msg: ZKMessage, step: ZKStep
-)
+pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster, msg: ZKMessage, step: ZKStep)
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
         ZKCluster::next_step(s, s_prime, step),
@@ -1309,10 +1264,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
         spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, zookeeper)))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, zookeeper)))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] no_delete_resource_request_msg_in_flight(sub_resource, zookeeper))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(res, zookeeper)), sub_resource);
@@ -1341,9 +1293,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 ///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 ///     and the original statepred.
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -1353,10 +1303,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
         spec.entails(tla_forall(|i| ZKCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, zookeeper))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(no_delete_resource_request_msg_in_flight(sub_resource, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -1422,9 +1369,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     );
 }
 
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(
-    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1434,8 +1379,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper))))),
-    ensures
-        spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))))),
+    ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, zookeeper)), sub_resource);
@@ -1447,9 +1391,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1459,8 +1401,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper))))),
 {
     let key = get_request(sub_resource, zookeeper).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![zookeeper.controller_owner_ref()])};
@@ -1485,10 +1426,8 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 }
 
 pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ZKCluster>, p: TempPred<ZKCluster>, a_to_p: FnSpec(SubResource)->TempPred<ZKCluster>)
-    requires
-        forall |a: SubResource| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
-    ensures
-        spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
+    requires forall |a: SubResource| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
+    ensures spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {
     leads_to_always_tla_forall(
         spec, p, a_to_p,
@@ -1500,9 +1439,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<ZKCluster>, p
 // Below are invariants that only hold after the config map matches the desired state
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(
-    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::kubernetes_api_next().weak_fairness(i))),
@@ -1519,10 +1456,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
         spec.entails(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(zookeeper)))),
         spec.entails(always(lift_action(cm_rv_stays_unchanged(zookeeper)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))))),
 {
     let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
     let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
@@ -1608,8 +1542,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zooke
         spec.entails(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)))),
-    ensures
-        spec.entails(always(lift_action(cm_rv_stays_unchanged(zookeeper)))),
+    ensures spec.entails(always(lift_action(cm_rv_stays_unchanged(zookeeper)))),
 {
     let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
     let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;

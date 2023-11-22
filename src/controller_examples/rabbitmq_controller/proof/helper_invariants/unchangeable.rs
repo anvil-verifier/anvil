@@ -59,14 +59,11 @@ pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
-proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
-    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
+proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)))),
+    ensures spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
     let inv = object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq);
     let next = |s, s_prime| {
@@ -108,14 +105,11 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
-    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
+pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
+    ensures spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
     let inv = |s: RMQCluster| {
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
@@ -157,9 +151,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
     always_weaken_temp(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)));
 }
 
-pub proof fn object_in_etcd_satisfies_unchangeable_induction(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster
-)
+pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
@@ -169,8 +161,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
         RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s),
-    ensures
-        object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s_prime),
+    ensures object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s_prime),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     if s_prime.resources().contains_key(resource_key) {
@@ -204,9 +195,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
     }
 }
 
-pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster
-)
+pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s),
         RMQCluster::next()(s, s_prime),
@@ -216,8 +205,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
         response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)(s),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s),
-    ensures
-        object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s_prime),
+    ensures object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, rabbitmq)(s_prime),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(resource_key)(msg)

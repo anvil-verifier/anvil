@@ -20,8 +20,7 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn default() -> (container: Container)
-        ensures
-            container@ == ContainerView::default(),
+        ensures container@ == ContainerView::default(),
     {
         Container {
             inner: deps_hack::k8s_openapi::api::core::v1::Container::default(),
@@ -30,32 +29,28 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         Container { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_image(&mut self, image: String)
-        ensures
-            self@ == old(self)@.set_image(image@),
+        ensures self@ == old(self)@.set_image(image@),
     {
         self.inner.image = Some(image.into_rust_string())
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string()
     }
 
     #[verifier(external_body)]
     pub fn set_volume_mounts(&mut self, volume_mounts: Vec<VolumeMount>)
-        ensures
-            self@ == old(self)@.set_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
+        ensures self@ == old(self)@.set_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
     {
         self.inner.volume_mounts = Some(
             volume_mounts.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
@@ -64,8 +59,7 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_ports(&mut self, ports: Vec<ContainerPort>)
-        ensures
-            self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
+        ensures self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
     {
         self.inner.ports = Some(
             ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect()
@@ -74,16 +68,14 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_lifecycle(&mut self, lifecycle: Lifecycle)
-        ensures
-            self@ == old(self)@.set_lifecycle(lifecycle@),
+        ensures self@ == old(self)@.set_lifecycle(lifecycle@),
     {
         self.inner.lifecycle = Some(lifecycle.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: ResourceRequirements)
-        ensures
-            self@ == old(self)@.set_resources(resources@),
+        ensures self@ == old(self)@.set_resources(resources@),
     {
         self.inner.resources = Some(resources.into_kube())
     }
@@ -106,24 +98,21 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
-        ensures
-            self@ == old(self)@.set_liveness_probe(liveness_probe@),
+        ensures self@ == old(self)@.set_liveness_probe(liveness_probe@),
     {
         self.inner.liveness_probe = Some(liveness_probe.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_readiness_probe(&mut self, readiness_probe: Probe)
-        ensures
-            self@ == old(self)@.set_readiness_probe(readiness_probe@),
+        ensures self@ == old(self)@.set_readiness_probe(readiness_probe@),
     {
         self.inner.readiness_probe = Some(readiness_probe.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
-        ensures
-            self@ == old(self)@.set_command(command@.map_values(|c: String| c@)),
+        ensures self@ == old(self)@.set_command(command@.map_values(|c: String| c@)),
     {
         self.inner.command = Some(
             command.into_iter().map(|c: String| c.into_rust_string()).collect()
@@ -132,31 +121,23 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_image_pull_policy(&mut self, image_pull_policy: String)
-        ensures
-            self@ == old(self)@.set_image_pull_policy(image_pull_policy@),
+        ensures self@ == old(self)@.set_image_pull_policy(image_pull_policy@),
     {
         self.inner.image_pull_policy = Some(image_pull_policy.into_rust_string())
     }
 
     #[verifier(external_body)]
     pub fn set_env(&mut self, env: Vec<EnvVar>)
-        ensures
-            self@ == old(self)@.set_env(env@.map_values(|v: EnvVar| v@)),
+        ensures self@ == old(self)@.set_env(env@.map_values(|v: EnvVar| v@)),
     {
-        self.inner.env = Some(
-            env.into_iter().map(|e: EnvVar| e.into_kube()).collect()
-        )
+        self.inner.env = Some(env.into_iter().map(|e: EnvVar| e.into_kube()).collect())
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Container) -> Container {
-        Container { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Container) -> Container { Container { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container { self.inner }
 }
 
 #[verifier(external_body)]
@@ -169,17 +150,13 @@ impl ContainerPort {
 
     #[verifier(external_body)]
     pub fn default() -> (container_port: ContainerPort)
-        ensures
-            container_port@ == ContainerPortView::default(),
+        ensures container_port@ == ContainerPortView::default(),
     {
-        ContainerPort {
-            inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort::default(),
-        }
+        ContainerPort { inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort::default() }
     }
 
     pub fn new_with(name: String, port: i32) -> (container_port: ContainerPort)
-        ensures
-            container_port@ == ContainerPortView::default().set_name(name@).set_container_port(port as int),
+        ensures container_port@ == ContainerPortView::default().set_name(name@).set_container_port(port as int),
     {
         let mut container_port = Self::default();
         container_port.set_name(name);
@@ -190,29 +167,23 @@ impl ContainerPort {
 
     #[verifier(external_body)]
     pub fn set_container_port(&mut self, container_port: i32)
-        ensures
-            self@ == old(self)@.set_container_port(container_port as int),
+        ensures self@ == old(self)@.set_container_port(container_port as int),
     {
         self.inner.container_port = container_port;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort) -> ContainerPort {
-        ContainerPort { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort) -> ContainerPort { ContainerPort { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ContainerPort {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ContainerPort { self.inner }
 }
 
 #[verifier(external_body)]
@@ -225,17 +196,13 @@ impl VolumeMount {
 
     #[verifier(external_body)]
     pub fn default() -> (volume_mount: VolumeMount)
-        ensures
-            volume_mount@ == VolumeMountView::default(),
+        ensures volume_mount@ == VolumeMountView::default(),
     {
-        VolumeMount {
-            inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount::default(),
-        }
+        VolumeMount { inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount::default() }
     }
 
     pub fn new_with(mount_path: String, name: String) -> (volume_mount: VolumeMount)
-        ensures
-            volume_mount@ == VolumeMountView::default().set_mount_path(mount_path@).set_name(name@),
+        ensures volume_mount@ == VolumeMountView::default().set_mount_path(mount_path@).set_name(name@),
     {
         let mut volume_mount = Self::default();
         volume_mount.set_mount_path(mount_path);
@@ -246,40 +213,35 @@ impl VolumeMount {
 
     #[verifier(external_body)]
     pub fn set_mount_path(&mut self, mount_path: String)
-        ensures
-            self@ == old(self)@.set_mount_path(mount_path@),
+        ensures self@ == old(self)@.set_mount_path(mount_path@),
     {
         self.inner.mount_path = mount_path.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_read_only(&mut self, read_only: bool)
-        ensures
-            self@ == old(self)@.set_read_only(read_only),
+        ensures self@ == old(self)@.set_read_only(read_only),
     {
         self.inner.read_only = Some(read_only);
     }
 
     #[verifier(external_body)]
     pub fn set_sub_path(&mut self, sub_path: String)
-        ensures
-            self@ == old(self)@.set_sub_path(sub_path@),
+        ensures self@ == old(self)@.set_sub_path(sub_path@),
     {
         self.inner.sub_path = Some(sub_path.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn overwrite_mount_propagation(&mut self, mount_propagation: Option<String>)
-        ensures
-            self@ == old(self)@.overwrite_mount_propagation(opt_string_to_view(&mount_propagation)),
+        ensures self@ == old(self)@.overwrite_mount_propagation(opt_string_to_view(&mount_propagation)),
     {
         match mount_propagation {
             Some(n) => self.inner.mount_propagation = Some(n.into_rust_string()),
@@ -288,14 +250,10 @@ impl VolumeMount {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount) -> VolumeMount {
-        VolumeMount { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount) -> VolumeMount { VolumeMount { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeMount {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeMount { self.inner }
 }
 
 #[verifier(external_body)]
@@ -308,8 +266,7 @@ impl Probe {
 
     #[verifier(external_body)]
     pub fn default() -> (probe: Probe)
-        ensures
-            probe@ == ProbeView::default(),
+        ensures probe@ == ProbeView::default(),
     {
         Probe {
             inner: deps_hack::k8s_openapi::api::core::v1::Probe::default(),
@@ -318,64 +275,56 @@ impl Probe {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         Probe { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
-        ensures
-            self@ == old(self)@.set_exec(exec@),
+        ensures self@ == old(self)@.set_exec(exec@),
     {
         self.inner.exec = Some(exec.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_failure_threshold(&mut self, failure_threshold: i32)
-        ensures
-            self@ == old(self)@.set_failure_threshold(failure_threshold as int),
+        ensures self@ == old(self)@.set_failure_threshold(failure_threshold as int),
     {
         self.inner.failure_threshold = Some(failure_threshold);
     }
 
     #[verifier(external_body)]
     pub fn set_initial_delay_seconds(&mut self, initial_delay_seconds: i32)
-        ensures
-            self@ == old(self)@.set_initial_delay_seconds(initial_delay_seconds as int),
+        ensures self@ == old(self)@.set_initial_delay_seconds(initial_delay_seconds as int),
     {
         self.inner.initial_delay_seconds = Some(initial_delay_seconds);
     }
 
     #[verifier(external_body)]
     pub fn set_period_seconds(&mut self, period_seconds: i32)
-        ensures
-            self@ == old(self)@.set_period_seconds(period_seconds as int),
+        ensures self@ == old(self)@.set_period_seconds(period_seconds as int),
     {
         self.inner.period_seconds = Some(period_seconds);
     }
 
     #[verifier(external_body)]
     pub fn set_success_threshold(&mut self, success_threshold: i32)
-        ensures
-            self@ == old(self)@.set_success_threshold(success_threshold as int),
+        ensures self@ == old(self)@.set_success_threshold(success_threshold as int),
     {
         self.inner.success_threshold = Some(success_threshold);
     }
 
     #[verifier(external_body)]
     pub fn set_tcp_socket(&mut self, tcp_socket: TCPSocketAction)
-        ensures
-            self@ == old(self)@.set_tcp_socket(tcp_socket@),
+        ensures self@ == old(self)@.set_tcp_socket(tcp_socket@),
     {
         self.inner.tcp_socket = Some(tcp_socket.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_timeout_seconds(&mut self, timeout_seconds: i32)
-        ensures
-            self@ == old(self)@.set_timeout_seconds(timeout_seconds as int),
+        ensures self@ == old(self)@.set_timeout_seconds(timeout_seconds as int),
     {
         self.inner.timeout_seconds = Some(timeout_seconds);
     }
@@ -386,9 +335,7 @@ impl Probe {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Probe {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Probe { self.inner }
 }
 
 #[verifier(external_body)]
@@ -401,8 +348,7 @@ impl ExecAction {
 
     #[verifier(external_body)]
     pub fn default() -> (exec_action: ExecAction)
-        ensures
-            exec_action@ == ExecActionView::default(),
+        ensures exec_action@ == ExecActionView::default(),
     {
         ExecAction {
             inner: deps_hack::k8s_openapi::api::core::v1::ExecAction::default(),
@@ -411,16 +357,14 @@ impl ExecAction {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         ExecAction { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
-        ensures
-            self@ == old(self)@.set_command(command@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.set_command(command@.map_values(|s: String| s@)),
     {
         self.inner.command = Some(command.into_iter().map(|s: String| s.into_rust_string()).collect());
     }
@@ -446,8 +390,7 @@ impl TCPSocketAction {
 
     #[verifier(external_body)]
     pub fn default() -> (tcp_socket_action: TCPSocketAction)
-        ensures
-            tcp_socket_action@ == TCPSocketActionView::default(),
+        ensures tcp_socket_action@ == TCPSocketActionView::default(),
     {
         TCPSocketAction {
             inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default(),
@@ -456,24 +399,21 @@ impl TCPSocketAction {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         TCPSocketAction { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_host(&mut self, host: String)
-        ensures
-            self@ == old(self)@.set_host(host@),
+        ensures self@ == old(self)@.set_host(host@),
     {
         self.inner.host = Some(host.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_port(&mut self, port: i32)
-        ensures
-            self@ == old(self)@.set_port(port as int),
+        ensures self@ == old(self)@.set_port(port as int),
     {
         self.inner.port = deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(port);
     }
@@ -499,8 +439,7 @@ impl Lifecycle {
 
     #[verifier(external_body)]
     pub fn default() -> (lifecycle: Lifecycle)
-        ensures
-            lifecycle@ == LifecycleView::default(),
+        ensures lifecycle@ == LifecycleView::default(),
     {
         Lifecycle {
             inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle::default(),
@@ -509,16 +448,14 @@ impl Lifecycle {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         Lifecycle { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_pre_stop(&mut self, handler: LifecycleHandler)
-        ensures
-            self@ == old(self)@.set_pre_stop(handler@),
+        ensures self@ == old(self)@.set_pre_stop(handler@),
     {
         self.inner.pre_stop = Some(handler.into_kube());
     }
@@ -544,8 +481,7 @@ impl LifecycleHandler {
 
     #[verifier(external_body)]
     pub fn default() -> (lifecycle_handler: LifecycleHandler)
-        ensures
-            lifecycle_handler@ == LifecycleHandlerView::default(),
+        ensures lifecycle_handler@ == LifecycleHandlerView::default(),
     {
         LifecycleHandler {
             inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler::default(),
@@ -554,16 +490,14 @@ impl LifecycleHandler {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         LifecycleHandler { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
-        ensures
-            self@ == old(self)@.set_exec(exec@),
+        ensures self@ == old(self)@.set_exec(exec@),
     {
         self.inner.exec = Some(exec.into_kube());
     }
@@ -589,8 +523,7 @@ impl EnvVar {
 
     #[verifier(external_body)]
     pub fn default() -> (env_var: EnvVar)
-        ensures
-            env_var@ == EnvVarView::default(),
+        ensures env_var@ == EnvVarView::default(),
     {
         EnvVar {
             inner: deps_hack::k8s_openapi::api::core::v1::EnvVar::default(),
@@ -619,8 +552,7 @@ impl EnvVar {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string();
     }
@@ -671,8 +603,7 @@ impl EnvVarSource {
 
     #[verifier(external_body)]
     pub fn default() -> (env_var_source: EnvVarSource)
-        ensures
-            env_var_source@ == EnvVarSourceView::default(),
+        ensures env_var_source@ == EnvVarSourceView::default(),
     {
         EnvVarSource {
             inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default(),
@@ -685,8 +616,7 @@ impl EnvVarSource {
     }
 
     pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (env_var_source: EnvVarSource)
-        ensures
-            env_var_source@ == EnvVarSourceView::default().set_field_ref(field_ref@)
+        ensures env_var_source@ == EnvVarSourceView::default().set_field_ref(field_ref@)
     {
         let mut source = EnvVarSource::default();
         source.set_field_ref(field_ref);
@@ -695,8 +625,7 @@ impl EnvVarSource {
 
     #[verifier(external_body)]
     pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector)
-        ensures
-            self@ == old(self)@.set_field_ref(field_ref@),
+        ensures self@ == old(self)@.set_field_ref(field_ref@),
     {
         self.inner.field_ref = Some(field_ref.into_kube());
     }
@@ -707,9 +636,7 @@ impl EnvVarSource {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVarSource { self.inner }
 }
 
 }

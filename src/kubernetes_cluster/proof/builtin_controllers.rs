@@ -116,8 +116,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         // If the current owner_references does not satisfy the eventual requirement, the gc action is enabled.
         spec.entails(always(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref))))),
 {
     // We split `true` into two cases:
     //     a. The object's owner references violates eventual_owner_ref.
@@ -224,11 +223,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
-    ensures
-        spec.entails(
-            lift_state(Self::exists_delete_request_msg_in_flight_with_key(key))
-            .leads_to(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref)))
-        ),
+    ensures spec.entails(lift_state(Self::exists_delete_request_msg_in_flight_with_key(key)).leads_to(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref)))),
 {
     let pre = Self::exists_delete_request_msg_in_flight_with_key(key);
     let post = Self::objects_owner_references_satisfies(key, eventual_owner_ref);

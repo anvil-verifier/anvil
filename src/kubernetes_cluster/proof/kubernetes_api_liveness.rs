@@ -20,8 +20,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
-    spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: KubernetesAPIAction<E::Input, E::Output>,
-    pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: KubernetesAPIAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::kubernetes_api().actions.contains(action),
@@ -30,8 +29,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
         forall |s: Self| #[trigger] pre(s) ==> Self::kubernetes_api_action_pre(action, input)(s),
         spec.entails(always(lift_action(next))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+    ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
@@ -44,8 +42,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
 }
 
 pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
-    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>,
-    action: BuiltinControllersAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::builtin_controllers().actions.contains(action),
@@ -54,8 +51,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
         forall |s: Self| #[trigger] pre(s) ==> Self::builtin_controllers_action_pre(action, input)(s),
         spec.entails(always(lift_action(next))),
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
-    ensures
-        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+    ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
     Self::builtin_controllers_action_pre_implies_next_pre(action, input);
@@ -68,8 +64,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
 }
 
 pub proof fn lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
-    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>,
-    action: BuiltinControllersAction<E::Input, E::Output>, c: StatePred<Self>, pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction<E::Input, E::Output>, c: StatePred<Self>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::builtin_controllers().actions.contains(action),
@@ -79,8 +74,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
         spec.entails(always(lift_action(next))),
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(c))),
-    ensures
-        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+    ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
     Self::builtin_controllers_action_pre_implies_next_pre(action, input);
@@ -92,28 +86,20 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
     Self::builtin_controllers_next().wf1_borrow_from_spec(input, spec, next, c, pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_some_resp
-(spec: TempPred<Self>, msg: MsgType<E>, key: ObjectRef)
+pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType<E>, key: ObjectRef)
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
-        spec.entails(
-            lift_state(|s: Self| {
+        spec.entails(lift_state(|s: Self| {
                     &&& s.in_flight().contains(msg)
                     &&& msg.dst == HostId::KubernetesAPI
                     &&& msg.content.is_get_request()
                     &&& msg.content.get_get_request().key == key
-                })
-                .leads_to(
-                    lift_state(|s: Self|
-                        exists |resp_msg: MsgType<E>| {
-                            &&& #[trigger] s.in_flight().contains(resp_msg)
-                            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-                        }
-                    )
-                )
-        ),
+            }).leads_to(lift_state(|s: Self|
+                exists |resp_msg: MsgType<E>| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, msg)}))),
 {
     let input = Some(msg);
     let pre = |s: Self| {
@@ -174,25 +160,21 @@ pub proof fn lemma_get_req_leads_to_some_resp
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, Self::next(), Self::handle_request(), pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_or_err_resp
-(spec: TempPred<Self>, msg: MsgType<E>, key: ObjectRef)
+pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: MsgType<E>, key: ObjectRef)
     requires
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
-        spec.entails(
-            lift_state(|s: Self| {
-                &&& s.in_flight().contains(msg)
-                &&& msg.dst == HostId::KubernetesAPI
-                &&& msg.content.is_get_request()
-                &&& msg.content.get_get_request().key == key
-            })
-                .leads_to(
-                    lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Ok(s.resources()[key]))))
-                    .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
-                )
-        ),
+        spec.entails(lift_state(|s: Self| {
+            &&& s.in_flight().contains(msg)
+            &&& msg.dst == HostId::KubernetesAPI
+            &&& msg.content.is_get_request()
+            &&& msg.content.get_get_request().key == key
+        }).leads_to(
+                lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Ok(s.resources()[key]))))
+                .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
+        )),
 {
     let pre = |s: Self| {
         &&& s.in_flight().contains(msg)
@@ -278,19 +260,14 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(MsgType<
 /// as parameter which can be defined by callers and require spec |= [](every_new_req_msg_if_in_flight_then_satisfies(requirements)).
 ///
 /// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
-pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
-    spec: TempPred<Self>, requirements: FnSpec(MsgType<E>, Self) -> bool
-)
+pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec: TempPred<Self>, requirements: FnSpec(MsgType<E>, Self) -> bool)
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
-        ),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))),
 {
     assert forall |rest_id| spec.entails(
         lift_state(#[trigger] Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
@@ -313,19 +290,14 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
 }
 
 /// This lemma is an assistant one for the previous one without rest_id.
-pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(
-    spec: TempPred<Self>, requirements: FnSpec(MsgType<E>, Self) -> bool, rest_id: nat
-)
+pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(spec: TempPred<Self>, requirements: FnSpec(MsgType<E>, Self) -> bool, rest_id: nat)
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(
-            lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
-        ),
+    ensures spec.entails(lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))),
 {
     // Use the stable part of spec, show the stability of stable_spec and also spec |= stable_spec
     let always_spec = always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))
@@ -432,18 +404,13 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
 // The intuition is that (1) The number of such APIRequest messages are bounded by rest_id,
 // and (2) weak fairness assumption ensures each message will eventually be handled by Kubernetes.
-pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
-    spec: TempPred<Self>, rest_id: RestId
-)
+pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(spec: TempPred<Self>, rest_id: RestId)
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))))
-        )
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))))),
 {
     Self::lemma_eventually_no_req_before_rest_id_is_in_flight(spec, rest_id);
 
@@ -465,18 +432,13 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)));
 }
 
-pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(
-    spec: TempPred<Self>, rest_id: RestId
-)
+pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(spec: TempPred<Self>, rest_id: RestId)
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)))
-        )
+    ensures spec.entails(true_pred().leads_to(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)))),
 {
     let pending_requests_num_is_n = |msg_num: nat| lift_state(|s: Self| {
         s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num
@@ -507,20 +469,13 @@ pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(
 
 // This is an inductive proof to show that if there are msg_num requests with id lower than rest_id in the network,
 // then eventually all of them will be gone.
-proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
-    spec: TempPred<Self>, rest_id: RestId, msg_num: nat
-)
+proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec: TempPred<Self>, rest_id: RestId, msg_num: nat)
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
-    ensures
-        spec.entails(
-            lift_state(|s: Self| {
-                s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num
-            }).leads_to(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)))
-        ),
+    ensures spec.entails(lift_state(|s: Self| {s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num}).leads_to(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)))),
     decreases msg_num
 {
     if msg_num == 0 {
@@ -593,9 +548,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
     }
 }
 
-proof fn pending_requests_num_decreases(
-    spec: TempPred<Self>, rest_id: RestId, msg_num: nat, msg: MsgType<E>
-)
+proof fn pending_requests_num_decreases(spec: TempPred<Self>, rest_id: RestId, msg_num: nat, msg: MsgType<E>)
     requires
         msg_num > 0,
         spec.entails(always(lift_action(Self::next()))),
@@ -603,15 +556,12 @@ proof fn pending_requests_num_decreases(
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
-        spec.entails(
-            lift_state(|s: Self| {
+        spec.entails(lift_state(|s: Self| {
                 &&& s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num
                 &&& s.network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) > 0
-            })
-                .leads_to(lift_state(|s: Self| {
+            }).leads_to(lift_state(|s: Self| {
                     s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == (msg_num - 1) as nat
-                }))
-        ),
+            }))),
 {
     let pre = |s: Self| {
         &&& s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num

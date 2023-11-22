@@ -67,10 +67,8 @@ pub open spec fn spec_before_phase_n(n: nat, fbc: FluentBitConfigView) -> TempPr
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, fbc: FluentBitConfigView)
-    requires
-        1 <= i <= 6,
-    ensures
-        spec_before_phase_n(i, fbc).entails(true_pred().leads_to(invariants_since_phase_n(i, fbc))),
+    requires 1 <= i <= 6,
+    ensures spec_before_phase_n(i, fbc).entails(true_pred().leads_to(invariants_since_phase_n(i, fbc))),
 {
     let spec = spec_before_phase_n(i, fbc);
     reveal_with_fuel(spec_before_phase_n, 8);
@@ -143,8 +141,7 @@ pub open spec fn next_with_wf() -> TempPred<FBCCluster> {
 }
 
 pub proof fn next_with_wf_is_stable()
-    ensures
-        valid(stable(next_with_wf())),
+    ensures valid(stable(next_with_wf())),
 {
     always_p_is_stable(lift_action(FBCCluster::next()));
     FBCCluster::tla_forall_action_weak_fairness_is_stable(FBCCluster::kubernetes_api_next());
@@ -176,8 +173,7 @@ pub open spec fn invariants(fbc: FluentBitConfigView) -> TempPred<FBCCluster> {
 }
 
 pub proof fn invariants_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants(fbc))),
+    ensures valid(stable(invariants(fbc))),
 {
     next_with_wf_is_stable();
     derived_invariants_since_beginning_is_stable(fbc);
@@ -210,8 +206,7 @@ pub open spec fn derived_invariants_since_beginning(fbc: FluentBitConfigView) ->
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(derived_invariants_since_beginning(fbc))),
+    ensures valid(stable(derived_invariants_since_beginning(fbc))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fbc));
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))));
@@ -252,8 +247,7 @@ pub open spec fn invariants_since_phase_i(fbc: FluentBitConfigView) -> TempPred<
 }
 
 pub proof fn invariants_since_phase_i_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants_since_phase_i(fbc))),
+    ensures valid(stable(invariants_since_phase_i(fbc))),
 {
     stable_and_always_n!(
         lift_state(FBCCluster::crash_disabled()),
@@ -271,8 +265,7 @@ pub open spec fn invariants_since_phase_ii(fbc: FluentBitConfigView) -> TempPred
 }
 
 pub proof fn invariants_since_phase_ii_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants_since_phase_ii(fbc))),
+    ensures valid(stable(invariants_since_phase_ii(fbc))),
 {
     always_p_is_stable(lift_state(FBCCluster::the_object_in_reconcile_has_spec_and_uid_as(fbc)));
 }
@@ -283,8 +276,7 @@ pub open spec fn invariants_since_phase_iii(fbc: FluentBitConfigView) -> TempPre
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants_since_phase_iii(fbc))),
+    ensures valid(stable(invariants_since_phase_iii(fbc))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fbc));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fbc));
@@ -299,8 +291,7 @@ pub open spec fn invariants_since_phase_iv(fbc: FluentBitConfigView) -> TempPred
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants_since_phase_iv(fbc))),
+    ensures valid(stable(invariants_since_phase_iv(fbc))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fbc));
     always_p_is_stable(tla_forall(a_to_p_1));
@@ -314,8 +305,7 @@ pub open spec fn invariants_since_phase_v(fbc: FluentBitConfigView) -> TempPred<
 }
 
 pub proof fn invariants_since_phase_v_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants_since_phase_v(fbc))),
+    ensures valid(stable(invariants_since_phase_v(fbc))),
 {
     always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fbc))));
 }
@@ -325,8 +315,7 @@ pub open spec fn invariants_since_phase_vi(fbc: FluentBitConfigView) -> TempPred
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(fbc: FluentBitConfigView)
-    ensures
-        valid(stable(invariants_since_phase_vi(fbc))),
+    ensures valid(stable(invariants_since_phase_vi(fbc))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fbc));
     always_p_is_stable(tla_forall(a_to_p_1));
@@ -337,8 +326,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(always(lift_state(FBCCluster::pending_req_of_key_is_unique_with_unique_id(fbc.object_ref())))),
-    ensures
-        spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))))))),
+    ensures spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))))))),
 {
     let a_to_p = |step: (ActionKind, SubResource)| lift_state(FBCCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fbc.object_ref(), at_step_closure(FluentBitConfigReconcileStep::AfterKRequestStep(step.0, step.1))));
     assert_by(spec.entails(always(tla_forall(a_to_p))), {
@@ -352,8 +340,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
 }
 
 pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
-    ensures
-        cluster_spec().entails(derived_invariants_since_beginning(fbc)),
+    ensures cluster_spec().entails(derived_invariants_since_beginning(fbc)),
 {
     let spec = cluster_spec();
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.

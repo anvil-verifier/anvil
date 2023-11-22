@@ -38,8 +38,7 @@ verus! {
 
 // We prove init /\ []next /\ []wf |= []RMQCluster::desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq) holds for each rabbitmq.
 proof fn liveness_proof_forall_rabbitmq()
-    ensures
-        liveness_theorem::<RabbitmqMaker>(),
+    ensures liveness_theorem::<RabbitmqMaker>(),
 {
     assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)) by {
         liveness_proof(rabbitmq);
@@ -48,8 +47,7 @@ proof fn liveness_proof_forall_rabbitmq()
 }
 
 proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
-    ensures
-        cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)),
+    ensures cluster_spec().entails(liveness::<RabbitmqMaker>(rabbitmq)),
 {
     assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
     lemma_true_leads_to_always_current_state_matches(rabbitmq);
@@ -79,8 +77,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
         1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, rabbitmq))),
         spec_before_phase_n(i + 1, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq)))))
-    ensures
-        spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))),
+    ensures spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, rabbitmq), spec_before_phase_n(i, rabbitmq).and(invariants_since_phase_n(i, rabbitmq)));
@@ -91,11 +88,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClusterView)
-    ensures
-        assumption_and_invariants_of_all_phases(rabbitmq)
-        .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))
-        ),
+    ensures assumption_and_invariants_of_all_phases(rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
     lemma_true_leads_to_always_state_matches_for_all_resources(rabbitmq);
@@ -116,9 +109,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(rabbitmq: Ra
     ensures
         forall |sub_resource: SubResource|
             assumption_and_invariants_of_all_phases(rabbitmq)
-            .entails(
-                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq))))
-            ),
+            .entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq))))),
 {
     lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(rabbitmq);
     lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq);
@@ -127,10 +118,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(rabbitmq: Ra
 proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(rabbitmq: RabbitmqClusterView)
     ensures
         forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet
-        ==> assumption_and_invariants_of_all_phases(rabbitmq)
-            .entails(
-                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq))))
-            ),
+        ==> assumption_and_invariants_of_all_phases(rabbitmq).entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq))))),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
 
@@ -208,16 +196,9 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(rabbi
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: RabbitmqClusterView)
-    requires
-        assumption_and_invariants_of_all_phases(rabbitmq)
-        .entails(
-            true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))))
-        ),
-    ensures
-        assumption_and_invariants_of_all_phases(rabbitmq)
-        .entails(
-            true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))
-        ),
+    requires assumption_and_invariants_of_all_phases(rabbitmq)
+        .entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))))),
+    ensures assumption_and_invariants_of_all_phases(rabbitmq).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))),
 {
     let spec1 = assumption_and_invariants_of_all_phases(rabbitmq);
     let spec2 = spec1.and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))));
@@ -306,13 +287,11 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<RMQCluster>, rabb
         spec.entails(tla_forall(|i| RMQCluster::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
     ensures
-        spec.entails(
-            lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
-                .leads_to(lift_state(|s: RMQCluster| {
-                    &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
-                    &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
-                }))
-        ),
+        spec.entails(lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
+        .leads_to(lift_state(|s: RMQCluster| {
+            &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+            &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
+        }))),
 {
     let pre = |s: RMQCluster| {
         &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
@@ -337,13 +316,10 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         spec.entails(always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))),
     ensures
-        spec.entails(
-            lift_state(|s: RMQCluster| {
-                &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
-                &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
-            })
-                .leads_to(lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init)))
-        ),
+        spec.entails(lift_state(|s: RMQCluster| {
+            &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+            &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
+        }).leads_to(lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init)))),
 {
     let pre = |s: RMQCluster| {
         &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
@@ -367,18 +343,14 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
     RMQCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, RMQCluster::run_scheduled_reconcile(), pre, post);
 }
 
-proof fn lemma_from_init_step_to_after_create_headless_service_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
-)
+proof fn lemma_from_init_step_to_after_create_headless_service_step(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
     ensures
-        spec.entails(
-            lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq)))
-        ),
+        spec.entails(lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init))
+            .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq)))),
 {
     let pre = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, rabbitmq);

@@ -38,8 +38,7 @@ verus! {
 
 // We prove init /\ []next /\ []wf |= []desired_state_is(fb) ~> []current_state_matches(fb) holds for each fb.
 proof fn liveness_proof_forall_fb()
-    ensures
-        liveness_theorem::<FluentBitMaker>(),
+    ensures liveness_theorem::<FluentBitMaker>(),
 {
     assert forall |fb: FluentBitView| #[trigger] cluster_spec().entails(liveness::<FluentBitMaker>(fb)) by {
         liveness_proof(fb);
@@ -48,8 +47,7 @@ proof fn liveness_proof_forall_fb()
 }
 
 proof fn liveness_proof(fb: FluentBitView)
-    ensures
-        cluster_spec().entails(liveness::<FluentBitMaker>(fb)),
+    ensures cluster_spec().entails(liveness::<FluentBitMaker>(fb)),
 {
     assumption_and_invariants_of_all_phases_is_stable(fb);
     lemma_true_leads_to_always_current_state_matches(fb);
@@ -79,8 +77,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
         1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, fb))),
         spec_before_phase_n(i + 1, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb)))))
-    ensures
-        spec_before_phase_n(i, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))),
+    ensures spec_before_phase_n(i, fb).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, fb), spec_before_phase_n(i, fb).and(invariants_since_phase_n(i, fb)));
@@ -91,11 +88,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
-    ensures
-        assumption_and_invariants_of_all_phases(fb)
-        .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))
-        ),
+    ensures assumption_and_invariants_of_all_phases(fb).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitMaker>(fb))))),
 {
     let spec = assumption_and_invariants_of_all_phases(fb);
     lemma_true_leads_to_always_state_matches_for_all_resources(fb);
@@ -113,11 +106,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fb: FluentBitView)
-    ensures
-        forall |sub_resource: SubResource| assumption_and_invariants_of_all_phases(fb)
-            .entails(
-                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb))))
-            ),
+    ensures forall |sub_resource: SubResource| assumption_and_invariants_of_all_phases(fb).entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fb))))),
 {
     let spec = assumption_and_invariants_of_all_phases(fb);
 
@@ -204,13 +193,10 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCluster>, fb: F
         spec.entails(tla_forall(|i| FBCluster::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCluster| { !s.ongoing_reconciles().contains_key(fb.object_ref()) })
-                .leads_to(lift_state(|s: FBCluster| {
-                    &&& !s.ongoing_reconciles().contains_key(fb.object_ref())
-                    &&& s.scheduled_reconciles().contains_key(fb.object_ref())
-                }))
-        ),
+        spec.entails(lift_state(|s: FBCluster| { !s.ongoing_reconciles().contains_key(fb.object_ref()) }).leads_to(lift_state(|s: FBCluster| {
+            &&& !s.ongoing_reconciles().contains_key(fb.object_ref())
+            &&& s.scheduled_reconciles().contains_key(fb.object_ref())
+        }))),
 {
     let pre = |s: FBCluster| {
         &&& !s.ongoing_reconciles().contains_key(fb.object_ref())
@@ -235,13 +221,10 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<FBCluster>, fb: Fluent
         spec.entails(always(lift_state(FBCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(FBCluster::the_object_in_schedule_has_spec_and_uid_as(fb)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCluster| {
-                &&& !s.ongoing_reconciles().contains_key(fb.object_ref())
-                &&& s.scheduled_reconciles().contains_key(fb.object_ref())
-            })
-                .leads_to(lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init)))
-        ),
+        spec.entails(lift_state(|s: FBCluster| {
+            &&& !s.ongoing_reconciles().contains_key(fb.object_ref())
+            &&& s.scheduled_reconciles().contains_key(fb.object_ref())
+        }).leads_to(lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init)))),
 {
     let pre = |s: FBCluster| {
         &&& !s.ongoing_reconciles().contains_key(fb.object_ref())
@@ -277,10 +260,7 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
     ensures
-        spec.entails(
-            lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, fb)))
-        ),
+        spec.entails(lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init)).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, fb)))),
 {
     lemma_from_init_step_to_after_get_secret_step(spec, fb);
     assert_by(spec.entails(lift_state(pending_req_at_after_get_secret_step_with_fb(fb)).leads_to(lift_state(at_after_get_secret_step_and_exists_ok_resp_in_flight(fb)))), {
@@ -332,18 +312,12 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
     );
 }
 
-proof fn lemma_from_init_step_to_after_get_secret_step(
-    spec: TempPred<FBCluster>, fb: FluentBitView
-)
+proof fn lemma_from_init_step_to_after_get_secret_step(spec: TempPred<FBCluster>, fb: FluentBitView)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCluster::crash_disabled()))),
-    ensures
-        spec.entails(
-            lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init))
-                .leads_to(lift_state(pending_req_at_after_get_secret_step_with_fb(fb)))
-        ),
+    ensures spec.entails(lift_state(no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init)).leads_to(lift_state(pending_req_at_after_get_secret_step_with_fb(fb)))),
 {
     let pre = no_pending_req_at_fb_step_with_fb(fb, FluentBitReconcileStep::Init);
     let post = pending_req_at_after_get_secret_step_with_fb(fb);
@@ -373,9 +347,7 @@ proof fn lemma_from_init_step_to_after_get_secret_step(
     FBCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, FBCluster::continue_reconcile(), pre, post);
 }
 
-proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_step(
-    spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage
-)
+proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_step(spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
@@ -383,11 +355,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(desired_state_is(fb)))),
-    ensures
-        spec.entails(
-            lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_secret_step(fb, req_msg))
-                .leads_to(lift_state(at_after_get_secret_step_and_exists_ok_resp_in_flight(fb)))
-        ),
+    ensures spec.entails(lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_secret_step(fb, req_msg)).leads_to(lift_state(at_after_get_secret_step_and_exists_ok_resp_in_flight(fb)))),
 {
     let pre = req_msg_is_the_in_flight_pending_req_at_after_get_secret_step(fb, req_msg);
     let post = at_after_get_secret_step_and_exists_ok_resp_in_flight(fb);
@@ -442,9 +410,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
     FBCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, FBCluster::handle_request(), pre, post);
 }
 
-proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
-    spec: TempPred<FBCluster>, fb: FluentBitView, resp_msg: FBMessage
-)
+proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(spec: TempPred<FBCluster>, fb: FluentBitView, resp_msg: FBMessage)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
@@ -453,11 +419,7 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(FBCluster::pending_req_of_key_is_unique_with_unique_id(fb.object_ref())))),
-    ensures
-        spec.entails(
-            lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(fb, resp_msg))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, fb)))
-        ),
+    ensures spec.entails(lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(fb, resp_msg)).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, fb)))),
 {
     let pre = resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(fb, resp_msg);
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::ServiceAccount, fb);

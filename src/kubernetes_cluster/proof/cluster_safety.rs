@@ -18,8 +18,7 @@ pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
     requires
         spec.entails(lift_state(Self::rest_id_counter_is(rest_id))),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
+    ensures spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
 {
     let invariant = Self::rest_id_counter_is_no_smaller_than(rest_id);
     init_invariant::<Self>(spec, Self::rest_id_counter_is(rest_id), Self::next(), invariant);
@@ -64,8 +63,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
+    ensures spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
 {
     let invariant = Self::each_object_in_etcd_is_well_formed();
 
@@ -121,8 +119,7 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
+    ensures spec.entails(always(lift_state(Self::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
 {
     let invariant = Self::each_scheduled_object_has_consistent_key_and_valid_metadata();
 
@@ -177,8 +174,7 @@ pub proof fn lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
+    ensures spec.entails(always(lift_state(Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
 {
     let invariant = Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata();
 

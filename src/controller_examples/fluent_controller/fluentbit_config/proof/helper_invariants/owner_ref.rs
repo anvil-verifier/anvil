@@ -54,14 +54,11 @@ pub open spec fn object_in_every_resource_create_or_update_request_msg_only_has_
     }
 }
 
-pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fb: FluentBitConfigView
-)
+pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(spec: TempPred<FBCCluster>, sub_resource: SubResource, fb: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, fb)))),
+    ensures spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, fb)))),
 {
     let inv = object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, fb);
     let next = |s, s_prime| {
@@ -120,14 +117,11 @@ pub open spec fn every_owner_ref_of_every_object_in_etcd_has_different_uid_from_
     }
 }
 
-pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(
-    spec: TempPred<FBCCluster>, sub_resource: SubResource, fb: FluentBitConfigView
-)
+pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(spec: TempPred<FBCCluster>, sub_resource: SubResource, fb: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),
         spec.entails(always(lift_action(FBCCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, fb)))),
+    ensures spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, fb)))),
 {
     let inv = every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, fb);
     let next = |s, s_prime| {

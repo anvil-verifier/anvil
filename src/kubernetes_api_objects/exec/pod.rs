@@ -35,8 +35,7 @@ impl Pod {
 
     #[verifier(external_body)]
     pub fn default() -> (pod: Pod)
-        ensures
-            pod@ == PodView::default(),
+        ensures pod@ == PodView::default(),
     {
         Pod {
             inner: deps_hack::k8s_openapi::api::core::v1::Pod::default(),
@@ -45,8 +44,7 @@ impl Pod {
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
@@ -65,24 +63,20 @@ impl Pod {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PodSpec)
-        ensures
-            self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Pod {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Pod { self.inner }
 
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Pod) -> (pod: Pod)
@@ -92,8 +86,7 @@ impl Pod {
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == PodView::kind(),
+        ensures res@.kind == PodView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Pod>(&()))
     }
@@ -101,8 +94,7 @@ impl Pod {
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -136,8 +128,7 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn default() -> (pod_spec: PodSpec)
-        ensures
-            pod_spec@ == PodSpecView::default(),
+        ensures pod_spec@ == PodSpecView::default(),
     {
         PodSpec {
             inner: deps_hack::k8s_openapi::api::core::v1::PodSpec::default(),
@@ -146,16 +137,14 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (p: PodSpec)
-        ensures
-            p@ == self@,
+        ensures p@ == self@,
     {
         PodSpec { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_affinity(&mut self, affinity: Affinity)
-        ensures
-            self@ == old(self)@.set_affinity(affinity@),
+        ensures self@ == old(self)@.set_affinity(affinity@),
     {
         self.inner.affinity = Some(affinity.into_kube())
     }
@@ -178,40 +167,35 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_containers(&mut self, containers: Vec<Container>)
-        ensures
-            self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
+        ensures self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
     {
         self.inner.containers = containers.into_iter().map(|container: Container| container.into_kube()).collect()
     }
 
     #[verifier(external_body)]
     pub fn set_volumes(&mut self, volumes: Vec<Volume>)
-        ensures
-            self@ == old(self)@.set_volumes(volumes@.map_values(|vol: Volume| vol@)),
+        ensures self@ == old(self)@.set_volumes(volumes@.map_values(|vol: Volume| vol@)),
     {
         self.inner.volumes = Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_init_containers(&mut self, init_containers: Vec<Container>)
-        ensures
-            self@ == old(self)@.set_init_containers(init_containers@.map_values(|container: Container| container@)),
+        ensures self@ == old(self)@.set_init_containers(init_containers@.map_values(|container: Container| container@)),
     {
         self.inner.init_containers = Some(init_containers.into_iter().map(|container: Container| container.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_service_account_name(&mut self, service_account: String)
-        ensures
-            self@ == old(self)@.set_service_account_name(service_account@),
+        ensures self@ == old(self)@.set_service_account_name(service_account@),
     {
         self.inner.service_account_name = Some(service_account.into_rust_string())
     }
 
     #[verifier(external_body)]
     pub fn set_tolerations(&mut self, tolerations: Vec<Toleration>)
-        ensures
-            self@ == old(self)@.set_tolerations(tolerations@.map_values(|toleration: Toleration| toleration@)),
+        ensures self@ == old(self)@.set_tolerations(tolerations@.map_values(|toleration: Toleration| toleration@)),
     {
         self.inner.tolerations = Some(tolerations.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect())
     }
@@ -234,16 +218,14 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_node_selector(&mut self, node_selector: StringMap)
-        ensures
-            self@ == old(self)@.set_node_selector(node_selector@),
+        ensures self@ == old(self)@.set_node_selector(node_selector@),
     {
         self.inner.node_selector = Some(node_selector.into_rust_map())
     }
 
     #[verifier(external_body)]
     pub fn overwrite_runtime_class_name(&mut self, runtime_class_name: Option<String>)
-        ensures
-            self@ == old(self)@.overwrite_runtime_class_name(opt_string_to_view(&runtime_class_name)),
+        ensures self@ == old(self)@.overwrite_runtime_class_name(opt_string_to_view(&runtime_class_name)),
     {
         match runtime_class_name {
             Some(n) => self.inner.runtime_class_name = Some(n.into_rust_string()),
@@ -254,8 +236,7 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn overwrite_dns_policy(&mut self, dns_policy: Option<String>)
-        ensures
-            self@ == old(self)@.overwrite_dns_policy(opt_string_to_view(&dns_policy)),
+        ensures self@ == old(self)@.overwrite_dns_policy(opt_string_to_view(&dns_policy)),
     {
         match dns_policy {
             Some(n) => self.inner.dns_policy = Some(n.into_rust_string()),
@@ -266,8 +247,7 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn overwrite_scheduler_name(&mut self, scheduler_name: Option<String>)
-        ensures
-            self@ == old(self)@.overwrite_scheduler_name(opt_string_to_view(&scheduler_name)),
+        ensures self@ == old(self)@.overwrite_scheduler_name(opt_string_to_view(&scheduler_name)),
     {
         match scheduler_name {
             Some(n) => self.inner.scheduler_name = Some(n.into_rust_string()),
@@ -277,8 +257,7 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn overwrite_priority_class_name(&mut self, priority_class_name: Option<String>)
-        ensures
-            self@ == old(self)@.overwrite_priority_class_name(opt_string_to_view(&priority_class_name)),
+        ensures self@ == old(self)@.overwrite_priority_class_name(opt_string_to_view(&priority_class_name)),
     {
         match priority_class_name {
             Some(n) => self.inner.priority_class_name = Some(n.into_rust_string()),
@@ -288,16 +267,14 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_security_context(&mut self, security_context: PodSecurityContext)
-        ensures
-            self@ == old(self)@.set_security_context(security_context@),
+        ensures self@ == old(self)@.set_security_context(security_context@),
     {
         self.inner.security_context = Some(security_context.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_host_network(&mut self, host_network: bool)
-        ensures
-            self@ == old(self)@.set_host_network(host_network),
+        ensures self@ == old(self)@.set_host_network(host_network),
     {
         self.inner.host_network = Some(host_network);
     }
@@ -316,9 +293,7 @@ impl PodSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec { self.inner }
 }
 
 #[verifier(external_body)]

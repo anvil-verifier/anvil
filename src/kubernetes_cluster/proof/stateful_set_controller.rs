@@ -138,8 +138,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn))))),
 {
     Self::lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec, key, cm_key, make_fn);
 
@@ -184,9 +183,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
-proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(
-    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView
-)
+proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView)
     requires
         key.kind == StatefulSetView::kind(),
         spec.entails(always(lift_action(Self::next()))),
@@ -196,8 +193,7 @@ proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pendin
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
-    ensures
-        spec.entails(true_pred().leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))),
+    ensures spec.entails(true_pred().leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))),
 {
     let key_exists = |s: Self| s.resources().contains_key(key);
     let key_not_exists = |s: Self| !s.resources().contains_key(key);
@@ -255,12 +251,10 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
-        spec.entails(
-            lift_state(|s: Self| {
+        spec.entails(lift_state(|s: Self| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
                 &&& s.stable_resources().contains(key)
-            }).leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))
-        ),
+            }).leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))),
     decreases msg_num
 {
     let pre = |s: Self| {

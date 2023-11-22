@@ -22,8 +22,7 @@ impl PodTemplateSpec {
 
     #[verifier(external_body)]
     pub fn default() -> (pod_template_spec: PodTemplateSpec)
-        ensures
-            pod_template_spec@ == PodTemplateSpecView::default(),
+        ensures pod_template_spec@ == PodTemplateSpecView::default(),
     {
         PodTemplateSpec {
             inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec::default(),
@@ -32,8 +31,7 @@ impl PodTemplateSpec {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (pod_template_spec: PodTemplateSpec)
-        ensures
-            pod_template_spec@ == self@,
+        ensures pod_template_spec@ == self@,
     {
         PodTemplateSpec {
             inner: self.inner.clone(),
@@ -42,16 +40,14 @@ impl PodTemplateSpec {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = Some(metadata.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PodSpec)
-        ensures
-            self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -62,9 +58,7 @@ impl PodTemplateSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec { self.inner }
 }
 
 }

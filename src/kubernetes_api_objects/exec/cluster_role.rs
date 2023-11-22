@@ -26,34 +26,28 @@ impl ClusterRole {
 
     #[verifier(external_body)]
     pub fn default() -> (cluster_role: ClusterRole)
-        ensures
-            cluster_role@ == ClusterRoleView::default(),
+        ensures cluster_role@ == ClusterRoleView::default(),
     {
-        ClusterRole {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRole::default(),
-        }
+        ClusterRole { inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRole::default() }
     }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_policy_rules(&mut self, policy_rules: Vec<PolicyRule>)
-        ensures
-            self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
+        ensures self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
@@ -72,16 +66,14 @@ impl ClusterRole {
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-        res@.kind == ClusterRoleView::kind(),
+        ensures res@.kind == ClusterRoleView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::rbac::v1::ClusterRole>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()

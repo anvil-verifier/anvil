@@ -23,9 +23,7 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(
-    spec: TempPred<FBCluster>, fb: FluentBitView
-)
+pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(spec: TempPred<FBCluster>, fb: FluentBitView)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
@@ -46,10 +44,7 @@ pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb)))),
     ensures
-        spec.entails(
-            lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb))
-                .leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))
-        ),
+        spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb)).leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))),
 {
     let next_res = next_resource_after(SubResource::DaemonSet).get_AfterKRequestStep_1();
     lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::DaemonSet, next_res, fb);
@@ -68,9 +63,7 @@ pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(
     );
 }
 
-proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_matches(
-    spec: TempPred<FBCluster>, fb: FluentBitView
-)
+proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_matches(spec: TempPred<FBCluster>, fb: FluentBitView)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
@@ -89,12 +82,10 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCluster| {
+        spec.entails(lift_state(|s: FBCluster| {
                 &&& s.resources().contains_key(get_request(SubResource::DaemonSet, fb).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb)(s)
-            }).leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))
-        ),
+            }).leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))),
 {
     let ds_key = get_request(SubResource::DaemonSet, fb).key;
     let pre = lift_state(|s: FBCluster| {
@@ -190,9 +181,7 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
-    spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage
-)
+proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(spec: TempPred<FBCluster>, fb: FluentBitView, req_msg: FBMessage)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::kubernetes_api_next().weak_fairness(i))),
@@ -203,16 +192,13 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCluster| {
+        spec.entails(lift_state(|s: FBCluster| {
                 &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(SubResource::DaemonSet, fb, req_msg)(s)
                 &&& !sub_resource_state_matches(SubResource::DaemonSet, fb)(s)
-            })
-            .leads_to(lift_state(|s: FBCluster| {
+            }).leads_to(lift_state(|s: FBCluster| {
                 &&& at_after_get_resource_step_and_exists_ok_resp_in_flight(SubResource::DaemonSet, fb)(s)
                 &&& !sub_resource_state_matches(SubResource::DaemonSet, fb)(s)
-            }))
-        ),
+            }))),
 {
     let pre = |s: FBCluster| {
         &&& req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(SubResource::DaemonSet, fb, req_msg)(s)
@@ -284,9 +270,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
 }
 
 #[verifier(spinoff_prover)]
-proof fn lemma_from_after_get_daemon_set_step_to_after_update_daemon_set_step(
-    spec: TempPred<FBCluster>, fb: FluentBitView, resp_msg: FBMessage
-)
+proof fn lemma_from_after_get_daemon_set_step_to_after_update_daemon_set_step(spec: TempPred<FBCluster>, fb: FluentBitView, resp_msg: FBMessage)
     requires
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(tla_forall(|i| FBCluster::controller_next().weak_fairness(i))),
@@ -302,16 +286,14 @@ proof fn lemma_from_after_get_daemon_set_step_to_after_update_daemon_set_step(
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCluster| {
+        spec.entails(lift_state(|s: FBCluster| {
                 &&& resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(SubResource::DaemonSet, fb, resp_msg)(s)
                 &&& !sub_resource_state_matches(SubResource::DaemonSet, fb)(s)
             })
             .leads_to(lift_state(|s: FBCluster| {
                 &&& pending_req_in_flight_at_after_update_resource_step(SubResource::DaemonSet, fb)(s)
                 &&& !sub_resource_state_matches(SubResource::DaemonSet, fb)(s)
-            }))
-        ),
+            }))),
 {
     let pre = |s: FBCluster| {
         &&& resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(SubResource::DaemonSet, fb, resp_msg)(s)
@@ -387,13 +369,10 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCluster| {
+        spec.entails(lift_state(|s: FBCluster| {
                 &&& req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(SubResource::DaemonSet, fb, req_msg)(s)
                 &&& !sub_resource_state_matches(SubResource::DaemonSet, fb)(s)
-            })
-            .leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))
-        ),
+            }).leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))),
 {
     let pre = |s: FBCluster| {
         &&& req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(SubResource::DaemonSet, fb, req_msg)(s)
@@ -465,17 +444,14 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_daemon_set_is_stable(
-    spec: TempPred<FBCluster>, fb: FluentBitView, p: TempPred<FBCluster>
-)
+pub proof fn lemma_daemon_set_is_stable(spec: TempPred<FBCluster>, fb: FluentBitView, p: TempPred<FBCluster>)
     requires
         spec.entails(p.leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_action(FBCluster::next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::DaemonSet, fb)))),
-    ensures
-        spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb))))),
+    ensures spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb))))),
 {
     let post = sub_resource_state_matches(SubResource::DaemonSet, fb);
     let resource_key = get_request(SubResource::DaemonSet, fb).key;

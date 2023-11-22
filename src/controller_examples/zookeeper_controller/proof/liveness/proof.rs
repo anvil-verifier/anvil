@@ -39,8 +39,7 @@ verus! {
 
 // We prove init /\ []next /\ []wf |= []ZKCluster::desired_state_is(zookeeper) ~> []current_state_matches(zookeeper) holds for each zookeeper.
 proof fn liveness_proof_forall_zookeeper()
-    ensures
-        liveness_theorem::<ZookeeperMaker>(),
+    ensures liveness_theorem::<ZookeeperMaker>(),
 {
     assert forall |zookeeper: ZookeeperClusterView| #[trigger] cluster_spec().entails(liveness::<ZookeeperMaker>(zookeeper)) by {
         liveness_proof(zookeeper);
@@ -49,8 +48,7 @@ proof fn liveness_proof_forall_zookeeper()
 }
 
 proof fn liveness_proof(zookeeper: ZookeeperClusterView)
-    ensures
-        cluster_spec().entails(liveness::<ZookeeperMaker>(zookeeper)),
+    ensures cluster_spec().entails(liveness::<ZookeeperMaker>(zookeeper)),
 {
     assumption_and_invariants_of_all_phases_is_stable(zookeeper);
     lemma_true_leads_to_always_current_state_matches(zookeeper);
@@ -80,8 +78,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
         1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, zookeeper))),
         spec_before_phase_n(i + 1, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper)))))
-    ensures
-        spec_before_phase_n(i, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))),
+    ensures spec_before_phase_n(i, zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, zookeeper), spec_before_phase_n(i, zookeeper).and(invariants_since_phase_n(i, zookeeper)));
@@ -92,11 +89,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(zookeeper: ZookeeperClusterView)
-    ensures
-        assumption_and_invariants_of_all_phases(zookeeper)
-        .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))
-        ),
+    ensures assumption_and_invariants_of_all_phases(zookeeper).entails(true_pred().leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))),
 {
     let spec = assumption_and_invariants_of_all_phases(zookeeper);
     lemma_true_leads_to_always_state_matches_for_all_resources(zookeeper);
@@ -117,9 +110,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(zookeeper: Z
     ensures
         forall |sub_resource: SubResource|
             assumption_and_invariants_of_all_phases(zookeeper)
-            .entails(
-                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper))))
-            ),
+            .entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper))))),
 {
     lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zookeeper);
     lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper);
@@ -129,9 +120,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
     ensures
         forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet
         ==> assumption_and_invariants_of_all_phases(zookeeper)
-            .entails(
-                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper))))
-            ),
+            .entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, zookeeper))))),
 {
     let spec = assumption_and_invariants_of_all_phases(zookeeper);
 
@@ -202,16 +191,8 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper: ZookeeperClusterView)
-    requires
-        assumption_and_invariants_of_all_phases(zookeeper)
-        .entails(
-            true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))))
-        ),
-    ensures
-        assumption_and_invariants_of_all_phases(zookeeper)
-        .entails(
-            true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))
-        ),
+    requires assumption_and_invariants_of_all_phases(zookeeper).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))))),
+    ensures assumption_and_invariants_of_all_phases(zookeeper).entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))),
 {
     let spec1 = assumption_and_invariants_of_all_phases(zookeeper);
     let spec2 = spec1.and(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))));
@@ -298,13 +279,11 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ZKCluster>, zooke
         spec.entails(tla_forall(|i| ZKCluster::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::desired_state_is(zookeeper)))),
     ensures
-        spec.entails(
-            lift_state(|s: ZKCluster| { !s.ongoing_reconciles().contains_key(zookeeper.object_ref()) })
-                .leads_to(lift_state(|s: ZKCluster| {
-                    &&& !s.ongoing_reconciles().contains_key(zookeeper.object_ref())
-                    &&& s.scheduled_reconciles().contains_key(zookeeper.object_ref())
-                }))
-        ),
+        spec.entails(lift_state(|s: ZKCluster| { !s.ongoing_reconciles().contains_key(zookeeper.object_ref()) })
+        .leads_to(lift_state(|s: ZKCluster| {
+            &&& !s.ongoing_reconciles().contains_key(zookeeper.object_ref())
+            &&& s.scheduled_reconciles().contains_key(zookeeper.object_ref())
+        }))),
 {
     let pre = |s: ZKCluster| {
         &&& !s.ongoing_reconciles().contains_key(zookeeper.object_ref())
@@ -329,13 +308,10 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ZKCluster>, zookeeper:
         spec.entails(always(lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zookeeper)))),
     ensures
-        spec.entails(
-            lift_state(|s: ZKCluster| {
-                &&& !s.ongoing_reconciles().contains_key(zookeeper.object_ref())
-                &&& s.scheduled_reconciles().contains_key(zookeeper.object_ref())
-            })
-                .leads_to(lift_state(no_pending_req_at_zookeeper_step_with_zookeeper(zookeeper, ZookeeperReconcileStep::Init)))
-        ),
+        spec.entails(lift_state(|s: ZKCluster| {
+            &&& !s.ongoing_reconciles().contains_key(zookeeper.object_ref())
+            &&& s.scheduled_reconciles().contains_key(zookeeper.object_ref())
+        }).leads_to(lift_state(no_pending_req_at_zookeeper_step_with_zookeeper(zookeeper, ZookeeperReconcileStep::Init)))),
 {
     let pre = |s: ZKCluster| {
         &&& !s.ongoing_reconciles().contains_key(zookeeper.object_ref())
@@ -359,18 +335,13 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ZKCluster>, zookeeper:
     ZKCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ZKCluster::run_scheduled_reconcile(), pre, post);
 }
 
-proof fn lemma_from_init_step_to_after_create_headless_service_step(
-    spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
-)
+proof fn lemma_from_init_step_to_after_create_headless_service_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
     ensures
-        spec.entails(
-            lift_state(no_pending_req_at_zookeeper_step_with_zookeeper(zookeeper, ZookeeperReconcileStep::Init))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, zookeeper)))
-        ),
+        spec.entails(lift_state(no_pending_req_at_zookeeper_step_with_zookeeper(zookeeper, ZookeeperReconcileStep::Init)).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, zookeeper)))),
 {
     let pre = no_pending_req_at_zookeeper_step_with_zookeeper(zookeeper, ZookeeperReconcileStep::Init);
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::HeadlessService, zookeeper);

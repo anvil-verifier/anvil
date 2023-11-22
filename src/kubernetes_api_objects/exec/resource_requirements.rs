@@ -18,8 +18,7 @@ impl ResourceRequirements {
 
     #[verifier(external_body)]
     pub fn default() -> (resource_requirements: ResourceRequirements)
-        ensures
-            resource_requirements@ == ResourceRequirementsView::default(),
+        ensures resource_requirements@ == ResourceRequirementsView::default(),
     {
         ResourceRequirements {
             inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default(),
@@ -28,16 +27,14 @@ impl ResourceRequirements {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         ResourceRequirements { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_limits(&mut self, limits: StringMap)
-        ensures
-            self@ == old(self)@.set_limits(limits@),
+        ensures self@ == old(self)@.set_limits(limits@),
     {
         self.inner.limits = Some(
             limits.into_rust_map()
@@ -49,8 +46,7 @@ impl ResourceRequirements {
 
     #[verifier(external_body)]
     pub fn set_requests(&mut self, requests: StringMap)
-        ensures
-            self@ == old(self)@.set_requests(requests@),
+        ensures self@ == old(self)@.set_requests(requests@),
     {
         self.inner.requests = Some(
             requests.into_rust_map()

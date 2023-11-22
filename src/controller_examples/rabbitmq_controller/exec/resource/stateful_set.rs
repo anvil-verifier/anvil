@@ -94,8 +94,7 @@ pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: State
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
         found_stateful_set@.spec.is_Some(),
-    ensures
-        stateful_set@ == model_resource::update_stateful_set(rabbitmq@, found_stateful_set@, config_map_rv@),
+    ensures stateful_set@ == model_resource::update_stateful_set(rabbitmq@, found_stateful_set@, config_map_rv@),
 {
     let made_sts = make_stateful_set(rabbitmq, config_map_rv);
 
@@ -125,8 +124,7 @@ pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: State
 }
 
 pub fn sts_restart_annotation() -> (anno: String)
-    ensures
-        anno@ == model_resource::sts_restart_annotation(),
+    ensures anno@ == model_resource::sts_restart_annotation(),
 {
     new_strlit("anvil.dev/lastRestartAt").to_string()
 }
@@ -135,8 +133,7 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        name@ == model_resource::make_stateful_set_name(rabbitmq@),
+    ensures name@ == model_resource::make_stateful_set_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
 }
@@ -145,8 +142,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        stateful_set@ == model_resource::make_stateful_set(rabbitmq@, config_map_rv@),
+    ensures stateful_set@ == model_resource::make_stateful_set(rabbitmq@, config_map_rv@),
 {
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
@@ -270,8 +266,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
-    ensures
-        pod_spec@ == model_resource::make_rabbitmq_pod_spec(rabbitmq@),
+    ensures pod_spec@ == model_resource::make_rabbitmq_pod_spec(rabbitmq@),
 {
     let mut volumes = Vec::new();
     volumes.push({
@@ -690,10 +685,8 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 }
 
 pub fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
-    requires
-        rabbitmq@.well_formed(),
-    ensures
-        env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env_vars(rabbitmq@)
+    requires rabbitmq@.well_formed(),
+    ensures env_vars@.map_values(|v: EnvVar| v@) == model_resource::make_env_vars(rabbitmq@)
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(

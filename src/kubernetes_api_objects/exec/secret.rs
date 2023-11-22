@@ -35,8 +35,7 @@ impl View for Secret {
 impl Secret {
     #[verifier(external_body)]
     pub fn default() -> (secret: Secret)
-        ensures
-            secret@ == SecretView::default(),
+        ensures secret@ == SecretView::default(),
     {
         Secret {
             inner: deps_hack::k8s_openapi::api::core::v1::Secret::default(),
@@ -45,8 +44,7 @@ impl Secret {
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
@@ -73,8 +71,7 @@ impl Secret {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
@@ -82,8 +79,7 @@ impl Secret {
     // TODO: data is a map of string to bytestring. May support it in the future.
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
-        ensures
-            self@ == old(self)@.set_data(data@),
+        ensures self@ == old(self)@.set_data(data@),
     {
         let string_map = data.into_rust_map();
         let mut binary_map = std::collections::BTreeMap::new();
@@ -95,8 +91,7 @@ impl Secret {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
-        ensures
-            c@ == self@,
+        ensures c@ == self@,
     {
         Secret { inner: self.inner.clone() }
     }
@@ -115,16 +110,14 @@ impl Secret {
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == SecretView::kind(),
+        ensures res@.kind == SecretView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Secret>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()

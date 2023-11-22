@@ -59,14 +59,11 @@ pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
-proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
-    spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView
-)
+proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, fb)))),
+    ensures spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, fb)))),
 {
     let inv = object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, fb);
     let next = |s, s_prime| {
@@ -108,14 +105,11 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     init_invariant(spec, FBCluster::init(), next, inv);
 }
 
-pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
-    spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView
-)
+pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, fb)))),
+    ensures spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, fb)))),
 {
     let inv = |s: FBCluster| {
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s)
@@ -157,9 +151,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
     always_weaken_temp(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, fb)));
 }
 
-pub proof fn object_in_etcd_satisfies_unchangeable_induction(
-    sub_resource: SubResource, fb: FluentBitView, s: FBCluster, s_prime: FBCluster
-)
+pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, fb: FluentBitView, s: FBCluster, s_prime: FBCluster)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, fb)(s),
         object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, fb)(s),
@@ -169,8 +161,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
         FBCluster::each_object_in_etcd_is_well_formed()(s_prime),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s),
-    ensures
-        object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s_prime),
+    ensures object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s_prime),
 {
     let resource_key = get_request(sub_resource, fb).key;
     if s_prime.resources().contains_key(resource_key) {
@@ -204,9 +195,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
     }
 }
 
-pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(
-    sub_resource: SubResource, fb: FluentBitView, s: FBCluster, s_prime: FBCluster
-)
+pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource: SubResource, fb: FluentBitView, s: FBCluster, s_prime: FBCluster)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, fb)(s),
         FBCluster::next()(s, s_prime),
@@ -216,8 +205,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
         response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)(s),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s),
-    ensures
-        object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, fb)(s_prime),
+    ensures object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, fb)(s_prime),
 {
     let resource_key = get_request(sub_resource, fb).key;
     assert forall |msg: FBMessage| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(resource_key)(msg)

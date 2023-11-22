@@ -34,8 +34,7 @@ impl View for RoleBinding {
 impl RoleBinding {
     #[verifier(external_body)]
     pub fn default() -> (role_binding: RoleBinding)
-        ensures
-            role_binding@ == RoleBindingView::default(),
+        ensures role_binding@ == RoleBindingView::default(),
     {
         RoleBinding {
             inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding::default(),
@@ -44,32 +43,28 @@ impl RoleBinding {
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_role_ref(&mut self, role_ref: RoleRef)
-        ensures
-            self@ == old(self)@.set_role_ref(role_ref@),
+        ensures self@ == old(self)@.set_role_ref(role_ref@),
     {
         self.inner.role_ref = role_ref.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_subjects(&mut self, subjects: Vec<Subject>)
-        ensures
-            self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
+        ensures self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
         self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
@@ -78,8 +73,7 @@ impl RoleBinding {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
-        ensures
-            c@ == self@,
+        ensures c@ == self@,
     {
         RoleBinding { inner: self.inner.clone() }
     }
@@ -97,16 +91,14 @@ impl RoleBinding {
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == RoleBindingView::kind(),
+        ensures res@.kind == RoleBindingView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -139,8 +131,7 @@ impl RoleRef {
 
     #[verifier(external_body)]
     pub fn default() -> (role_ref: RoleRef)
-        ensures
-            role_ref@ == RoleRefView::default(),
+        ensures role_ref@ == RoleRefView::default(),
     {
         RoleRef {
             inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default(),
@@ -149,32 +140,28 @@ impl RoleRef {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
-        ensures
-            c@ == self@,
+        ensures c@ == self@,
     {
         RoleRef { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_api_group(&mut self, api_group: String)
-        ensures
-            self@ == old(self)@.set_api_group(api_group@),
+        ensures self@ == old(self)@.set_api_group(api_group@),
     {
         self.inner.api_group = api_group.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_kind(&mut self, kind: String)
-        ensures
-            self@ == old(self)@.set_kind(kind@),
+        ensures self@ == old(self)@.set_kind(kind@),
     {
         self.inner.kind = kind.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string();
     }
@@ -201,8 +188,7 @@ impl Subject {
 
     #[verifier(external_body)]
     pub fn default() -> (subject: Subject)
-        ensures
-            subject@ == SubjectView::default(),
+        ensures subject@ == SubjectView::default(),
     {
         Subject {
             inner: deps_hack::k8s_openapi::api::rbac::v1::Subject::default(),
@@ -211,24 +197,21 @@ impl Subject {
 
     #[verifier(external_body)]
     pub fn set_kind(&mut self, kind: String)
-        ensures
-            self@ == old(self)@.set_kind(kind@),
+        ensures self@ == old(self)@.set_kind(kind@),
     {
         self.inner.kind = kind.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string();
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
-        ensures
-            self@ == old(self)@.set_namespace(namespace@),
+        ensures self@ == old(self)@.set_namespace(namespace@),
     {
         self.inner.namespace = Some(namespace.into_rust_string());
     }
