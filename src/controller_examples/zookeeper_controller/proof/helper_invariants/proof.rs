@@ -787,7 +787,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)))),
         spec.entails(always(lift_state(zookeeper_is_well_formed(zookeeper)))),
-    ensuresspec.entails(true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper))))),
 {
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;

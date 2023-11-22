@@ -253,7 +253,7 @@ proof fn valid_implies_to_valid_equals<T>(p: TempPred<T>, q: TempPred<T>)
 }
 
 proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
-    req valid(p),
+    requires valid(p),
     ensures valid(always(p)),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) by {
