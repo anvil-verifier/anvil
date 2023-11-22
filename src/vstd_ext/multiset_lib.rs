@@ -6,8 +6,7 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 pub proof fn len_is_zero_means_count_for_each_value_is_zero<V>(m: Multiset<V>)
-    ensures
-        (forall |v| m.count(v) == 0) == (m.len() == 0),
+    ensures (forall |v| m.count(v) == 0) == (m.len() == 0),
 {
     if m.len() != 0 {
         assert(m.count(m.choose()) > 0);
@@ -15,8 +14,7 @@ pub proof fn len_is_zero_means_count_for_each_value_is_zero<V>(m: Multiset<V>)
 }
 
 pub proof fn filtered_size_is_zero_means_no_such_value<V>(m: Multiset<V>, f: FnSpec(V) -> bool)
-    ensures
-        (m.filter(f).len() == 0) == (forall |v: V| !(#[trigger] m.contains(v) && f(v)))
+    ensures (m.filter(f).len() == 0) == (forall |v: V| !(#[trigger] m.contains(v) && f(v)))
 {
     if forall |v: V| !(#[trigger] m.contains(v) && f(v)) {
         assert forall |v| m.filter(f).count(v) == 0 by {

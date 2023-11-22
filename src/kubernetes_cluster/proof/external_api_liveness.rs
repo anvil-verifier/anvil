@@ -19,8 +19,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_pre_leads_to_post_by_external_api(
-    spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: ExternalAPIAction<E>,
-    pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: ExternalAPIAction<E>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::external_api().actions.contains(action),
@@ -29,8 +28,7 @@ pub proof fn lemma_pre_leads_to_post_by_external_api(
         forall |s: Self| #[trigger] pre(s) ==> Self::external_api_action_pre(action, input)(s),
         spec.entails(always(lift_action(next))),
         spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+    ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::external_api_next().weak_fairness(i), input);
     Self::external_api_action_pre_implies_next_pre(action, input);

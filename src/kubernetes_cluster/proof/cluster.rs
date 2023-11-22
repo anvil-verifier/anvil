@@ -55,8 +55,7 @@ pub proof fn lemma_true_leads_to_crash_always_disabled(
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(Self::disable_crash().weak_fairness(())),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::crash_disabled())))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::crash_disabled())))),
 {
     let true_state = |s: Self| true;
     Self::disable_crash().wf1((), spec, Self::next(), true_state, Self::crash_disabled());
@@ -69,8 +68,7 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(Self::disable_transient_failure().weak_fairness(())),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::busy_disabled())))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::busy_disabled())))),
 {
     let true_state = |s: Self| true;
     Self::disable_transient_failure().wf1((), spec, Self::next(), true_state, Self::busy_disabled());
@@ -83,8 +81,7 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(Self::disable_crash().weak_fairness(())),
-    ensures
-        spec.entails(any_pred.leads_to(always(lift_state(Self::crash_disabled())))),
+    ensures spec.entails(any_pred.leads_to(always(lift_state(Self::crash_disabled())))),
 {
     valid_implies_implies_leads_to::<Self>(spec, any_pred, true_pred());
     Self::lemma_true_leads_to_crash_always_disabled(spec);

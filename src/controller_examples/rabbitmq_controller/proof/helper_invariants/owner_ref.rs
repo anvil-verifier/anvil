@@ -60,8 +60,7 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)))),
+    ensures spec.entails(always(lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq)))),
 {
     let inv = object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, rabbitmq);
     let next = |s, s_prime| {
@@ -145,8 +144,7 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq)))),
+    ensures spec.entails(always(lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq)))),
 {
     let inv = every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sub_resource, rabbitmq);
     let next = |s, s_prime| {

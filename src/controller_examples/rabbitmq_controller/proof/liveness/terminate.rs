@@ -36,10 +36,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitm
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
             ))))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())))
-        ),
+    ensures spec.entails(true_pred().leads_to(lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())))),
 {
     assert forall |action: ActionKind, sub_resource: SubResource| #![auto]
     spec.entails(always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(

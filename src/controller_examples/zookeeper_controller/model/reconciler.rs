@@ -23,27 +23,16 @@ verus! {
 impl Reconciler<ZookeeperClusterView, ZKAPI> for ZookeeperReconciler {
     type T = ZookeeperReconcileState;
 
-    open spec fn reconcile_init_state() -> ZookeeperReconcileState {
-        reconcile_init_state()
-    }
+    open spec fn reconcile_init_state() -> ZookeeperReconcileState { reconcile_init_state() }
 
-    open spec fn reconcile_core(
-        zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) {
-        reconcile_core(zk, resp_o, state)
-    }
+    open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState) 
+    -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) { reconcile_core(zk, resp_o, state) }
 
-    open spec fn reconcile_done(state: ZookeeperReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    open spec fn reconcile_done(state: ZookeeperReconcileState) -> bool { reconcile_done(state) }
 
-    open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool { reconcile_error(state) }
 
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
-        false // Don't expect anything from the user except the cr object
-    }
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* Don't expect anything from the user except the cr object */ }
 }
 
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
@@ -404,45 +393,25 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView,
 pub struct ZookeeperMaker {}
 
 impl Maker for ZookeeperMaker {
-    open spec fn make_headless_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
-        make_headless_service_key(zookeeper)
-    }
+    open spec fn make_headless_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_headless_service_key(zookeeper) }
 
-    open spec fn make_client_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
-        make_client_service_key(zookeeper)
-    }
+    open spec fn make_client_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_client_service_key(zookeeper) }
 
-    open spec fn make_admin_server_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
-        make_admin_server_service_key(zookeeper)
-    }
+    open spec fn make_admin_server_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_admin_server_service_key(zookeeper) }
 
-    open spec fn make_config_map_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
-        make_config_map_key(zookeeper)
-    }
+    open spec fn make_config_map_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_config_map_key(zookeeper) }
 
-    open spec fn make_stateful_set_key(zookeeper: ZookeeperClusterView) -> ObjectRef {
-        make_stateful_set_key(zookeeper)
-    }
+    open spec fn make_stateful_set_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_stateful_set_key(zookeeper) }
 
-    open spec fn make_headless_service(zookeeper: ZookeeperClusterView) -> ServiceView {
-        make_headless_service(zookeeper)
-    }
+    open spec fn make_headless_service(zookeeper: ZookeeperClusterView) -> ServiceView { make_headless_service(zookeeper) }
 
-    open spec fn make_client_service(zookeeper: ZookeeperClusterView) -> ServiceView {
-        make_client_service(zookeeper)
-    }
+    open spec fn make_client_service(zookeeper: ZookeeperClusterView) -> ServiceView { make_client_service(zookeeper) }
 
-    open spec fn make_admin_server_service(zookeeper: ZookeeperClusterView) -> ServiceView {
-        make_admin_server_service(zookeeper)
-    }
+    open spec fn make_admin_server_service(zookeeper: ZookeeperClusterView) -> ServiceView { make_admin_server_service(zookeeper) }
 
-    open spec fn make_config_map(zookeeper: ZookeeperClusterView) -> ConfigMapView {
-        make_config_map(zookeeper)
-    }
+    open spec fn make_config_map(zookeeper: ZookeeperClusterView) -> ConfigMapView { make_config_map(zookeeper) }
 
-    open spec fn make_stateful_set(zookeeper: ZookeeperClusterView, config_map_rv: StringView) -> StatefulSetView {
-        make_stateful_set(zookeeper, config_map_rv)
-    }
+    open spec fn make_stateful_set(zookeeper: ZookeeperClusterView, config_map_rv: StringView) -> StatefulSetView { make_stateful_set(zookeeper, config_map_rv) }
 }
 
 }

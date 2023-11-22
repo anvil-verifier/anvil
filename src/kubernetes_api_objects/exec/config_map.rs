@@ -34,24 +34,21 @@ impl View for ConfigMap {
 impl ConfigMap {
     #[verifier(external_body)]
     pub fn default() -> (config_map: ConfigMap)
-        ensures
-            config_map@ == ConfigMapView::default(),
+        ensures config_map@ == ConfigMapView::default(),
     {
         ConfigMap { inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
-        ensures
-            c@ == self@,
+        ensures c@ == self@,
     {
         ConfigMap { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
@@ -70,36 +67,30 @@ impl ConfigMap {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
-        ensures
-            self@ == old(self)@.set_data(data@),
+        ensures self@ == old(self)@.set_data(data@),
     {
         self.inner.data = Some(data.into_rust_map())
     }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == ConfigMapView::kind(),
+        ensures res@.kind == ConfigMapView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -120,16 +111,10 @@ impl ConfigMap {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::ConfigMap> for ConfigMap {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap {
-        ConfigMap {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap { ConfigMap { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMap {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMap { self.inner }
 }
 
 }

@@ -23,9 +23,7 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSetBuilder {
-    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
-        GetRequest { key: make_stateful_set_key(rabbitmq) }
-    }
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest { GetRequest { key: make_stateful_set_key(rabbitmq) } }
 
     open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
         if state.latest_config_map_rv_opt.is_Some() {
@@ -81,13 +79,9 @@ pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     }
 }
 
-pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView {
-    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
-}
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@ }
 
-pub open spec fn sts_restart_annotation() -> StringView {
-    new_strlit("anvil.dev/lastRestartAt")@
-}
+pub open spec fn sts_restart_annotation() -> StringView { new_strlit("anvil.dev/lastRestartAt")@ }
 
 pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_stateful_set: StatefulSetView, config_map_rv: StringView) -> StatefulSetView {
     let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();

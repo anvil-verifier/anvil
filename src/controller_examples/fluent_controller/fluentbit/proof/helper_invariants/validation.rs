@@ -59,8 +59,7 @@ pub proof fn lemma_always_daemon_set_in_etcd_satisfies_unchangeable(spec: TempPr
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)))),
+    ensures spec.entails(always(lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)))),
 {
     let inv = daemon_set_in_etcd_satisfies_unchangeable(fb);
     let ds_res = SubResource::DaemonSet;
@@ -139,8 +138,7 @@ pub proof fn lemma_always_daemon_set_update_request_msg_does_not_change_owner_re
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(daemon_set_update_request_msg_does_not_change_owner_reference(fb)))),
+    ensures spec.entails(always(lift_state(daemon_set_update_request_msg_does_not_change_owner_reference(fb)))),
 {
     let key = fb.object_ref();
     let ds_key = DaemonSetBuilder::get_request(fb).key;
@@ -203,14 +201,11 @@ pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
     }
 }
 
-pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
-    spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView
-)
+pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)))),
+    ensures spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)))),
 {
     let key = fb.object_ref();
     let ds_key = get_request(sub_resource, fb).key;
@@ -268,8 +263,7 @@ proof fn lemma_always_daemon_set_in_create_request_msg_satisfies_unchangeable(sp
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(daemon_set_in_create_request_msg_satisfies_unchangeable(fb)))),
+    ensures spec.entails(always(lift_state(daemon_set_in_create_request_msg_satisfies_unchangeable(fb)))),
 {
     let inv = daemon_set_in_create_request_msg_satisfies_unchangeable(fb);
     let ds_res = SubResource::DaemonSet;

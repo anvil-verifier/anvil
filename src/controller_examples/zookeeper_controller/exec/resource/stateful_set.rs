@@ -22,9 +22,7 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::StatefulSetBuilder> for StatefulSetBuilder {
-    open spec fn requirements(zk: ZookeeperClusterView) -> bool {
-        zk.well_formed()
-    }
+    open spec fn requirements(zk: ZookeeperClusterView) -> bool { zk.well_formed() }
 
     fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
         KubeGetRequest {

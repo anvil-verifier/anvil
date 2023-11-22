@@ -34,8 +34,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(Self::desired_state_is(cr)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))))),
 {
     let pre = |s: Self| true;
     let post = Self::the_object_in_schedule_has_spec_and_uid_as(cr);
@@ -70,8 +69,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
         spec.entails(always(lift_state(Self::desired_state_is(cr)))),
         spec.entails(true_pred().leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))),
         spec.entails(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)))),
-    ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr))))),
 {
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)

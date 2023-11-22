@@ -24,9 +24,7 @@ verus! {
 pub struct DefaultUserSecretBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
-    open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.well_formed()
-    }
+    open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool { rabbitmq.well_formed() }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
@@ -36,9 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::De
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
-        Ok(make_default_user_secret(rabbitmq).marshal())
-    }
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> { Ok(make_default_user_secret(rabbitmq).marshal()) }
 
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let secret = Secret::unmarshal(obj);

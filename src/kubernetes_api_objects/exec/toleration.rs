@@ -30,16 +30,10 @@ impl Toleration {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::Toleration> for Toleration {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Toleration) -> Toleration {
-        Toleration {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Toleration) -> Toleration { Toleration { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Toleration {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Toleration { self.inner }
 }
 
 }

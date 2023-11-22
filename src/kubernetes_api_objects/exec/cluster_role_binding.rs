@@ -26,75 +26,57 @@ impl ClusterRoleBinding {
 
     #[verifier(external_body)]
     pub fn default() -> (role_binding: ClusterRoleBinding)
-        ensures
-            role_binding@ == ClusterRoleBindingView::default(),
+        ensures role_binding@ == ClusterRoleBindingView::default(),
     {
-        ClusterRoleBinding {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding::default(),
-        }
+        ClusterRoleBinding { inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding::default() }
     }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_role_ref(&mut self, role_ref: RoleRef)
-        ensures
-            self@ == old(self)@.set_role_ref(role_ref@),
+        ensures self@ == old(self)@.set_role_ref(role_ref@),
     {
         self.inner.role_ref = role_ref.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_subjects(&mut self, subjects: Vec<Subject>)
-        ensures
-            self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
+        ensures self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
-        self.inner.subjects = Some(
-            subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
-        );
+        self.inner.subjects = Some(subjects.into_iter().map(|s: Subject| s.into_kube()).collect());
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding { self.inner }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding) -> (role_binding: ClusterRoleBinding)
-    {
-        ClusterRoleBinding { inner: inner }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding) -> ClusterRoleBinding { ClusterRoleBinding { inner: inner } }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == ClusterRoleBindingView::kind(),
+        ensures res@.kind == ClusterRoleBindingView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]

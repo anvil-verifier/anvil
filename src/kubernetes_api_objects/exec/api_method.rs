@@ -352,10 +352,8 @@ impl KubeAPIResponse {
     }
 
     pub fn as_get_response_ref(&self) -> (resp: &KubeGetResponse)
-        requires
-            self.is_GetResponse(),
-        ensures
-            resp == self.get_GetResponse_0(),
+        requires self.is_GetResponse(),
+        ensures resp == self.get_GetResponse_0(),
     {
         match self {
             KubeAPIResponse::GetResponse(resp) => resp,
@@ -364,10 +362,8 @@ impl KubeAPIResponse {
     }
 
     pub fn into_get_response(self) -> (resp: KubeGetResponse)
-        requires
-            self.is_GetResponse(),
-        ensures
-            resp == self.get_GetResponse_0(),
+        requires self.is_GetResponse(),
+        ensures resp == self.get_GetResponse_0(),
     {
         match self {
             KubeAPIResponse::GetResponse(resp) => resp,
@@ -386,10 +382,8 @@ impl KubeAPIResponse {
     }
 
     pub fn as_create_response_ref(&self) -> (resp: &KubeCreateResponse)
-        requires
-            self.is_CreateResponse(),
-        ensures
-            resp == self.get_CreateResponse_0(),
+        requires self.is_CreateResponse(),
+        ensures resp == self.get_CreateResponse_0(),
     {
         match self {
             KubeAPIResponse::CreateResponse(resp) => resp,
@@ -398,10 +392,8 @@ impl KubeAPIResponse {
     }
 
     pub fn into_create_response(self) -> (resp: KubeCreateResponse)
-        requires
-            self.is_CreateResponse(),
-        ensures
-            resp == self.get_CreateResponse_0(),
+        requires self.is_CreateResponse(),
+        ensures resp == self.get_CreateResponse_0(),
     {
         match self {
             KubeAPIResponse::CreateResponse(resp) => resp,
@@ -410,8 +402,7 @@ impl KubeAPIResponse {
     }
 
     pub fn is_update_response(&self) -> (res: bool)
-        ensures
-            res == self.is_UpdateResponse(),
+        ensures res == self.is_UpdateResponse(),
     {
         match self {
             KubeAPIResponse::UpdateResponse(_) => true,
@@ -420,10 +411,8 @@ impl KubeAPIResponse {
     }
 
     pub fn as_update_response_ref(&self) -> (resp: &KubeUpdateResponse)
-        requires
-            self.is_UpdateResponse(),
-        ensures
-            resp == self.get_UpdateResponse_0(),
+        requires self.is_UpdateResponse(),
+        ensures resp == self.get_UpdateResponse_0(),
     {
         match self {
             KubeAPIResponse::UpdateResponse(resp) => resp,
@@ -432,10 +421,8 @@ impl KubeAPIResponse {
     }
 
     pub fn into_update_response(self) -> (resp: KubeUpdateResponse)
-        requires
-            self.is_UpdateResponse(),
-        ensures
-            resp == self.get_UpdateResponse_0(),
+        requires self.is_UpdateResponse(),
+        ensures resp == self.get_UpdateResponse_0(),
     {
         match self {
             KubeAPIResponse::UpdateResponse(resp) => resp,
@@ -454,10 +441,8 @@ impl KubeAPIResponse {
     }
 
     pub fn as_update_status_response_ref(&self) -> (resp: &KubeUpdateStatusResponse)
-        requires
-            self.is_UpdateStatusResponse(),
-        ensures
-            resp == self.get_UpdateStatusResponse_0(),
+        requires self.is_UpdateStatusResponse(),
+        ensures resp == self.get_UpdateStatusResponse_0(),
     {
         match self {
             KubeAPIResponse::UpdateStatusResponse(resp) => resp,
@@ -466,10 +451,8 @@ impl KubeAPIResponse {
     }
 
     pub fn into_update_status_response(self) -> (resp: KubeUpdateStatusResponse)
-        requires
-            self.is_UpdateStatusResponse(),
-        ensures
-            resp == self.get_UpdateStatusResponse_0(),
+        requires self.is_UpdateStatusResponse(),
+        ensures resp == self.get_UpdateStatusResponse_0(),
     {
         match self {
             KubeAPIResponse::UpdateStatusResponse(resp) => resp,

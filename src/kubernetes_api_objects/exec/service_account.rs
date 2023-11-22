@@ -35,8 +35,7 @@ impl View for ServiceAccount {
 impl ServiceAccount {
     #[verifier(external_body)]
     pub fn default() -> (service_account: ServiceAccount)
-        ensures
-            service_account@ == ServiceAccountView::default(),
+        ensures service_account@ == ServiceAccountView::default(),
     {
         ServiceAccount {
             inner: deps_hack::k8s_openapi::api::core::v1::ServiceAccount::default(),
@@ -45,56 +44,43 @@ impl ServiceAccount {
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
-        ensures
-            c@ == self@,
+        ensures c@ == self@,
     {
         ServiceAccount { inner: self.inner.clone() }
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceAccount) -> ServiceAccount {
-        ServiceAccount {
-            inner: inner
-        }
-    }
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceAccount) -> ServiceAccount { ServiceAccount { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceAccount {
-        self.inner
-    }
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceAccount { self.inner }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == ServiceAccountView::kind(),
+        ensures res@.kind == ServiceAccountView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::ServiceAccount>(&()))
     }
 
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]

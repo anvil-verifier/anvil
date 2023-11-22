@@ -70,10 +70,8 @@ pub open spec fn spec_before_phase_n(n: nat, fb: FluentBitView) -> TempPred<FBCl
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, fb: FluentBitView)
-    requires
-        1 <= i <= 7,
-    ensures
-        spec_before_phase_n(i, fb).entails(true_pred().leads_to(invariants_since_phase_n(i, fb))),
+    requires 1 <= i <= 7,
+    ensures spec_before_phase_n(i, fb).entails(true_pred().leads_to(invariants_since_phase_n(i, fb))),
 {
     let spec = spec_before_phase_n(i, fb);
     reveal_with_fuel(spec_before_phase_n, 8);
@@ -156,8 +154,7 @@ pub open spec fn next_with_wf() -> TempPred<FBCluster> {
 }
 
 pub proof fn next_with_wf_is_stable()
-    ensures
-        valid(stable(next_with_wf())),
+    ensures valid(stable(next_with_wf())),
 {
     always_p_is_stable(lift_action(FBCluster::next()));
     FBCluster::tla_forall_action_weak_fairness_is_stable(FBCluster::kubernetes_api_next());
@@ -189,8 +186,7 @@ pub open spec fn invariants(fb: FluentBitView) -> TempPred<FBCluster> {
 }
 
 pub proof fn invariants_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants(fb))),
+    ensures valid(stable(invariants(fb))),
 {
     next_with_wf_is_stable();
     derived_invariants_since_beginning_is_stable(fb);
@@ -227,8 +223,7 @@ pub open spec fn derived_invariants_since_beginning(fb: FluentBitView) -> TempPr
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(derived_invariants_since_beginning(fb))),
+    ensures valid(stable(derived_invariants_since_beginning(fb))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb));
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1))));
@@ -274,8 +269,7 @@ pub open spec fn invariants_since_phase_i(fb: FluentBitView) -> TempPred<FBClust
 }
 
 pub proof fn invariants_since_phase_i_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_i(fb))),
+    ensures valid(stable(invariants_since_phase_i(fb))),
 {
     stable_and_always_n!(
         lift_state(FBCluster::crash_disabled()),
@@ -293,8 +287,7 @@ pub open spec fn invariants_since_phase_ii(fb: FluentBitView) -> TempPred<FBClus
 }
 
 pub proof fn invariants_since_phase_ii_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_ii(fb))),
+    ensures valid(stable(invariants_since_phase_ii(fb))),
 {
     always_p_is_stable(lift_state(FBCluster::the_object_in_reconcile_has_spec_and_uid_as(fb)));
 }
@@ -305,8 +298,7 @@ pub open spec fn invariants_since_phase_iii(fb: FluentBitView) -> TempPred<FBClu
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_iii(fb))),
+    ensures valid(stable(invariants_since_phase_iii(fb))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fb));
@@ -321,8 +313,7 @@ pub open spec fn invariants_since_phase_iv(fb: FluentBitView) -> TempPred<FBClus
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_iv(fb))),
+    ensures valid(stable(invariants_since_phase_iv(fb))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb));
     always_p_is_stable(tla_forall(a_to_p_1));
@@ -336,8 +327,7 @@ pub open spec fn invariants_since_phase_v(fb: FluentBitView) -> TempPred<FBClust
 }
 
 pub proof fn invariants_since_phase_v_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_v(fb))),
+    ensures valid(stable(invariants_since_phase_v(fb))),
 {
     always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb))));
 }
@@ -347,8 +337,7 @@ pub open spec fn invariants_since_phase_vi(fb: FluentBitView) -> TempPred<FBClus
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_vi(fb))),
+    ensures valid(stable(invariants_since_phase_vi(fb))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb));
     always_p_is_stable(tla_forall(a_to_p_1));
@@ -359,8 +348,7 @@ pub open spec fn invariants_since_phase_vii(fb: FluentBitView) -> TempPred<FBClu
 }
 
 pub proof fn invariants_since_phase_vii_is_stable(fb: FluentBitView)
-    ensures
-        valid(stable(invariants_since_phase_vii(fb))),
+    ensures valid(stable(invariants_since_phase_vii(fb))),
 {
     always_p_is_stable(lift_state(helper_invariants::daemon_set_not_exists_or_matches_or_no_more_status_update(fb)));
 }
@@ -389,8 +377,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
 }
 
 pub proof fn sm_spec_entails_all_invariants(fb: FluentBitView)
-    ensures
-        cluster_spec().entails(derived_invariants_since_beginning(fb)),
+    ensures cluster_spec().entails(derived_invariants_since_beginning(fb)),
 {
     let spec = cluster_spec();
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.

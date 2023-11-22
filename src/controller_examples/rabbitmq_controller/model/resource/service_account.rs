@@ -23,13 +23,9 @@ verus! {
 pub struct ServiceAccountBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAccountBuilder {
-    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
-        GetRequest { key: make_service_account_key(rabbitmq) }
-    }
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest { GetRequest { key: make_service_account_key(rabbitmq) } }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_service_account(rabbitmq).marshal())
-    }
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_service_account(rabbitmq).marshal()) }
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sa = ServiceAccountView::unmarshal(obj);
@@ -69,9 +65,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
     }
 }
 
-pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView {
-    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
-}
+pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@ }
 
 pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

@@ -18,10 +18,8 @@ use vstd::string::*;
 verus! {
 
 pub fn make_owner_references(fbc: &FluentBitConfig) -> (owner_references: Vec<OwnerReference>)
-    requires
-        fbc@.well_formed(),
-    ensures
-        owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(fbc@),
+    requires fbc@.well_formed(),
+    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_resource::make_owner_references(fbc@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(fbc.controller_owner_ref());

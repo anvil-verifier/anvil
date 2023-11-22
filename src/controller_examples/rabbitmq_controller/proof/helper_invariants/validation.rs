@@ -62,8 +62,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
+    ensures spec.entails(always(lift_state(stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
 {
     let inv = stateful_set_in_etcd_satisfies_unchangeable(rabbitmq);
     let sts_res = SubResource::StatefulSet;
@@ -146,8 +145,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)))),
+    ensures spec.entails(always(lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)))),
 {
     let key = rabbitmq.object_ref();
     let sts_key = StatefulSetBuilder::get_request(rabbitmq).key;
@@ -196,9 +194,7 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<RMQCluster> {
+pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let resource_key = get_request(sub_resource, rabbitmq).key;
         let etcd_rv = s.resources()[resource_key].metadata.resource_version.get_Some_0();
@@ -211,14 +207,11 @@ pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
-    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-)
+pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)))),
+    ensures spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)))),
 {
     let key = rabbitmq.object_ref();
     let sts_key = get_request(sub_resource, rabbitmq).key;
@@ -280,8 +273,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)))),
+    ensures spec.entails(always(lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)))),
 {
     let inv = stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq);
     let sts_res = SubResource::StatefulSet;

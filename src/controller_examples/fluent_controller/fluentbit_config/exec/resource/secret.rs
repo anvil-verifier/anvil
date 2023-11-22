@@ -24,9 +24,7 @@ verus! {
 pub struct SecretBuilder {}
 
 impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resource::SecretBuilder> for SecretBuilder {
-    open spec fn requirements(fbc: FluentBitConfigView) -> bool {
-        &&& fbc.well_formed()
-    }
+    open spec fn requirements(fbc: FluentBitConfigView) -> bool { fbc.well_formed() }
 
     fn get_request(fbc: &FluentBitConfig) -> KubeGetRequest {
         KubeGetRequest {
@@ -36,9 +34,7 @@ impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resou
         }
     }
 
-    fn make(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState) -> Result<DynamicObject, ()> {
-        Ok(make_secret(fbc).marshal())
-    }
+    fn make(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState) -> Result<DynamicObject, ()> { Ok(make_secret(fbc).marshal()) }
 
     fn update(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let secret = Secret::unmarshal(obj);
@@ -77,10 +73,8 @@ impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resou
 }
 
 pub fn update_secret(fbc: &FluentBitConfig, found_secret: Secret) -> (secret: Secret)
-    requires
-        fbc@.well_formed(),
-    ensures
-        secret@ == model_resource::update_secret(fbc@, found_secret@),
+    requires fbc@.well_formed(),
+    ensures secret@ == model_resource::update_secret(fbc@, found_secret@),
 {
     let mut secret = found_secret.clone();
     let made_secret = make_secret(fbc);
@@ -95,19 +89,15 @@ pub fn update_secret(fbc: &FluentBitConfig, found_secret: Secret) -> (secret: Se
 }
 
 pub fn make_secret_name(fbc: &FluentBitConfig) -> (name: String)
-    requires
-        fbc@.well_formed(),
-    ensures
-        name@ == model_resource::make_secret_name(fbc@),
+    requires fbc@.well_formed(),
+    ensures name@ == model_resource::make_secret_name(fbc@),
 {
     fbc.metadata().name().unwrap()
 }
 
 pub fn make_secret(fbc: &FluentBitConfig) -> (secret: Secret)
-    requires
-        fbc@.well_formed(),
-    ensures
-        secret@ == model_resource::make_secret(fbc@),
+    requires fbc@.well_formed(),
+    ensures secret@ == model_resource::make_secret(fbc@),
 {
     let mut secret = Secret::default();
     secret.set_metadata({

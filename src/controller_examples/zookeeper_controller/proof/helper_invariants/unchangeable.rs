@@ -61,14 +61,11 @@ pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
-proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)))),
 {
     let inv = object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper);
     let next = |s, s_prime| {
@@ -110,14 +107,11 @@ proof fn lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(
     init_invariant(spec, ZKCluster::init(), next, inv);
 }
 
-pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
-    spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView
-)
+pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)))),
+    ensures spec.entails(always(lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)))),
 {
     let inv = |s: ZKCluster| {
         &&& object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s)
@@ -162,9 +156,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(
     always_weaken_temp(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)));
 }
 
-pub proof fn object_in_etcd_satisfies_unchangeable_induction(
-    sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster
-)
+pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s),
         object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s),
@@ -174,8 +166,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
         ZKCluster::each_object_in_etcd_is_well_formed()(s_prime),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s),
-    ensures
-        object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
+    ensures object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
@@ -202,9 +193,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(
     }
 }
 
-pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(
-    sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster
-)
+pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster)
     requires
         object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s),
         ZKCluster::next()(s, s_prime),
@@ -215,8 +204,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s),
         the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s),
-    ensures
-        object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
+    ensures object_in_every_update_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
     assert forall |msg: ZKMessage| s_prime.in_flight().contains(msg) && #[trigger] resource_update_request_msg(resource_key)(msg)
@@ -253,8 +241,7 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
 }
 
 proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterView)
-    requires
-        zookeeper.state_validation(),
+    requires zookeeper.state_validation(),
     ensures
         make_config_map(zookeeper).data.is_Some(),
         validate_config_map_data(make_config_map(zookeeper).data.get_Some_0()),

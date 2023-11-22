@@ -20,13 +20,9 @@ verus! {
 pub struct AdminServerServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminServerServiceBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
-        GetRequest { key: make_admin_server_service_key(zk) }
-    }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_admin_server_service_key(zk) } }
 
-    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_admin_server_service(zk).marshal())
-    }
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_admin_server_service(zk).marshal()) }
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
@@ -74,9 +70,7 @@ pub open spec fn make_admin_server_service_key(zk: ZookeeperClusterView) -> Obje
     }
 }
 
-pub open spec fn make_admin_server_service_name(zk: ZookeeperClusterView) -> StringView {
-    zk.metadata.name.get_Some_0() + new_strlit("-admin-server")@
-}
+pub open spec fn make_admin_server_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + new_strlit("-admin-server")@ }
 
 pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_admin_server_service: ServiceView) -> ServiceView {
     ServiceView {

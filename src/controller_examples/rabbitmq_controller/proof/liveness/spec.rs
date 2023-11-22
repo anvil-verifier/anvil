@@ -70,10 +70,8 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, rabbitmq: RabbitmqClusterView)
-    requires
-        1 <= i <= 7,
-    ensures
-        spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))),
+    requires 1 <= i <= 7,
+    ensures spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))),
 {
     let spec = spec_before_phase_n(i, rabbitmq);
     reveal_with_fuel(spec_before_phase_n, 8);
@@ -157,8 +155,7 @@ pub open spec fn next_with_wf() -> TempPred<RMQCluster> {
 }
 
 pub proof fn next_with_wf_is_stable()
-    ensures
-        valid(stable(next_with_wf())),
+    ensures valid(stable(next_with_wf())),
 {
     always_p_is_stable(lift_action(RMQCluster::next()));
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::kubernetes_api_next());
@@ -190,8 +187,7 @@ pub open spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluste
 }
 
 pub proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants(rabbitmq))),
+    ensures valid(stable(invariants(rabbitmq))),
 {
     next_with_wf_is_stable();
     derived_invariants_since_beginning_is_stable(rabbitmq);
@@ -227,8 +223,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(derived_invariants_since_beginning(rabbitmq))),
+    ensures valid(stable(derived_invariants_since_beginning(rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq));
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))));
@@ -273,8 +268,7 @@ pub open spec fn invariants_since_phase_i(rabbitmq: RabbitmqClusterView) -> Temp
 }
 
 pub proof fn invariants_since_phase_i_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_i(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_i(rabbitmq))),
 {
     stable_and_always_n!(
         lift_state(RMQCluster::crash_disabled()),
@@ -293,8 +287,7 @@ pub open spec fn invariants_since_phase_ii(rabbitmq: RabbitmqClusterView) -> Tem
 
 
 pub proof fn invariants_since_phase_ii_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_ii(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_ii(rabbitmq))),
 {
     always_p_is_stable(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
 }
@@ -305,8 +298,7 @@ pub open spec fn invariants_since_phase_iii(rabbitmq: RabbitmqClusterView) -> Te
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_iii(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_iii(rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq));
@@ -321,8 +313,7 @@ pub open spec fn invariants_since_phase_iv(rabbitmq: RabbitmqClusterView) -> Tem
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_iv(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_iv(rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq));
     always_p_is_stable(tla_forall(a_to_p_1));
@@ -336,8 +327,7 @@ pub open spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> Temp
 }
 
 pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_v(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_v(rabbitmq))),
 {
     always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))));
 }
@@ -349,8 +339,7 @@ pub open spec fn invariants_since_phase_vi(rabbitmq: RabbitmqClusterView) -> Tem
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_vi(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_vi(rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq));
     stable_and_always_n!(
@@ -365,8 +354,7 @@ pub open spec fn invariants_since_phase_vii(rabbitmq: RabbitmqClusterView) -> Te
 }
 
 pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        valid(stable(invariants_since_phase_vii(rabbitmq))),
+    ensures valid(stable(invariants_since_phase_vii(rabbitmq))),
 {
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
@@ -394,8 +382,7 @@ pub proof fn lemma_always_for_all_step_pending_req_in_flight_or_resp_in_flight_a
 }
 
 pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
-    ensures
-        cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
+    ensures cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
 {
     let spec = cluster_spec();
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.

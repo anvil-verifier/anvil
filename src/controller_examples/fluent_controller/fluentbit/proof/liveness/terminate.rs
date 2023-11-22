@@ -36,10 +36,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCluster>, fb: Flue
         spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1))
         ))))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))
-        ),
+    ensures spec.entails(true_pred().leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
 {
     assert forall |action: ActionKind, sub_resource: SubResource| #![auto]
     spec.entails(always(lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
@@ -143,10 +140,8 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         spec.entails(lift_state(at_step_state_pred(fb, FluentBitReconcileStep::Error))
             .leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
     ensures
-        spec.entails(lift_state(at_step_state_pred(fb, after_get_k_request_step(sub_resource)))
-            .leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
-        spec.entails(lift_state(state_pred_regarding_sub_resource(fb, sub_resource))
-            .leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
+        spec.entails(lift_state(at_step_state_pred(fb, after_get_k_request_step(sub_resource))).leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
+        spec.entails(lift_state(state_pred_regarding_sub_resource(fb, sub_resource)).leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
 {
     let state_after_create_or_update = |s: FluentBitReconcileState| {
         s.reconcile_step == next_step

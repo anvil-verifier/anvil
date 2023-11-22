@@ -17,13 +17,9 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
-    rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
-}
+pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> { rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()) }
 
-pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<OwnerReferenceView> {
-    seq![rabbitmq.controller_owner_ref()]
-}
+pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<OwnerReferenceView> { seq![rabbitmq.controller_owner_ref()] }
 
 pub open spec fn make_secret(rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>) -> SecretView {
     SecretView::default()

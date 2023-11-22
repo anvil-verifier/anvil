@@ -49,11 +49,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(SubResource::ConfigMap, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(zookeeper)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(zookeeper)))),
-    ensures
-        spec.entails(
-            lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper))
-                .leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper)))
-        ),
+    ensures spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)).leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper)))),
 {
     lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::StatefulSet, zookeeper);
     lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_matches(spec, zookeeper);
@@ -494,8 +490,7 @@ pub proof fn lemma_stateful_set_is_stable(
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(zookeeper)))),
-    ensures
-        spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))),
+    ensures spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))),
 {
     let post = sub_resource_state_matches(SubResource::StatefulSet, zookeeper);
     let resource_key = get_request(SubResource::StatefulSet, zookeeper).key;

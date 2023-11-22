@@ -27,8 +27,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn default() -> (object_meta: ObjectMeta)
-        ensures
-            object_meta@ == ObjectMetaView::default(),
+        ensures object_meta@ == ObjectMetaView::default(),
     {
         ObjectMeta {
             inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
@@ -37,8 +36,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         ObjectMeta { inner: self.inner.clone() }
     }
@@ -93,8 +91,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
-        ensures
-            res == self@.owner_references_only_contains(owner_ref@),
+        ensures res == self@.owner_references_only_contains(owner_ref@),
     {
         match &self.inner.owner_references {
             Some(owner_refs) => owner_refs.len() == 1 && owner_refs.contains(&owner_ref.into_kube()),
@@ -116,48 +113,42 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn has_deletion_timestamp(&self) -> (b: bool)
-        ensures
-            b == self@.deletion_timestamp.is_Some(),
+        ensures b == self@.deletion_timestamp.is_Some(),
     {
         self.inner.deletion_timestamp.is_some()
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
-        ensures
-            self@ == old(self)@.set_namespace(namespace@),
+        ensures self@ == old(self)@.set_namespace(namespace@),
     {
         self.inner.namespace = Some(namespace.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_labels(&mut self, labels: StringMap)
-        ensures
-            self@ == old(self)@.set_labels(labels@),
+        ensures self@ == old(self)@.set_labels(labels@),
     {
         self.inner.labels = Some(labels.into_rust_map());
     }
 
     #[verifier(external_body)]
     pub fn set_annotations(&mut self, annotations: StringMap)
-        ensures
-            self@ == old(self)@.set_annotations(annotations@),
+        ensures self@ == old(self)@.set_annotations(annotations@),
     {
         self.inner.annotations = Some(annotations.into_rust_map());
     }
 
     #[verifier(external_body)]
     pub fn add_annotation(&mut self, key: String, value: String)
-        ensures
-            self@ == old(self)@.add_annotation(key@, value@),
+        ensures self@ == old(self)@.add_annotation(key@, value@),
     {
         if self.inner.annotations.is_none() {
             let mut annotations = std::collections::BTreeMap::new();
@@ -170,28 +161,21 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
-        ensures
-            self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
+        ensures self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
     {
-        self.inner.owner_references = Some(
-            owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
-        );
+        self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),);
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
-        ensures
-            self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
     {
-        self.inner.finalizers = Some(
-            finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),
-        );
+        self.inner.finalizers = Some(finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),);
     }
 
     #[verifier(external_body)]
     pub fn unset_finalizers(&mut self)
-        ensures
-            self@ == old(self)@.unset_finalizers(),
+        ensures self@ == old(self)@.unset_finalizers(),
     {
         self.inner.finalizers = None;
     }
@@ -199,14 +183,10 @@ impl ObjectMeta {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta {
-        ObjectMeta { inner: inner }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta { ObjectMeta { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta { self.inner }
 }
 
 }

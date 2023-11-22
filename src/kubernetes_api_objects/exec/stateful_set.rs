@@ -40,26 +40,21 @@ impl View for StatefulSet {
 impl StatefulSet {
     #[verifier(external_body)]
     pub fn default() -> (stateful_set: StatefulSet)
-        ensures
-            stateful_set@ == StatefulSetView::default(),
+        ensures stateful_set@ == StatefulSetView::default(),
     {
-        StatefulSet {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet::default(),
-        }
+        StatefulSet { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         StatefulSet { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures
-            metadata@ == self@.metadata,
+        ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
@@ -92,24 +87,21 @@ impl StatefulSet {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: StatefulSetSpec)
-        ensures
-            self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == StatefulSetView::kind(),
+        ensures res@.kind == StatefulSetView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>(&()))
     }
@@ -117,8 +109,7 @@ impl StatefulSet {
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -164,58 +155,49 @@ impl StatefulSetSpec {
 
     #[verifier(external_body)]
     pub fn default() -> (stateful_set_spec: StatefulSetSpec)
-        ensures
-            stateful_set_spec@ == StatefulSetSpecView::default(),
+        ensures stateful_set_spec@ == StatefulSetSpecView::default(),
     {
-        StatefulSetSpec {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec::default(),
-        }
+        StatefulSetSpec { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         StatefulSetSpec { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_replicas(&mut self, replicas: i32)
-        ensures
-            self@ == old(self)@.set_replicas(replicas as int),
+        ensures self@ == old(self)@.set_replicas(replicas as int),
     {
         self.inner.replicas = Some(replicas)
     }
 
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: LabelSelector)
-        ensures
-            self@ == old(self)@.set_selector(selector@),
+        ensures self@ == old(self)@.set_selector(selector@),
     {
         self.inner.selector = selector.into_kube()
     }
 
     #[verifier(external_body)]
     pub fn set_service_name(&mut self, service_name: String)
-        ensures
-            self@ == old(self)@.set_service_name(service_name@),
+        ensures self@ == old(self)@.set_service_name(service_name@),
     {
         self.inner.service_name = service_name.into_rust_string()
     }
 
     #[verifier(external_body)]
     pub fn set_template(&mut self, template: PodTemplateSpec)
-        ensures
-            self@ == old(self)@.set_template(template@),
+        ensures self@ == old(self)@.set_template(template@),
     {
         self.inner.template = template.into_kube()
     }
 
     #[verifier(external_body)]
     pub fn set_volume_claim_templates(&mut self, volume_claim_templates: Vec<PersistentVolumeClaim>)
-        ensures
-            self@ == old(self)@.set_volume_claim_templates(volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@)),
+        ensures self@ == old(self)@.set_volume_claim_templates(volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@)),
     {
         self.inner.volume_claim_templates = Some(
             volume_claim_templates.into_iter().map(|pvc: PersistentVolumeClaim| pvc.into_kube()).collect()
@@ -224,16 +206,14 @@ impl StatefulSetSpec {
 
     #[verifier(external_body)]
     pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
-        ensures
-            self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
+        ensures self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
     {
         self.inner.pod_management_policy = Some(pod_management_policy.into_rust_string())
     }
 
     #[verifier(external_body)]
     pub fn set_pvc_retention_policy(&mut self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
-        ensures
-            self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy@),
+        ensures self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy@),
     {
         self.inner.persistent_volume_claim_retention_policy = Some(pvc_retention_policy.into_kube())
     }
@@ -265,8 +245,7 @@ impl StatefulSetSpec {
 
     #[verifier(external_body)]
     pub fn template(&self) -> (template: PodTemplateSpec)
-        ensures
-            template@ == self@.template,
+        ensures template@ == self@.template,
     {
         PodTemplateSpec::from_kube(self.inner.template.clone())
     }
@@ -306,55 +285,39 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
 
     #[verifier(external_body)]
     pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
-        ensures
-            pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
+        ensures pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
     {
-        StatefulSetPersistentVolumeClaimRetentionPolicy {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),
-        }
+        StatefulSetPersistentVolumeClaimRetentionPolicy { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default() }
     }
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
-        ensures
-            s@ == self@,
+        ensures s@ == self@,
     {
         StatefulSetPersistentVolumeClaimRetentionPolicy { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_when_deleted(&mut self, when_deleted: String)
-        ensures
-            self@ == old(self)@.set_when_deleted(when_deleted@),
+        ensures self@ == old(self)@.set_when_deleted(when_deleted@),
     {
-        self.inner.when_deleted = Some(
-            when_deleted.into_rust_string()
-        )
+        self.inner.when_deleted = Some(when_deleted.into_rust_string())
     }
 
     #[verifier(external_body)]
     pub fn set_when_scaled(&mut self, when_scaled: String)
-        ensures
-            self@ == old(self)@.set_when_scaled(when_scaled@),
+        ensures self@ == old(self)@.set_when_scaled(when_scaled@),
     {
-        self.inner.when_scaled = Some(
-            when_scaled.into_rust_string()
-        )
+        self.inner.when_scaled = Some(when_scaled.into_rust_string())
     }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy {
-        StatefulSetPersistentVolumeClaimRetentionPolicy {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy { StatefulSetPersistentVolumeClaimRetentionPolicy { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy { self.inner }
 }
 
 #[verifier(external_body)]
@@ -377,14 +340,10 @@ impl StatefulSetStatus {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus> for StatefulSetStatus {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus {
-        StatefulSetStatus { inner: inner }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus { StatefulSetStatus { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus { self.inner }
 }
 
 }

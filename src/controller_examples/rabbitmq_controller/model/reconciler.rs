@@ -23,27 +23,16 @@ verus! {
 impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     type T = RabbitmqReconcileState;
 
-    open spec fn reconcile_init_state() -> RabbitmqReconcileState {
-        reconcile_init_state()
-    }
+    open spec fn reconcile_init_state() -> RabbitmqReconcileState { reconcile_init_state() }
 
-    open spec fn reconcile_core(
-        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
-    ) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) {
-        reconcile_core(rabbitmq, resp_o, state)
-    }
+    open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState)
+    -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) { reconcile_core(rabbitmq, resp_o, state)}
 
-    open spec fn reconcile_done(state: RabbitmqReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    open spec fn reconcile_done(state: RabbitmqReconcileState) -> bool { reconcile_done(state) }
 
-    open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool { reconcile_error(state) }
 
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
-        false // Don't expect anything from the user except the cr object
-    }
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* Don't expect anything from the user except the cr object*/ }
 }
 
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {
@@ -255,67 +244,45 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<RabbitmqClusterView, 
 pub struct RabbitmqMaker {}
 
 impl Maker for RabbitmqMaker {
-    open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_headless_service_key(rabbitmq)
-    }
-    open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_main_service_key(rabbitmq)
-    }
-    open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_erlang_secret_key(rabbitmq)
-    }
-    open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_default_user_secret_key(rabbitmq)
-    }
-    open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_plugins_config_map_key(rabbitmq)
-    }
-    open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_server_config_map_key(rabbitmq)
-    }
-    open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_service_account_key(rabbitmq)
-    }
-    open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_role_key(rabbitmq)
-    }
-    open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_role_binding_key(rabbitmq)
-    }
-    open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
-        make_stateful_set_key(rabbitmq)
-    }
+    open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_headless_service_key(rabbitmq) }
 
-    open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
-        make_headless_service(rabbitmq)
-    }
-    open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
-        make_main_service(rabbitmq)
-    }
-    open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView {
-        make_erlang_secret(rabbitmq)
-    }
-    open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView {
-        make_default_user_secret(rabbitmq)
-    }
-    open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView {
-        make_plugins_config_map(rabbitmq)
-    }
-    open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView {
-        make_server_config_map(rabbitmq)
-    }
-    open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView {
-        make_service_account(rabbitmq)
-    }
-    open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView {
-        make_role(rabbitmq)
-    }
-    open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView {
-        make_role_binding(rabbitmq)
-    }
-    open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView {
-        make_stateful_set(rabbitmq, config_map_rv)
-    }
+    open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_main_service_key(rabbitmq) }
+
+    open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_erlang_secret_key(rabbitmq) }
+
+    open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_default_user_secret_key(rabbitmq) }
+
+    open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_plugins_config_map_key(rabbitmq) }
+
+    open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_server_config_map_key(rabbitmq) }
+
+    open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_service_account_key(rabbitmq) }
+
+    open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_role_key(rabbitmq) }
+
+    open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_role_binding_key(rabbitmq) }
+
+    open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_stateful_set_key(rabbitmq) }
+
+    open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView { make_headless_service(rabbitmq) }
+
+    open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView { make_main_service(rabbitmq) }
+
+    open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView { make_erlang_secret(rabbitmq) }
+
+    open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView { make_default_user_secret(rabbitmq) }
+
+    open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView { make_plugins_config_map(rabbitmq) }
+
+    open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView { make_server_config_map(rabbitmq) }
+    
+    open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView { make_service_account(rabbitmq) }
+
+    open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView { make_role(rabbitmq) }
+
+    open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView { make_role_binding(rabbitmq) }
+
+    open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView { make_stateful_set(rabbitmq, config_map_rv) }
 }
 
 }

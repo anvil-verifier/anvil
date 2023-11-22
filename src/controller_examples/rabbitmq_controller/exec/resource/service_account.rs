@@ -24,9 +24,7 @@ verus! {
 pub struct ServiceAccountBuilder {}
 
 impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
-    open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
-        &&& rabbitmq.well_formed()
-    }
+    open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool { rabbitmq.well_formed() }
 
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
@@ -36,9 +34,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Se
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
-        Ok(make_service_account(rabbitmq).marshal())
-    }
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> { Ok(make_service_account(rabbitmq).marshal()) }
 
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let sa = ServiceAccount::unmarshal(obj);

@@ -30,8 +30,7 @@ verus! {
 
 // We prove init /\ []next /\ []wf |= []desired_state_is(fbc) ~> []current_state_matches(fbc) holds for each fbc.
 proof fn liveness_proof_forall_fbc()
-    ensures
-        liveness_theorem::<FluentBitConfigMaker>(),
+    ensures liveness_theorem::<FluentBitConfigMaker>(),
 {
     assert forall |fbc: FluentBitConfigView| #[trigger] cluster_spec().entails(liveness::<FluentBitConfigMaker>(fbc)) by {
         liveness_proof(fbc);
@@ -40,8 +39,7 @@ proof fn liveness_proof_forall_fbc()
 }
 
 proof fn liveness_proof(fbc: FluentBitConfigView)
-    ensures
-        cluster_spec().entails(liveness::<FluentBitConfigMaker>(fbc)),
+    ensures cluster_spec().entails(liveness::<FluentBitConfigMaker>(fbc)),
 {
     assumption_and_invariants_of_all_phases_is_stable(fbc);
     lemma_true_leads_to_always_current_state_matches(fbc);
@@ -70,8 +68,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
         1 <= i <= 6,
         valid(stable(spec_before_phase_n(i, fbc))),
         spec_before_phase_n(i + 1, fbc).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc)))))
-    ensures
-        spec_before_phase_n(i, fbc).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))))),
+    ensures spec_before_phase_n(i, fbc).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))))),
 {
     reveal_with_fuel(spec_before_phase_n, 7);
     temp_pred_equality(spec_before_phase_n(i + 1, fbc), spec_before_phase_n(i, fbc).and(invariants_since_phase_n(i, fbc)));
@@ -82,11 +79,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(fbc: FluentBitConfigView)
-    ensures
-        assumption_and_invariants_of_all_phases(fbc)
-        .entails(
-            true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))))
-        ),
+    ensures assumption_and_invariants_of_all_phases(fbc).entails(true_pred().leads_to(always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))))),
 {
     let spec = assumption_and_invariants_of_all_phases(fbc);
     lemma_true_leads_to_always_state_matches_for_all_resources(fbc);
@@ -104,11 +97,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(fbc: FluentBitConfigVi
 }
 
 proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fbc: FluentBitConfigView)
-    ensures
-        forall |sub_resource: SubResource| assumption_and_invariants_of_all_phases(fbc)
-            .entails(
-                true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fbc))))
-            ),
+    ensures forall |sub_resource: SubResource| assumption_and_invariants_of_all_phases(fbc).entails(true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, fbc))))),
 {
     let spec = assumption_and_invariants_of_all_phases(fbc);
 
@@ -145,13 +134,9 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCCluster>, fbc:
         spec.entails(tla_forall(|i| FBCCluster::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(fbc)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCCluster| { !s.ongoing_reconciles().contains_key(fbc.object_ref()) })
-                .leads_to(lift_state(|s: FBCCluster| {
-                    &&& !s.ongoing_reconciles().contains_key(fbc.object_ref())
-                    &&& s.scheduled_reconciles().contains_key(fbc.object_ref())
-                }))
-        ),
+        spec.entails(lift_state(|s: FBCCluster| { !s.ongoing_reconciles().contains_key(fbc.object_ref()) }).leads_to(lift_state(|s: FBCCluster| {
+            &&& !s.ongoing_reconciles().contains_key(fbc.object_ref())
+            &&& s.scheduled_reconciles().contains_key(fbc.object_ref())}))),
 {
     let pre = |s: FBCCluster| {
         &&& !s.ongoing_reconciles().contains_key(fbc.object_ref())
@@ -176,13 +161,10 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<FBCCluster>, fbc: Flue
         spec.entails(always(lift_state(FBCCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(FBCCluster::the_object_in_schedule_has_spec_and_uid_as(fbc)))),
     ensures
-        spec.entails(
-            lift_state(|s: FBCCluster| {
-                &&& !s.ongoing_reconciles().contains_key(fbc.object_ref())
-                &&& s.scheduled_reconciles().contains_key(fbc.object_ref())
-            })
-                .leads_to(lift_state(no_pending_req_at_fbc_step_with_fbc(fbc, FluentBitConfigReconcileStep::Init)))
-        ),
+        spec.entails(lift_state(|s: FBCCluster| {
+            &&& !s.ongoing_reconciles().contains_key(fbc.object_ref())
+            &&& s.scheduled_reconciles().contains_key(fbc.object_ref())
+        }).leads_to(lift_state(no_pending_req_at_fbc_step_with_fbc(fbc, FluentBitConfigReconcileStep::Init)))),
 {
     let pre = |s: FBCCluster| {
         &&& !s.ongoing_reconciles().contains_key(fbc.object_ref())
@@ -206,18 +188,12 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<FBCCluster>, fbc: Flue
     FBCCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, FBCCluster::run_scheduled_reconcile(), pre, post);
 }
 
-proof fn lemma_from_init_step_to_after_get_secret_step(
-    spec: TempPred<FBCCluster>, fbc: FluentBitConfigView
-)
+proof fn lemma_from_init_step_to_after_get_secret_step(spec: TempPred<FBCCluster>, fbc: FluentBitConfigView)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),
         spec.entails(tla_forall(|i| FBCCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(FBCCluster::crash_disabled()))),
-    ensures
-        spec.entails(
-            lift_state(no_pending_req_at_fbc_step_with_fbc(fbc, FluentBitConfigReconcileStep::Init))
-                .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::Secret, fbc)))
-        ),
+    ensures spec.entails(lift_state(no_pending_req_at_fbc_step_with_fbc(fbc, FluentBitConfigReconcileStep::Init)).leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::Secret, fbc)))),
 {
     let pre = no_pending_req_at_fbc_step_with_fbc(fbc, FluentBitConfigReconcileStep::Init);
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::Secret, fbc);

@@ -9,100 +9,75 @@ use vstd::prelude::*;
 verus! {
 
 proof fn later_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        later(p).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex.suffix(1)),
+    requires later(p).satisfied_by(ex),
+    ensures p.satisfied_by(ex.suffix(1)),
 {}
 
 proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        always(p).satisfied_by(ex),
-    ensures
-        forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
+    requires always(p).satisfied_by(ex),
+    ensures forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
 proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        eventually(p).satisfied_by(ex),
-    ensures
-        exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
+    requires eventually(p).satisfied_by(ex),
+    ensures exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
 proof fn not_eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        not(eventually(p)).satisfied_by(ex),
-    ensures
-        forall |i| !p.satisfied_by(#[trigger] ex.suffix(i))
+    requires not(eventually(p)).satisfied_by(ex),
+    ensures forall |i| !p.satisfied_by(#[trigger] ex.suffix(i))
 {}
 
 proof fn stable_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        stable(p).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex) ==> forall |i| p.satisfied_by(#[trigger] ex.suffix(i)),
+    requires stable(p).satisfied_by(ex),
+    ensures p.satisfied_by(ex) ==> forall |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
 proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.leads_to(q).satisfied_by(ex),
-    ensures
-        forall |i: nat| p.implies(eventually(q)).satisfied_by(#[trigger] ex.suffix(i)),
+    requires p.leads_to(q).satisfied_by(ex),
+    ensures forall |i: nat| p.implies(eventually(q)).satisfied_by(#[trigger] ex.suffix(i)),
 {
     always_unfold::<T>(ex, p.implies(eventually(q)));
 }
 
 proof fn weak_fairness_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
-    requires
-        weak_fairness(p).satisfied_by(ex),
-    ensures
-        forall |i| always(lift_state(enabled(p))).implies(eventually(lift_action(p))).satisfied_by(#[trigger] ex.suffix(i)),
+    requires weak_fairness(p).satisfied_by(ex),
+    ensures forall |i| always(lift_state(enabled(p))).implies(eventually(lift_action(p))).satisfied_by(#[trigger] ex.suffix(i)),
 {
     leads_to_unfold::<T>(ex, always(lift_state(enabled(p))), lift_action(p));
 }
 
 proof fn always_lift_state_unfold<T>(ex: Execution<T>, p: StatePred<T>)
-    requires
-        always(lift_state(p)).satisfied_by(ex),
-    ensures
-        forall |i| p(#[trigger] ex.suffix(i).head()),
+    requires always(lift_state(p)).satisfied_by(ex),
+    ensures forall |i| p(#[trigger] ex.suffix(i).head()),
 {
     always_unfold::<T>(ex, lift_state(p));
 }
 
 proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
-    requires
-        always(lift_action(p)).satisfied_by(ex),
-    ensures
-        forall |i| p(#[trigger] ex.suffix(i).head(), ex.suffix(i).head_next()),
+    requires always(lift_action(p)).satisfied_by(ex),
+    ensures forall |i| p(#[trigger] ex.suffix(i).head(), ex.suffix(i).head_next()),
 {
     always_unfold::<T>(ex, lift_action(p));
 }
 
 proof fn tla_forall_unfold<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>)
-    requires
-        tla_forall(a_to_p).satisfied_by(ex),
-    ensures
-        forall |a| #[trigger] a_to_p(a).satisfied_by(ex),
+    requires tla_forall(a_to_p).satisfied_by(ex),
+    ensures forall |a| #[trigger] a_to_p(a).satisfied_by(ex),
 {}
 
 proof fn tla_exists_unfold<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>)
-    requires
-        tla_exists(a_to_p).satisfied_by(ex),
-    ensures
-        exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
+    requires tla_exists(a_to_p).satisfied_by(ex),
+    ensures exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
 {}
 
 proof fn tla_exists_proved_by_witness<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>, witness_a: A)
-    requires
-        a_to_p(witness_a).satisfied_by(ex),
-    ensures
-        tla_exists(a_to_p).satisfied_by(ex)
+    requires a_to_p(witness_a).satisfied_by(ex),
+    ensures tla_exists(a_to_p).satisfied_by(ex)
 {}
 
 spec fn tla_exists_choose_witness<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>) -> A
-    recommends
-        exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
+    recommends exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
 {
     let witness = choose |a| #[trigger] a_to_p(a).satisfied_by(ex);
     witness
@@ -112,32 +87,28 @@ proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         p.satisfied_by(ex),
-    ensures
-        q.satisfied_by(ex),
+    ensures q.satisfied_by(ex),
 {}
 
 proof fn implies_contraposition_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         not(q).satisfied_by(ex),
-    ensures
-        not(p).satisfied_by(ex),
+    ensures not(p).satisfied_by(ex),
 {}
 
 proof fn equals_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.equals(q).satisfied_by(ex),
         p.satisfied_by(ex),
-    ensures
-        q.satisfied_by(ex),
+    ensures q.satisfied_by(ex),
 {}
 
 proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         always(p.implies(q)).satisfied_by(ex),
         always(p).satisfied_by(ex),
-    ensures
-        always(q).satisfied_by(ex),
+    ensures always(q).satisfied_by(ex),
 {
     always_unfold::<T>(ex, p.implies(q));
     always_unfold::<T>(ex, p);
@@ -147,16 +118,13 @@ proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
-    ensures
-        q.satisfied_by(ex),
+    ensures q.satisfied_by(ex),
 {
     implies_apply::<T>(ex, p, q);
 }
 
 proof fn entails_apply_auto<T>()
-    ensures
-        forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>| #[trigger] p.entails(q) && p.satisfied_by(ex)
-            ==> #[trigger] q.satisfied_by(ex),
+    ensures forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>| #[trigger] p.entails(q) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
 {
     assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
     #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
@@ -168,24 +136,19 @@ proof fn not_proved_by_contraposition<T>(ex: Execution<T>, p: TempPred<T>, q: Te
     requires
         p.implies(q).satisfied_by(ex),
         not(q).satisfied_by(ex),
-    ensures
-        not(p).satisfied_by(ex)
+    ensures not(p).satisfied_by(ex)
 {}
 
 proof fn not_eventually_by_always_not<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        always(not(p)).satisfied_by(ex),
-    ensures
-        not(eventually(p)).satisfied_by(ex),
+    requires always(not(p)).satisfied_by(ex),
+    ensures not(eventually(p)).satisfied_by(ex),
 {
     always_unfold::<T>(ex, not(p));
 }
 
 proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
-    requires
-        always(p).satisfied_by(ex),
-    ensures
-        always(p).satisfied_by(ex.suffix(i)),
+    requires always(p).satisfied_by(ex),
+    ensures always(p).satisfied_by(ex.suffix(i)),
 {
     always_unfold::<T>(ex, p);
     assert forall |j| p.satisfied_by(#[trigger] ex.suffix(i).suffix(j)) by {
@@ -194,10 +157,8 @@ proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
 }
 
 proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        always(p).satisfied_by(ex),
-    ensures
-        always(always(p)).satisfied_by(ex),
+    requires always(p).satisfied_by(ex),
+    ensures always(always(p)).satisfied_by(ex),
 {
     always_unfold::<T>(ex, p);
     assert forall |i| always(p).satisfied_by(#[trigger] ex.suffix(i)) by {
@@ -206,29 +167,23 @@ proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
 }
 
 proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        always(p).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex),
+    requires always(p).satisfied_by(ex),
+    ensures p.satisfied_by(ex),
 {
     execution_equality::<T>(ex, ex.suffix(0));
 }
 
 proof fn always_to_future<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
-    requires
-        always(p).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex.suffix(i))
+    requires always(p).satisfied_by(ex),
+    ensures p.satisfied_by(ex.suffix(i))
 {
     always_propagate_forwards::<T>(ex, p, i);
     always_to_current::<T>(ex.suffix(i), p);
 }
 
 proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
-    requires
-        eventually(p).satisfied_by(ex.suffix(i)),
-    ensures
-        eventually(p).satisfied_by(ex),
+    requires eventually(p).satisfied_by(ex.suffix(i)),
+    ensures eventually(p).satisfied_by(ex),
 {
     eventually_unfold::<T>(ex.suffix(i), p);
     let witness_idx = eventually_choose_witness(ex.suffix(i), p);
@@ -236,15 +191,12 @@ proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: 
 }
 
 proof fn eventually_proved_by_witness<T>(ex: Execution<T>, p: TempPred<T>, witness_idx: nat)
-    requires
-        p.satisfied_by(ex.suffix(witness_idx)),
-    ensures
-        eventually(p).satisfied_by(ex)
+    requires p.satisfied_by(ex.suffix(witness_idx)),
+    ensures eventually(p).satisfied_by(ex)
 {}
 
 spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
-    recommends
-        exists |i| p.satisfied_by(#[trigger] ex.suffix(i)),
+    recommends exists |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {
     let witness = choose |i| p.satisfied_by(#[trigger] ex.suffix(i));
     witness
@@ -254,21 +206,18 @@ proof fn equals_trans<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>, r: Te
     requires
         p.equals(q).satisfied_by(ex),
         q.equals(r).satisfied_by(ex),
-    ensures
-        p.equals(r).satisfied_by(ex),
+    ensures p.equals(r).satisfied_by(ex),
 {}
 
 proof fn implies_trans<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         q.implies(r).satisfied_by(ex),
-    ensures
-        p.implies(r).satisfied_by(ex),
+    ensures p.implies(r).satisfied_by(ex),
 {}
 
 proof fn equals_to_implies<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.equals(q).satisfied_by(ex),
+    requires p.equals(q).satisfied_by(ex),
     ensures
         p.implies(q).satisfied_by(ex),
         q.implies(p).satisfied_by(ex),
@@ -278,13 +227,11 @@ proof fn implies_to_equals<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         q.implies(p).satisfied_by(ex),
-    ensures
-        p.equals(q).satisfied_by(ex),
+    ensures p.equals(q).satisfied_by(ex),
 {}
 
 proof fn valid_equals_to_valid_implies<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.equals(q)),
+    requires valid(p.equals(q)),
     ensures
         valid(p.implies(q)),
         valid(q.implies(p)),
@@ -298,8 +245,7 @@ proof fn valid_implies_to_valid_equals<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),
         valid(q.implies(p)),
-    ensures
-        valid(p.equals(q)),
+    ensures valid(p.equals(q)),
 {
     assert forall |ex| p.equals(q).satisfied_by(ex) by {
         implies_to_equals(ex, p, q);
@@ -307,10 +253,8 @@ proof fn valid_implies_to_valid_equals<T>(p: TempPred<T>, q: TempPred<T>)
 }
 
 proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
-    requires
-        valid(p),
-    ensures
-        valid(always(p)),
+    requires valid(p),
+    ensures valid(always(p)),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) by {
         assert(forall |i| #[trigger] p.satisfied_by(ex.suffix(i)));
@@ -318,10 +262,8 @@ proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
 }
 
 pub proof fn implies_to_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(p.implies(q))),
-    ensures
-        spec.entails(p.leads_to(q)),
+    requires spec.entails(always(p.implies(q))),
+    ensures spec.entails(p.leads_to(q)),
 {
     assert forall |ex| spec.satisfied_by(ex)
     implies #[trigger] p.leads_to(q).satisfied_by(ex) by {
@@ -339,8 +281,7 @@ proof fn implies_and<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         valid(p.implies(q)),
         valid(p.implies(r)),
-    ensures
-        valid(p.implies(q.and(r))),
+    ensures valid(p.implies(q.and(r))),
 {
     assert forall |ex| p.satisfied_by(ex) implies #[trigger] q.and(r).satisfied_by(ex) by {
         implies_apply::<T>(ex, p, q);
@@ -349,8 +290,7 @@ proof fn implies_and<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
 }
 
 proof fn always_implies_current<T>(p: TempPred<T>)
-    ensures
-        valid(always(p).implies(p)),
+    ensures valid(always(p).implies(p)),
 {
     assert forall |ex| always(p).satisfied_by(ex) implies #[trigger] p.satisfied_by(ex) by {
         always_unfold(ex, p);
@@ -359,8 +299,7 @@ proof fn always_implies_current<T>(p: TempPred<T>)
 }
 
 proof fn always_distributed_by_and<T>(p: TempPred<T>, q: TempPred<T>)
-    ensures
-        valid(always(p.and(q)).implies(always(p).and(always(q)))),
+    ensures valid(always(p.and(q)).implies(always(p).and(always(q)))),
 {
     assert forall |ex| #[trigger] always(p.and(q)).satisfied_by(ex) implies always(p).and(always(q)).satisfied_by(ex) by {
         always_unfold::<T>(ex, p.and(q));
@@ -372,12 +311,9 @@ proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: Actio
         init(ex.head()),
         forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
         forall |idx: nat| init(#[trigger] ex.suffix(idx).head()) ==> inv(ex.suffix(idx).head()),
-        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next())
-            ==> inv(ex.suffix(idx).head_next()),
-    ensures
-        inv(ex.suffix(i).head()),
-    decreases
-        i,
+        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next()) ==> inv(ex.suffix(idx).head_next()),
+    ensures inv(ex.suffix(i).head()),
+    decreases i,
 {
     if i == 0 {
         assert(init(ex.suffix(0).head()));
@@ -388,15 +324,12 @@ proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: Actio
 
 proof fn always_p_or_eventually_q_rec<T>(ex: Execution<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, i: nat)
     requires
-        forall |idx| p.satisfied_by(ex.suffix(idx)) && next.satisfied_by(ex.suffix(idx))
-            ==> p.satisfied_by(ex.suffix(idx + 1)) || q.satisfied_by(ex.suffix(idx + 1)),
+        forall |idx| p.satisfied_by(ex.suffix(idx)) && next.satisfied_by(ex.suffix(idx)) ==> p.satisfied_by(ex.suffix(idx + 1)) || q.satisfied_by(ex.suffix(idx + 1)),
         forall |idx| next.satisfied_by(#[trigger] ex.suffix(idx)),
         forall |idx| !q.satisfied_by(#[trigger] ex.suffix(idx)),
         p.satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex.suffix(i)),
-    decreases
-        i,
+    ensures p.satisfied_by(ex.suffix(i)),
+    decreases i,
 {
     if i == 0 {
         execution_equality::<T>(ex, ex.suffix(0));
@@ -409,8 +342,7 @@ proof fn always_p_or_eventually_q<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
     requires
         always(p.and(next).implies(later(p).or(later(q)))).satisfied_by(ex),
         always(next).satisfied_by(ex),
-    ensures
-        always(p.implies(always(p).or(eventually(q)))).satisfied_by(ex),
+    ensures always(p.implies(always(p).or(eventually(q)))).satisfied_by(ex),
 {
     assert forall |i| p.satisfied_by(#[trigger] ex.suffix(i)) implies
     always(p).satisfied_by(ex.suffix(i)) || eventually(q).satisfied_by(ex.suffix(i)) by {
@@ -446,10 +378,8 @@ proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: TempPred<T>, inv: Tem
         forall |idx| next.satisfied_by(#[trigger] ex.suffix(idx)),
         forall |idx| inv.satisfied_by(#[trigger] ex.suffix(idx)) && next.satisfied_by(ex.suffix(idx))
             ==> inv.satisfied_by(ex.suffix(idx + 1)),
-    ensures
-        inv.satisfied_by(ex.suffix(i)),
-    decreases
-        i,
+    ensures inv.satisfied_by(ex.suffix(i)),
+    decreases i,
 {
     if i == 0 {
         execution_equality::<T>(ex, ex.suffix(0));
@@ -466,10 +396,8 @@ proof fn p_is_preserved_before_t<T>(ex: Execution<T>, next: TempPred<T>, p: Temp
         forall |idx: nat| idx < t ==> !q.satisfied_by(#[trigger] ex.suffix(idx)),
         forall |idx: nat| p.satisfied_by(ex.suffix(idx)) && !q.satisfied_by(ex.suffix(idx)) && next.satisfied_by(#[trigger] ex.suffix(idx))
             ==> p.satisfied_by(ex.suffix(idx + 1)),
-    ensures
-        p.satisfied_by(ex.suffix(i)),
-    decreases
-        i,
+    ensures p.satisfied_by(ex.suffix(i)),
+    decreases i,
 {
     if i == 0 {
         execution_equality::<T>(ex, ex.suffix(0));
@@ -484,10 +412,8 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
         q.satisfied_by(ex.suffix(i)),
         always(p.and(not(q)).and(next).implies(later(p))).satisfied_by(ex),
         always(next).satisfied_by(ex),
-    ensures
-        exists |idx: nat| p.and(q).satisfied_by(#[trigger] ex.suffix(idx)),
-    decreases
-        i,
+    ensures exists |idx: nat| p.and(q).satisfied_by(#[trigger] ex.suffix(idx)),
+    decreases i,
 {
     if i == 0 {
         execution_equality::<T>(ex, ex.suffix(0));
@@ -528,8 +454,7 @@ pub proof fn instantiate_entailed_always<T>(ex: Execution<T>, i: nat, spec: Temp
     requires
         spec.satisfied_by(ex),
         spec.implies(always(p)).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex.suffix(i)),
+    ensures p.satisfied_by(ex.suffix(i)),
 {
     implies_apply::<T>(ex, spec, always(p));
     always_unfold::<T>(ex, p);
@@ -539,27 +464,22 @@ pub proof fn instantiate_entailed_leads_to<T>(ex: Execution<T>, i: nat, spec: Te
     requires
         spec.satisfied_by(ex),
         spec.implies(p.leads_to(q)).satisfied_by(ex),
-    ensures
-        p.implies(eventually(q)).satisfied_by(ex.suffix(i)),
+    ensures p.implies(eventually(q)).satisfied_by(ex.suffix(i)),
 {
     implies_apply::<T>(ex, spec, p.leads_to(q));
     leads_to_unfold::<T>(ex, p, q);
 }
 
 pub proof fn execution_equality<T>(ex1: Execution<T>, ex2: Execution<T>)
-    requires
-        forall |i: nat| #[trigger] (ex1.nat_to_state)(i) == (ex2.nat_to_state)(i),
-    ensures
-        ex1 == ex2,
+    requires forall |i: nat| #[trigger] (ex1.nat_to_state)(i) == (ex2.nat_to_state)(i),
+    ensures ex1 == ex2,
 {
     fun_ext::<nat, T>(ex1.nat_to_state, ex2.nat_to_state);
 }
 
 pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.equals(q)),
-    ensures
-        p == q,
+    requires valid(p.equals(q)),
+    ensures p == q,
 {
     assert forall |ex: Execution<T>| #[trigger] (p.pred)(ex) == (q.pred)(ex) by {
         valid_equals_to_valid_implies::<T>(p, q);
@@ -573,10 +493,8 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
 }
 
 pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
-    requires
-        spec.entails(always(p)),
-    ensures
-        spec.entails(always(later(p))),
+    requires spec.entails(always(p)),
+    ensures spec.entails(always(later(p))),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(later(p)).satisfied_by(ex) by {
         always_propagate_forwards(ex, p, 1);
@@ -588,8 +506,7 @@ pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
 }
 
 pub proof fn always_double_equality<T>(p: TempPred<T>)
-    ensures
-        always(always(p)) == always(p),
+    ensures always(always(p)) == always(p),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
         assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) by {
@@ -607,8 +524,7 @@ pub proof fn always_double_equality<T>(p: TempPred<T>)
 }
 
 pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
-    ensures
-        always(p.and(q)) == always(p).and(always(q)),
+    ensures always(p.and(q)) == always(p).and(always(q)),
 {
     assert forall |ex| #[trigger] always(p.and(q)).satisfied_by(ex) implies always(p).and(always(q)).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) by {
@@ -645,8 +561,7 @@ pub use always_and_equality_n;
 pub use always_and_equality_n_internal;
 
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
-    ensures
-        p.and(always(p)) == always(p),
+    ensures p.and(always(p)) == always(p),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.and(always(p)).satisfied_by(ex) by {
         always_to_current::<T>(ex, p);
@@ -655,10 +570,8 @@ pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
 }
 
 pub proof fn a_to_temp_pred_equality<T, A>(p: FnSpec(A) -> TempPred<T>, q: FnSpec(A) -> TempPred<T>)
-    requires
-        forall |a: A| #[trigger] valid(p(a).equals(q(a))),
-    ensures
-        p == q,
+    requires forall |a: A| #[trigger] valid(p(a).equals(q(a))),
+    ensures p == q,
 {
     assert forall |a: A| #[trigger] p(a) == q(a) by {
         temp_pred_equality::<T>(p(a), q(a));
@@ -667,8 +580,7 @@ pub proof fn a_to_temp_pred_equality<T, A>(p: FnSpec(A) -> TempPred<T>, q: FnSpe
 }
 
 pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
-    ensures
-        lift_state(|t| exists |a| #[trigger] f(a, t)) == tla_exists(|a| lift_state(|t| f(a, t))),
+    ensures lift_state(|t| exists |a| #[trigger] f(a, t)) == tla_exists(|a| lift_state(|t| f(a, t))),
 {
     let p = lift_state(|t| exists |a| #[trigger] f(a, t));
     let q = tla_exists(|a| lift_state(|t| f(a, t)));
@@ -689,8 +601,7 @@ pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
 /// Note: Verus may not able to infer that (|a| func(a))(a) equals func(a).
 ///       Please turn to lemma tla_forall_always_equality_variant for troubleshooting.
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
-    ensures
-        tla_forall(|a: A| always(a_to_p(a))) == always(tla_forall(a_to_p)),
+    ensures tla_forall(|a: A| always(a_to_p(a))) == always(tla_forall(a_to_p)),
 {
     let a_to_always_p = |a: A| always(a_to_p(a));
 
@@ -719,10 +630,8 @@ pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
 }
 
 pub proof fn tla_forall_always_equality_variant<T, A>(a_to_always: FnSpec(A) -> TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
-    requires
-        forall |a: A| #![trigger a_to_always(a)] valid(a_to_always(a).equals((|a: A| always(a_to_p(a)))(a))),
-    ensures
-        tla_forall(a_to_always) == always(tla_forall(a_to_p)),
+    requires forall |a: A| #![trigger a_to_always(a)] valid(a_to_always(a).equals((|a: A| always(a_to_p(a)))(a))),
+    ensures tla_forall(a_to_always) == always(tla_forall(a_to_p)),
 {
     a_to_temp_pred_equality::<T, A>(a_to_always, |a: A| always(a_to_p(a)));
     temp_pred_equality::<T>(tla_forall(a_to_always), tla_forall(|a: A| always(a_to_p(a))));
@@ -730,8 +639,7 @@ pub proof fn tla_forall_always_equality_variant<T, A>(a_to_always: FnSpec(A) -> 
 }
 
 pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
-    ensures
-        tla_forall(|a: A| not(a_to_p(a))) == not(tla_exists(a_to_p)),
+    ensures tla_forall(|a: A| not(a_to_p(a))) == not(tla_exists(a_to_p)),
 {
     let a_to_not_p = |a: A| not(a_to_p(a));
     assert forall |ex| #[trigger] tla_forall(a_to_not_p).satisfied_by(ex)
@@ -746,8 +654,7 @@ pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
 }
 
 pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    ensures
-        tla_forall(|a: A| a_to_p(a).and(q)) == tla_forall(a_to_p).and(q),
+    ensures tla_forall(|a: A| a_to_p(a).and(q)) == tla_forall(a_to_p).and(q),
 {
     let a_to_p_and_q = |a: A| a_to_p(a).and(q);
     assert forall |ex| #[trigger] tla_forall(a_to_p_and_q).satisfied_by(ex)
@@ -767,8 +674,7 @@ pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: 
 }
 
 pub proof fn tla_forall_apply<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, a: A)
-    ensures
-        tla_forall(a_to_p).entails(a_to_p(a)),
+    ensures tla_forall(a_to_p).entails(a_to_p(a)),
 {
     assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies a_to_p(a).satisfied_by(ex) by {
         tla_forall_unfold::<T, A>(ex, a_to_p);
@@ -776,18 +682,15 @@ pub proof fn tla_forall_apply<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, a: A)
 }
 
 pub proof fn always_tla_forall_apply<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, a: A)
-    requires
-        spec.entails(always(tla_forall(a_to_p))),
-    ensures
-        spec.entails(always(a_to_p(a))),
+    requires spec.entails(always(tla_forall(a_to_p))),
+    ensures spec.entails(always(a_to_p(a))),
 {
     implies_preserved_by_always_temp(tla_forall(a_to_p), a_to_p(a));
     valid_implies_trans(spec, always(tla_forall(a_to_p)), always(a_to_p(a)));
 }
 
 pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    ensures
-        tla_forall(|a: A| a_to_p(a).or(q)) == tla_forall(a_to_p).or(q),
+    ensures tla_forall(|a: A| a_to_p(a).or(q)) == tla_forall(a_to_p).or(q),
 {
     let a_to_p_or_q = |a: A| a_to_p(a).or(q);
     assert forall |ex| #[trigger] tla_forall(a_to_p_or_q).satisfied_by(ex)
@@ -804,8 +707,7 @@ pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: T
 }
 
 pub proof fn tla_exists_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    ensures
-        tla_exists(|a: A| a_to_p(a).and(q)) == tla_exists(a_to_p).and(q),
+    ensures tla_exists(|a: A| a_to_p(a).and(q)) == tla_exists(a_to_p).and(q),
 {
     let a_to_p_and_q = |a: A| a_to_p(a).and(q);
     assert forall |ex| #[trigger] (tla_exists(a_to_p).and(q)).satisfied_by(ex)
@@ -818,8 +720,7 @@ pub proof fn tla_exists_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: 
 }
 
 pub proof fn tla_exists_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    ensures
-        tla_exists(|a: A| a_to_p(a).or(q)) == tla_exists(a_to_p).or(q),
+    ensures tla_exists(|a: A| a_to_p(a).or(q)) == tla_exists(a_to_p).or(q),
 {
     let a_to_p_or_q = |a: A| a_to_p(a).or(q);
     assert forall |ex| #[trigger] (tla_exists(a_to_p).or(q)).satisfied_by(ex)
@@ -836,8 +737,7 @@ pub proof fn tla_exists_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: T
 }
 
 pub proof fn tla_forall_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    ensures
-        tla_forall(|a: A| a_to_p(a).implies(q)) == tla_exists(a_to_p).implies(q),
+    ensures tla_forall(|a: A| a_to_p(a).implies(q)) == tla_exists(a_to_p).implies(q),
 {
     let a_to_not_p = |a: A| not(a_to_p(a));
     a_to_temp_pred_equality::<T, A>(|a: A| a_to_p(a).implies(q), |a: A| a_to_not_p(a).or(q));
@@ -848,8 +748,7 @@ pub proof fn tla_forall_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>
 }
 
 pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
-    ensures
-        tla_forall(|a: A| p.implies(a_to_q(a))) == p.implies(tla_forall(a_to_q)),
+    ensures tla_forall(|a: A| p.implies(a_to_q(a))) == p.implies(tla_forall(a_to_q)),
 {
     a_to_temp_pred_equality::<T, A>(|a: A| p.implies(a_to_q(a)), |a: A| a_to_q(a).or(not(p)));
     temp_pred_equality::<T>(tla_forall(|a: A| p.implies(a_to_q(a))), tla_forall(|a: A| a_to_q(a).or(not(p))));
@@ -858,8 +757,7 @@ pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
 }
 
 pub proof fn tla_exists_implies_equality1<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
-    ensures
-        tla_exists(|a: A| p.implies(a_to_q(a))) == p.implies(tla_exists(a_to_q)),
+    ensures tla_exists(|a: A| p.implies(a_to_q(a))) == p.implies(tla_exists(a_to_q)),
 {
     a_to_temp_pred_equality::<T, A>(|a: A| p.implies(a_to_q(a)), |a: A| a_to_q(a).or(not(p)));
     temp_pred_equality::<T>(tla_exists(|a: A| p.implies(a_to_q(a))), tla_exists(|a: A| a_to_q(a).or(not(p))));
@@ -868,26 +766,22 @@ pub proof fn tla_exists_implies_equality1<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
 }
 
 pub proof fn tla_forall_leads_to_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    ensures
-        tla_forall(|a: A| a_to_p(a).leads_to(q)) == tla_exists(a_to_p).leads_to(q),
+    ensures tla_forall(|a: A| a_to_p(a).leads_to(q)) == tla_exists(a_to_p).leads_to(q),
 {
     tla_forall_always_equality_variant::<T, A>(|a: A| a_to_p(a).leads_to(q), |a: A| a_to_p(a).implies(eventually(q)));
     tla_forall_implies_equality1::<T, A>(a_to_p, eventually(q));
 }
 
 pub proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
-    ensures
-        tla_forall(|a: A| always(p.implies(a_to_q(a)))) == always(p.implies(tla_forall(a_to_q))),
+    ensures tla_forall(|a: A| always(p.implies(a_to_q(a)))) == always(p.implies(tla_forall(a_to_q))),
 {
     tla_forall_always_equality_variant::<T, A>(|a: A| always(p.implies(a_to_q(a))), |a: A| p.implies(a_to_q(a)));
     tla_forall_implies_equality2::<T, A>(p, a_to_q);
 }
 
 pub proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>)
-    requires
-        forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
-    ensures
-        spec.entails(always(tla_forall(a_to_p))),
+    requires forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
+    ensures spec.entails(always(tla_forall(a_to_p))),
 {
     let a_to_always = |a: A| always(a_to_p(a));
     spec_entails_tla_forall(spec, a_to_always);
@@ -895,10 +789,8 @@ pub proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnS
 }
 
 pub proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
-    requires
-        forall |a: A| spec.entails(#[trigger] a_to_p(a)),
-    ensures
-        spec.entails(tla_forall(a_to_p)),
+    requires forall |a: A| spec.entails(#[trigger] a_to_p(a)),
+    ensures spec.entails(tla_forall(a_to_p)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies tla_forall(a_to_p).satisfied_by(ex) by {
         assert forall |a| #[trigger] a_to_p(a).satisfied_by(ex) by {
@@ -908,10 +800,8 @@ pub proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) 
 }
 
 pub proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
-    requires
-        forall |a: A| #[trigger] spec.entails(always(p.implies(a_to_q(a)))),
-    ensures
-        spec.entails(always(p.implies(tla_forall(a_to_q)))),
+    requires forall |a: A| #[trigger] spec.entails(always(p.implies(a_to_q(a)))),
+    ensures spec.entails(always(p.implies(tla_forall(a_to_q)))),
 {
     let a_to_always_p_implies_q = |a: A| always(p.implies(a_to_q(a)));
     spec_entails_tla_forall::<T, A>(spec, a_to_always_p_implies_q);
@@ -922,10 +812,8 @@ pub proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>
 }
 
 pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    requires
-        forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(q)),
-    ensures
-        spec.entails(tla_exists(a_to_p).leads_to(q)),
+    requires forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(q)),
+    ensures spec.entails(tla_exists(a_to_p).leads_to(q)),
 {
     let a_to_p_leads_to_q = |a: A| a_to_p(a).leads_to(q);
     spec_entails_tla_forall::<T, A>(spec, a_to_p_leads_to_q);
@@ -937,10 +825,8 @@ pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) ->
 
 /// This lemmas instantiates tla_forall for a.
 pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, a: A)
-    requires
-        spec.entails(tla_forall(a_to_p)),
-    ensures
-        spec.entails(a_to_p(a)),
+    requires spec.entails(tla_forall(a_to_p)),
+    ensures spec.entails(a_to_p(a)),
 {
     entails_apply_auto::<T>();
     assert forall |ex: Execution<T>| #[trigger] spec.implies(a_to_p(a)).satisfied_by(ex) by {
@@ -952,8 +838,7 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPr
 /// post:
 ///     |= p ~> p
 pub proof fn leads_to_self_temp<T>(p: TempPred<T>)
-    ensures
-        valid(p.leads_to(p)),
+    ensures valid(p.leads_to(p)),
 {
     assert forall |ex| #[trigger] always(p.implies(eventually(p))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
@@ -969,10 +854,8 @@ pub proof fn leads_to_self_temp<T>(p: TempPred<T>)
 /// post:
 ///     spec |= p
 pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
-    requires
-        spec.entails(always(p)),
-    ensures
-        spec.entails(p),
+    requires spec.entails(always(p)),
+    ensures spec.entails(p),
 {
     assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.satisfied_by(ex) by {
         implies_apply(ex, spec, always(p));
@@ -981,11 +864,10 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
 }
 
 pub proof fn stable_spec_entails_always_p<T>(spec: TempPred<T>, p: TempPred<T>)
-    requires
+    requires 
         valid(stable(spec)),
         spec.entails(p),
-    ensures
-        spec.entails(always(p)),
+    ensures spec.entails(always(p)),
 {
     assert_by(
         spec.entails(always(spec)),
@@ -1011,8 +893,7 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     requires
         spec.entails(p),
         spec.entails(q),
-    ensures
-        spec.entails(p.and(q)),
+    ensures spec.entails(p.and(q)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.and(q).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, p);
@@ -1165,7 +1046,6 @@ macro_rules! combine_spec_entails_always_n_internal {
         );
         implies_preserved_by_always_temp(combine_with_next!($($tail)*), $partial_spec);
         valid_implies_trans($spec, always(combine_with_next!($($tail)*)), always($partial_spec));
-        // temp_pred_equality($partial_spec, combine_with_next!($($tail)*));
     };
 }
 
@@ -1220,8 +1100,7 @@ pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T
     requires
         spec1.entails(p),
         spec2.entails(q),
-    ensures
-        spec1.and(spec2).entails(p.and(q)),
+    ensures spec1.and(spec2).entails(p.and(q)),
 {
     assert forall |ex| #[trigger] spec1.and(spec2).satisfied_by(ex) implies p.and(q).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec1, p);
@@ -1233,8 +1112,7 @@ pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T
 /// post:
 ///     |= stable(always(p))
 pub proof fn always_p_is_stable<T>(p: TempPred<T>)
-    ensures
-        valid(stable(always(p))),
+    ensures valid(stable(always(p))),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
         assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) by {
@@ -1263,8 +1141,7 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(stable(p)),
         valid(stable(q)),
-    ensures
-        valid(stable(p.and(q))),
+    ensures valid(stable(p.and(q))),
 {
     assert forall |ex| #[trigger] p.and(q).satisfied_by(ex) implies always(p.and(q)).satisfied_by(ex) by {
         stable_unfold::<T>(ex, p);
@@ -1337,8 +1214,7 @@ pub proof fn unpack_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
     requires
         valid(stable(spec)),
         spec.and(c).entails(p.leads_to(q)),
-    ensures
-        spec.entails(p.and(c).leads_to(q)),
+    ensures spec.entails(p.and(c).leads_to(q)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.and(c).leads_to(q).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.and(c).satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
@@ -1355,8 +1231,7 @@ pub proof fn borrow_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
     requires
         spec.entails(p.and(c).leads_to(q)),
         spec.entails(always(c)),
-    ensures
-        spec.entails(p.leads_to(q)),
+    ensures spec.entails(p.leads_to(q)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
@@ -1373,10 +1248,8 @@ pub proof fn borrow_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
 /// post:
 ///     spec /\ []c |= p ~> q
 pub proof fn pack_conditions_to_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p.and(c).leads_to(q)),
-    ensures
-        spec.and(always(c)).entails(p.leads_to(q)),
+    requires spec.entails(p.and(c).leads_to(q)),
+    ensures spec.and(always(c)).entails(p.leads_to(q)),
 {
     assert forall |ex| #[trigger] spec.and(always(c)).satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
         implies_apply(ex, spec, p.and(c).leads_to(q));
@@ -1392,10 +1265,8 @@ pub proof fn pack_conditions_to_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: Te
 /// Similar to the first-order logic where p equals p /\ q when p -> q is satisfied,
 /// we can reduce the size of predicate when some part of it implies the rest.
 pub proof fn simplify_predicate<T>(simpler: TempPred<T>, redundant: TempPred<T>)
-    requires
-        simpler.entails(redundant),
-    ensures
-        simpler == simpler.and(redundant),
+    requires simpler.entails(redundant),
+    ensures simpler == simpler.and(redundant),
 {
     assert forall |ex| #[trigger] simpler.satisfied_by(ex) implies simpler.and(redundant).satisfied_by(ex) by {
         entails_and_temp::<T>(simpler, simpler, redundant);
@@ -1405,10 +1276,8 @@ pub proof fn simplify_predicate<T>(simpler: TempPred<T>, redundant: TempPred<T>)
 }
 
 pub proof fn spec_implies_pre<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(q)),
-    ensures
-        spec.entails(always(p.implies(q))),
+    requires spec.entails(always(q)),
+    ensures spec.entails(always(p.implies(q))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(p.implies(q)).satisfied_by(ex) by {
         implies_apply(ex, spec, always(q));
@@ -1431,8 +1300,7 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
         forall |s, s_prime: T| inv(s) && #[trigger] next(s, s_prime) ==> inv(s_prime),
         spec.entails(lift_state(init)),
         spec.entails(always(lift_action(next))),
-    ensures
-        spec.entails(always(lift_state(inv))),
+    ensures spec.entails(always(lift_state(inv))),
 {
     assert forall |ex: Execution<T>| spec.satisfied_by(ex)
     implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
@@ -1457,8 +1325,7 @@ pub proof fn strengthen_init<T>(spec: TempPred<T>, init: StatePred<T>, inv: Stat
         spec.entails(lift_state(init)),
         spec.entails(lift_state(inv)),
         valid(lift_state(init_and_inv).equals(lift_state(init).and(lift_state(inv)))),
-    ensures
-        spec.entails(lift_state(init_and_inv)),
+    ensures spec.entails(lift_state(init_and_inv)),
 {
     entails_and_temp::<T>(spec, lift_state(init), lift_state(inv));
     temp_pred_equality::<T>(lift_state(init_and_inv), lift_state(init).and(lift_state(inv)));
@@ -1476,8 +1343,7 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
         spec.entails(always(lift_action(next))),
         spec.entails(always(lift_state(inv))),
         valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv)))),
-    ensures
-        spec.entails(always(lift_action(next_and_inv))),
+    ensures spec.entails(always(lift_action(next_and_inv))),
 {
     entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
     always_and_equality::<T>(lift_action(next), lift_state(inv));
@@ -1498,8 +1364,7 @@ pub proof fn wf1_variant_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: 
         spec.entails(always(p.and(next).and(forward).implies(later(q)))),
         spec.entails(always(next)),
         spec.entails(always(p).leads_to(forward)),
-    ensures
-        spec.entails(p.leads_to(q)),
+    ensures spec.entails(p.leads_to(q)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i))
@@ -1534,8 +1399,7 @@ pub proof fn wf1_variant_borrow_from_spec_temp<T>(spec: TempPred<T>, next: TempP
         spec.entails(always(next)),
         spec.entails(always(p.and(c)).leads_to(forward)),
         spec.entails(always(c)),
-    ensures
-        spec.entails(p.leads_to(q)),
+    ensures spec.entails(p.leads_to(q)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
     implies always(p.and(c).and(next).implies(later(p.and(c)).or(later(q)))).satisfied_by(ex) by {
@@ -1571,8 +1435,7 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
         forall |s: T| #[trigger] p(s) ==> enabled(forward)(s),
         spec.entails(always(lift_action(next))),
         spec.entails(weak_fairness(forward)),
-    ensures
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
+    ensures spec.entails(lift_state(p).leads_to(lift_state(q))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(lift_state(p)).leads_to(lift_action(forward)).satisfied_by(ex) by {
         assert forall |i| #[trigger] always(lift_state(p)).satisfied_by(ex.suffix(i)) implies eventually(lift_action(forward)).satisfied_by(ex.suffix(i)) by {
@@ -1598,8 +1461,7 @@ pub proof fn valid_implies_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<
     requires
         p.entails(q),
         q.entails(r),
-    ensures
-        p.entails(r),
+    ensures p.entails(r),
 {
     assert forall |ex| p.satisfied_by(ex) implies r.satisfied_by(ex) by {
         implies_apply::<T>(ex, p, q);
@@ -1614,10 +1476,8 @@ pub proof fn valid_implies_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<
 ///     spec |= p ~> q
 /// Note: there is no constraint on spec, it can be true_pred().
 pub proof fn valid_implies_implies_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.implies(q)),
-    ensures
-        spec.entails(p.leads_to(q)),
+    requires valid(p.implies(q)),
+    ensures spec.entails(p.leads_to(q)),
 {
     valid_p_implies_always_p(p.implies(q));
     implies_to_leads_to(spec, p, q);
@@ -1633,8 +1493,7 @@ pub proof fn entails_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
     requires
         valid(p.implies(q)),
         spec.entails(p),
-    ensures
-        spec.entails(q)
+    ensures spec.entails(q)
 {
     valid_implies_trans::<T>(spec, p, q);
 }
@@ -1649,8 +1508,7 @@ pub proof fn implies_preserved_by_and_temp<T>(spec: TempPred<T>, p1: TempPred<T>
     requires
         spec.entails(always(p1.implies(p2))),
         spec.entails(always(q1.implies(q2))),
-    ensures
-        spec.entails(always(p1.and(q1).implies(p2.and(q2)))),
+    ensures spec.entails(always(p1.and(q1).implies(p2.and(q2)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(p1.and(q1).implies(p2.and(q2))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p1.and(q1).satisfied_by(ex.suffix(i)) implies p2.and(q2).satisfied_by(ex.suffix(i)) by {
@@ -1668,10 +1526,8 @@ pub proof fn implies_preserved_by_and_temp<T>(spec: TempPred<T>, p1: TempPred<T>
 /// post:
 ///     spec |= [](p /\ q1 => p /\ q2)
 pub proof fn sandwich_always_implies_by_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
-    requires
-        spec.entails(always(q1.implies(q2))),
-    ensures
-        spec.entails(always(p.and(q1).implies(p.and(q2)))),
+    requires spec.entails(always(q1.implies(q2))),
+    ensures spec.entails(always(p.and(q1).implies(p.and(q2)))),
 {
     implies_preserved_by_and_temp::<T>(spec, p, p, q1, q2);
 }
@@ -1682,10 +1538,8 @@ pub proof fn sandwich_always_implies_by_and_temp<T>(spec: TempPred<T>, p: TempPr
 /// post:
 ///     |= []p => []q
 pub proof fn implies_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.implies(q)),
-    ensures
-        valid(always(p).implies(always(q))),
+    requires valid(p.implies(q)),
+    ensures valid(always(p).implies(always(q))),
 {
     assert forall |ex| always(p).satisfied_by(ex) implies always(q).satisfied_by(ex) by {
         assert forall |i:nat| q.satisfied_by(#[trigger] ex.suffix(i)) by {
@@ -1705,8 +1559,7 @@ pub proof fn always_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPre
     requires
         valid(p.implies(q)),
         spec.entails(always(p)),
-    ensures
-        spec.entails(always(q)),
+    ensures spec.entails(always(q)),
 {
     implies_preserved_by_always_temp::<T>(p, q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(q).satisfied_by(ex) by {
@@ -1725,8 +1578,7 @@ pub proof fn always_and_eventually_temp<T>(spec: TempPred<T>, p: TempPred<T>, q:
     requires
         spec.entails(always(p)),
         spec.entails(eventually(q)),
-    ensures
-        spec.entails(eventually(p.and(q))),
+    ensures spec.entails(eventually(p.and(q))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(p.and(q)).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, always(p));
@@ -1742,10 +1594,8 @@ pub proof fn always_and_eventually_temp<T>(spec: TempPred<T>, p: TempPred<T>, q:
 /// post:
 ///     spec |= p ~> []q
 pub proof fn always_prepend_leads_to_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(q)),
-    ensures
-        spec.entails(p.leads_to(always(q))),
+    requires spec.entails(always(q)),
+    ensures spec.entails(p.leads_to(always(q))),
 {
     assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.leads_to(always(q)).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, always(q));
@@ -1764,10 +1614,8 @@ pub proof fn always_prepend_leads_to_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
 /// post:
 ///     spec |= []([]p => []q)
 pub proof fn always_implies_preserved_by_always_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(p.implies(q))),
-    ensures
-        spec.entails(always(always(p).implies(always(q)))),
+    requires spec.entails(always(p.implies(q))),
+    ensures spec.entails(always(always(p).implies(always(q)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(p).implies(always(q))).satisfied_by(ex) by {
         assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) implies always(q).satisfied_by(ex.suffix(i)) by {
@@ -1796,8 +1644,7 @@ pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q
         spec.entails(always(p2.implies(p1))),
         spec.entails(always(q1.implies(q2))),
         spec.entails(always(p1.implies(q1))),
-    ensures
-        spec.entails(always(p2.implies(q2))),
+    ensures spec.entails(always(p2.implies(q2))),
 {
     always_implies_trans_temp::<T>(spec, p2, p1, q1);
     always_implies_trans_temp::<T>(spec, p2, q1, q2);
@@ -1813,8 +1660,7 @@ pub proof fn always_implies_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: 
     requires
         spec.entails(always(p.implies(q))),
         spec.entails(always(q.implies(r))),
-    ensures
-        spec.entails(always(p.implies(r))),
+    ensures spec.entails(always(p.implies(r))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
     implies always(p.implies(r)).satisfied_by(ex) by {
@@ -1834,10 +1680,8 @@ pub proof fn always_implies_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: 
 /// post:
 ///     |= <>p => <>q
 pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.implies(q)),
-    ensures
-        valid(eventually(p).implies(eventually(q))),
+    requires valid(p.implies(q)),
+    ensures valid(eventually(p).implies(eventually(q))),
 {
     assert forall |ex| eventually(p).satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
         eventually_unfold::<T>(ex, p);
@@ -1856,8 +1700,7 @@ pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     requires
         valid(p.implies(q)),
         spec.entails(eventually(p)),
-    ensures
-        spec.entails(eventually(q)),
+    ensures spec.entails(eventually(q)),
 {
     implies_preserved_by_eventually_temp::<T>(p, q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
@@ -1871,8 +1714,7 @@ pub proof fn leads_to_always_enhance<T>(spec: TempPred<T>, inv: TempPred<T>, p: 
         spec.entails(always(inv)),
         spec.entails(p.leads_to(always(q1))),
         q1.and(inv).entails(q2),
-    ensures
-        spec.entails(p.leads_to(always(q2))),
+    ensures spec.entails(p.leads_to(always(q2))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q2)).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i))
@@ -1901,8 +1743,7 @@ pub proof fn leads_to_apply_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
     requires
         spec.entails(p),
         spec.entails(p.leads_to(q)),
-    ensures
-        spec.entails(eventually(q)),
+    ensures spec.entails(eventually(q)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, p);
@@ -1923,8 +1764,7 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
     requires
         spec.entails(p.leads_to(q)),
         spec.entails(q.leads_to(r)),
-    ensures
-        spec.entails(p.leads_to(r)),
+    ensures spec.entails(p.leads_to(r)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
     implies p.leads_to(r).satisfied_by(ex) by {
@@ -1980,8 +1820,7 @@ pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: Tem
         spec.entails(always(p2.implies(p1))),
         spec.entails(always(q1.implies(q2))),
         spec.entails(p1.leads_to(q1)),
-    ensures
-        spec.entails(p2.leads_to(q2)),
+    ensures spec.entails(p2.leads_to(q2)),
 {
     implies_to_leads_to::<T>(spec, p2, p1);
     implies_to_leads_to::<T>(spec, q1, q2);
@@ -1999,8 +1838,7 @@ pub proof fn or_leads_to_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: T
     requires
         spec.entails(p.leads_to(r)),
         spec.entails(q.leads_to(r)),
-    ensures
-        spec.entails(p.or(q).leads_to(r)),
+    ensures spec.entails(p.or(q).leads_to(r)),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.or(q).leads_to(r).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.or(q).satisfied_by(ex.suffix(i)) implies eventually(r).satisfied_by(ex.suffix(i)) by {
@@ -2126,8 +1964,7 @@ pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>,
         domain.finite(),
         domain.len() > 0,
         forall |a: A| #[trigger] domain.contains(a),
-    ensures
-        spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
+    ensures spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(tla_forall(a_to_p))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(tla_forall(a_to_p))).satisfied_by(ex.suffix(i)) by {
@@ -2225,8 +2062,7 @@ pub proof fn leads_to_stable_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: Te
         spec.entails(always(q.and(next).implies(later(q)))),
         spec.entails(always(next)),
         spec.entails(p.leads_to(q)),
-    ensures
-        spec.entails(p.leads_to(always(q))),
+    ensures spec.entails(p.leads_to(always(q))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q)).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
@@ -2264,10 +2100,8 @@ pub proof fn leads_to_stable_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: Te
 /// ensures:
 ///     spec |= []([]~q => []~p)
 pub proof fn leads_to_contraposition_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p.leads_to(q)),
-    ensures
-        spec.entails(always(always(not(q)).implies(always(not(p))))),
+    requires spec.entails(p.leads_to(q)),
+    ensures spec.entails(always(always(not(q)).implies(always(not(p))))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(not(q)).implies(always(not(p)))).satisfied_by(ex) by {
         assert forall |i| #[trigger] always(not(q)).satisfied_by(ex.suffix(i)) implies always(not(p)).satisfied_by(ex.suffix(i)) by {
@@ -2291,10 +2125,8 @@ pub proof fn leads_to_contraposition_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
 /// post:
 ///     spec |= p \/ r ~> q \/ r
 pub proof fn sandwich_leads_to_by_or_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
-    requires
-        spec.entails(p.leads_to(q)),
-    ensures
-        spec.entails(p.or(r).leads_to(q.or(r))),
+    requires spec.entails(p.leads_to(q)),
+    ensures spec.entails(p.or(r).leads_to(q.or(r))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.or(r).leads_to(q.or(r)).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.or(r).satisfied_by(ex.suffix(i)) implies eventually(q.or(r)).satisfied_by(ex.suffix(i)) by {
@@ -2323,8 +2155,7 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     requires
         spec.entails(p.leads_to(q.or(s))),
         spec.entails(q.leads_to(r.or(s))),
-    ensures
-        spec.entails(p.leads_to(r.or(s))),
+    ensures spec.entails(p.leads_to(r.or(s))),
 {
     sandwich_leads_to_by_or_temp(spec, q, r.or(s), s);
     temp_pred_equality(r.or(s).or(s), r.or(s));

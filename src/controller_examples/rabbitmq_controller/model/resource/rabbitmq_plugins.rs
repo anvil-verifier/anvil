@@ -23,13 +23,9 @@ verus! {
 pub struct PluginsConfigMapBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsConfigMapBuilder {
-    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
-        GetRequest { key: make_plugins_config_map_key(rabbitmq) }
-    }
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest { GetRequest { key: make_plugins_config_map_key(rabbitmq) } }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_plugins_config_map(rabbitmq).marshal())
-    }
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_plugins_config_map(rabbitmq).marshal()) }
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
@@ -69,9 +65,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsCon
     }
 }
 
-pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView {
-    rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@
-}
+pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@ }
 
 pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

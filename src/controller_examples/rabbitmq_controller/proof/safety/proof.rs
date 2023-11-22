@@ -22,8 +22,7 @@ use vstd::prelude::*;
 verus! {
 
 proof fn safety_proof_forall_rabbitmq()
-    ensures
-        safety_theorem::<RabbitmqMaker>(),
+    ensures safety_theorem::<RabbitmqMaker>(),
 {
     assert forall |rabbitmq: RabbitmqClusterView| #[trigger] cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)) by {
         safety_proof(rabbitmq);
@@ -32,8 +31,7 @@ proof fn safety_proof_forall_rabbitmq()
 }
 
 proof fn safety_proof(rabbitmq: RabbitmqClusterView)
-    ensures
-        cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)),
+    ensures cluster_spec_without_wf().entails(safety::<RabbitmqMaker>(rabbitmq)),
 {
     lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster_spec_without_wf(), rabbitmq);
 }
@@ -47,8 +45,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_action(stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)))),
+    ensures spec.entails(always(lift_action(stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)))),
 {
     let inv = stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq);
     let next = |s, s_prime| {
@@ -103,8 +100,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)))),
+    ensures spec.entails(always(lift_state(replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq);
     // let key = rabbitmq.object_ref();
@@ -205,8 +201,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)))),
+    ensures spec.entails(always(lift_state(replicas_of_etcd_stateful_set_satisfies_order(rabbitmq)))),
 {
     let inv = replicas_of_etcd_stateful_set_satisfies_order(rabbitmq);
     let next = |s, s_prime| {
@@ -268,8 +263,7 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)))),
+    ensures spec.entails(always(lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq);
     let sts_key = make_stateful_set_key(rabbitmq);
@@ -323,8 +317,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
         resource_create_request_msg(make_stateful_set_key(rabbitmq))(msg),
-    ensures
-        replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime),
+    ensures replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime),
 {
     let step = choose |step| RMQCluster::next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();
@@ -375,8 +368,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
         resource_update_request_msg(make_stateful_set_key(rabbitmq))(msg),
-    ensures
-        replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime),
+    ensures replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime),
 {
     let step = choose |step| RMQCluster::next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();

@@ -13,16 +13,10 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_base_labels(fb: FluentBitView) -> Map<StringView, StringView> {
-    map![new_strlit("app")@ => fb.metadata.name.get_Some_0()]
-}
+pub open spec fn make_base_labels(fb: FluentBitView) -> Map<StringView, StringView> { map![new_strlit("app")@ => fb.metadata.name.get_Some_0()] }
 
-pub open spec fn make_labels(fb: FluentBitView) -> Map<StringView, StringView> {
-    fb.spec.labels.union_prefer_right(make_base_labels(fb))
-}
+pub open spec fn make_labels(fb: FluentBitView) -> Map<StringView, StringView> { fb.spec.labels.union_prefer_right(make_base_labels(fb)) }
 
-pub open spec fn make_owner_references(fb: FluentBitView) -> Seq<OwnerReferenceView> {
-    seq![fb.controller_owner_ref()]
-}
+pub open spec fn make_owner_references(fb: FluentBitView) -> Seq<OwnerReferenceView> { seq![fb.controller_owner_ref()] }
 
 }

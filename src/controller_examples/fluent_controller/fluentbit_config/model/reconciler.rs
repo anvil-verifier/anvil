@@ -13,34 +13,21 @@ verus! {
 impl Reconciler<FluentBitConfigView, EmptyAPI> for FluentBitConfigReconciler {
     type T = FluentBitConfigReconcileState;
 
-    open spec fn reconcile_init_state() -> FluentBitConfigReconcileState {
-        reconcile_init_state()
-    }
+    open spec fn reconcile_init_state() -> FluentBitConfigReconcileState { reconcile_init_state() }
 
-    open spec fn reconcile_core(
-        fbc: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState
-    ) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>) {
-        reconcile_core(fbc, resp_o, state)
-    }
+    open spec fn reconcile_core(fbc: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState)
+    -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>) { reconcile_core(fbc, resp_o, state) }
 
-    open spec fn reconcile_done(state: FluentBitConfigReconcileState) -> bool {
-        reconcile_done(state)
-    }
+    open spec fn reconcile_done(state: FluentBitConfigReconcileState) -> bool { reconcile_done(state) }
 
-    open spec fn reconcile_error(state: FluentBitConfigReconcileState) -> bool {
-        reconcile_error(state)
-    }
+    open spec fn reconcile_error(state: FluentBitConfigReconcileState) -> bool { reconcile_error(state) }
 
     open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
-        false // Don't expect anything from the user except the cr object
+        false /* Don't expect anything from the user except the cr object */
     }
 }
 
-pub open spec fn reconcile_init_state() -> FluentBitConfigReconcileState {
-    FluentBitConfigReconcileState {
-        reconcile_step: FluentBitConfigReconcileStep::Init,
-    }
-}
+pub open spec fn reconcile_init_state() -> FluentBitConfigReconcileState { FluentBitConfigReconcileState { reconcile_step: FluentBitConfigReconcileStep::Init } }
 
 pub open spec fn reconcile_done(state: FluentBitConfigReconcileState) -> bool {
     match state.reconcile_step {
@@ -228,13 +215,9 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, 
 pub struct FluentBitConfigMaker {}
 
 impl Maker for FluentBitConfigMaker {
-    open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef {
-        make_secret_key(fbc)
-    }
+    open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef { make_secret_key(fbc) }
 
-    open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView {
-        make_secret(fbc)
-    }
+    open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView { make_secret(fbc) }
 }
 
 }

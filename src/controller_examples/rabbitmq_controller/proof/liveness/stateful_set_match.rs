@@ -53,11 +53,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(SubResource::ServerConfigMap, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
-    ensures
-        spec.entails(
-            lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq))
-                .leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))
-        ),
+    ensures spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)).leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))),
 {
     let next_res = next_resource_after(SubResource::StatefulSet).get_AfterKRequestStep_1();
     lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, SubResource::StatefulSet, next_res, rabbitmq);
@@ -99,12 +95,10 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
     ensures
-        spec.entails(
-            lift_state(|s: RMQCluster| {
-                &&& s.resources().contains_key(get_request(SubResource::StatefulSet, rabbitmq).key)
-                &&& pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)(s)
-            }).leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))
-        ),
+        spec.entails(lift_state(|s: RMQCluster| {
+            &&& s.resources().contains_key(get_request(SubResource::StatefulSet, rabbitmq).key)
+            &&& pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)(s)
+        }).leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))),
 {
     let sts_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     let pre = lift_state(|s: RMQCluster| {
@@ -487,9 +481,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_stateful_set_is_stable(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
-)
+pub proof fn lemma_stateful_set_is_stable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>)
     requires
         spec.entails(p.leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -498,8 +490,7 @@ pub proof fn lemma_stateful_set_is_stable(
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
-    ensures
-        spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))),
+    ensures spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))),
 {
     let post = sub_resource_state_matches(SubResource::StatefulSet, rabbitmq);
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;

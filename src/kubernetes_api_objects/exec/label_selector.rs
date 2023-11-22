@@ -27,8 +27,7 @@ impl LabelSelector {
 
     #[verifier(external_body)]
     pub fn default() -> (label_selector: LabelSelector)
-        ensures
-            label_selector@ == LabelSelectorView::default(),
+        ensures label_selector@ == LabelSelectorView::default(),
     {
         LabelSelector {
             inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
@@ -37,18 +36,14 @@ impl LabelSelector {
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (label_selector: LabelSelector)
-        ensures
-            label_selector@ == self@,
+        ensures label_selector@ == self@,
     {
-        LabelSelector {
-            inner: self.inner.clone(),
-        }
+        LabelSelector { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
     pub fn set_match_labels(&mut self, match_labels: StringMap)
-        ensures
-            self@ == old(self)@.set_match_labels(match_labels@),
+        ensures self@ == old(self)@.set_match_labels(match_labels@),
     {
         self.inner.match_labels = Some(match_labels.into_rust_map());
     }
@@ -56,16 +51,10 @@ impl LabelSelector {
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector> for LabelSelector {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector) -> LabelSelector {
-        LabelSelector {
-            inner: inner
-        }
-    }
+    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector) -> LabelSelector { LabelSelector { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
-        self.inner
-    }
+    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector { self.inner }
 }
 
 }

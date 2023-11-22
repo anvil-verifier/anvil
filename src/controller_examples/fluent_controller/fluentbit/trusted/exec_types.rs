@@ -32,11 +32,7 @@ impl std::clone::Clone for FluentBitReconcileState {
 
 impl View for FluentBitReconcileState {
     type V = spec_types::FluentBitReconcileState;
-    open spec fn view(&self) -> spec_types::FluentBitReconcileState {
-        spec_types::FluentBitReconcileState {
-            reconcile_step: self.reconcile_step,
-        }
-    }
+    open spec fn view(&self) -> spec_types::FluentBitReconcileState { spec_types::FluentBitReconcileState { reconcile_step: self.reconcile_step } }
 }
 
 #[verifier(external_body)]
@@ -74,8 +70,7 @@ impl FluentBit {
 
     #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-        ensures
-            owner_reference@ == self@.controller_owner_ref(),
+        ensures owner_reference@ == self@.controller_owner_ref(),
     {
         OwnerReference::from_kube(
             // We can safely unwrap here because the trait method implementation always returns a Some(...)
@@ -86,13 +81,10 @@ impl FluentBit {
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.marshal(),
+        ensures obj@ == self@.marshal(),
     {
         // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
+        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
     #[verifier(external_body)]
@@ -129,8 +121,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn fluentbit_config_name(&self) -> (fluentbit_config_name: String)
-        ensures
-            fluentbit_config_name@ == self@.fluentbit_config_name,
+        ensures fluentbit_config_name@ == self@.fluentbit_config_name,
     {
         String::from_rust_string(self.inner.fluentbit_config_name.to_string())
     }

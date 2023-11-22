@@ -70,10 +70,8 @@ pub open spec fn spec_before_phase_n(n: nat, zookeeper: ZookeeperClusterView) ->
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, zookeeper: ZookeeperClusterView)
-    requires
-        1 <= i <= 7,
-    ensures
-        spec_before_phase_n(i, zookeeper).entails(true_pred().leads_to(invariants_since_phase_n(i, zookeeper))),
+    requires 1 <= i <= 7,
+    ensures spec_before_phase_n(i, zookeeper).entails(true_pred().leads_to(invariants_since_phase_n(i, zookeeper))),
 {
     let spec = spec_before_phase_n(i, zookeeper);
     reveal_with_fuel(spec_before_phase_n, 8);
@@ -161,8 +159,7 @@ pub open spec fn next_with_wf() -> TempPred<ZKCluster> {
 }
 
 pub proof fn next_with_wf_is_stable()
-    ensures
-        valid(stable(next_with_wf())),
+    ensures valid(stable(next_with_wf())),
 {
     always_p_is_stable(lift_action(ZKCluster::next()));
     ZKCluster::tla_forall_action_weak_fairness_is_stable(ZKCluster::kubernetes_api_next());
@@ -194,8 +191,7 @@ pub open spec fn invariants(zookeeper: ZookeeperClusterView) -> TempPred<ZKClust
 }
 
 pub proof fn invariants_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants(zookeeper))),
+    ensures valid(stable(invariants(zookeeper))),
 {
     next_with_wf_is_stable();
     derived_invariants_since_beginning_is_stable(zookeeper);
@@ -237,8 +233,7 @@ pub open spec fn derived_invariants_since_beginning(zookeeper: ZookeeperClusterV
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(derived_invariants_since_beginning(zookeeper))),
+    ensures valid(stable(derived_invariants_since_beginning(zookeeper))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper));
     let a_to_p_2 = |step: (ActionKind, SubResource)| lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1))));
@@ -289,8 +284,7 @@ pub open spec fn invariants_since_phase_i(zookeeper: ZookeeperClusterView) -> Te
 }
 
 pub proof fn invariants_since_phase_i_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_i(zookeeper))),
+    ensures valid(stable(invariants_since_phase_i(zookeeper))),
 {
     stable_and_always_n!(
         lift_state(ZKCluster::crash_disabled()),
@@ -309,8 +303,7 @@ pub open spec fn invariants_since_phase_ii(zookeeper: ZookeeperClusterView) -> T
 
 
 pub proof fn invariants_since_phase_ii_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_ii(zookeeper))),
+    ensures valid(stable(invariants_since_phase_ii(zookeeper))),
 {
     always_p_is_stable(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zookeeper)));
 }
@@ -323,8 +316,7 @@ pub open spec fn invariants_since_phase_iii(zookeeper: ZookeeperClusterView) -> 
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_iii(zookeeper))),
+    ensures valid(stable(invariants_since_phase_iii(zookeeper))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper));
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper));
@@ -342,8 +334,7 @@ pub open spec fn invariants_since_phase_iv(zookeeper: ZookeeperClusterView) -> T
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_iv(zookeeper))),
+    ensures valid(stable(invariants_since_phase_iv(zookeeper))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper));
     always_p_is_stable(tla_forall(a_to_p_1));
@@ -357,8 +348,7 @@ pub open spec fn invariants_since_phase_v(zookeeper: ZookeeperClusterView) -> Te
 }
 
 pub proof fn invariants_since_phase_v_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_v(zookeeper))),
+    ensures valid(stable(invariants_since_phase_v(zookeeper))),
 {
     always_p_is_stable(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, zookeeper))));
 }
@@ -370,8 +360,7 @@ pub open spec fn invariants_since_phase_vi(zookeeper: ZookeeperClusterView) -> T
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_vi(zookeeper))),
+    ensures valid(stable(invariants_since_phase_vi(zookeeper))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, zookeeper));
     stable_and_always_n!(
@@ -386,8 +375,7 @@ pub open spec fn invariants_since_phase_vii(zookeeper: ZookeeperClusterView) -> 
 }
 
 pub proof fn invariants_since_phase_vii_is_stable(zookeeper: ZookeeperClusterView)
-    ensures
-        valid(stable(invariants_since_phase_vii(zookeeper))),
+    ensures valid(stable(invariants_since_phase_vii(zookeeper))),
 {
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)));
 }
@@ -397,8 +385,7 @@ pub proof fn lemma_always_for_all_sub_resource_step_pending_req_in_flight_or_res
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
-    ensures
-        spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1))))))),
+    ensures spec.entails(always(tla_forall(|step: (ActionKind, SubResource)| lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterKRequestStep(step.0, step.1))))))),
 {
     // TODO (xudong): investigate the performance of this lemma
     // Somehow the reasoning inside the assert forall block below is very slow (takes more than 8 seconds!)
@@ -441,8 +428,7 @@ pub proof fn lemma_always_for_after_create_zk_parent_node_step_pending_req_in_fl
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
-    ensures
-        spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKParentNode))))),
+    ensures spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKParentNode))))),
 {
     ZKCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKParentNode));
 }
@@ -452,8 +438,7 @@ pub proof fn lemma_always_for_after_create_zk_node_step_pending_req_in_flight_or
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
-    ensures
-        spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode))))),
+    ensures spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode))))),
 {
     ZKCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterCreateZKNode));
 }
@@ -463,8 +448,7 @@ pub proof fn lemma_always_for_after_update_zk_node_step_pending_req_in_flight_or
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
-    ensures
-        spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode))))),
+    ensures spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode))))),
 {
     ZKCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateZKNode));
 }
@@ -474,15 +458,13 @@ pub proof fn lemma_always_for_after_update_status_step_pending_req_in_flight_or_
         spec.entails(lift_state(ZKCluster::init())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::pending_req_of_key_is_unique_with_unique_id(zookeeper.object_ref())))),
-    ensures
-        spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus))))),
+    ensures spec.entails(always(lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus))))),
 {
     ZKCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, zookeeper.object_ref(), at_step_closure(ZookeeperReconcileStep::AfterUpdateStatus));
 }
 
 pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
-    ensures
-        cluster_spec().entails(derived_invariants_since_beginning(zookeeper)),
+    ensures cluster_spec().entails(derived_invariants_since_beginning(zookeeper)),
 {
     let spec = cluster_spec();
     // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.

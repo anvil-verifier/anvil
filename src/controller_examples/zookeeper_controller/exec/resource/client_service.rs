@@ -24,9 +24,7 @@ verus! {
 pub struct ClientServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::ClientServiceBuilder> for ClientServiceBuilder {
-    open spec fn requirements(zk: ZookeeperClusterView) -> bool {
-        zk.well_formed()
-    }
+    open spec fn requirements(zk: ZookeeperClusterView) -> bool { zk.well_formed() }
 
     fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
         KubeGetRequest {
@@ -36,9 +34,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
         }
     }
 
-    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> {
-        Ok(make_client_service(zk).marshal())
-    }
+    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> { Ok(make_client_service(zk).marshal()) }
 
     fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let service = Service::unmarshal(obj);

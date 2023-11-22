@@ -57,8 +57,7 @@ pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_trig
         Self::is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr)))),
+    ensures spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr)))),
 {
     Self::lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec, cr);
     Self::lemma_always_triggering_cr_is_in_correct_order(spec, cr);
@@ -88,8 +87,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
         Self::marshal_preserves_status(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
-    ensures
-        spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)))),
+    ensures spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)))),
 {
     let inv = Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr);
     let next = |s, s_prime| {
