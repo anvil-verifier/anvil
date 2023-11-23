@@ -160,7 +160,19 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             let mut fb_container = Container::default();
             fb_container.set_name(new_strlit("fluent-bit").to_string());
             fb_container.set_image(fb.spec().image());
-            fb_container.set_env(make_env(&fb));
+            if fb.spec().env_vars().is_some() {
+                fb_container.set_env({
+                    let mut env = make_env(&fb);
+                    let mut fb_env = fb.spec().env_vars().unwrap();
+                    env.append(&mut fb_env);
+                    proof {
+                        assert_seqs_equal!(env@.map_values(|e: EnvVar| e@), model_resource::make_env(fb@) + fb@.spec.env_vars.get_Some_0());
+                    }
+                    env
+                });
+            } else {
+                fb_container.set_env(make_env(&fb));
+            }
             fb_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
