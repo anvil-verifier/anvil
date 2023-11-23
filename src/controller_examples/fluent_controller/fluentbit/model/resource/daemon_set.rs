@@ -187,6 +187,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 ]),
                 resources: fb.spec.resources,
                 args: if fb.spec.args.is_Some() { fb.spec.args } else { ContainerView::default().args },
+                command: if fb.spec.command.is_Some() { fb.spec.command } else { ContainerView::default().command },
                 ..ContainerView::default()
             }
         ],

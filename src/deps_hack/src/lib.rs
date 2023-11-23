@@ -221,6 +221,7 @@ pub struct FluentBitSpec {
     #[serde(rename = "hostNetwork")]
     pub host_network: Option<bool>,
     pub args: Option<Vec<String>>,
+    pub command: Option<Vec<String>>,
 }
 
 #[derive(

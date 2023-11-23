@@ -154,6 +154,7 @@ pub struct FluentBitSpecView {
     pub security_context: Option<PodSecurityContextView>,
     pub host_network: Option<bool>,
     pub args: Option<Seq<StringView>>,
+    pub command: Option<Seq<StringView>>,
 }
 
 }

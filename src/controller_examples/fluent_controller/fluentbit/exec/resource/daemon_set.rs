@@ -224,6 +224,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             if fb.spec().args().is_some() {
                 fb_container.set_args(fb.spec().args().unwrap());
             }
+            if fb.spec().command().is_some() {
+                fb_container.set_command(fb.spec().command().unwrap());
+            }
             fb_container
         });
         proof {

@@ -279,6 +279,18 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn command(&self) -> (command: Option<Vec<String>>)
+        ensures 
+            command.is_Some() == self@.command.is_Some(),
+            command.is_Some() ==> command.get_Some_0()@.map_values(|s: String| s@) == self@.command.get_Some_0(),
+    {
+        match &self.inner.command {
+            Some(cmd) => Some(cmd.clone().into_iter().map(|s: std::string::String| String::from_rust_string(s)).collect()),
+            None => None,
+        }
+    }
 }
 
 }
