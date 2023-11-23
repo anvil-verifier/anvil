@@ -111,6 +111,9 @@ pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
 pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
     PodSpecView {
         service_account_name: Some(make_service_account_name(fb)),
+        image_pull_secrets: if fb.spec.image_pull_secrets.is_Some() { fb.spec.image_pull_secrets } else {
+                PodSpecView::default().image_pull_secrets
+            },
         volumes: Some(seq![
             VolumeView::default()
                 .set_name(new_strlit("varlibcontainers")@)
@@ -142,7 +145,18 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
             ContainerView {
                 name: new_strlit("fluent-bit")@,
                 image: Some(fb.spec.image),
-                env: Some(make_env(fb)),
+                image_pull_policy: if fb.spec.image_pull_policy.is_Some() { 
+                        fb.spec.image_pull_policy 
+                    } else { ContainerView::default().image_pull_policy },
+                env: if fb.spec.env_vars.is_Some() {
+                        Some(make_env(fb) + fb.spec.env_vars.get_Some_0())
+                    } else { Some(make_env(fb)) },
+                liveness_probe: if fb.spec.liveness_probe.is_Some() { 
+                        fb.spec.liveness_probe 
+                    } else { ContainerView::default().liveness_probe },
+                readiness_probe: if fb.spec.readiness_probe.is_Some() { 
+                        fb.spec.readiness_probe 
+                    } else { ContainerView::default().readiness_probe },
                 volume_mounts: Some(seq![
                     VolumeMountView {
                         name: new_strlit("varlibcontainers")@,
@@ -186,6 +200,8 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                         }),
                 ]),
                 resources: fb.spec.resources,
+                args: if fb.spec.args.is_Some() { fb.spec.args } else { ContainerView::default().args },
+                command: if fb.spec.command.is_Some() { fb.spec.command } else { ContainerView::default().command },
                 ..ContainerView::default()
             }
         ],

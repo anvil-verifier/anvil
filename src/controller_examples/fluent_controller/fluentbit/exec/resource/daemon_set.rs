@@ -154,13 +154,37 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
 {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name(fb.metadata().name().unwrap());
+    if fb.spec().image_pull_secrets().is_some() {
+        pod_spec.set_image_pull_secrets(fb.spec().image_pull_secrets().unwrap());
+    }
     pod_spec.set_containers({
         let mut containers = Vec::new();
         containers.push({
             let mut fb_container = Container::default();
             fb_container.set_name(new_strlit("fluent-bit").to_string());
             fb_container.set_image(fb.spec().image());
-            fb_container.set_env(make_env(&fb));
+            if fb.spec().image_pull_policy().is_some() {
+                fb_container.set_image_pull_policy(fb.spec().image_pull_policy().unwrap());
+            }
+            if fb.spec().env_vars().is_some() {
+                fb_container.set_env({
+                    let mut env = make_env(&fb);
+                    let mut fb_env = fb.spec().env_vars().unwrap();
+                    env.append(&mut fb_env);
+                    proof {
+                        assert_seqs_equal!(env@.map_values(|e: EnvVar| e@), model_resource::make_env(fb@) + fb@.spec.env_vars.get_Some_0());
+                    }
+                    env
+                });
+            } else {
+                fb_container.set_env(make_env(&fb));
+            }
+            if fb.spec().liveness_probe().is_some() {
+                fb_container.set_liveness_probe(fb.spec().liveness_probe().unwrap())
+            }
+            if fb.spec().readiness_probe().is_some() {
+                fb_container.set_readiness_probe(fb.spec().readiness_probe().unwrap())
+            }
             fb_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
@@ -221,6 +245,12 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 ports
             });
             fb_container.overwrite_resources(fb.spec().resources());
+            if fb.spec().args().is_some() {
+                fb_container.set_args(fb.spec().args().unwrap());
+            }
+            if fb.spec().command().is_some() {
+                fb_container.set_command(fb.spec().command().unwrap());
+            }
             fb_container
         });
         proof {

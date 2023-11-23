@@ -5,8 +5,8 @@ use crate::fluent_controller::fluentbit::trusted::{
 };
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
-    affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*, owner_reference::*,
-    prelude::*, resource::*, resource_requirements::*, toleration::*,
+    affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
+    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
@@ -266,6 +266,88 @@ impl FluentBitSpec {
         ensures host_network == self@.host_network,
     {
         self.inner.host_network
+    }
+
+    #[verifier(external_body)]
+    pub fn args(&self) -> (args: Option<Vec<String>>)
+        ensures
+            args.is_Some() == self@.args.is_Some(),
+            args.is_Some() ==> args.get_Some_0()@.map_values(|s: String| s@) == self@.args.get_Some_0(),
+    {
+        match &self.inner.args {
+            Some(arguments) => Some(arguments.clone().into_iter().map(|s: std::string::String| String::from_rust_string(s)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn command(&self) -> (command: Option<Vec<String>>)
+        ensures
+            command.is_Some() == self@.command.is_Some(),
+            command.is_Some() ==> command.get_Some_0()@.map_values(|s: String| s@) == self@.command.get_Some_0(),
+    {
+        match &self.inner.command {
+            Some(cmd) => Some(cmd.clone().into_iter().map(|s: std::string::String| String::from_rust_string(s)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn env_vars(&self) -> (env_vars: Option<Vec<EnvVar>>)
+        ensures
+            env_vars.is_Some() == self@.env_vars.is_Some(),
+            env_vars.is_Some() ==> env_vars.get_Some_0()@.map_values(|var: EnvVar| var@) == self@.env_vars.get_Some_0(),
+    {
+        match &self.inner.env_vars {
+            Some(env_vars) => Some(env_vars.clone().into_iter().map(|e: deps_hack::k8s_openapi::api::core::v1::EnvVar| EnvVar::from_kube(e)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn image_pull_policy(&self) -> (image_pull_policy: Option<String>)
+        ensures opt_string_to_view(&image_pull_policy) == self@.image_pull_policy,
+    {
+        match &self.inner.image_pull_policy {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn image_pull_secrets(&self) -> (image_pull_secrets: Option<Vec<LocalObjectReference>>)
+        ensures
+            self@.image_pull_secrets.is_Some() == image_pull_secrets.is_Some(),
+            image_pull_secrets.is_Some() ==> image_pull_secrets.get_Some_0()@.map_values(|t: LocalObjectReference| t@) == self@.image_pull_secrets.get_Some_0(),
+    {
+        match &self.inner.image_pull_secrets {
+            Some(secrets) => Some(secrets.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference| LocalObjectReference::from_kube(t)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn liveness_probe(&self) -> (liveness_probe: Option<Probe>)
+        ensures
+            liveness_probe.is_Some() == self@.liveness_probe.is_Some(),
+            liveness_probe.is_Some() ==> liveness_probe.get_Some_0()@ == self@.liveness_probe.get_Some_0(),
+    {
+        match &self.inner.liveness_probe {
+            Some(s) => Some(Probe::from_kube(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn readiness_probe(&self) -> (readiness_probe: Option<Probe>)
+        ensures
+            readiness_probe.is_Some() == self@.readiness_probe.is_Some(),
+            readiness_probe.is_Some() ==> readiness_probe.get_Some_0()@ == self@.readiness_probe.get_Some_0(),
+    {
+        match &self.inner.readiness_probe {
+            Some(s) => Some(Probe::from_kube(s.clone())),
+            None => None,
+        }
     }
 }
 

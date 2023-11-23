@@ -194,6 +194,12 @@ pub struct FluentBitSpec {
     #[serde(rename = "fluentBitConfigName")]
     pub fluentbit_config_name: String,
     pub image: String,
+    pub args: Option<Vec<String>>,
+    pub command: Option<Vec<String>>,
+    #[serde(rename = "imagePullPolicy")]
+    pub image_pull_policy: Option<String>,
+    #[serde(rename = "imagePullSecrets")]
+    pub image_pull_secrets: Option<Vec<k8s_openapi::api::core::v1::LocalObjectReference>>,
     #[serde(default)]
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
@@ -220,6 +226,12 @@ pub struct FluentBitSpec {
     pub security_context: Option<k8s_openapi::api::core::v1::PodSecurityContext>,
     #[serde(rename = "hostNetwork")]
     pub host_network: Option<bool>,
+    #[serde(rename = "envVars")]
+    pub env_vars: Option<Vec<k8s_openapi::api::core::v1::EnvVar>>,
+    #[serde(rename = "livenessProbe")]
+    pub liveness_probe: Option<k8s_openapi::api::core::v1::Probe>,
+    #[serde(rename = "readinessProbe")]
+    pub readiness_probe: Option<k8s_openapi::api::core::v1::Probe>,
 }
 
 #[derive(

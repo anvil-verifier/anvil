@@ -4,7 +4,7 @@ use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit::trusted::step::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::spec::{
-    affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*,
+    affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
     owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
@@ -139,6 +139,10 @@ impl ResourceView for FluentBitView {
 pub struct FluentBitSpecView {
     pub fluentbit_config_name: StringView,
     pub image: StringView,
+    pub args: Option<Seq<StringView>>,
+    pub command: Option<Seq<StringView>>,
+    pub image_pull_policy: Option<StringView>,
+    pub image_pull_secrets: Option<Seq<LocalObjectReferenceView>>,
     pub resources: Option<ResourceRequirementsView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub labels: Map<StringView, StringView>,
@@ -153,6 +157,9 @@ pub struct FluentBitSpecView {
     pub internal_mount_propagation: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
     pub host_network: Option<bool>,
+    pub env_vars: Option<Seq<EnvVarView>>,
+    pub liveness_probe: Option<ProbeView>,
+    pub readiness_probe: Option<ProbeView>,
 }
 
 }
