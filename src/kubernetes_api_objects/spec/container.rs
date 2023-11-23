@@ -20,6 +20,8 @@ pub struct ContainerView {
     pub liveness_probe: Option<ProbeView>,
     pub command: Option<Seq<StringView>>,
     pub image_pull_policy: Option<StringView>,
+    pub args: Option<Seq<StringView>>,
+    pub security_context: Option<SecurityContextView>,
 }
 
 impl ContainerView {
@@ -36,6 +38,8 @@ impl ContainerView {
             liveness_probe: None,
             command: None,
             image_pull_policy: None,
+            args: None,
+            security_context: None,
         }
     }
 
@@ -119,6 +123,20 @@ impl ContainerView {
     pub open spec fn set_image_pull_policy(self, image_pull_policy: StringView) -> ContainerView {
         ContainerView {
             image_pull_policy: Some(image_pull_policy),
+            ..self
+        }
+    }
+
+    pub open spec fn set_args(self, args: Seq<StringView>) -> ContainerView {
+        ContainerView {
+            args: Some(args),
+            ..self
+        }
+    }
+
+    pub open spec fn set_security_context(self, security_context: SecurityContextView) -> ContainerView {
+        ContainerView {
+            security_context: Some(security_context),
             ..self
         }
     }
@@ -420,5 +438,7 @@ impl EnvVarSourceView {
         }
     }
 }
+
+pub struct SecurityContextView {}
 
 }
