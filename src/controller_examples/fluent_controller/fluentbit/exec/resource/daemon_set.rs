@@ -176,6 +176,12 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             } else {
                 fb_container.set_env(make_env(&fb));
             }
+            if fb.spec().liveness_probe().is_some() {
+                fb_container.set_liveness_probe(fb.spec().liveness_probe().unwrap())
+            }
+            if fb.spec().readiness_probe().is_some() {
+                fb_container.set_readiness_probe(fb.spec().readiness_probe().unwrap())
+            }
             fb_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({

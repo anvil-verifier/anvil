@@ -157,6 +157,8 @@ pub struct FluentBitSpecView {
     pub security_context: Option<PodSecurityContextView>,
     pub host_network: Option<bool>,
     pub env_vars: Option<Seq<EnvVarView>>,
+    pub liveness_probe: Option<ProbeView>,
+    pub readiness_probe: Option<ProbeView>,
 }
 
 }

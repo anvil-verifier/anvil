@@ -313,6 +313,30 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn liveness_probe(&self) -> (liveness_probe: Option<Probe>)
+        ensures
+            liveness_probe.is_Some() == self@.liveness_probe.is_Some(),
+            liveness_probe.is_Some() ==> liveness_probe.get_Some_0()@ == self@.liveness_probe.get_Some_0(),
+    {
+        match &self.inner.liveness_probe {
+            Some(s) => Some(Probe::from_kube(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn readiness_probe(&self) -> (readiness_probe: Option<Probe>)
+        ensures
+            readiness_probe.is_Some() == self@.readiness_probe.is_Some(),
+            readiness_probe.is_Some() ==> readiness_probe.get_Some_0()@ == self@.readiness_probe.get_Some_0(),
+    {
+        match &self.inner.readiness_probe {
+            Some(s) => Some(Probe::from_kube(s.clone())),
+            None => None,
+        }
+    }
 }
 
 }

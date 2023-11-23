@@ -226,6 +226,10 @@ pub struct FluentBitSpec {
     pub host_network: Option<bool>,
     #[serde(rename = "envVars")]
     pub env_vars: Option<Vec<k8s_openapi::api::core::v1::EnvVar>>,
+    #[serde(rename = "livenessProbe")]
+    pub liveness_probe: Option<k8s_openapi::api::core::v1::Probe>,
+    #[serde(rename = "readinessProbe")]
+    pub readiness_probe: Option<k8s_openapi::api::core::v1::Probe>,
 }
 
 #[derive(

@@ -148,6 +148,12 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 env: if fb.spec.env_vars.is_Some() {
                         Some(make_env(fb) + fb.spec.env_vars.get_Some_0())
                     } else { Some(make_env(fb)) },
+                liveness_probe: if fb.spec.liveness_probe.is_Some() { 
+                        fb.spec.liveness_probe 
+                    } else { ContainerView::default().liveness_probe },
+                readiness_probe: if fb.spec.readiness_probe.is_Some() { 
+                        fb.spec.readiness_probe 
+                    } else { ContainerView::default().readiness_probe },
                 volume_mounts: Some(seq![
                     VolumeMountView {
                         name: new_strlit("varlibcontainers")@,
