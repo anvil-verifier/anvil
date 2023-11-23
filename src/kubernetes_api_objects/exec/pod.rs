@@ -267,10 +267,16 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_termination_grace_period_seconds(&mut self, termination_grace_period_seconds: i64)
-        ensures
-            self@ == old(self)@.set_termination_grace_period_seconds(termination_grace_period_seconds as int),
+        ensures self@ == old(self)@.set_termination_grace_period_seconds(termination_grace_period_seconds as int),
     {
         self.inner.termination_grace_period_seconds = Some(termination_grace_period_seconds);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_image_pull_secrets(&mut self, image_pull_secrets: Vec<LocalObjectReference>)
+        ensures self@ == old(self)@.set_image_pull_secrets(image_pull_secrets@.map_values(|r: LocalObjectReference| r@)),
+    {
+        self.inner.image_pull_secrets = Some(image_pull_secrets.into_iter().map(|r: LocalObjectReference| r.into_kube()).collect())
     }
 
     #[verifier(external)]
@@ -297,6 +303,25 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PodSecurityContext> 
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSecurityContext { self.inner }
+}
+
+#[verifier(external_body)]
+pub struct LocalObjectReference {
+    inner: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
+}
+
+impl View for LocalObjectReference {
+    type V = LocalObjectReferenceView;
+
+    spec fn view(&self) -> LocalObjectReferenceView;
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::LocalObjectReference> for LocalObjectReference {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference) -> LocalObjectReference { LocalObjectReference { inner: inner } }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LocalObjectReference { self.inner }
 }
 
 }

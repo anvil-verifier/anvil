@@ -125,6 +125,20 @@ impl Container {
         self.inner.env = Some(env.into_iter().map(|e: EnvVar| e.into_kube()).collect())
     }
 
+    #[verifier(external_body)]
+    pub fn set_args(&mut self, args: Vec<String>)
+        ensures self@ == old(self)@.set_args(args@.map_values(|s: String| s@)),
+    {
+        self.inner.args = Some(args.into_iter().map(|c: String| c.into_rust_string()).collect())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_security_context(&mut self, security_context: SecurityContext)
+        ensures self@ == old(self)@.set_security_context(security_context@),
+    {
+        self.inner.security_context = Some(security_context.into_kube())
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Container) -> Container { Container { inner: inner } }
 
@@ -597,6 +611,21 @@ impl EnvVarSource {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVarSource { self.inner }
+}
+
+#[verifier(external_body)]
+pub struct SecurityContext {
+    inner: deps_hack::k8s_openapi::api::core::v1::SecurityContext,
+}
+
+impl SecurityContext {
+    pub spec fn view(&self) -> SecurityContextView;
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecurityContext) -> SecurityContext { SecurityContext { inner: inner } }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecurityContext { self.inner }
 }
 
 }

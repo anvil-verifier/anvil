@@ -323,6 +323,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     );
 }
 
+#[verifier(spinoff_prover)]
 proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView, resp_msg: FBCMessage)
     requires
         spec.entails(always(lift_action(FBCCluster::next()))),

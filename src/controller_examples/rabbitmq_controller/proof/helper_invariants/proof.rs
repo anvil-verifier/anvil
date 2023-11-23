@@ -549,6 +549,7 @@ proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures spec.entails(always(lift_state(request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq)))),
 {
+    hide(make_stateful_set);
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = request_at_after_get_request_step_is_resource_get_request(sub_resource, rabbitmq);
