@@ -151,6 +151,7 @@ pub struct PodSpecView {
     pub security_context: Option<PodSecurityContextView>,
     pub host_network: Option<bool>,
     pub termination_grace_period_seconds: Option<int>,
+    pub image_pull_secrets: Option<Seq<LocalObjectReferenceView>>,
 }
 
 impl PodSpecView {
@@ -170,6 +171,7 @@ impl PodSpecView {
             security_context: None,
             host_network: None,
             termination_grace_period_seconds: None,
+            image_pull_secrets: None,
         }
     }
 
@@ -284,8 +286,17 @@ impl PodSpecView {
             ..self
         }
     }
+
+    pub open spec fn set_image_pull_secrets(self, image_pull_secrets: Seq<LocalObjectReferenceView>) -> PodSpecView {
+        PodSpecView {
+            image_pull_secrets: Some(image_pull_secrets),
+            ..self
+        }
+    }
 }
 
 pub struct PodSecurityContextView {}
+
+pub struct LocalObjectReferenceView {}
 
 }
