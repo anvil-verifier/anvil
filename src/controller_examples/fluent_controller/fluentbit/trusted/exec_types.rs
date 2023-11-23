@@ -267,6 +267,18 @@ impl FluentBitSpec {
     {
         self.inner.host_network
     }
+
+    #[verifier(external_body)]
+    pub fn args(&self) -> (args: Option<Vec<String>>)
+        ensures 
+            args.is_Some() == self@.args.is_Some(),
+            args.is_Some() ==> args.get_Some_0()@.map_values(|s: String| s@) == self@.args.get_Some_0(),
+    {
+        match &self.inner.args {
+            Some(arguments) => Some(arguments.clone().into_iter().map(|s: std::string::String| String::from_rust_string(s)).collect()),
+            None => None,
+        }
+    }
 }
 
 }

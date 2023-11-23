@@ -221,6 +221,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 ports
             });
             fb_container.overwrite_resources(fb.spec().resources());
+            if fb.spec().args().is_some() {
+                fb_container.set_args(fb.spec().args().unwrap());
+            }
             fb_container
         });
         proof {

@@ -220,6 +220,7 @@ pub struct FluentBitSpec {
     pub security_context: Option<k8s_openapi::api::core::v1::PodSecurityContext>,
     #[serde(rename = "hostNetwork")]
     pub host_network: Option<bool>,
+    pub args: Option<Vec<String>>,
 }
 
 #[derive(
