@@ -160,6 +160,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             let mut fb_container = Container::default();
             fb_container.set_name(new_strlit("fluent-bit").to_string());
             fb_container.set_image(fb.spec().image());
+            if fb.spec().image_pull_policy().is_some() {
+                fb_container.set_image_pull_policy(fb.spec().image_pull_policy().unwrap());
+            }
             if fb.spec().env_vars().is_some() {
                 fb_container.set_env({
                     let mut env = make_env(&fb);

@@ -142,6 +142,9 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
             ContainerView {
                 name: new_strlit("fluent-bit")@,
                 image: Some(fb.spec.image),
+                image_pull_policy: if fb.spec.image_pull_policy.is_Some() { 
+                        fb.spec.image_pull_policy 
+                    } else { ContainerView::default().image_pull_policy },
                 env: if fb.spec.env_vars.is_Some() {
                         Some(make_env(fb) + fb.spec.env_vars.get_Some_0())
                     } else { Some(make_env(fb)) },

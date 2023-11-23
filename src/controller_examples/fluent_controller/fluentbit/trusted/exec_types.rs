@@ -303,6 +303,16 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn image_pull_policy(&self) -> (image_pull_policy: Option<String>)
+        ensures opt_string_to_view(&image_pull_policy) == self@.image_pull_policy,
+    {
+        match &self.inner.image_pull_policy {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
 }
 
 }
