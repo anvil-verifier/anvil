@@ -160,6 +160,7 @@ pub struct FluentBitSpecView {
     pub env_vars: Option<Seq<EnvVarView>>,
     pub liveness_probe: Option<ProbeView>,
     pub readiness_probe: Option<ProbeView>,
+    pub init_containers: Option<Seq<ContainerView>>,
 }
 
 }

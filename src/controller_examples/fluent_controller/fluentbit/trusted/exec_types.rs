@@ -349,6 +349,18 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn init_containers(&self) -> (init_containers: Option<Vec<Container>>)
+        ensures
+            self@.init_containers.is_Some() == init_containers.is_Some(),
+            init_containers.is_Some() ==> init_containers.get_Some_0()@.map_values(|c: Container| c@) == self@.init_containers.get_Some_0(),
+    {
+        match &self.inner.init_containers {
+            Some(secrets) => Some(secrets.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Container| Container::from_kube(t)).collect()),
+            None => None,
+        }
+    }
 }
 
 }

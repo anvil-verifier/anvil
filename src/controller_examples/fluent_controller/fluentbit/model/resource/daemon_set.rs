@@ -114,6 +114,9 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
         image_pull_secrets: if fb.spec.image_pull_secrets.is_Some() { fb.spec.image_pull_secrets } else {
                 PodSpecView::default().image_pull_secrets
             },
+        init_containers: if fb.spec.init_containers.is_Some() { fb.spec.init_containers } else {
+                PodSpecView::default().init_containers
+            },
         volumes: Some(seq![
             VolumeView::default()
                 .set_name(new_strlit("varlibcontainers")@)

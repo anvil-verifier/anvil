@@ -157,6 +157,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     if fb.spec().image_pull_secrets().is_some() {
         pod_spec.set_image_pull_secrets(fb.spec().image_pull_secrets().unwrap());
     }
+    if fb.spec().init_containers().is_some() {
+        pod_spec.set_init_containers(fb.spec().init_containers().unwrap());
+    }
     pod_spec.set_containers({
         let mut containers = Vec::new();
         containers.push({
