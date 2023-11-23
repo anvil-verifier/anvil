@@ -198,6 +198,8 @@ pub struct FluentBitSpec {
     pub command: Option<Vec<String>>,
     #[serde(rename = "imagePullPolicy")]
     pub image_pull_policy: Option<String>,
+    #[serde(rename = "imagePullSecrets")]
+    pub image_pull_secrets: Option<Vec<k8s_openapi::api::core::v1::LocalObjectReference>>,
     #[serde(default)]
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,

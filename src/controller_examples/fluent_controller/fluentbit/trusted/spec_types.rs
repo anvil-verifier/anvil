@@ -142,6 +142,7 @@ pub struct FluentBitSpecView {
     pub args: Option<Seq<StringView>>,
     pub command: Option<Seq<StringView>>,
     pub image_pull_policy: Option<StringView>,
+    pub image_pull_secrets: Option<Seq<LocalObjectReferenceView>>,
     pub resources: Option<ResourceRequirementsView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub labels: Map<StringView, StringView>,

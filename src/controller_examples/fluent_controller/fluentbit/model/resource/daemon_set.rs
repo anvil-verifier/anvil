@@ -111,6 +111,9 @@ pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
 pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
     PodSpecView {
         service_account_name: Some(make_service_account_name(fb)),
+        image_pull_secrets: if fb.spec.image_pull_secrets.is_Some() { fb.spec.image_pull_secrets } else {
+                PodSpecView::default().image_pull_secrets
+            },
         volumes: Some(seq![
             VolumeView::default()
                 .set_name(new_strlit("varlibcontainers")@)

@@ -315,6 +315,18 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn image_pull_secrets(&self) -> (image_pull_secrets: Option<Vec<LocalObjectReference>>)
+        ensures
+            self@.image_pull_secrets.is_Some() == image_pull_secrets.is_Some(),
+            image_pull_secrets.is_Some() ==> image_pull_secrets.get_Some_0()@.map_values(|t: LocalObjectReference| t@) == self@.image_pull_secrets.get_Some_0(),
+    {
+        match &self.inner.image_pull_secrets {
+            Some(secrets) => Some(secrets.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference| LocalObjectReference::from_kube(t)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn liveness_probe(&self) -> (liveness_probe: Option<Probe>)
         ensures
             liveness_probe.is_Some() == self@.liveness_probe.is_Some(),

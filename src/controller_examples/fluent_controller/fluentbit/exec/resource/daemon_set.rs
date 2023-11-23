@@ -154,6 +154,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
 {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name(fb.metadata().name().unwrap());
+    if fb.spec().image_pull_secrets().is_some() {
+        pod_spec.set_image_pull_secrets(fb.spec().image_pull_secrets().unwrap());
+    }
     pod_spec.set_containers({
         let mut containers = Vec::new();
         containers.push({
