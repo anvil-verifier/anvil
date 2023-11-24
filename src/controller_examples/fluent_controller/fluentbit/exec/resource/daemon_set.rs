@@ -258,6 +258,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             if fb.spec().command().is_some() {
                 fb_container.set_command(fb.spec().command().unwrap());
             }
+            if fb.spec().container_security_context().is_some() {
+                fb_container.set_security_context(fb.spec().container_security_context().unwrap());
+            }
             fb_container
         });
         proof {

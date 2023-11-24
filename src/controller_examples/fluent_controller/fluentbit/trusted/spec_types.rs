@@ -159,6 +159,7 @@ pub struct FluentBitSpecView {
     pub metrics_port: Option<int>,
     pub internal_mount_propagation: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
+    pub container_security_context: Option<SecurityContextView>,
     pub host_network: Option<bool>,
     pub env_vars: Option<Seq<EnvVarView>>,
     pub liveness_probe: Option<ProbeView>,

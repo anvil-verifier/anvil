@@ -287,6 +287,18 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn container_security_context(&self) -> (container_security_context: Option<SecurityContext>)
+        ensures
+            container_security_context.is_Some() == self@.container_security_context.is_Some(),
+            container_security_context.is_Some() ==> container_security_context.get_Some_0()@ == self@.container_security_context.get_Some_0(),
+    {
+        match &self.inner.container_security_context {
+            Some(s) => Some(SecurityContext::from_kube(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn host_network(&self) -> (host_network: Option<bool>)
         ensures host_network == self@.host_network,
     {

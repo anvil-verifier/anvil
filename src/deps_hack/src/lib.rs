@@ -227,6 +227,8 @@ pub struct FluentBitSpec {
     pub internal_mount_propagation: Option<String>,
     #[serde(rename = "securityContext")]
     pub security_context: Option<k8s_openapi::api::core::v1::PodSecurityContext>,
+    #[serde(rename = "containerSecurityContext")]
+    pub container_security_context: Option<k8s_openapi::api::core::v1::SecurityContext>,
     #[serde(rename = "hostNetwork")]
     pub host_network: Option<bool>,
     #[serde(rename = "envVars")]
