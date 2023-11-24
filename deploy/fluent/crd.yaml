@@ -498,6 +498,9 @@ spec:
                     type: string
                   nullable: true
                   type: array
+                containerLogRealPath:
+                  nullable: true
+                  type: string
                 containerSecurityContext:
                   description: "SecurityContext holds security configuration that will be applied to a container. Some fields are present in both SecurityContext and PodSecurityContext.  When both are set, the values in SecurityContext take precedence."
                   nullable: true
@@ -1782,6 +1785,11 @@ spec:
                           description: "The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence."
                           type: string
                       type: object
+                  type: object
+                serviceAccountAnnotations:
+                  additionalProperties:
+                    type: string
+                  default: {}
                   type: object
                 tolerations:
                   items:
