@@ -156,10 +156,9 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                     } else { ContainerView::default().readiness_probe },
                 volume_mounts: Some({
                     let config_vm = VolumeMountView {
-                        name: new_strlit("varlibcontainers")@,
+                        name: new_strlit("config")@,
                         read_only: Some(true),
-                        mount_path: new_strlit("/containers")@,
-                        mount_propagation: fb.spec.internal_mount_propagation,
+                        mount_path: new_strlit("/fluent-bit/config")@,
                         ..VolumeMountView::default()
                     };
                     let varlibcontainers_vm = VolumeMountView {
