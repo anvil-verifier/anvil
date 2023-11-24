@@ -110,10 +110,14 @@ pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
 pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
     PodSpecView {
         service_account_name: Some(make_service_account_name(fb)),
-        image_pull_secrets: if fb.spec.image_pull_secrets.is_Some() { fb.spec.image_pull_secrets } else {
+        image_pull_secrets: if fb.spec.image_pull_secrets.is_Some() {
+                fb.spec.image_pull_secrets
+            } else {
                 PodSpecView::default().image_pull_secrets
             },
-        init_containers: if fb.spec.init_containers.is_Some() { fb.spec.init_containers } else {
+        init_containers: if fb.spec.init_containers.is_Some() {
+                fb.spec.init_containers
+            } else {
                 PodSpecView::default().init_containers
             },
         volumes: Some({
@@ -146,18 +150,26 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
             ContainerView {
                 name: new_strlit("fluent-bit")@,
                 image: Some(fb.spec.image),
-                image_pull_policy: if fb.spec.image_pull_policy.is_Some() { 
-                        fb.spec.image_pull_policy 
-                    } else { ContainerView::default().image_pull_policy },
+                image_pull_policy: if fb.spec.image_pull_policy.is_Some() {
+                        fb.spec.image_pull_policy
+                    } else {
+                        ContainerView::default().image_pull_policy
+                    },
                 env: if fb.spec.env_vars.is_Some() {
                         Some(make_env(fb) + fb.spec.env_vars.get_Some_0())
-                    } else { Some(make_env(fb)) },
-                liveness_probe: if fb.spec.liveness_probe.is_Some() { 
-                        fb.spec.liveness_probe 
-                    } else { ContainerView::default().liveness_probe },
-                readiness_probe: if fb.spec.readiness_probe.is_Some() { 
-                        fb.spec.readiness_probe 
-                    } else { ContainerView::default().readiness_probe },
+                    } else {
+                        Some(make_env(fb))
+                    },
+                liveness_probe: if fb.spec.liveness_probe.is_Some() {
+                        fb.spec.liveness_probe
+                    } else {
+                        ContainerView::default().liveness_probe
+                    },
+                readiness_probe: if fb.spec.readiness_probe.is_Some() {
+                        fb.spec.readiness_probe
+                    } else {
+                        ContainerView::default().readiness_probe
+                    },
                 volume_mounts: Some({
                     let config_vm = VolumeMountView {
                         name: new_strlit("config")@,
@@ -211,9 +223,21 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                         }),
                 ]),
                 resources: fb.spec.resources,
-                args: if fb.spec.args.is_Some() { fb.spec.args } else { ContainerView::default().args },
-                command: if fb.spec.command.is_Some() { fb.spec.command } else { ContainerView::default().command },
-                security_context: if fb.spec.container_security_context.is_Some() { fb.spec.container_security_context } else { ContainerView::default().security_context },
+                args: if fb.spec.args.is_Some() {
+                        fb.spec.args
+                    } else {
+                        ContainerView::default().args
+                    },
+                command: if fb.spec.command.is_Some() {
+                        fb.spec.command
+                    } else {
+                        ContainerView::default().command
+                    },
+                security_context: if fb.spec.container_security_context.is_Some() {
+                        fb.spec.container_security_context
+                    } else {
+                        ContainerView::default().security_context
+                    },
                 ..ContainerView::default()
             }
         ],

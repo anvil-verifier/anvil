@@ -190,7 +190,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 fb_container.set_readiness_probe(fb.spec().readiness_probe().unwrap())
             }
             fb_container.set_volume_mounts({
-                let mut volume_mounts = if fb.spec().volume_mounts().is_some() { fb.spec().volume_mounts().unwrap() } else { Vec::new() };
+                let mut volume_mounts = if fb.spec().volume_mounts().is_some() {
+                        fb.spec().volume_mounts().unwrap()
+                    } else {
+                        Vec::new()
+                    };
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("config").to_string());
@@ -275,7 +279,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes({
-        let mut volumes = if fb.spec().volumes().is_some() { fb.spec().volumes().unwrap() } else { Vec::new() };
+        let mut volumes = if fb.spec().volumes().is_some() {
+                fb.spec().volumes().unwrap()
+            } else {
+                Vec::new()
+            };
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("config").to_string());
