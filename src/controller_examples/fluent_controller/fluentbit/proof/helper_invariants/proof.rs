@@ -175,6 +175,13 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)));
 }
 
+pub proof fn make_fluentbit_pod_spec_determined_by_spec_and_name(fb1: FluentBitView, fb2: FluentBitView)
+    requires 
+        fb1.metadata.name.get_Some_0() == fb2.metadata.name.get_Some_0(),
+        fb1.spec == fb2.spec,
+    ensures make_fluentbit_pod_spec(fb1) == make_fluentbit_pod_spec(fb2),
+{}
+
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires
@@ -197,6 +204,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb))))),
 {
+    hide(make_fluentbit_pod_spec);
     let key = fb.object_ref();
     let resource_key = get_request(sub_resource, fb).key;
     let requirements = |msg: FBMessage, s: FBCluster| {
@@ -214,6 +222,9 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
             )
         }
     };
+    let well_formed = |s: FBCluster| {
+        s.resources().contains_key(resource_key) ==> FBCluster::etcd_object_is_well_formed(resource_key)(s)
+    };
     let stronger_next = |s: FBCluster, s_prime: FBCluster| {
         &&& FBCluster::next()(s, s_prime)
         &&& FBCluster::crash_disabled()(s)
@@ -222,8 +233,8 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
         &&& FBCluster::the_object_in_reconcile_has_spec_and_uid_as(fb)(s)
         &&& FBCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
-        &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& FBCluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& well_formed(s)
+        &&& well_formed(s_prime)
         &&& FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, fb).key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)(s)
         &&& no_delete_resource_request_msg_in_flight(sub_resource, fb)(s)
@@ -239,6 +250,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                 let step = choose |step| FBCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fb, s, s_prime, msg, step);
+                    make_fluentbit_pod_spec_determined_by_spec_and_name(fb, s.ongoing_reconciles()[key].triggering_cr);
                     let resp = step.get_ControllerStep_0().0.get_Some_0();
                     assert(FBCluster::is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
@@ -394,6 +406,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         spec.entails(always(lift_state(fb_is_well_formed(fb)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb))))),
 {
+    hide(make_fluentbit_pod_spec);
     let key = fb.object_ref();
     let resource_key = get_request(sub_resource, fb).key;
     let requirements = |msg: FBMessage, s: FBCluster| {
@@ -421,6 +434,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
                 let step = choose |step| FBCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fb, s, s_prime, msg, step);
+                    make_fluentbit_pod_spec_determined_by_spec_and_name(fb, s.ongoing_reconciles()[key].triggering_cr);
                 } else {
                     assert(requirements(msg, s));
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);

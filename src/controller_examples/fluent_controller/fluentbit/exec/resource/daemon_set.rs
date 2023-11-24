@@ -147,6 +147,7 @@ pub fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
     daemon_set
 }
 
+#[verifier(spinoff_prover)]
 fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     requires
         fb@.well_formed(),
