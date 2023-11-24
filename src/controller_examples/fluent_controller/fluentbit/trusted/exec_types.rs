@@ -185,6 +185,13 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn disable_log_volumes(&self) -> (disable_log_volumes: bool)
+        ensures disable_log_volumes == self@.disable_log_volumes,
+    {
+        self.inner.disable_log_volumes
+    }
+
+    #[verifier(external_body)]
     pub fn node_selector(&self) -> (node_selector: StringMap)
         ensures node_selector@ == self@.node_selector,
     {

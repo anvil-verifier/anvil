@@ -192,35 +192,37 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("varlibcontainers").to_string());
-                    volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/containers").to_string());
-                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
-                    volume_mount
-                });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("config").to_string());
                     volume_mount.set_read_only(true);
                     volume_mount.set_mount_path(new_strlit("/fluent-bit/config").to_string());
                     volume_mount
                 });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("varlogs").to_string());
-                    volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
-                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
-                    volume_mount
-                });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("systemd").to_string());
-                    volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
-                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
-                    volume_mount
-                });
+                if !fb.spec().disable_log_volumes() {
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("varlibcontainers").to_string());
+                        volume_mount.set_read_only(true);
+                        volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        volume_mount
+                    });
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("varlogs").to_string());
+                        volume_mount.set_read_only(true);
+                        volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
+                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        volume_mount
+                    });
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("systemd").to_string());
+                        volume_mount.set_read_only(true);
+                        volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
+                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        volume_mount
+                    });
+                }
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("positions").to_string());
@@ -275,16 +277,6 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         let mut volumes = Vec::new();
         volumes.push({
             let mut volume = Volume::default();
-            volume.set_name(new_strlit("varlibcontainers").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/containers").to_string());
-                host_path
-            });
-            volume
-        });
-        volumes.push({
-            let mut volume = Volume::default();
             volume.set_name(new_strlit("config").to_string());
             volume.set_secret({
                 let mut secret = SecretVolumeSource::default();
@@ -293,26 +285,38 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             });
             volume
         });
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("varlogs").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/var/log").to_string());
-                host_path
+        if !fb.spec().disable_log_volumes() {
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("varlibcontainers").to_string());
+                volume.set_host_path({
+                    let mut host_path = HostPathVolumeSource::default();
+                    host_path.set_path(new_strlit("/containers").to_string());
+                    host_path
+                });
+                volume
             });
-            volume
-        });
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("systemd").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/var/log/journal").to_string());
-                host_path
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("varlogs").to_string());
+                volume.set_host_path({
+                    let mut host_path = HostPathVolumeSource::default();
+                    host_path.set_path(new_strlit("/var/log").to_string());
+                    host_path
+                });
+                volume
             });
-            volume
-        });
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("systemd").to_string());
+                volume.set_host_path({
+                    let mut host_path = HostPathVolumeSource::default();
+                    host_path.set_path(new_strlit("/var/log/journal").to_string());
+                    host_path
+                });
+                volume
+            });
+        }
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("positions").to_string());

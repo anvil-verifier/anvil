@@ -149,6 +149,7 @@ pub struct FluentBitSpecView {
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
     pub affinity: Option<AffinityView>,
+    pub disable_log_volumes: bool,
     pub node_selector: Map<StringView, StringView>,
     pub runtime_class_name: Option<StringView>,
     pub dns_policy: Option<StringView>,
