@@ -236,7 +236,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 });
                 proof {
                     assert_seqs_equal!(
-                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@) ==
+                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
                         model_resource::make_fluentbit_pod_spec(fb@).containers[0].volume_mounts.get_Some_0()
                     );
                 }

@@ -1791,6 +1791,16 @@ spec:
                     type: string
                   default: {}
                   type: object
+                serviceAnnotations:
+                  additionalProperties:
+                    type: string
+                  nullable: true
+                  type: object
+                serviceLabels:
+                  additionalProperties:
+                    type: string
+                  nullable: true
+                  type: object
                 tolerations:
                   items:
                     description: "The pod this Toleration is attached to tolerates any taint that matches the triple <key,value,effect> using the matching operator <operator>."
