@@ -1794,12 +1794,12 @@ spec:
                 serviceAnnotations:
                   additionalProperties:
                     type: string
-                  nullable: true
+                  default: {}
                   type: object
                 serviceLabels:
                   additionalProperties:
                     type: string
-                  nullable: true
+                  default: {}
                   type: object
                 tolerations:
                   items:

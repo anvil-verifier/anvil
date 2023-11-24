@@ -210,9 +210,9 @@ pub struct FluentBitSpec {
     #[serde(default, rename = "serviceAccountAnnotations")]
     pub service_account_annotations: std::collections::BTreeMap<String, String>,
     #[serde(default, rename = "serviceLabels")]
-    pub service_labels: Option<std::collections::BTreeMap<String, String>>,
+    pub service_labels: std::collections::BTreeMap<String, String>,
     #[serde(default, rename = "serviceAnnotations")]
-    pub service_annotations: Option<std::collections::BTreeMap<String, String>>,
+    pub service_annotations: std::collections::BTreeMap<String, String>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     #[serde(default, rename = "disableLogVolumes")]
     pub disable_log_volumes: bool,

@@ -120,15 +120,12 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
         metadata.set_name(make_service_name(fb));
         metadata.set_owner_references(make_owner_references(fb));
         metadata.set_labels({
-            if fb.spec().service_labels().is_some() {
-                fb.spec().service_labels().unwrap()
+            if fb.spec().service_labels().len() > 0 {
+                fb.spec().service_labels()
             } else { make_labels(fb) }
         });
-        if fb.spec().service_annotations().is_some() {
-            metadata.set_annotations(fb.spec().service_annotations().unwrap());
-        } else {
-            metadata.set_annotations(fb.spec().annotations());
-        }
+        metadata.set_annotations(fb.spec().service_annotations());
+
         metadata
     });
     service.set_spec({

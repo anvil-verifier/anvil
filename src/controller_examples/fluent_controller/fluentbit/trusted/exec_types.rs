@@ -180,27 +180,17 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
-    pub fn service_labels(&self) -> (service_labels: Option<StringMap>)
-        ensures 
-            service_labels.is_Some() == self@.service_labels.is_Some(),
-            service_labels.is_Some() ==> service_labels.get_Some_0()@ == self@.service_labels.get_Some_0(),
+    pub fn service_labels(&self) -> (service_labels: StringMap)
+        ensures service_labels@ == self@.service_labels,
     {
-        match &self.inner.service_labels {
-            Some(labels) => Some(StringMap::from_rust_map(labels.clone())),
-            None => None,
-        }
+        StringMap::from_rust_map(self.inner.service_labels.clone())
     }
 
     #[verifier(external_body)]
-    pub fn service_annotations(&self) -> (service_annotations: Option<StringMap>)
-        ensures 
-            service_annotations.is_Some() == self@.service_annotations.is_Some(),
-            service_annotations.is_Some() ==> service_annotations.get_Some_0()@ == self@.service_annotations.get_Some_0(),
+    pub fn service_annotations(&self) -> (service_annotations: StringMap)
+        ensures service_annotations@ == self@.service_annotations,
     {
-        match &self.inner.service_annotations {
-            Some(annotations) => Some(StringMap::from_rust_map(annotations.clone())),
-            None => None,
-        }
+        StringMap::from_rust_map(self.inner.service_annotations.clone())
     }
 
     #[verifier(external_body)]

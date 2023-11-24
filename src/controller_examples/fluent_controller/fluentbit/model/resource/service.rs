@@ -96,8 +96,8 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
         metadata: ObjectMetaView {
             name: Some(make_service_name(fb)),
             owner_references: Some(make_owner_references(fb)),
-            labels: if fb.spec.service_labels.is_Some() { fb.spec.service_labels } else { Some(make_labels(fb)) },
-            annotations: if fb.spec.service_annotations.is_Some() { fb.spec.service_annotations } else { Some(fb.spec.annotations) },
+            labels: if fb.spec.service_labels.len() > 0 { Some(fb.spec.service_labels) } else { Some(make_labels(fb)) },
+            annotations: Some(fb.spec.service_annotations),
             ..ObjectMetaView::default()
         },
         spec: Some(ServiceSpecView {
