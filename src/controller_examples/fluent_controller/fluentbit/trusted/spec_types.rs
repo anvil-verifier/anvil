@@ -148,6 +148,7 @@ pub struct FluentBitSpecView {
     pub tolerations: Option<Seq<TolerationView>>,
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
+    pub service_account_annotations: Map<StringView, StringView>,
     pub affinity: Option<AffinityView>,
     pub disable_log_volumes: bool,
     pub node_selector: Map<StringView, StringView>,

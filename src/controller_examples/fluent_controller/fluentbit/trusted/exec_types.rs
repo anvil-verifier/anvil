@@ -173,6 +173,13 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn service_account_annotations(&self) -> (service_account_annotations: StringMap)
+        ensures service_account_annotations@ == self@.service_account_annotations,
+    {
+        StringMap::from_rust_map(self.inner.service_account_annotations.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn affinity(&self) -> (affinity: Option<Affinity>)
         ensures
             self@.affinity.is_Some() == affinity.is_Some(),

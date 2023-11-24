@@ -90,7 +90,7 @@ pub open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView {
             name: Some(make_service_account_name(fb)),
             owner_references: Some(make_owner_references(fb)),
             labels: Some(make_labels(fb)),
-            annotations: Some(fb.spec.annotations),
+            annotations: Some(fb.spec.service_account_annotations),
             ..ObjectMetaView::default()
         },
         ..ServiceAccountView::default()
