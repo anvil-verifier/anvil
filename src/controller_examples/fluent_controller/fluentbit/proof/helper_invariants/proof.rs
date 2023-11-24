@@ -749,6 +749,7 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
             && at_fb_step(fb.object_ref(), FluentBitReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)
             && FBCluster::pending_req_msg_is(s_prime, fb.object_ref(), msg),
 {
+    hide(make_fluentbit_pod_spec);
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
