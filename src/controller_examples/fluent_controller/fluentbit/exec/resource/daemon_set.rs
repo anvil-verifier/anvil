@@ -270,11 +270,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes({
-        let mut volumes = Vec::new();
-        if fb.spec().volumes().is_some() {
-            let mut fb_volumes = fb.spec().volumes().unwrap();
-            volumes.append(&mut fb_volumes);
-        }
+        let mut volumes = if fb.spec().volumes().is_some() { fb.spec().volumes().unwrap() } else { Vec::new() };
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("config").to_string());
