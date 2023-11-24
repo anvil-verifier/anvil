@@ -72,7 +72,6 @@ pub open spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef {
 pub open spec fn make_daemon_set_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() }
 
 pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSetView) -> DaemonSetView {
-    let made_spec = make_daemon_set(fb).spec.get_Some_0();
     DaemonSetView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(fb)),
@@ -82,7 +81,7 @@ pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSe
             ..found_daemon_set.metadata
         },
         spec: Some(DaemonSetSpecView {
-            template: made_spec.template,
+            template: make_daemon_set(fb).spec.get_Some_0().template,
             ..found_daemon_set.spec.get_Some_0()
         }),
         ..found_daemon_set

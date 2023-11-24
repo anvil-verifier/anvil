@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use super::predicate::*;
 use crate::fluent_controller::fluentbit::{
-    model::resource::make_daemon_set,
+    model::resource::*,
     proof::{
         helper_invariants::daemon_set_in_etcd_satisfies_unchangeable, predicate::*, resource::*,
     },

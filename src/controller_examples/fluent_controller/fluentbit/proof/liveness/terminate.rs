@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::EmptyAPI;
 use crate::fluent_controller::fluentbit::{
-    model::reconciler::*,
+    model::{reconciler::*, resource::*},
     proof::predicate::*,
     trusted::{spec_types::*, step::*},
 };
@@ -143,6 +143,7 @@ proof fn lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_r
         spec.entails(lift_state(at_step_state_pred(fb, after_get_k_request_step(sub_resource))).leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
         spec.entails(lift_state(state_pred_regarding_sub_resource(fb, sub_resource)).leads_to(lift_state(|s: FBCluster| !s.ongoing_reconciles().contains_key(fb.object_ref())))),
 {
+    hide(make_daemon_set);
     let state_after_create_or_update = |s: FluentBitReconcileState| {
         s.reconcile_step == next_step
         || s.reconcile_step == FluentBitReconcileStep::Error
