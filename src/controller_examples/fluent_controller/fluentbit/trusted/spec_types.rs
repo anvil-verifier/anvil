@@ -159,6 +159,7 @@ pub struct FluentBitSpecView {
     pub scheduler_name: Option<StringView>,
     pub metrics_port: Option<int>,
     pub internal_mount_propagation: Option<StringView>,
+    pub container_log_real_path: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
     pub container_security_context: Option<SecurityContextView>,
     pub host_network: Option<bool>,

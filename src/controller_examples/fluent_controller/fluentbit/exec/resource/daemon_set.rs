@@ -203,7 +203,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                         let mut volume_mount = VolumeMount::default();
                         volume_mount.set_name(new_strlit("varlibcontainers").to_string());
                         volume_mount.set_read_only(true);
-                        volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                        if fb.spec().container_log_real_path().is_some() {
+                            volume_mount.set_mount_path(fb.spec().container_log_real_path().unwrap());
+                        } else {
+                            volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                        }
                         volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                         volume_mount
                     });
@@ -288,7 +292,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 volume.set_name(new_strlit("varlibcontainers").to_string());
                 volume.set_host_path({
                     let mut host_path = HostPathVolumeSource::default();
-                    host_path.set_path(new_strlit("/containers").to_string());
+                    if fb.spec().container_log_real_path().is_some() {
+                        host_path.set_path(fb.spec().container_log_real_path().unwrap());
+                    } else {
+                        host_path.set_path(new_strlit("/containers").to_string());
+                    }
                     host_path
                 });
                 volume

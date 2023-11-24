@@ -282,6 +282,16 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn container_log_real_path(&self) -> (container_log_real_path: Option<String>)
+        ensures opt_string_to_view(&container_log_real_path) == self@.container_log_real_path,
+    {
+        match &self.inner.container_log_real_path {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn security_context(&self) -> (security_context: Option<PodSecurityContext>)
         ensures
             security_context.is_Some() == self@.security_context.is_Some(),

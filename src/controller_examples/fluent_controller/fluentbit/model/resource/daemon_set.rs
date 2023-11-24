@@ -120,7 +120,11 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
             let config_volume = VolumeView::default().set_name(new_strlit("config")@)
                     .set_secret(SecretVolumeSourceView::default().set_secret_name(fb.spec.fluentbit_config_name));
             let varlibcontainers_volume = VolumeView::default().set_name(new_strlit("varlibcontainers")@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/containers")@));
+                    .set_host_path(HostPathVolumeSourceView::default().set_path({
+                        if fb.spec.container_log_real_path.is_Some() {
+                            fb.spec.container_log_real_path.get_Some_0()
+                        } else { new_strlit("/containers")@ }
+                    }));
             let varlogs_volume = VolumeView::default().set_name(new_strlit("varlogs")@)
                     .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/var/log")@));
             let systemd_volume = VolumeView::default().set_name(new_strlit("systemd")@)
@@ -164,7 +168,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                     let varlibcontainers_vm = VolumeMountView {
                         name: new_strlit("varlibcontainers")@,
                         read_only: Some(true),
-                        mount_path: new_strlit("/containers")@,
+                        mount_path: if fb.spec.container_log_real_path.is_Some() { fb.spec.container_log_real_path.get_Some_0() } else { new_strlit("/containers")@ },
                         mount_propagation: fb.spec.internal_mount_propagation,
                         ..VolumeMountView::default()
                     };
