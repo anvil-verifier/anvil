@@ -216,6 +216,9 @@ pub struct FluentBitSpec {
     pub dns_policy: Option<String>,
     #[serde(rename = "priorityClassName")]
     pub priority_class_name: Option<String>,
+    pub volumes: Option<Vec<k8s_openapi::api::core::v1::Volume>>,
+    #[serde(rename = "volumeMounts")]
+    pub volume_mounts: Option<Vec<k8s_openapi::api::core::v1::VolumeMount>>,
     #[serde(rename = "schedulerName")]
     pub scheduler_name: Option<String>,
     #[serde(rename = "metricsPort")]

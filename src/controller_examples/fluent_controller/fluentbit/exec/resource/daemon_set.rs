@@ -227,6 +227,10 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
                     volume_mount
                 });
+                if fb.spec().volume_mounts().is_some() {
+                    let mut fb_volume_mounts = fb.spec().volume_mounts().unwrap();
+                    volume_mounts.append(&mut fb_volume_mounts);
+                }
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
@@ -316,6 +320,10 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             });
             volume
         });
+        if fb.spec().volumes().is_some() {
+            let mut fb_volumes = fb.spec().volumes().unwrap();
+            volumes.append(&mut fb_volumes);
+        }
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),

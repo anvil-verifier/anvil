@@ -117,33 +117,40 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
         init_containers: if fb.spec.init_containers.is_Some() { fb.spec.init_containers } else {
                 PodSpecView::default().init_containers
             },
-        volumes: Some(seq![
-            VolumeView::default()
-                .set_name(new_strlit("varlibcontainers")@)
-                .set_host_path(HostPathVolumeSourceView::default()
-                    .set_path(new_strlit("/containers")@)
-                ),
-            VolumeView::default()
-                .set_name(new_strlit("config")@)
-                .set_secret(SecretVolumeSourceView::default()
-                    .set_secret_name(fb.spec.fluentbit_config_name)
-                ),
-            VolumeView::default()
-                .set_name(new_strlit("varlogs")@)
-                .set_host_path(HostPathVolumeSourceView::default()
-                    .set_path(new_strlit("/var/log")@)
-                ),
-            VolumeView::default()
-                .set_name(new_strlit("systemd")@)
-                .set_host_path(HostPathVolumeSourceView::default()
-                    .set_path(new_strlit("/var/log/journal")@)
-                ),
-            VolumeView::default()
-                .set_name(new_strlit("positions")@)
-                .set_host_path(HostPathVolumeSourceView::default()
-                    .set_path(new_strlit("/var/lib/fluent-bit/")@)
-                ),
-        ]),
+        volumes: Some({
+            let volumes = seq![
+                VolumeView::default()
+                    .set_name(new_strlit("varlibcontainers")@)
+                    .set_host_path(HostPathVolumeSourceView::default()
+                        .set_path(new_strlit("/containers")@)
+                    ),
+                VolumeView::default()
+                    .set_name(new_strlit("config")@)
+                    .set_secret(SecretVolumeSourceView::default()
+                        .set_secret_name(fb.spec.fluentbit_config_name)
+                    ),
+                VolumeView::default()
+                    .set_name(new_strlit("varlogs")@)
+                    .set_host_path(HostPathVolumeSourceView::default()
+                        .set_path(new_strlit("/var/log")@)
+                    ),
+                VolumeView::default()
+                    .set_name(new_strlit("systemd")@)
+                    .set_host_path(HostPathVolumeSourceView::default()
+                        .set_path(new_strlit("/var/log/journal")@)
+                    ),
+                VolumeView::default()
+                    .set_name(new_strlit("positions")@)
+                    .set_host_path(HostPathVolumeSourceView::default()
+                        .set_path(new_strlit("/var/lib/fluent-bit/")@)
+                    ),
+            ];
+            if fb.spec.volumes.is_Some() {
+                volumes + fb.spec.volumes.get_Some_0()
+            } else {
+                volumes
+            }
+        }),
         containers: seq![
             ContainerView {
                 name: new_strlit("fluent-bit")@,
@@ -160,40 +167,48 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 readiness_probe: if fb.spec.readiness_probe.is_Some() { 
                         fb.spec.readiness_probe 
                     } else { ContainerView::default().readiness_probe },
-                volume_mounts: Some(seq![
-                    VolumeMountView {
-                        name: new_strlit("varlibcontainers")@,
-                        read_only: Some(true),
-                        mount_path: new_strlit("/containers")@,
-                        mount_propagation: fb.spec.internal_mount_propagation,
-                        ..VolumeMountView::default()
-                    },
-                    VolumeMountView {
-                        name: new_strlit("config")@,
-                        read_only: Some(true),
-                        mount_path: new_strlit("/fluent-bit/config")@,
-                        ..VolumeMountView::default()
-                    },
-                    VolumeMountView {
-                        name: new_strlit("varlogs")@,
-                        read_only: Some(true),
-                        mount_path: new_strlit("/var/log/")@,
-                        mount_propagation: fb.spec.internal_mount_propagation,
-                        ..VolumeMountView::default()
-                    },
-                    VolumeMountView {
-                        name: new_strlit("systemd")@,
-                        read_only: Some(true),
-                        mount_path: new_strlit("/var/log/journal")@,
-                        mount_propagation: fb.spec.internal_mount_propagation,
-                        ..VolumeMountView::default()
-                    },
-                    VolumeMountView {
-                        name: new_strlit("positions")@,
-                        mount_path: new_strlit("/fluent-bit/tail")@,
-                        ..VolumeMountView::default()
-                    },
-                ]),
+                volume_mounts: Some({
+                    let volume_mounts = seq![
+                        VolumeMountView {
+                            name: new_strlit("varlibcontainers")@,
+                            read_only: Some(true),
+                            mount_path: new_strlit("/containers")@,
+                            mount_propagation: fb.spec.internal_mount_propagation,
+                            ..VolumeMountView::default()
+                        },
+                        VolumeMountView {
+                            name: new_strlit("config")@,
+                            read_only: Some(true),
+                            mount_path: new_strlit("/fluent-bit/config")@,
+                            ..VolumeMountView::default()
+                        },
+                        VolumeMountView {
+                            name: new_strlit("varlogs")@,
+                            read_only: Some(true),
+                            mount_path: new_strlit("/var/log/")@,
+                            mount_propagation: fb.spec.internal_mount_propagation,
+                            ..VolumeMountView::default()
+                        },
+                        VolumeMountView {
+                            name: new_strlit("systemd")@,
+                            read_only: Some(true),
+                            mount_path: new_strlit("/var/log/journal")@,
+                            mount_propagation: fb.spec.internal_mount_propagation,
+                            ..VolumeMountView::default()
+                        },
+                        VolumeMountView {
+                            name: new_strlit("positions")@,
+                            mount_path: new_strlit("/fluent-bit/tail")@,
+                            ..VolumeMountView::default()
+                        },
+                    ];
+                    if fb.spec.volume_mounts.is_Some() {
+                        volume_mounts + fb.spec.volume_mounts.get_Some_0()
+                    } else {
+                        volume_mounts
+                    }
+                }
+                    ),
                 ports: Some(seq![
                     ContainerPortView::default()
                         .set_name(new_strlit("metrics")@)

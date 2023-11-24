@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
     owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
+    volume::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
@@ -221,6 +222,30 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn volumes(&self) -> (volumes: Option<Vec<Volume>>)
+        ensures
+            self@.volumes.is_Some() == volumes.is_Some(),
+            volumes.is_Some() ==> volumes.get_Some_0()@.map_values(|v: Volume| v@) == self@.volumes.get_Some_0(),
+    {
+        match &self.inner.volumes {
+            Some(volumes) => Some(volumes.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::Volume| Volume::from_kube(v)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn volume_mounts(&self) -> (volume_mounts: Option<Vec<VolumeMount>>)
+        ensures
+            self@.volume_mounts.is_Some() == volume_mounts.is_Some(),
+            volume_mounts.is_Some() ==> volume_mounts.get_Some_0()@.map_values(|v: VolumeMount| v@) == self@.volume_mounts.get_Some_0(),
+    {
+        match &self.inner.volume_mounts {
+            Some(volume_mounts) => Some(volume_mounts.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::VolumeMount| VolumeMount::from_kube(v)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn scheduler_name(&self) -> (scheduler_name: Option<String>)
         ensures opt_string_to_view(&scheduler_name) == self@.scheduler_name,
     {
@@ -357,7 +382,7 @@ impl FluentBitSpec {
             init_containers.is_Some() ==> init_containers.get_Some_0()@.map_values(|c: Container| c@) == self@.init_containers.get_Some_0(),
     {
         match &self.inner.init_containers {
-            Some(secrets) => Some(secrets.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Container| Container::from_kube(t)).collect()),
+            Some(containers) => Some(containers.clone().into_iter().map(|c: deps_hack::k8s_openapi::api::core::v1::Container| Container::from_kube(c)).collect()),
             None => None,
         }
     }
