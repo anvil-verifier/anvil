@@ -140,7 +140,9 @@ pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<
     let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeExistsFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     println!("Checking existence of {} ...", &path_as_string);
-    match zk_client.exists(path_as_string.as_str(), false) {
+    let exist_result = zk_client.exists(path_as_string.as_str(), false);
+    zk_client.close();
+    match exist_result {
         Err(e) => Err(ZKAPIError::ZKNodeExistsFailed),
         Ok(o) => match o {
             Some(stat) => Ok(Some(stat.version)),
@@ -165,7 +167,9 @@ pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Creating {} {} ...", &path_as_string, &data_as_string);
-    match zk_client.create(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Acl::open_unsafe().to_vec(), CreateMode::Persistent) {
+    let create_result = zk_client.create(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Acl::open_unsafe().to_vec(), CreateMode::Persistent);
+    zk_client.close();
+    match create_result {
         Err(e) => match e {
             ZkError::NodeExists => Err(ZKAPIError::ZKNodeCreateAlreadyExists),
             _ => Err(ZKAPIError::ZKNodeCreateFailed),
@@ -190,7 +194,9 @@ pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Ve
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);
-    match zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version)) {
+    let set_result = zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version));
+    zk_client.close();
+    match set_result {
         Err(_) => Err(ZKAPIError::ZKNodeSetDataFailed),
         Ok(_) => Ok(()),
     }
