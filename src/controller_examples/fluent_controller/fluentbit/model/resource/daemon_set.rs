@@ -133,17 +133,29 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                     .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/var/log")@));
             let systemd_volume = VolumeView::default().set_name(new_strlit("systemd")@)
                     .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/var/log/journal")@));
-            let positions_volume = VolumeView::default().set_name(new_strlit("positions")@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/var/lib/fluent-bit/")@));
-            if !fb.spec.disable_log_volumes && fb.spec.volumes.is_Some() {
-                fb.spec.volumes.get_Some_0().push(config_volume).push(varlibcontainers_volume).push(varlogs_volume)
-                    .push(systemd_volume).push(positions_volume)
-            } else if !fb.spec.disable_log_volumes {
-                seq![config_volume, varlibcontainers_volume, varlogs_volume, systemd_volume, positions_volume]
-            } else if fb.spec.volumes.is_Some() {
-                fb.spec.volumes.get_Some_0().push(config_volume).push(positions_volume)
+            if fb.spec.position_db.is_Some() {
+                let positions_volume = VolumeView::default().set_name(new_strlit("positions")@)
+                    .set_host_path(fb.spec.position_db.get_Some_0());
+                if !fb.spec.disable_log_volumes && fb.spec.volumes.is_Some() {
+                    fb.spec.volumes.get_Some_0().push(config_volume).push(varlibcontainers_volume).push(varlogs_volume)
+                        .push(systemd_volume).push(positions_volume)
+                } else if !fb.spec.disable_log_volumes {
+                    seq![config_volume, varlibcontainers_volume, varlogs_volume, systemd_volume, positions_volume]
+                } else if fb.spec.volumes.is_Some() {
+                    fb.spec.volumes.get_Some_0().push(config_volume).push(positions_volume)
+                } else {
+                    seq![config_volume, positions_volume]
+                }
             } else {
-                seq![config_volume, positions_volume]
+                if !fb.spec.disable_log_volumes && fb.spec.volumes.is_Some() {
+                    fb.spec.volumes.get_Some_0().push(config_volume).push(varlibcontainers_volume).push(varlogs_volume).push(systemd_volume)
+                } else if !fb.spec.disable_log_volumes {
+                    seq![config_volume, varlibcontainers_volume, varlogs_volume, systemd_volume]
+                } else if fb.spec.volumes.is_Some() {
+                    fb.spec.volumes.get_Some_0().push(config_volume)
+                } else {
+                    seq![config_volume]
+                }
             }
         }),
         containers: seq![
@@ -198,20 +210,32 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                         mount_propagation: fb.spec.internal_mount_propagation,
                         ..VolumeMountView::default()
                     };
-                    let positions_vm = VolumeMountView {
-                        name: new_strlit("positions")@,
-                        mount_path: new_strlit("/fluent-bit/tail")@,
-                        ..VolumeMountView::default()
-                    };
-                    if !fb.spec.disable_log_volumes && fb.spec.volume_mounts.is_Some() {
-                        fb.spec.volume_mounts.get_Some_0().push(config_vm).push(varlibcontainers_vm).push(varlogs_vm)
-                            .push(systemd_vm).push(positions_vm)
-                    } else if !fb.spec.disable_log_volumes {
-                        seq![config_vm, varlibcontainers_vm, varlogs_vm, systemd_vm, positions_vm]
-                    } else if fb.spec.volume_mounts.is_Some() {
-                        fb.spec.volume_mounts.get_Some_0().push(config_vm).push(positions_vm)
+                    if fb.spec.position_db.is_Some() {
+                        let positions_vm = VolumeMountView {
+                            name: new_strlit("positions")@,
+                            mount_path: new_strlit("/fluent-bit/tail")@,
+                            ..VolumeMountView::default()
+                        };
+                        if !fb.spec.disable_log_volumes && fb.spec.volume_mounts.is_Some() {
+                            fb.spec.volume_mounts.get_Some_0().push(config_vm).push(varlibcontainers_vm).push(varlogs_vm)
+                                .push(systemd_vm).push(positions_vm)
+                        } else if !fb.spec.disable_log_volumes {
+                            seq![config_vm, varlibcontainers_vm, varlogs_vm, systemd_vm, positions_vm]
+                        } else if fb.spec.volume_mounts.is_Some() {
+                            fb.spec.volume_mounts.get_Some_0().push(config_vm).push(positions_vm)
+                        } else {
+                            seq![config_vm, positions_vm]
+                        }
                     } else {
-                        seq![config_vm, positions_vm]
+                        if !fb.spec.disable_log_volumes && fb.spec.volume_mounts.is_Some() {
+                            fb.spec.volume_mounts.get_Some_0().push(config_vm).push(varlibcontainers_vm).push(varlogs_vm).push(systemd_vm)
+                        } else if !fb.spec.disable_log_volumes {
+                            seq![config_vm, varlibcontainers_vm, varlogs_vm, systemd_vm]
+                        } else if fb.spec.volume_mounts.is_Some() {
+                            fb.spec.volume_mounts.get_Some_0().push(config_vm)
+                        } else {
+                            seq![config_vm]
+                        }
                     }
                 }),
                 ports: Some(seq![

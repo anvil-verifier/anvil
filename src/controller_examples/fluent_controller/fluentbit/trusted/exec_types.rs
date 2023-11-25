@@ -303,6 +303,18 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn position_db(&self) -> (position_db: Option<HostPathVolumeSource>)
+        ensures
+            position_db.is_Some() == self@.position_db.is_Some(),
+            position_db.is_Some() ==> position_db.get_Some_0()@ == self@.position_db.get_Some_0(),
+    {
+        match &self.inner.position_db {
+            Some(p) => Some(HostPathVolumeSource::from_kube(p.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn container_log_real_path(&self) -> (container_log_real_path: Option<String>)
         ensures opt_string_to_view(&container_log_real_path) == self@.container_log_real_path,
     {

@@ -232,12 +232,14 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                         volume_mount
                     });
                 }
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("positions").to_string());
-                    volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
-                    volume_mount
-                });
+                if fb.spec().position_db().is_some() {
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("positions").to_string());
+                        volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
+                        volume_mount
+                    });
+                }
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
@@ -330,16 +332,15 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 volume
             });
         }
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("positions").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/var/lib/fluent-bit/").to_string());
-                host_path
+        if fb.spec().position_db().is_some() {
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("positions").to_string());
+                volume.set_host_path(fb.spec().position_db().unwrap());
+                volume
             });
-            volume
-        });
+        }
+        
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),

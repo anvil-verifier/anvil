@@ -233,6 +233,8 @@ pub struct FluentBitSpec {
     pub metrics_port: Option<i32>,
     #[serde(rename = "internalMountPropagation")]
     pub internal_mount_propagation: Option<String>,
+    #[serde(rename = "positionDB")]
+    pub position_db: Option<k8s_openapi::api::core::v1::HostPathVolumeSource>,
     #[serde(rename = "containerLogRealPath")]
     pub container_log_real_path: Option<String>,
     #[serde(rename = "securityContext")]
