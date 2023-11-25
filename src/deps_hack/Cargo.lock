@@ -2192,9 +2192,9 @@ checksum = "525b4ec142c6b68a2d10f01f7bbf6755599ca3f81ea53b8431b7dd348f5fdb2d"
 
 [[package]]
 name = "zookeeper"
-version = "0.6.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4c33bece4e00dc8fbd92ad66a0b3f066940bdd075dd40635b555648f16d9e95"
+checksum = "2312b424380193701a7341cec0551b80d2e3afd827ea0d3440af67899156ce10"
 dependencies = [
  "byteorder",
  "bytes 0.5.6",
