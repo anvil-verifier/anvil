@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::spec::{
     affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
     owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
+    volume::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
@@ -147,19 +148,29 @@ pub struct FluentBitSpecView {
     pub tolerations: Option<Seq<TolerationView>>,
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
+    pub service_account_annotations: Map<StringView, StringView>,
+    pub service_labels: Map<StringView, StringView>,
+    pub service_annotations: Map<StringView, StringView>,
     pub affinity: Option<AffinityView>,
+    pub disable_log_volumes: bool,
     pub node_selector: Map<StringView, StringView>,
     pub runtime_class_name: Option<StringView>,
     pub dns_policy: Option<StringView>,
     pub priority_class_name: Option<StringView>,
+    pub volumes: Option<Seq<VolumeView>>,
+    pub volume_mounts: Option<Seq<VolumeMountView>>,
     pub scheduler_name: Option<StringView>,
     pub metrics_port: Option<int>,
     pub internal_mount_propagation: Option<StringView>,
+    pub position_db: Option<HostPathVolumeSourceView>,
+    pub container_log_real_path: Option<StringView>,
     pub security_context: Option<PodSecurityContextView>,
+    pub container_security_context: Option<SecurityContextView>,
     pub host_network: Option<bool>,
     pub env_vars: Option<Seq<EnvVarView>>,
     pub liveness_probe: Option<ProbeView>,
     pub readiness_probe: Option<ProbeView>,
+    pub init_containers: Option<Seq<ContainerView>>,
 }
 
 }

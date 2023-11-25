@@ -207,7 +207,15 @@ pub struct FluentBitSpec {
     pub labels: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,
+    #[serde(default, rename = "serviceAccountAnnotations")]
+    pub service_account_annotations: std::collections::BTreeMap<String, String>,
+    #[serde(default, rename = "serviceLabels")]
+    pub service_labels: std::collections::BTreeMap<String, String>,
+    #[serde(default, rename = "serviceAnnotations")]
+    pub service_annotations: std::collections::BTreeMap<String, String>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
+    #[serde(default, rename = "disableLogVolumes")]
+    pub disable_log_volumes: bool,
     #[serde(default, rename = "nodeSelector")]
     pub node_selector: std::collections::BTreeMap<String, String>,
     #[serde(rename = "runtimeClassName")]
@@ -216,14 +224,23 @@ pub struct FluentBitSpec {
     pub dns_policy: Option<String>,
     #[serde(rename = "priorityClassName")]
     pub priority_class_name: Option<String>,
+    pub volumes: Option<Vec<k8s_openapi::api::core::v1::Volume>>,
+    #[serde(rename = "volumeMounts")]
+    pub volume_mounts: Option<Vec<k8s_openapi::api::core::v1::VolumeMount>>,
     #[serde(rename = "schedulerName")]
     pub scheduler_name: Option<String>,
     #[serde(rename = "metricsPort")]
     pub metrics_port: Option<i32>,
     #[serde(rename = "internalMountPropagation")]
     pub internal_mount_propagation: Option<String>,
+    #[serde(rename = "positionDB")]
+    pub position_db: Option<k8s_openapi::api::core::v1::HostPathVolumeSource>,
+    #[serde(rename = "containerLogRealPath")]
+    pub container_log_real_path: Option<String>,
     #[serde(rename = "securityContext")]
     pub security_context: Option<k8s_openapi::api::core::v1::PodSecurityContext>,
+    #[serde(rename = "containerSecurityContext")]
+    pub container_security_context: Option<k8s_openapi::api::core::v1::SecurityContext>,
     #[serde(rename = "hostNetwork")]
     pub host_network: Option<bool>,
     #[serde(rename = "envVars")]
@@ -232,6 +249,8 @@ pub struct FluentBitSpec {
     pub liveness_probe: Option<k8s_openapi::api::core::v1::Probe>,
     #[serde(rename = "readinessProbe")]
     pub readiness_probe: Option<k8s_openapi::api::core::v1::Probe>,
+    #[serde(rename = "initContainers")]
+    pub init_containers: Option<Vec<k8s_openapi::api::core::v1::Container>>,
 }
 
 #[derive(

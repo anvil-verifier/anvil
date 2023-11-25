@@ -147,6 +147,7 @@ pub fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
     daemon_set
 }
 
+#[verifier(spinoff_prover)]
 fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     requires
         fb@.well_formed(),
@@ -156,6 +157,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
     pod_spec.set_service_account_name(fb.metadata().name().unwrap());
     if fb.spec().image_pull_secrets().is_some() {
         pod_spec.set_image_pull_secrets(fb.spec().image_pull_secrets().unwrap());
+    }
+    if fb.spec().init_containers().is_some() {
+        pod_spec.set_init_containers(fb.spec().init_containers().unwrap());
     }
     pod_spec.set_containers({
         let mut containers = Vec::new();
@@ -186,15 +190,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 fb_container.set_readiness_probe(fb.spec().readiness_probe().unwrap())
             }
             fb_container.set_volume_mounts({
-                let mut volume_mounts = Vec::new();
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("varlibcontainers").to_string());
-                    volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/containers").to_string());
-                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
-                    volume_mount
-                });
+                let mut volume_mounts = if fb.spec().volume_mounts().is_some() {
+                        fb.spec().volume_mounts().unwrap()
+                    } else {
+                        Vec::new()
+                    };
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("config").to_string());
@@ -202,28 +202,44 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     volume_mount.set_mount_path(new_strlit("/fluent-bit/config").to_string());
                     volume_mount
                 });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("varlogs").to_string());
-                    volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
-                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
-                    volume_mount
-                });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("systemd").to_string());
-                    volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
-                    volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
-                    volume_mount
-                });
-                volume_mounts.push({
-                    let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("positions").to_string());
-                    volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
-                    volume_mount
-                });
+                if !fb.spec().disable_log_volumes() {
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("varlibcontainers").to_string());
+                        volume_mount.set_read_only(true);
+                        if fb.spec().container_log_real_path().is_some() {
+                            volume_mount.set_mount_path(fb.spec().container_log_real_path().unwrap());
+                        } else {
+                            volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                        }
+                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        volume_mount
+                    });
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("varlogs").to_string());
+                        volume_mount.set_read_only(true);
+                        volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
+                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        volume_mount
+                    });
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("systemd").to_string());
+                        volume_mount.set_read_only(true);
+                        volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
+                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        volume_mount
+                    });
+                }
+                if fb.spec().position_db().is_some() {
+                    volume_mounts.push({
+                        let mut volume_mount = VolumeMount::default();
+                        volume_mount.set_name(new_strlit("positions").to_string());
+                        volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
+                        volume_mount
+                    });
+                }
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
@@ -251,6 +267,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             if fb.spec().command().is_some() {
                 fb_container.set_command(fb.spec().command().unwrap());
             }
+            if fb.spec().container_security_context().is_some() {
+                fb_container.set_security_context(fb.spec().container_security_context().unwrap());
+            }
             fb_container
         });
         proof {
@@ -262,17 +281,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes({
-        let mut volumes = Vec::new();
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("varlibcontainers").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/containers").to_string());
-                host_path
-            });
-            volume
-        });
+        let mut volumes = if fb.spec().volumes().is_some() {
+                fb.spec().volumes().unwrap()
+            } else {
+                Vec::new()
+            };
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("config").to_string());
@@ -283,36 +296,51 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             });
             volume
         });
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("varlogs").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/var/log").to_string());
-                host_path
+        if !fb.spec().disable_log_volumes() {
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("varlibcontainers").to_string());
+                volume.set_host_path({
+                    let mut host_path = HostPathVolumeSource::default();
+                    if fb.spec().container_log_real_path().is_some() {
+                        host_path.set_path(fb.spec().container_log_real_path().unwrap());
+                    } else {
+                        host_path.set_path(new_strlit("/containers").to_string());
+                    }
+                    host_path
+                });
+                volume
             });
-            volume
-        });
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("systemd").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/var/log/journal").to_string());
-                host_path
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("varlogs").to_string());
+                volume.set_host_path({
+                    let mut host_path = HostPathVolumeSource::default();
+                    host_path.set_path(new_strlit("/var/log").to_string());
+                    host_path
+                });
+                volume
             });
-            volume
-        });
-        volumes.push({
-            let mut volume = Volume::default();
-            volume.set_name(new_strlit("positions").to_string());
-            volume.set_host_path({
-                let mut host_path = HostPathVolumeSource::default();
-                host_path.set_path(new_strlit("/var/lib/fluent-bit/").to_string());
-                host_path
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("systemd").to_string());
+                volume.set_host_path({
+                    let mut host_path = HostPathVolumeSource::default();
+                    host_path.set_path(new_strlit("/var/log/journal").to_string());
+                    host_path
+                });
+                volume
             });
-            volume
-        });
+        }
+        if fb.spec().position_db().is_some() {
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("positions").to_string());
+                volume.set_host_path(fb.spec().position_db().unwrap());
+                volume
+            });
+        }
+        
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),

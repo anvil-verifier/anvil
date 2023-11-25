@@ -25,6 +25,13 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
+    pub fn len(&self) -> (len: usize)
+        ensures len == self@.len(),
+    {
+        self.inner.len()
+    }
+
+    #[verifier(external_body)]
     pub fn clone(&self) -> (m: Self)
         ensures m@ == self@,
     {

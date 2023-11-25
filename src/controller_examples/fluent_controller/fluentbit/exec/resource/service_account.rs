@@ -109,7 +109,7 @@ pub fn make_service_account(fb: &FluentBit) -> (service_account: ServiceAccount)
         metadata.set_name(make_service_account_name(fb));
         metadata.set_owner_references(make_owner_references(fb));
         metadata.set_labels(make_labels(fb));
-        metadata.set_annotations(fb.spec().annotations());
+        metadata.set_annotations(fb.spec().service_account_annotations());
         metadata
     });
     service_account

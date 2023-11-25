@@ -119,8 +119,13 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_service_name(fb));
         metadata.set_owner_references(make_owner_references(fb));
-        metadata.set_labels(make_labels(fb));
-        metadata.set_annotations(fb.spec().annotations());
+        metadata.set_labels({
+            if fb.spec().service_labels().len() > 0 {
+                fb.spec().service_labels()
+            } else { make_labels(fb) }
+        });
+        metadata.set_annotations(fb.spec().service_annotations());
+
         metadata
     });
     service.set_spec({

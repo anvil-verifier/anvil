@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
     owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
+    volume::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
@@ -172,6 +173,27 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn service_account_annotations(&self) -> (service_account_annotations: StringMap)
+        ensures service_account_annotations@ == self@.service_account_annotations,
+    {
+        StringMap::from_rust_map(self.inner.service_account_annotations.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn service_labels(&self) -> (service_labels: StringMap)
+        ensures service_labels@ == self@.service_labels,
+    {
+        StringMap::from_rust_map(self.inner.service_labels.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn service_annotations(&self) -> (service_annotations: StringMap)
+        ensures service_annotations@ == self@.service_annotations,
+    {
+        StringMap::from_rust_map(self.inner.service_annotations.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn affinity(&self) -> (affinity: Option<Affinity>)
         ensures
             self@.affinity.is_Some() == affinity.is_Some(),
@@ -181,6 +203,13 @@ impl FluentBitSpec {
             Some(a) => Some(Affinity::from_kube(a.clone())),
             None => None,
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn disable_log_volumes(&self) -> (disable_log_volumes: bool)
+        ensures disable_log_volumes == self@.disable_log_volumes,
+    {
+        self.inner.disable_log_volumes
     }
 
     #[verifier(external_body)]
@@ -221,6 +250,30 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn volumes(&self) -> (volumes: Option<Vec<Volume>>)
+        ensures
+            self@.volumes.is_Some() == volumes.is_Some(),
+            volumes.is_Some() ==> volumes.get_Some_0()@.map_values(|v: Volume| v@) == self@.volumes.get_Some_0(),
+    {
+        match &self.inner.volumes {
+            Some(volumes) => Some(volumes.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::Volume| Volume::from_kube(v)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn volume_mounts(&self) -> (volume_mounts: Option<Vec<VolumeMount>>)
+        ensures
+            self@.volume_mounts.is_Some() == volume_mounts.is_Some(),
+            volume_mounts.is_Some() ==> volume_mounts.get_Some_0()@.map_values(|v: VolumeMount| v@) == self@.volume_mounts.get_Some_0(),
+    {
+        match &self.inner.volume_mounts {
+            Some(volume_mounts) => Some(volume_mounts.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::VolumeMount| VolumeMount::from_kube(v)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn scheduler_name(&self) -> (scheduler_name: Option<String>)
         ensures opt_string_to_view(&scheduler_name) == self@.scheduler_name,
     {
@@ -250,6 +303,28 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn position_db(&self) -> (position_db: Option<HostPathVolumeSource>)
+        ensures
+            position_db.is_Some() == self@.position_db.is_Some(),
+            position_db.is_Some() ==> position_db.get_Some_0()@ == self@.position_db.get_Some_0(),
+    {
+        match &self.inner.position_db {
+            Some(p) => Some(HostPathVolumeSource::from_kube(p.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn container_log_real_path(&self) -> (container_log_real_path: Option<String>)
+        ensures opt_string_to_view(&container_log_real_path) == self@.container_log_real_path,
+    {
+        match &self.inner.container_log_real_path {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn security_context(&self) -> (security_context: Option<PodSecurityContext>)
         ensures
             security_context.is_Some() == self@.security_context.is_Some(),
@@ -257,6 +332,18 @@ impl FluentBitSpec {
     {
         match &self.inner.security_context {
             Some(s) => Some(PodSecurityContext::from_kube(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn container_security_context(&self) -> (container_security_context: Option<SecurityContext>)
+        ensures
+            container_security_context.is_Some() == self@.container_security_context.is_Some(),
+            container_security_context.is_Some() ==> container_security_context.get_Some_0()@ == self@.container_security_context.get_Some_0(),
+    {
+        match &self.inner.container_security_context {
+            Some(s) => Some(SecurityContext::from_kube(s.clone())),
             None => None,
         }
     }
@@ -346,6 +433,18 @@ impl FluentBitSpec {
     {
         match &self.inner.readiness_probe {
             Some(s) => Some(Probe::from_kube(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn init_containers(&self) -> (init_containers: Option<Vec<Container>>)
+        ensures
+            self@.init_containers.is_Some() == init_containers.is_Some(),
+            init_containers.is_Some() ==> init_containers.get_Some_0()@.map_values(|c: Container| c@) == self@.init_containers.get_Some_0(),
+    {
+        match &self.inner.init_containers {
+            Some(containers) => Some(containers.clone().into_iter().map(|c: deps_hack::k8s_openapi::api::core::v1::Container| Container::from_kube(c)).collect()),
             None => None,
         }
     }
