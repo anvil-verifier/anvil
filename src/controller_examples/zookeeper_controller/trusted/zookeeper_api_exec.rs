@@ -141,7 +141,7 @@ pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     println!("Checking existence of {} ...", &path_as_string);
     let exist_result = zk_client.exists(path_as_string.as_str(), false);
-    zk_client.drop();
+    let _ = zk_client.close();
     match exist_result {
         Err(e) => Err(ZKAPIError::ZKNodeExistsFailed),
         Ok(o) => match o {
@@ -168,7 +168,7 @@ pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<
     let data_as_string = data.into_rust_string();
     println!("Creating {} {} ...", &path_as_string, &data_as_string);
     let create_result = zk_client.create(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Acl::open_unsafe().to_vec(), CreateMode::Persistent);
-    zk_client.drop();
+    let _ = zk_client.close();
     match create_result {
         Err(e) => match e {
             ZkError::NodeExists => Err(ZKAPIError::ZKNodeCreateAlreadyExists),
@@ -195,7 +195,7 @@ pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Ve
     let data_as_string = data.into_rust_string();
     println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);
     let set_result = zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version));
-    zk_client.drop();
+    let _ = zk_client.close();
     match set_result {
         Err(_) => Err(ZKAPIError::ZKNodeSetDataFailed),
         Ok(_) => Ok(()),
