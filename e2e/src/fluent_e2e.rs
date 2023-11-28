@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::core::v1::{Pod, ServiceAccount, Serivce};
+use k8s_openapi::api::core::v1::{Pod, ServiceAccount, Service};
 use k8s_openapi::api::rbac::v1::RoleBinding;
 use k8s_openapi::api::{apps::v1::DaemonSet, rbac::v1::Role};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
@@ -120,6 +120,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         // Check daemon set
         let role_api: Api<Role> = Api::default_namespaced(client.clone());
         let rb_api: Api<RoleBinding> = Api::default_namespaced(client.clone());
+        let svc_api: Api<Service> = Api::default_namespaced(client.clone());
         let sa_api: Api<ServiceAccount> = Api::default_namespaced(client.clone());
         let ds_api: Api<DaemonSet> = Api::default_namespaced(client.clone());
 
@@ -149,6 +150,15 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
             }
             _ => {}
         };
+
+        let svc = svc_api.get(&fb_name).await;
+        match svc {
+            Err(e) => {
+                println!("Get service failed with error {}.", e);
+                continue;
+            }
+            => {}
+        }
 
         let ds = ds_api.get(&fb_name).await;
         match ds {
