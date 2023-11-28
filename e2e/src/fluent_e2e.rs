@@ -274,6 +274,59 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
     Ok(())
 }
 
+pub async fn service_selector_test(client: Client, fb_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let svc_api: Api<Service> = Api::default_namespaced(client.clone());
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "fb",
+            "fluent-bit",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"add\", \"path\": \"/spec/serviceSelector/never-match-anything\", \"value\": \"val\"}]",
+        ],
+        "failed to set service selector to fb",
+    );
+
+    // Sleep for extra 5 seconds to ensure the upgrading has started
+    sleep(Duration::from_secs(5)).await;
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        // Check daemon set
+        let svc = ds_api.get(&fb_name).await;
+        match svc {
+            Err(e) => {
+                println!("Get service failed with error {}.", e);
+                continue;
+            }
+            Ok(svc) => {
+                if !svc
+                    .spec
+                    .as_ref()
+                    .unwrap()
+                    .selector
+                    .as_ref()
+                    .unwrap()
+                    .contains_key("never-match-anything")
+                {
+                    println!("Selector for service is not updated yet");
+                    continue;
+                }
+            }
+        };
+    }
+
+    println!("Service selector test passed.");
+    Ok(())
+}
+
 pub async fn fluent_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
@@ -296,6 +349,7 @@ pub async fn fluent_e2e_test() -> Result<(), Error> {
 
     desired_state_test(client.clone(), fb_name.clone()).await?;
     relabel_test(client.clone(), fb_name.clone()).await?;
+    service_selector_test(client.clone(), fb_name.clone()).await?;
 
     println!("E2e test passed.");
     Ok(())
