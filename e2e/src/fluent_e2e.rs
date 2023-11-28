@@ -35,6 +35,10 @@ pub fn fluent_bit() -> String {
         image: kubesphere/fluent-bit:v2.1.7
         tolerations:
             - operator: Exists
+        ports:
+            - name: forward
+              containerPort: 24224
+              protocol: TCP
     "
     .to_string()
 }
