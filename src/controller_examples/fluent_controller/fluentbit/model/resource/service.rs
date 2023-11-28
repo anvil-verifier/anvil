@@ -101,8 +101,8 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
             ..ObjectMetaView::default()
         },
         spec: Some(ServiceSpecView {
-            ports: Some(seq![
-                ServicePortView {
+            ports: {
+                let metrics_port = ServicePortView {
                     name: Some(new_strlit("metrics")@),
                     port: if fb.spec.metrics_port.is_Some() {
                         fb.spec.metrics_port.get_Some_0()
@@ -110,12 +110,26 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
                         2020
                     },
                     ..ServicePortView::default()
+                };
+                if fb.spec.ports.is_Some() {
+                    Some(fb.spec.ports.get_Some_0().map_values(|p: ContainerPortView| make_service_port(p)).push(metrics_port))
+                } else {
+                    Some(seq![metrics_port])
                 }
-            ]),
+            },
             selector: Some(make_base_labels(fb)),
             ..ServiceSpecView::default()
         }),
         ..ServiceView::default()
+    }
+}
+
+pub open spec fn make_service_port(port: ContainerPortView) -> ServicePortView {
+    ServicePortView {
+        port: port.container_port,
+        name: if port.name.is_Some() { port.name } else { ServicePortView::default().name },
+        protocol: if port.protocol.is_Some() { port.protocol } else { ServicePortView::default().protocol },
+        ..ServicePortView::default()
     }
 }
 
