@@ -85,7 +85,6 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
                 &&& obj.metadata.labels == M::make_service(fb).metadata.labels
                 &&& obj.metadata.annotations == M::make_service(fb).metadata.annotations
             }
-            
         },
         SubResource::DaemonSet => {
             let key = M::make_daemon_set_key(fb);
