@@ -300,7 +300,7 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
         }
 
         // Check daemon set
-        let svc = ds_api.get(&fb_name).await;
+        let svc = svc_api.get(&fb_name).await;
         match svc {
             Err(e) => {
                 println!("Get service failed with error {}.", e);
