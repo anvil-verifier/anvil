@@ -12,7 +12,6 @@ use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
-use crate::kubernetes_api_objects::spec::{container::*, service::*};
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
@@ -392,58 +391,6 @@ fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
         assert_seqs_equal!(env_vars@.map_values(|v: EnvVar| v@), model_resource::make_env(fb@));
     }
     env_vars
-}
-
-pub open spec fn make_service_port(port: ContainerPortView) -> ServicePortView {
-    ServicePortView {
-        port: port.container_port,
-        ..ServicePortView::default()
-    }
-}
-
-fn make_new_ports(ports: Vec<ContainerPort>) -> (service_ports: Vec<ServicePort>)
-    ensures service_ports@.map_values(|p: ServicePort| p@) == ports@.map_values(|p: ContainerPort| make_service_port(p@)),
-{
-    let mut service_ports = Vec::new();
-    let mut i = 0;
-    proof {
-        assert_seqs_equal!(
-            service_ports@.map_values(|p: ServicePort| p@),
-            Seq::new(i as nat, |k: int| make_service_port(ports[k]@))
-        );
-    }
-    while i < ports.len()
-        invariant
-            i <= ports@.len(),
-            service_ports@.map_values(|p: ServicePort| p@) == Seq::new(i as nat, |k: int| make_service_port(ports[k]@)),
-        ensures
-            service_ports@.map_values(|p: ServicePort| p@) == Seq::new(ports@.len(), |k: int| make_service_port(ports[k]@)),
-    {
-        let port = &ports[i];
-        let mut service_port = ServicePort::default();
-        service_port.set_port(port.container_port());
-        service_ports.push(service_port);
-        proof {
-            assert(service_port@ == make_service_port(port@));
-            assert_seqs_equal!(
-                service_ports@.map_values(|p: ServicePort| p@),
-                Seq::new(i as nat, |k: int| make_service_port(ports[k]@)).push(service_port@)
-            );
-            assert_seqs_equal!(
-                Seq::new(i as nat, |k: int| make_service_port(ports[k]@)).push(service_port@),
-                Seq::new((i + 1) as nat, |k: int| make_service_port(ports[k]@))
-            );
-        }
-        i = i + 1;
-    }
-    proof {
-        assert_seqs_equal!(
-            ports@.map_values(|p: ContainerPort| make_service_port(p@)),
-            Seq::new(ports@.len(), |k: int| make_service_port(ports[k]@))
-        );
-    }
-    
-    service_ports
 }
 
 }
