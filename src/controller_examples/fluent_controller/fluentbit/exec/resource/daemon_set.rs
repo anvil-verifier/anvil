@@ -249,7 +249,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 volume_mounts
             });
             fb_container.set_ports({
-                let mut ports = Vec::new();
+                let mut ports = if fb.spec().ports().is_some() {
+                        fb.spec().ports().unwrap()
+                    } else {
+                        Vec::new()
+                    };
                 let metrics_port = if fb.spec().metrics_port().is_some() { fb.spec().metrics_port().unwrap() } else { 2020 };
                 ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), metrics_port));
                 proof {
@@ -340,7 +344,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 volume
             });
         }
-        
+
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),
@@ -388,6 +392,5 @@ fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
     }
     env_vars
 }
-
 
 }

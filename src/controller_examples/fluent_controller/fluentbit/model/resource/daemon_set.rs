@@ -238,14 +238,19 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                         }
                     }
                 }),
-                ports: Some(seq![
-                    ContainerPortView::default()
+                ports: {
+                    let metrics_port = ContainerPortView::default()
                         .set_name(new_strlit("metrics")@)
                         .set_container_port({
                             let port = if fb.spec.metrics_port.is_Some() { fb.spec.metrics_port.get_Some_0() } else { 2020 };
                             port
-                        }),
-                ]),
+                        });
+                    if fb.spec.ports.is_Some() {
+                        Some(fb.spec.ports.get_Some_0().push(metrics_port))
+                    } else {
+                        Some(seq![metrics_port])
+                    }
+                },
                 resources: fb.spec.resources,
                 args: if fb.spec.args.is_Some() {
                         fb.spec.args

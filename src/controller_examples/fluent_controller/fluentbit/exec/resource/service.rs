@@ -131,17 +131,25 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
     service.set_spec({
         let mut service_spec = ServiceSpec::default();
         service_spec.set_ports({
-            let mut ports = Vec::new();
-            ports.push({
-                let mut port = ServicePort::default();
-                port.set_name(new_strlit("metrics").to_string());
-                if fb.spec().metrics_port().is_some() {
-                    port.set_port(fb.spec().metrics_port().unwrap());
+            let mut ports = if fb.spec().ports().is_some() {
+                    make_new_ports(fb.spec().ports().unwrap())
                 } else {
-                    port.set_port(2020);
-                }
-                port
-            });
+                    Vec::new()
+                };
+            let mut port = ServicePort::default();
+            port.set_name(new_strlit("metrics").to_string());
+            if fb.spec().metrics_port().is_some() {
+                port.set_port(fb.spec().metrics_port().unwrap());
+            } else {
+                port.set_port(2020);
+            }
+            proof {
+                assert_seqs_equal!(
+                    ports@.map_values(|port: ServicePort| port@).push(port@),
+                    model_resource::make_service(fb@).spec.get_Some_0().ports.get_Some_0()
+                );
+            }
+            ports.push(port);
             proof {
                 assert_seqs_equal!(
                     ports@.map_values(|port: ServicePort| port@),
@@ -154,6 +162,57 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
         service_spec
     });
     service
+}
+
+fn make_new_ports(ports: Vec<ContainerPort>) -> (service_ports: Vec<ServicePort>)
+    ensures service_ports@.map_values(|p: ServicePort| p@) == ports@.map_values(|p: ContainerPort| model_resource::make_service_port(p@)),
+{
+    let mut service_ports = Vec::new();
+    let mut i = 0;
+    proof {
+        assert_seqs_equal!(
+            service_ports@.map_values(|p: ServicePort| p@),
+            Seq::new(i as nat, |k: int| model_resource::make_service_port(ports[k]@))
+        );
+    }
+    while i < ports.len()
+        invariant
+            i <= ports@.len(),
+            service_ports@.map_values(|p: ServicePort| p@) == Seq::new(i as nat, |k: int| model_resource::make_service_port(ports[k]@)),
+        ensures
+            service_ports@.map_values(|p: ServicePort| p@) == Seq::new(ports@.len(), |k: int| model_resource::make_service_port(ports[k]@)),
+    {
+        let port = &ports[i];
+        let mut service_port = ServicePort::default();
+        service_port.set_port(port.container_port());
+        if port.name().is_some() {
+            service_port.set_name(port.name().unwrap());
+        }
+        if port.protocol().is_some() {
+            service_port.set_protocol(port.protocol().unwrap());
+        }
+        service_ports.push(service_port);
+        proof {
+            assert(service_port@ == model_resource::make_service_port(port@));
+            assert_seqs_equal!(
+                service_ports@.map_values(|p: ServicePort| p@),
+                Seq::new(i as nat, |k: int| model_resource::make_service_port(ports[k]@)).push(service_port@)
+            );
+            assert_seqs_equal!(
+                Seq::new(i as nat, |k: int| model_resource::make_service_port(ports[k]@)).push(service_port@),
+                Seq::new((i + 1) as nat, |k: int| model_resource::make_service_port(ports[k]@))
+            );
+        }
+        i = i + 1;
+    }
+    proof {
+        assert_seqs_equal!(
+            ports@.map_values(|p: ContainerPort| model_resource::make_service_port(p@)),
+            Seq::new(ports@.len(), |k: int| model_resource::make_service_port(ports[k]@))
+        );
+    }
+    
+    service_ports
 }
 
 }

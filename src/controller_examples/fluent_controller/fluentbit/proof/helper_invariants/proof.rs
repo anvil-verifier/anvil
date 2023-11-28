@@ -175,6 +175,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)));
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn make_fluentbit_pod_spec_determined_by_spec_and_name(fb1: FluentBitView, fb2: FluentBitView)
     requires 
         fb1.metadata.name.get_Some_0() == fb2.metadata.name.get_Some_0(),

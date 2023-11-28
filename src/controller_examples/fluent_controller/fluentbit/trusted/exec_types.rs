@@ -448,6 +448,18 @@ impl FluentBitSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn ports(&self) -> (ports: Option<Vec<ContainerPort>>)
+        ensures
+            self@.ports.is_Some() == ports.is_Some(),
+            ports.is_Some() ==> ports.get_Some_0()@.map_values(|c: ContainerPort| c@) == self@.ports.get_Some_0(),
+    {
+        match &self.inner.ports {
+            Some(ports) => Some(ports.clone().into_iter().map(|c: deps_hack::k8s_openapi::api::core::v1::ContainerPort| ContainerPort::from_kube(c)).collect()),
+            None => None,
+        }
+    }
 }
 
 }
