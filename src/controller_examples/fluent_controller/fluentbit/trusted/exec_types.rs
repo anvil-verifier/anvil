@@ -213,6 +213,13 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn disable_service(&self) -> (disable_service: bool)
+        ensures disable_service == self@.disable_service,
+    {
+        self.inner.disable_service
+    }
+
+    #[verifier(external_body)]
     pub fn node_selector(&self) -> (node_selector: StringMap)
         ensures node_selector@ == self@.node_selector,
     {

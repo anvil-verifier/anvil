@@ -590,6 +590,9 @@ spec:
                 disableLogVolumes:
                   default: false
                   type: boolean
+                disableService:
+                  default: false
+                  type: boolean
                 dnsPolicy:
                   nullable: true
                   type: string

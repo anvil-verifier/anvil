@@ -88,11 +88,13 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
             let key = M::make_daemon_set_key(fb);
             let obj = resources[key];
             let made_ds = M::make_daemon_set(fb);
-            &&& resources.contains_key(key)
-            &&& DaemonSetView::unmarshal(obj).is_Ok()
-            &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec == made_ds.spec
-            &&& obj.metadata.labels == made_ds.metadata.labels
-            &&& obj.metadata.annotations == made_ds.metadata.annotations
+            !fb.spec.disable_service ==> {
+                &&& resources.contains_key(key)
+                &&& DaemonSetView::unmarshal(obj).is_Ok()
+                &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec == made_ds.spec
+                &&& obj.metadata.labels == made_ds.metadata.labels
+                &&& obj.metadata.annotations == made_ds.metadata.annotations
+            }
         },
     }
 }

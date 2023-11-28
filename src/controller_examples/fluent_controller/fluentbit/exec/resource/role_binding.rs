@@ -5,6 +5,7 @@ use super::common::*;
 use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::exec::resource::role::make_role_name;
 use crate::fluent_controller::fluentbit::exec::resource::service::ServiceBuilder;
+use crate::fluent_controller::fluentbit::exec::resource::daemon_set::DaemonSetBuilder;
 use crate::fluent_controller::fluentbit::exec::resource::service_account::make_service_account_name;
 use crate::fluent_controller::fluentbit::model::resource as model_resource;
 use crate::fluent_controller::fluentbit::trusted::{
@@ -51,12 +52,21 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBin
     fn state_after_create(fb: &FluentBit, obj: DynamicObject, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<KubeAPIRequest>), ()>) {
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
-                ..state
-            };
-            let req = KubeAPIRequest::GetRequest(ServiceBuilder::get_request(fb));
-            Ok((state_prime, Some(req)))
+            if fb.spec().disable_service() {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                    ..state
+                };
+                let req = KubeAPIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
+                    ..state
+                };
+                let req = KubeAPIRequest::GetRequest(ServiceBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            }
         } else {
             Err(())
         }
@@ -65,12 +75,21 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBin
     fn state_after_update(fb: &FluentBit, obj: DynamicObject, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<KubeAPIRequest>), ()>) {
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
-                ..state
-            };
-            let req = KubeAPIRequest::GetRequest(ServiceBuilder::get_request(fb));
-            Ok((state_prime, Some(req)))
+            if fb.spec().disable_service() {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                    ..state
+                };
+                let req = KubeAPIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
+                    ..state
+                };
+                let req = KubeAPIRequest::GetRequest(ServiceBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            }
         } else {
             Err(())
         }

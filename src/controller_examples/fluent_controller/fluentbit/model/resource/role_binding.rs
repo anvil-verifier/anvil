@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::model::resource::{
-    common::*, role::make_role_name, service::ServiceBuilder,
+    common::*, daemon_set::DaemonSetBuilder, role::make_role_name, service::ServiceBuilder,
     service_account::make_service_account_name,
 };
 use crate::fluent_controller::fluentbit::trusted::{spec_types::*, step::*};
@@ -37,12 +37,21 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
     open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
         if rb.is_Ok() {
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
-                ..state
-            };
-            let req = APIRequest::GetRequest(ServiceBuilder::get_request(fb));
-            Ok((state_prime, Some(req)))
+            if fb.spec.disable_service {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                    ..state
+                };
+                let req = APIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
+                    ..state
+                };
+                let req = APIRequest::GetRequest(ServiceBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            }
         } else {
             Err(())
         }
@@ -51,12 +60,21 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
     open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
         if rb.is_Ok() {
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
-                ..state
-            };
-            let req = APIRequest::GetRequest(ServiceBuilder::get_request(fb));
-            Ok((state_prime, Some(req)))
+            if fb.spec.disable_service {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
+                    ..state
+                };
+                let req = APIRequest::GetRequest(DaemonSetBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
+                    ..state
+                };
+                let req = APIRequest::GetRequest(ServiceBuilder::get_request(fb));
+                Ok((state_prime, Some(req)))
+            }
         } else {
             Err(())
         }

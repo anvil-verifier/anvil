@@ -216,6 +216,8 @@ pub struct FluentBitSpec {
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     #[serde(default, rename = "disableLogVolumes")]
     pub disable_log_volumes: bool,
+    #[serde(default, rename = "disableService")]
+    pub disable_service: bool,
     #[serde(default, rename = "nodeSelector")]
     pub node_selector: std::collections::BTreeMap<String, String>,
     #[serde(rename = "runtimeClassName")]
