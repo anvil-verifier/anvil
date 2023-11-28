@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::core::v1::{Pod, ServiceAccount};
+use k8s_openapi::api::core::v1::{Pod, ServiceAccount, Serivce};
 use k8s_openapi::api::rbac::v1::RoleBinding;
 use k8s_openapi::api::{apps::v1::DaemonSet, rbac::v1::Role};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
