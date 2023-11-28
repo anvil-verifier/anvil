@@ -192,6 +192,7 @@ pub struct ServicePortView {
     pub name: Option<StringView>,
     pub port: int,
     pub app_protocol: Option<StringView>,
+    pub protocol: Option<StringView>,
 }
 
 impl ServicePortView {
@@ -200,6 +201,7 @@ impl ServicePortView {
             name: None,
             port: 0, // TODO: is this the correct default value?
             app_protocol: None,
+            protocol: None,
         }
     }
 
@@ -220,6 +222,13 @@ impl ServicePortView {
     pub open spec fn set_app_protocol(self, app_protocol: StringView) -> ServicePortView {
         ServicePortView {
             app_protocol: Some(app_protocol),
+            ..self
+        }
+    }
+
+    pub open spec fn set_protocol(self, protocol: StringView) -> ServicePortView {
+        ServicePortView {
+            protocol: Some(protocol),
             ..self
         }
     }

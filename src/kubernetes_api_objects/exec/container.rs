@@ -185,6 +185,33 @@ impl ContainerPort {
         self.inner.name = Some(name.into_rust_string());
     }
 
+    #[verifier(external_body)]
+    pub fn name(&self) -> (name: Option<String>)
+        ensures opt_string_to_view(&name) == self@.name,
+    {
+        match &self.inner.name {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn container_port(&self) -> (container_port: i32)
+        ensures container_port == self@.container_port,
+    {
+        self.inner.container_port
+    }
+
+    #[verifier(external_body)]
+    pub fn protocol(&self) -> (protocol: Option<String>)
+        ensures opt_string_to_view(&protocol) == self@.protocol,
+    {
+        match &self.inner.protocol {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort) -> ContainerPort { ContainerPort { inner: inner } }
 
