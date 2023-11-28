@@ -39,6 +39,8 @@ pub fn fluent_bit() -> String {
             - name: forward
               containerPort: 24224
               protocol: TCP
+            - containerPort: 8443
+              name: https
     "
     .to_string()
 }
