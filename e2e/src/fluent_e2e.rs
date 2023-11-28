@@ -157,7 +157,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
                 println!("Get service failed with error {}.", e);
                 continue;
             }
-            => {}
+            _ => {}
         }
 
         let ds = ds_api.get(&fb_name).await;
