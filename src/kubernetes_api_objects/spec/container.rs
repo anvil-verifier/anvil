@@ -183,6 +183,7 @@ impl LifecycleHandlerView {
 pub struct ContainerPortView {
     pub container_port: int,
     pub name: Option<StringView>,
+    pub protocol: Option<StringView>,
 }
 
 impl ContainerPortView {
@@ -190,6 +191,7 @@ impl ContainerPortView {
         ContainerPortView {
             container_port: 0, // TODO: is this the correct default value?
             name: None,
+            protocol: None,
         }
     }
 
@@ -203,6 +205,13 @@ impl ContainerPortView {
     pub open spec fn set_name(self, name: StringView) -> ContainerPortView {
         ContainerPortView {
             name: Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_protocol(self, protocol: StringView) -> ContainerPortView {
+        ContainerPortView {
+            protocol: Some(protocol),
             ..self
         }
     }

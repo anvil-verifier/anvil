@@ -266,6 +266,13 @@ impl ServicePort {
         self.inner.app_protocol = Some(app_protocol.into_rust_string());
     }
 
+    #[verifier(external_body)]
+    pub fn set_protocol(&mut self, protocol: String)
+        ensures self@ == old(self)@.set_protocol(protocol@),
+    {
+        self.inner.protocol = Some(protocol.into_rust_string());
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort { ServicePort { inner: inner } }
 
