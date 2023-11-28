@@ -228,7 +228,7 @@ impl ServicePortView {
 
     pub open spec fn set_protocol(self, protocol: StringView) -> ServicePortView {
         ServicePortView {
-            app_protocol: Some(protocol),
+            protocol: Some(protocol),
             ..self
         }
     }
