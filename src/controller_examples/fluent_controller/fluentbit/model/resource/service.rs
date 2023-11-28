@@ -117,7 +117,11 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
                     Some(seq![metrics_port])
                 }
             },
-            selector: Some(make_base_labels(fb)),
+            selector: if fb.spec.service_selector.is_Some() {
+                    fb.spec.service_selector
+                } else {
+                    Some(make_base_labels(fb))
+                },
             ..ServiceSpecView::default()
         }),
         ..ServiceView::default()
