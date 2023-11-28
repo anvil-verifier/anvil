@@ -74,27 +74,28 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
             let obj = resources[key];
             let made_spec = M::make_service(fb).spec.get_Some_0();
             let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
-            &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
-            &&& made_spec == ServiceSpecView {
-                cluster_ip: made_spec.cluster_ip,
-                ..spec
+            !fb.spec.disable_service ==> {
+                &&& resources.contains_key(key)
+                &&& ServiceView::unmarshal(obj).is_Ok()
+                &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+                &&& made_spec == ServiceSpecView {
+                    cluster_ip: made_spec.cluster_ip,
+                    ..spec
+                }
+                &&& obj.metadata.labels == M::make_service(fb).metadata.labels
+                &&& obj.metadata.annotations == M::make_service(fb).metadata.annotations
             }
-            &&& obj.metadata.labels == M::make_service(fb).metadata.labels
-            &&& obj.metadata.annotations == M::make_service(fb).metadata.annotations
+            
         },
         SubResource::DaemonSet => {
             let key = M::make_daemon_set_key(fb);
             let obj = resources[key];
             let made_ds = M::make_daemon_set(fb);
-            !fb.spec.disable_service ==> {
-                &&& resources.contains_key(key)
-                &&& DaemonSetView::unmarshal(obj).is_Ok()
-                &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec == made_ds.spec
-                &&& obj.metadata.labels == made_ds.metadata.labels
-                &&& obj.metadata.annotations == made_ds.metadata.annotations
-            }
+            &&& resources.contains_key(key)
+            &&& DaemonSetView::unmarshal(obj).is_Ok()
+            &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec == made_ds.spec
+            &&& obj.metadata.labels == made_ds.metadata.labels
+            &&& obj.metadata.annotations == made_ds.metadata.annotations
         },
     }
 }
