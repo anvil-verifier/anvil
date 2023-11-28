@@ -251,6 +251,7 @@ pub struct FluentBitSpec {
     pub readiness_probe: Option<k8s_openapi::api::core::v1::Probe>,
     #[serde(rename = "initContainers")]
     pub init_containers: Option<Vec<k8s_openapi::api::core::v1::Container>>,
+    pub ports: Option<Vec<k8s_openapi::api::core::v1::ContainerPort>>,
 }
 
 #[derive(
