@@ -307,7 +307,7 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
                 continue;
             }
             Ok(svc) => {
-                if !svc
+                if svc
                     .spec
                     .as_ref()
                     .unwrap()
@@ -316,8 +316,10 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
                     .unwrap()
                     .contains_key("never-match-anything")
                 {
+                    println!("Selector for service is updated yet");
+                    break;
+                } else {
                     println!("Selector for service is not updated yet");
-                    continue;
                 }
             }
         };
