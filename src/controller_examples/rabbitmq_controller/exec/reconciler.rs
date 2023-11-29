@@ -170,7 +170,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_create(rabbitmq, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }
@@ -187,7 +191,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_update(rabbitmq, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }

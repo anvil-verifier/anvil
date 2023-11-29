@@ -6,8 +6,8 @@ use crate::fluent_controller::fluentbit::exec::resource::*;
 use crate::fluent_controller::fluentbit::model::reconciler as model_reconciler;
 use crate::fluent_controller::fluentbit::model::resource as model_resource;
 use crate::fluent_controller::fluentbit::trusted::{exec_types::*, spec_types, step::*};
-use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::exec::prelude::*;
+use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
@@ -22,7 +22,7 @@ impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyA
 
     fn reconcile_init_state() -> FluentBitReconcileState { reconcile_init_state() }
 
-    fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) 
+    fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState)
     -> (FluentBitReconcileState, Option<Request<EmptyType>>) { reconcile_core(fb, resp_o, state) }
 
     fn reconcile_done(state: &FluentBitReconcileState) -> bool { reconcile_done(state) }
@@ -190,7 +190,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_create(fb, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }
@@ -208,7 +212,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_update(fb, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }

@@ -254,7 +254,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     } else {
                         Vec::new()
                     };
-                let metrics_port = if fb.spec().metrics_port().is_some() { fb.spec().metrics_port().unwrap() } else { 2020 };
+                let metrics_port = if fb.spec().metrics_port().is_some() {
+                    fb.spec().metrics_port().unwrap()
+                } else {
+                    2020
+                };
                 ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), metrics_port));
                 proof {
                     assert_seqs_equal!(

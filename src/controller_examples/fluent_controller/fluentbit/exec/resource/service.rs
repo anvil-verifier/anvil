@@ -122,7 +122,9 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
         metadata.set_labels({
             if fb.spec().service_labels().len() > 0 {
                 fb.spec().service_labels()
-            } else { make_labels(fb) }
+            } else {
+                make_labels(fb)
+            }
         });
         metadata.set_annotations(fb.spec().service_annotations());
 
@@ -217,7 +219,7 @@ fn make_new_ports(ports: Vec<ContainerPort>) -> (service_ports: Vec<ServicePort>
             Seq::new(ports@.len(), |k: int| model_resource::make_service_port(ports[k]@))
         );
     }
-    
+
     service_ports
 }
 
