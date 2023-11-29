@@ -20,9 +20,13 @@ verus! {
 pub struct ConfigMapBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMapBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_config_map_key(zk) } }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_config_map_key(zk) }
+    }
 
-    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_config_map(zk).marshal()) }
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_config_map(zk).marshal())
+    }
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);

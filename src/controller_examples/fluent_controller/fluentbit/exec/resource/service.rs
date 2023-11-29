@@ -25,7 +25,9 @@ verus! {
 pub struct ServiceBuilder {}
 
 impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::ServiceBuilder> for ServiceBuilder {
-    open spec fn requirements(fb: FluentBitView) -> bool { fb.well_formed() }
+    open spec fn requirements(fb: FluentBitView) -> bool {
+        fb.well_formed()
+    }
 
     fn get_request(fb: &FluentBit) -> KubeGetRequest {
         KubeGetRequest {
@@ -35,7 +37,9 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::Service
         }
     }
 
-    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> { Ok(make_service(fb).marshal()) }
+    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_service(fb).marshal())
+    }
 
     fn update(fb: &FluentBit, state: &FluentBitReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let service = Service::unmarshal(obj);

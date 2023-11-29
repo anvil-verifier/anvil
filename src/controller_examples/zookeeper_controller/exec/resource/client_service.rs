@@ -34,7 +34,9 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
         }
     }
 
-    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> { Ok(make_client_service(zk).marshal()) }
+    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_client_service(zk).marshal())
+    }
 
     fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let service = Service::unmarshal(obj);

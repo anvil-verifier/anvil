@@ -27,7 +27,9 @@ verus! {
 pub struct RoleBindingBuilder {}
 
 impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBindingBuilder> for RoleBindingBuilder {
-    open spec fn requirements(fb: FluentBitView) -> bool { fb.well_formed() }
+    open spec fn requirements(fb: FluentBitView) -> bool {
+        fb.well_formed()
+    }
 
     fn get_request(fb: &FluentBit) -> KubeGetRequest {
         KubeGetRequest {
@@ -37,7 +39,9 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBin
         }
     }
 
-    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> { Ok(make_role_binding(fb).marshal()) }
+    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_role_binding(fb).marshal())
+    }
 
     fn update(fb: &FluentBit, state: &FluentBitReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let rb = RoleBinding::unmarshal(obj);

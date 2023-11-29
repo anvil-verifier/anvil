@@ -20,9 +20,13 @@ verus! {
 pub struct AdminServerServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminServerServiceBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_admin_server_service_key(zk) } }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_admin_server_service_key(zk) }
+    }
 
-    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_admin_server_service(zk).marshal()) }
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_admin_server_service(zk).marshal())
+    }
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);

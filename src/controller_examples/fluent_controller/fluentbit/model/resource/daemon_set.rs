@@ -20,9 +20,13 @@ verus! {
 pub struct DaemonSetBuilder {}
 
 impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilder {
-    open spec fn get_request(fb: FluentBitView) -> GetRequest { GetRequest { key: make_daemon_set_key(fb) } }
+    open spec fn get_request(fb: FluentBitView) -> GetRequest {
+        GetRequest { key: make_daemon_set_key(fb) }
+    }
 
-    open spec fn make(fb: FluentBitView, state: FluentBitReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_daemon_set(fb).marshal()) }
+    open spec fn make(fb: FluentBitView, state: FluentBitReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_daemon_set(fb).marshal())
+    }
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let ds = DaemonSetView::unmarshal(obj);

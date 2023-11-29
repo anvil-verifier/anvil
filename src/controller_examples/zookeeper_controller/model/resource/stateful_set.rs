@@ -20,7 +20,9 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for StatefulSetBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_stateful_set_key(zk) } }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_stateful_set_key(zk) }
+    }
 
     open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
         if state.latest_config_map_rv_opt.is_Some() {

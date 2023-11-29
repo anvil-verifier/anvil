@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::{
-    container::*, label_selector::*, pod_template_spec::*, prelude::*,
-    resource_requirements::*, volume::*,
+    container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
+    volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
@@ -23,14 +23,22 @@ verus! {
 impl Reconciler<ZookeeperClusterView, ZKAPI> for ZookeeperReconciler {
     type T = ZookeeperReconcileState;
 
-    open spec fn reconcile_init_state() -> ZookeeperReconcileState { reconcile_init_state() }
+    open spec fn reconcile_init_state() -> ZookeeperReconcileState {
+        reconcile_init_state()
+    }
 
-    open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState) 
-    -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) { reconcile_core(zk, resp_o, state) }
+    open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState)
+    -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) {
+        reconcile_core(zk, resp_o, state)
+    }
 
-    open spec fn reconcile_done(state: ZookeeperReconcileState) -> bool { reconcile_done(state) }
+    open spec fn reconcile_done(state: ZookeeperReconcileState) -> bool {
+        reconcile_done(state)
+    }
 
-    open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool { reconcile_error(state) }
+    open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
+        reconcile_error(state)
+    }
 
     open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* Don't expect anything from the user except the cr object */ }
 }

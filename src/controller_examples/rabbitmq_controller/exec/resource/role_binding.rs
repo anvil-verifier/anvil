@@ -34,7 +34,9 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Ro
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> { Ok(make_role_binding(rabbitmq).marshal()) }
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_role_binding(rabbitmq).marshal())
+    }
 
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let rb = RoleBinding::unmarshal(obj);

@@ -18,9 +18,13 @@ verus! {
 pub struct ServiceAccountBuilder {}
 
 impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountBuilder {
-    open spec fn get_request(fb: FluentBitView) -> GetRequest { GetRequest { key: make_service_account_key(fb) }  }
+    open spec fn get_request(fb: FluentBitView) -> GetRequest {
+        GetRequest { key: make_service_account_key(fb) }
+    }
 
-    open spec fn make(fb: FluentBitView, state: FluentBitReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_service_account(fb).marshal()) }
+    open spec fn make(fb: FluentBitView, state: FluentBitReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_service_account(fb).marshal())
+    }
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sa = ServiceAccountView::unmarshal(obj);

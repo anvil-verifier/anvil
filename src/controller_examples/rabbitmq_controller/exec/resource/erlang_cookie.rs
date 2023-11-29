@@ -34,7 +34,9 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Er
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> { Ok(make_erlang_secret(rabbitmq).marshal()) }
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_erlang_secret(rabbitmq).marshal())
+    }
 
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let secret = Secret::unmarshal(obj);

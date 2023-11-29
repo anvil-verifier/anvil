@@ -22,9 +22,13 @@ verus! {
 pub struct HeadlessServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for HeadlessServiceBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_headless_service_key(zk) } }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_headless_service_key(zk) }
+    }
 
-    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_headless_service(zk).marshal()) }
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_headless_service(zk).marshal())
+    }
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
