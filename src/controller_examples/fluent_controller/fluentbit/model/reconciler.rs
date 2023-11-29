@@ -15,14 +15,22 @@ verus! {
 impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
     type T = FluentBitReconcileState;
 
-    open spec fn reconcile_init_state() -> FluentBitReconcileState { reconcile_init_state() }
+    open spec fn reconcile_init_state() -> FluentBitReconcileState {
+        reconcile_init_state()
+    }
 
-    open spec fn reconcile_core(fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState) 
-    -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) { reconcile_core(fb, resp_o, state) }
+    open spec fn reconcile_core(fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState)
+    -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) {
+        reconcile_core(fb, resp_o, state)
+    }
 
-    open spec fn reconcile_done(state: FluentBitReconcileState) -> bool { reconcile_done(state) }
+    open spec fn reconcile_done(state: FluentBitReconcileState) -> bool {
+        reconcile_done(state)
+    }
 
-    open spec fn reconcile_error(state: FluentBitReconcileState) -> bool { reconcile_error(state) }
+    open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
+        reconcile_error(state)
+    }
 
     open spec fn expect_from_user(obj: DynamicObjectView) -> bool { obj.kind == SecretView::kind() /* expect the user might create some secret object */ }
 }

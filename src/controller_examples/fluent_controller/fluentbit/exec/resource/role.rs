@@ -25,7 +25,9 @@ verus! {
 pub struct RoleBuilder {}
 
 impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBuilder> for RoleBuilder {
-    open spec fn requirements(fb: FluentBitView) -> bool { fb.well_formed() }
+    open spec fn requirements(fb: FluentBitView) -> bool {
+        fb.well_formed()
+    }
 
     fn get_request(fb: &FluentBit) -> KubeGetRequest {
         KubeGetRequest {
@@ -35,7 +37,9 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::RoleBui
         }
     }
 
-    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> { Ok(make_role(fb).marshal()) }
+    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_role(fb).marshal())
+    }
 
     fn update(fb: &FluentBit, state: &FluentBitReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let role = Role::unmarshal(obj);

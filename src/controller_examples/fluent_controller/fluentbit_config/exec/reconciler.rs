@@ -6,8 +6,8 @@ use crate::fluent_controller::fluentbit_config::exec::resource::*;
 use crate::fluent_controller::fluentbit_config::model::reconciler as model_reconciler;
 use crate::fluent_controller::fluentbit_config::model::resource as model_resource;
 use crate::fluent_controller::fluentbit_config::trusted::{exec_types::*, spec_types, step::*};
-use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::exec::prelude::*;
+use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
@@ -20,14 +20,22 @@ pub struct FluentBitConfigReconciler {}
 impl Reconciler<FluentBitConfig, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for FluentBitConfigReconciler {
     open spec fn well_formed(fbc: &FluentBitConfig) -> bool { fbc@.well_formed() }
 
-    fn reconcile_init_state() -> FluentBitConfigReconcileState { reconcile_init_state() }
+    fn reconcile_init_state() -> FluentBitConfigReconcileState {
+        reconcile_init_state()
+    }
 
-    fn reconcile_core(fbc: &FluentBitConfig, resp_o: Option<Response<EmptyType>>, state: FluentBitConfigReconcileState) 
-    -> (FluentBitConfigReconcileState, Option<Request<EmptyType>>) { reconcile_core(fbc, resp_o, state) }
+    fn reconcile_core(fbc: &FluentBitConfig, resp_o: Option<Response<EmptyType>>, state: FluentBitConfigReconcileState)
+    -> (FluentBitConfigReconcileState, Option<Request<EmptyType>>) {
+        reconcile_core(fbc, resp_o, state)
+    }
 
-    fn reconcile_done(state: &FluentBitConfigReconcileState) -> bool { reconcile_done(state) }
+    fn reconcile_done(state: &FluentBitConfigReconcileState) -> bool {
+        reconcile_done(state)
+    }
 
-    fn reconcile_error(state: &FluentBitConfigReconcileState) -> bool { reconcile_error(state) }
+    fn reconcile_error(state: &FluentBitConfigReconcileState) -> bool {
+        reconcile_error(state)
+    }
 }
 
 impl Default for FluentBitConfigReconciler {
@@ -157,7 +165,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_create(fbc, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }
@@ -175,7 +187,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_update(fbc, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }

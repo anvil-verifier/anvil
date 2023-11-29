@@ -34,7 +34,9 @@ impl ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, model_resou
         }
     }
 
-    fn make(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState) -> Result<DynamicObject, ()> { Ok(make_secret(fbc).marshal()) }
+    fn make(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_secret(fbc).marshal())
+    }
 
     fn update(fbc: &FluentBitConfig, state: &FluentBitConfigReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let secret = Secret::unmarshal(obj);

@@ -34,7 +34,9 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Se
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> { Ok(make_server_config_map(rabbitmq).marshal()) }
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_server_config_map(rabbitmq).marshal())
+    }
 
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let cm = ConfigMap::unmarshal(obj);

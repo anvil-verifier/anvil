@@ -23,7 +23,9 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSetBuilder {
-    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest { GetRequest { key: make_stateful_set_key(rabbitmq) } }
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
+        GetRequest { key: make_stateful_set_key(rabbitmq) }
+    }
 
     open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
         if state.latest_config_map_rv_opt.is_Some() {

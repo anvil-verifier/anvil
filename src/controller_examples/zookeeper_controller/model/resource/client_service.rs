@@ -22,9 +22,13 @@ verus! {
 pub struct ClientServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientServiceBuilder {
-    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest { GetRequest { key: make_client_service_key(zk) } }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_client_service_key(zk) }
+    }
 
-    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> { Ok(make_client_service(zk).marshal()) }
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_client_service(zk).marshal())
+    }
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);

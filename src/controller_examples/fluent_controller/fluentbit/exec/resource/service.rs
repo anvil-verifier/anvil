@@ -25,7 +25,9 @@ verus! {
 pub struct ServiceBuilder {}
 
 impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::ServiceBuilder> for ServiceBuilder {
-    open spec fn requirements(fb: FluentBitView) -> bool { fb.well_formed() }
+    open spec fn requirements(fb: FluentBitView) -> bool {
+        fb.well_formed()
+    }
 
     fn get_request(fb: &FluentBit) -> KubeGetRequest {
         KubeGetRequest {
@@ -35,7 +37,9 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::Service
         }
     }
 
-    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> { Ok(make_service(fb).marshal()) }
+    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_service(fb).marshal())
+    }
 
     fn update(fb: &FluentBit, state: &FluentBitReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let service = Service::unmarshal(obj);
@@ -122,7 +126,9 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
         metadata.set_labels({
             if fb.spec().service_labels().len() > 0 {
                 fb.spec().service_labels()
-            } else { make_labels(fb) }
+            } else {
+                make_labels(fb)
+            }
         });
         metadata.set_annotations(fb.spec().service_annotations());
 
@@ -217,7 +223,7 @@ fn make_new_ports(ports: Vec<ContainerPort>) -> (service_ports: Vec<ServicePort>
             Seq::new(ports@.len(), |k: int| model_resource::make_service_port(ports[k]@))
         );
     }
-    
+
     service_ports
 }
 

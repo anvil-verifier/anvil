@@ -27,13 +27,21 @@ pub struct RabbitmqReconciler {}
 impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
     open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool { rabbitmq@.well_formed() }
 
-    fn reconcile_init_state() -> RabbitmqReconcileState { reconcile_init_state() }
+    fn reconcile_init_state() -> RabbitmqReconcileState {
+        reconcile_init_state()
+    }
 
-    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) { reconcile_core(rabbitmq, resp_o, state) }
+    fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
+        reconcile_core(rabbitmq, resp_o, state)
+    }
 
-    fn reconcile_done(state: &RabbitmqReconcileState) -> bool { reconcile_done(state) }
+    fn reconcile_done(state: &RabbitmqReconcileState) -> bool {
+        reconcile_done(state)
+    }
 
-    fn reconcile_error(state: &RabbitmqReconcileState) -> bool { reconcile_error(state) }
+    fn reconcile_error(state: &RabbitmqReconcileState) -> bool {
+        reconcile_error(state)
+    }
 }
 
 impl Default for RabbitmqReconciler {
@@ -170,7 +178,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_create(rabbitmq, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }
@@ -187,7 +199,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_update(rabbitmq, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }

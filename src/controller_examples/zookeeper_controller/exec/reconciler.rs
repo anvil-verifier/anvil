@@ -28,14 +28,22 @@ pub struct ZookeeperReconciler {}
 impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, ZKAPIInput, ZKAPIOutput, ZKAPIShimLayer> for ZookeeperReconciler {
     open spec fn well_formed(zk: &ZookeeperCluster) -> bool { zk@.well_formed() }
 
-    fn reconcile_init_state() -> ZookeeperReconcileState { reconcile_init_state() }
+    fn reconcile_init_state() -> ZookeeperReconcileState {
+        reconcile_init_state()
+    }
 
     fn reconcile_core(zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState)
-    -> (ZookeeperReconcileState, Option<Request<ZKAPIInput>>) { reconcile_core(zk, resp_o, state) }
+    -> (ZookeeperReconcileState, Option<Request<ZKAPIInput>>) {
+        reconcile_core(zk, resp_o, state)
+    }
 
-    fn reconcile_done(state: &ZookeeperReconcileState) -> bool { reconcile_done(state) }
+    fn reconcile_done(state: &ZookeeperReconcileState) -> bool {
+        reconcile_done(state)
+    }
 
-    fn reconcile_error(state: &ZookeeperReconcileState) -> bool { reconcile_error(state) }
+    fn reconcile_error(state: &ZookeeperReconcileState) -> bool {
+        reconcile_error(state)
+    }
 }
 
 impl Default for ZookeeperReconciler {
@@ -323,7 +331,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_create(zk, resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }
@@ -341,7 +353,11 @@ pub fn reconcile_helper<
                         let next_state = Builder::state_after_update(zk, resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
                         if next_state.is_ok() {
                             let (state_prime, req) = next_state.unwrap();
-                            let req_o = if req.is_some() { Some(Request::KRequest(req.unwrap())) } else { None };
+                            let req_o = if req.is_some() {
+                                Some(Request::KRequest(req.unwrap()))
+                            } else {
+                                None
+                            };
                             return (state_prime, req_o);
                         }
                     }

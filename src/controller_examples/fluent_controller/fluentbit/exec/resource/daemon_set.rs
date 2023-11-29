@@ -24,7 +24,9 @@ verus! {
 pub struct DaemonSetBuilder {}
 
 impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::DaemonSetBuilder> for DaemonSetBuilder {
-    open spec fn requirements(fb: FluentBitView) -> bool { fb.well_formed() }
+    open spec fn requirements(fb: FluentBitView) -> bool {
+        fb.well_formed()
+    }
 
     fn get_request(fb: &FluentBit) -> KubeGetRequest {
         KubeGetRequest {
@@ -34,7 +36,9 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::DaemonS
         }
     }
 
-    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> { Ok(make_daemon_set(fb).marshal()) }
+    fn make(fb: &FluentBit, state: &FluentBitReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_daemon_set(fb).marshal())
+    }
 
     fn update(fb: &FluentBit, state: &FluentBitReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let ds = DaemonSet::unmarshal(obj);
@@ -254,7 +258,11 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     } else {
                         Vec::new()
                     };
-                let metrics_port = if fb.spec().metrics_port().is_some() { fb.spec().metrics_port().unwrap() } else { 2020 };
+                let metrics_port = if fb.spec().metrics_port().is_some() {
+                    fb.spec().metrics_port().unwrap()
+                } else {
+                    2020
+                };
                 ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), metrics_port));
                 proof {
                     assert_seqs_equal!(
