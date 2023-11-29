@@ -300,50 +300,41 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             });
             volume
         });
-        if !fb.spec().disable_log_volumes() {
-            volumes.push({
-                let mut volume = Volume::default();
-                volume.set_name(new_strlit("varlibcontainers").to_string());
-                volume.set_host_path({
-                    let mut host_path = HostPathVolumeSource::default();
-                    if fb.spec().container_log_real_path().is_some() {
-                        host_path.set_path(fb.spec().container_log_real_path().unwrap());
-                    } else {
-                        host_path.set_path(new_strlit("/containers").to_string());
-                    }
-                    host_path
-                });
-                volume
+        let mut log_volumes = Vec::new();
+        log_volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("varlibcontainers").to_string());
+            volume.set_host_path({
+                let mut host_path = HostPathVolumeSource::default();
+                if fb.spec().container_log_real_path().is_some() {
+                    host_path.set_path(fb.spec().container_log_real_path().unwrap());
+                } else {
+                    host_path.set_path(new_strlit("/containers").to_string());
+                }
+                host_path
             });
-            volumes.push({
-                let mut volume = Volume::default();
-                volume.set_name(new_strlit("varlogs").to_string());
-                volume.set_host_path({
-                    let mut host_path = HostPathVolumeSource::default();
-                    host_path.set_path(new_strlit("/var/log").to_string());
-                    host_path
-                });
-                volume
-            });
-            volumes.push({
-                let mut volume = Volume::default();
-                volume.set_name(new_strlit("systemd").to_string());
-                volume.set_host_path({
-                    let mut host_path = HostPathVolumeSource::default();
-                    host_path.set_path(new_strlit("/var/log/journal").to_string());
-                    host_path
-                });
-                volume
-            });
+            volume
+        });
+        // log_volumes.push({
+        //     let mut volume = Volume::default();
+        //     volume.set_name(new_strlit("varlogs").to_string());
+        //     volume.set_host_path({
+        //         let mut host_path = HostPathVolumeSource::default();
+        //         host_path.set_path(new_strlit("/var/log").to_string());
+        //         host_path
+        //     });
+        //     volume
+        // });
+        proof {
+            assert_seqs_equal!(
+                log_volumes@.map_values(|vol: Volume| vol@), model_resource::make_log_volumes(fb@)
+            );
+            assert_seqs_equal!(
+                volumes@.map_values(|vol: Volume| vol@) + log_volumes@.map_values(|vol: Volume| vol@),
+                model_resource::make_fluentbit_pod_spec(fb@).volumes.get_Some_0()
+            );
         }
-        if fb.spec().position_db().is_some() {
-            volumes.push({
-                let mut volume = Volume::default();
-                volume.set_name(new_strlit("positions").to_string());
-                volume.set_host_path(fb.spec().position_db().unwrap());
-                volume
-            });
-        }
+        volumes.append(&mut log_volumes);
 
         proof {
             assert_seqs_equal!(
