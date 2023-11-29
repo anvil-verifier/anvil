@@ -296,7 +296,7 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
             "fluent-bit",
             "--type=json",
             "-p",
-            "[{\"op\": \"add\", \"path\": \"/spec/serviceSelector/never-match-anything\", \"value\": \"val\"}]",
+            "[{\"op\": \"add\", \"path\": \"/spec/serviceSelector\", \"value\": {\"never-match-anything\": \"val\"}}]",
         ],
         "failed to set service selector to fb",
     );
