@@ -211,6 +211,8 @@ pub struct FluentBitSpec {
     pub service_account_annotations: std::collections::BTreeMap<String, String>,
     #[serde(default, rename = "serviceLabels")]
     pub service_labels: std::collections::BTreeMap<String, String>,
+    #[serde(default, rename = "serviceSelector")]
+    pub service_selector: Option<std::collections::BTreeMap<String, String>>,
     #[serde(default, rename = "serviceAnnotations")]
     pub service_annotations: std::collections::BTreeMap<String, String>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,

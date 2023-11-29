@@ -158,7 +158,13 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
             }
             ports
         });
-        service_spec.set_selector(make_base_labels(fb));
+        service_spec.set_selector({
+            if fb.spec().service_selector().is_some() {
+                fb.spec().service_selector().unwrap()
+            } else {
+                make_base_labels(fb)
+            }
+        });
         service_spec
     });
     service

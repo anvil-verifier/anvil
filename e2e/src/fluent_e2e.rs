@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::core::v1::{Pod, ServiceAccount};
+use k8s_openapi::api::core::v1::{Pod, ServiceAccount, Service};
 use k8s_openapi::api::rbac::v1::RoleBinding;
 use k8s_openapi::api::{apps::v1::DaemonSet, rbac::v1::Role};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
@@ -120,6 +120,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         // Check daemon set
         let role_api: Api<Role> = Api::default_namespaced(client.clone());
         let rb_api: Api<RoleBinding> = Api::default_namespaced(client.clone());
+        let svc_api: Api<Service> = Api::default_namespaced(client.clone());
         let sa_api: Api<ServiceAccount> = Api::default_namespaced(client.clone());
         let ds_api: Api<DaemonSet> = Api::default_namespaced(client.clone());
 
@@ -149,6 +150,15 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
             }
             _ => {}
         };
+
+        let svc = svc_api.get(&fb_name).await;
+        match svc {
+            Err(e) => {
+                println!("Get service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        }
 
         let ds = ds_api.get(&fb_name).await;
         match ds {
@@ -274,6 +284,61 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
     Ok(())
 }
 
+pub async fn service_selector_test(client: Client, fb_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let svc_api: Api<Service> = Api::default_namespaced(client.clone());
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "fb",
+            "fluent-bit",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"add\", \"path\": \"/spec/serviceSelector\", \"value\": {\"never-match-anything\": \"val\"}}]",
+        ],
+        "failed to set service selector to fb",
+    );
+
+    // Sleep for extra 5 seconds to ensure the upgrading has started
+    sleep(Duration::from_secs(5)).await;
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        // Check daemon set
+        let svc = svc_api.get(&fb_name).await;
+        match svc {
+            Err(e) => {
+                println!("Get service failed with error {}.", e);
+                continue;
+            }
+            Ok(svc) => {
+                if svc
+                    .spec
+                    .as_ref()
+                    .unwrap()
+                    .selector
+                    .as_ref()
+                    .unwrap()
+                    .contains_key("never-match-anything")
+                {
+                    println!("Selector for service is updated yet");
+                    break;
+                } else {
+                    println!("Selector for service is not updated yet");
+                }
+            }
+        };
+    }
+
+    println!("Service selector test passed.");
+    Ok(())
+}
+
 pub async fn fluent_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
@@ -296,6 +361,7 @@ pub async fn fluent_e2e_test() -> Result<(), Error> {
 
     desired_state_test(client.clone(), fb_name.clone()).await?;
     relabel_test(client.clone(), fb_name.clone()).await?;
+    service_selector_test(client.clone(), fb_name.clone()).await?;
 
     println!("E2e test passed.");
     Ok(())

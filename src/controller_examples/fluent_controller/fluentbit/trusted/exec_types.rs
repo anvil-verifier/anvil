@@ -187,6 +187,18 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
+    pub fn service_selector(&self) -> (service_selector: Option<StringMap>)
+        ensures 
+            service_selector.is_Some() == self@.service_selector.is_Some(),
+            service_selector.is_Some() ==> service_selector.get_Some_0()@ == self@.service_selector.get_Some_0(),
+    {
+        match &self.inner.service_selector {
+            Some(selector) => Some(StringMap::from_rust_map(selector.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn service_annotations(&self) -> (service_annotations: StringMap)
         ensures service_annotations@ == self@.service_annotations,
     {

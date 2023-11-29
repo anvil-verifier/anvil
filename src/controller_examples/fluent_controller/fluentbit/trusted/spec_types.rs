@@ -150,6 +150,7 @@ pub struct FluentBitSpecView {
     pub annotations: Map<StringView, StringView>,
     pub service_account_annotations: Map<StringView, StringView>,
     pub service_labels: Map<StringView, StringView>,
+    pub service_selector: Option<Map<StringView, StringView>>,
     pub service_annotations: Map<StringView, StringView>,
     pub affinity: Option<AffinityView>,
     pub disable_log_volumes: bool,
