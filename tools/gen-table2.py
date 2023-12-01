@@ -1,11 +1,24 @@
-import sys
+import os
 import json
 
 
 def main():
+    os.system(
+        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/zookeeper_table zookeeper"
+    )
+    os.system(
+        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/rabbitmq_table rabbitmq"
+    )
+    os.system(
+        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/fluent_table fluent"
+    )
+    os.system(
+        "python3 count-anvil-lines.py $VERUS_DIR/source/tools/line_count/lib_table"
+    )
     zk_data = json.load(open("zookeeper-lines.json"))
     rmq_data = json.load(open("rabbitmq-lines.json"))
     fb_data = json.load(open("fluent-lines.json"))
+    anvil_data = json.load(open("anvil-lines.json"))
     print("ZooKeeper:")
     print(
         "Liveness & {} & -- & {}".format(
@@ -19,12 +32,12 @@ def main():
         )
     )
     print(
-        "Reconciliation model & -- & -- & {}".format(
+        "Controller model & -- & -- & {}".format(
             zk_data["reconcile_model"]["Proof"],
         )
     )
     print(
-        "Reconciliation impl & -- & {} & --".format(
+        "Controller impl & -- & {} & --".format(
             zk_data["reconcile_model"]["Exec"] + zk_data["reconcile_impl"]["Exec"],
         )
     )
@@ -63,12 +76,12 @@ def main():
         )
     )
     print(
-        "Reconciliation model & -- & -- & {}".format(
+        "Controller model & -- & -- & {}".format(
             rmq_data["reconcile_model"]["Proof"],
         )
     )
     print(
-        "Reconciliation impl & -- & {} & --".format(
+        "Controller impl & -- & {} & --".format(
             rmq_data["reconcile_model"]["Exec"] + rmq_data["reconcile_impl"]["Exec"],
         )
     )
@@ -96,12 +109,12 @@ def main():
         )
     )
     print(
-        "Reconciliation model & -- & -- & {}".format(
+        "Controller model & -- & -- & {}".format(
             fb_data["reconcile_model"]["Proof"],
         )
     )
     print(
-        "Reconciliation impl & -- & {} & --".format(
+        "Controller impl & -- & {} & --".format(
             fb_data["reconcile_model"]["Exec"] + fb_data["reconcile_impl"]["Exec"],
         )
     )
@@ -113,6 +126,30 @@ def main():
     print(
         "Trusted entry point & {} & -- & --".format(
             fb_data["entry"]["Trusted"],
+        )
+    )
+    print("Anvil:")
+    print(
+        "TLA embedding & {} & -- & --".format(
+            anvil_data["tla_embedding_lines"]["Trusted"]
+        )
+    )
+    print(
+        "Model & {} & -- & --".format(
+            anvil_data["other_lines"]["Trusted"]
+            + anvil_data["object_model_lines"]["Trusted"]
+        )
+    )
+    print(
+        "Lemmas & -- & -- & {}".format(
+            anvil_data["k8s_lemma_lines"]["Proof"]
+            + anvil_data["tla_lemma_lines"]["Proof"]
+        )
+    )
+    print(
+        "Shim layer & {} & -- & --".format(
+            anvil_data["object_wrapper_lines"]["Trusted"]
+            + anvil_data["other_lines"]["Exec"]
         )
     )
 
