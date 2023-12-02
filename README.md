@@ -1,5 +1,5 @@
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/vmware-research/verifiable-controllers/blob/main/LICENSE)
-[![CI](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/xlab-uiuc/verifiable-controllers/blob/main/LICENSE)
+[![CI](https://github.com/xlab-uiuc/verifiable-controllers/actions/workflows/ci.yml/badge.svg)](https://github.com/xlab-uiuc/verifiable-controllers/actions/workflows/ci.yml)
 
 # verifiable-controllers
 
@@ -34,7 +34,7 @@ To deploy the verified zookeeper controller to a Kubernetes cluster:
 ```
 $: ./deploy.sh zookeeper
 ```
-This script will deploy the zookeeper controller image (hosted at [our repo](https://github.com/vmware-research/verifiable-controllers/packages)) inside your Kubernetes cluster.
+This script will deploy the zookeeper controller image (hosted at [our repo](https://github.com/xlab-uiuc/verifiable-controllers/packages)) inside your Kubernetes cluster.
 
 ## Documentation
 
