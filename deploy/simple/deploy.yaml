@@ -171,7 +171,7 @@ spec:
         app.kubernetes.io/name: simple-controller
     spec:
       containers:
-        - image: ghcr.io/vmware-research/verifiable-controllers/simple-controller:latest
+        - image: ghcr.io/xlab-uiuc/verifiable-controllers/simple-controller:latest
           name: controller
           command:
             - simple-controller

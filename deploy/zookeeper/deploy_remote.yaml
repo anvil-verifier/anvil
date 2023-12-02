@@ -16,6 +16,6 @@ spec:
         app.kubernetes.io/name: zookeeper-controller
     spec:
       containers:
-        - image: ghcr.io/vmware-research/verifiable-controllers/zookeeper-controller:latest
+        - image: ghcr.io/xlab-uiuc/verifiable-controllers/zookeeper-controller:latest
           name: controller
       serviceAccountName: zookeeper-controller
