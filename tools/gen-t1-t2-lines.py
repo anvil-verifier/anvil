@@ -2,156 +2,134 @@ import os
 import json
 
 
+def count_total_lines(data):
+    lines = 0
+    for key in data:
+        for inner_key in data[key]:
+            lines += data[key][inner_key]
+    return lines
+
+
+def gen_for_controller(controller):
+    os.system(
+        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/{}_table {}".format(
+            controller, controller
+        )
+    )
+    data = json.load(open("{}-lines.json".format(controller)))
+
+    total_lines = count_total_lines(data)
+    total_lines -= data["liveness_inv"]["Proof"]
+
+    print("{}:".format(controller))
+    print(
+        "Liveness & {} & -- & {}".format(
+            data["liveness_theorem"]["Trusted"],
+            data["liveness_proof"]["Proof"],
+        )
+    )
+    total_lines -= data["liveness_theorem"]["Trusted"]
+    total_lines -= data["liveness_proof"]["Proof"]
+
+    if controller == "rabbitmq":
+        print(
+            "Safety & {} & -- & {}".format(
+                data["safety_theorem"]["Trusted"],
+                data["safety_proof"]["Proof"],
+            )
+        )
+        total_lines -= data["safety_theorem"]["Trusted"]
+        total_lines -= data["safety_proof"]["Proof"]
+
+    if controller == "fluent":
+        print(
+            "Conformance & 10 & -- & {}".format(
+                data["reconcile_impl"]["Proof"] - 10,
+            )
+        )
+    else:
+        print(
+            "Conformance & 5 & -- & {}".format(
+                data["reconcile_impl"]["Proof"] - 5,
+            )
+        )
+    total_lines -= data["reconcile_impl"]["Proof"]
+    print(
+        "Controller model & -- & -- & {}".format(
+            data["reconcile_model"]["Proof"],
+        )
+    )
+    total_lines -= data["reconcile_model"]["Proof"]
+    print(
+        "Controller impl & -- & {} & --".format(
+            data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"],
+        )
+    )
+    total_lines -= data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"]
+    print(
+        "Trusted wrapper & {} & -- & --".format(
+            data["wrapper"]["Trusted"],
+        )
+    )
+    total_lines -= data["wrapper"]["Trusted"]
+    if controller == "zookeeper":
+        print(
+            "Trusted ZooKeeper API & {} & -- & --".format(
+                data["external_model"]["Trusted"],
+            )
+        )
+        total_lines -= data["external_model"]["Trusted"]
+    print(
+        "Trusted entry point & {} & -- & --".format(
+            data["entry"]["Trusted"],
+        )
+    )
+    total_lines -= data["entry"]["Trusted"]
+    print("{} lines are not included".format(total_lines))
+
+
 def main():
-    os.system(
-        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/zookeeper_table zookeeper"
-    )
-    os.system(
-        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/rabbitmq_table rabbitmq"
-    )
-    os.system(
-        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/fluent_table fluent"
-    )
+    gen_for_controller("zookeeper")
+    gen_for_controller("rabbitmq")
+    gen_for_controller("fluent")
+
     os.system(
         "python3 count-anvil-lines.py $VERUS_DIR/source/tools/line_count/lib_table"
     )
-    zk_data = json.load(open("zookeeper-lines.json"))
-    rmq_data = json.load(open("rabbitmq-lines.json"))
-    fb_data = json.load(open("fluent-lines.json"))
     anvil_data = json.load(open("anvil-lines.json"))
-    print("ZooKeeper:")
-    print(
-        "Liveness & {} & -- & {}".format(
-            zk_data["liveness_theorem"]["Trusted"],
-            zk_data["liveness_proof"]["Proof"],
-        )
-    )
-    print(
-        "Conformance & 5 & -- & {}".format(
-            zk_data["reconcile_impl"]["Proof"] - 5,
-        )
-    )
-    print(
-        "Controller model & -- & -- & {}".format(
-            zk_data["reconcile_model"]["Proof"],
-        )
-    )
-    print(
-        "Controller impl & -- & {} & --".format(
-            zk_data["reconcile_model"]["Exec"] + zk_data["reconcile_impl"]["Exec"],
-        )
-    )
-    print(
-        "Trusted wrapper & {} & -- & --".format(
-            zk_data["wrapper"]["Trusted"],
-        )
-    )
-    print(
-        "Trusted ZooKeeper API & {} & -- & --".format(
-            zk_data["external_model"]["Trusted"],
-        )
-    )
-    print(
-        "Trusted entry point & {} & -- & --".format(
-            zk_data["entry"]["Trusted"],
-        )
-    )
-
-    print("RabbitMQ:")
-    print(
-        "Liveness & {} & -- & {}".format(
-            rmq_data["liveness_theorem"]["Trusted"],
-            rmq_data["liveness_proof"]["Proof"],
-        )
-    )
-    print(
-        "Safety & {} & -- & {}".format(
-            rmq_data["safety_theorem"]["Trusted"],
-            rmq_data["safety_proof"]["Proof"],
-        )
-    )
-    print(
-        "Conformance & 5 & -- & {}".format(
-            rmq_data["reconcile_impl"]["Proof"] - 5,
-        )
-    )
-    print(
-        "Controller model & -- & -- & {}".format(
-            rmq_data["reconcile_model"]["Proof"],
-        )
-    )
-    print(
-        "Controller impl & -- & {} & --".format(
-            rmq_data["reconcile_model"]["Exec"] + rmq_data["reconcile_impl"]["Exec"],
-        )
-    )
-    print(
-        "Trusted wrapper & {} & -- & --".format(
-            rmq_data["wrapper"]["Trusted"],
-        )
-    )
-    print(
-        "Trusted entry point & {} & -- & --".format(
-            rmq_data["entry"]["Trusted"],
-        )
-    )
-
-    print("Fluent:")
-    print(
-        "Liveness & {} & -- & {}".format(
-            fb_data["liveness_theorem"]["Trusted"],
-            fb_data["liveness_proof"]["Proof"],
-        )
-    )
-    print(
-        "Conformance & 10 & -- & {}".format(
-            fb_data["reconcile_impl"]["Proof"] - 10,
-        )
-    )
-    print(
-        "Controller model & -- & -- & {}".format(
-            fb_data["reconcile_model"]["Proof"],
-        )
-    )
-    print(
-        "Controller impl & -- & {} & --".format(
-            fb_data["reconcile_model"]["Exec"] + fb_data["reconcile_impl"]["Exec"],
-        )
-    )
-    print(
-        "Trusted wrapper & {} & -- & --".format(
-            fb_data["wrapper"]["Trusted"],
-        )
-    )
-    print(
-        "Trusted entry point & {} & -- & --".format(
-            fb_data["entry"]["Trusted"],
-        )
-    )
+    total_lines = count_total_lines(anvil_data)
+    total_lines -= anvil_data["test_lines"]["Exec"]
     print("Anvil:")
-    print(
-        "TLA embedding & {} & -- & --".format(
-            anvil_data["tla_embedding_lines"]["Trusted"]
-        )
-    )
-    print(
-        "Model & {} & -- & --".format(
-            anvil_data["other_lines"]["Trusted"]
-            + anvil_data["object_model_lines"]["Trusted"]
-        )
-    )
     print(
         "Lemmas & -- & -- & {}".format(
             anvil_data["k8s_lemma_lines"]["Proof"]
             + anvil_data["tla_lemma_lines"]["Proof"]
         )
     )
+    total_lines -= (
+        anvil_data["k8s_lemma_lines"]["Proof"] + anvil_data["tla_lemma_lines"]["Proof"]
+    )
     print(
-        "Shim layer & {} & -- & --".format(
-            anvil_data["object_wrapper_lines"]["Trusted"]
-            + anvil_data["other_lines"]["Exec"]
+        "TLA embedding & {} & -- & --".format(
+            anvil_data["tla_embedding_lines"]["Trusted"]
         )
     )
+    total_lines -= anvil_data["tla_embedding_lines"]["Trusted"]
+    print("Model & {} & -- & --".format(anvil_data["other_lines"]["Trusted"]))
+    total_lines -= anvil_data["other_lines"]["Trusted"]
+    print(
+        "Object view & {} & -- & --".format(anvil_data["object_model_lines"]["Trusted"])
+    )
+    total_lines -= anvil_data["object_model_lines"]["Trusted"]
+    print(
+        "Object wrapper & {} & -- & --".format(
+            anvil_data["object_wrapper_lines"]["Trusted"]
+        )
+    )
+    total_lines -= anvil_data["object_wrapper_lines"]["Trusted"]
+    print("Shim layer & {} & -- & --".format(anvil_data["other_lines"]["Exec"]))
+    total_lines -= anvil_data["other_lines"]["Exec"]
+    print("{} lines are not included".format(total_lines))
 
 
 if __name__ == "__main__":
