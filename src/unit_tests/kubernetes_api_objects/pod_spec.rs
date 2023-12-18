@@ -189,6 +189,27 @@ pub fn test_set_host_network() {
 
 #[test]
 #[verifier(external)]
+pub fn test_set_image_pull_secrets(){
+    let mut pod_spec = PodSpec::default();
+    let kube_local_object_reference = deps_hack::k8s_openapi::api::core::v1::LocalObjectReference {
+        name: Some("name".to_string()),
+    };
+    let local_object_reference = LocalObjectReference::from_kube(kube_local_object_reference.clone());
+    pod_spec.set_image_pull_secrets(vec![local_object_reference]);
+
+    assert_eq!(vec![kube_local_object_reference], pod_spec.into_kube().image_pull_secrets.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_termination_grace_period_seconds(){
+    let mut pod_spec = PodSpec::default();
+    pod_spec.set_termination_grace_period_seconds(1);
+    assert_eq!(1, pod_spec.into_kube().termination_grace_period_seconds.unwrap());
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_pod_spec =
         deps_hack::k8s_openapi::api::core::v1::PodSpec {

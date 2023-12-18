@@ -61,8 +61,9 @@ def camel_to_snake(name):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 def main():
-    api_directory_path = 'src/kubernetes_api_objects'  # Update this path if needed
+    api_directory_path = 'src/kubernetes_api_objects/exec'  # Update this path if needed
     test_directory_path = 'src/unit_tests/kubernetes_api_objects'
+    flag = True
     for filename in sorted(os.listdir(api_directory_path)): # loop through all files in api_directory_path
         if filename.endswith('.rs'):
             file_path = os.path.join(api_directory_path, filename)
@@ -82,19 +83,15 @@ def main():
             count_external_body, count_external_pub_fn, count_external_fn = count_functions(file_path)
             total_count = count_external_body + count_external_pub_fn + count_external_fn
             
+            
             if total_count != test_count:
+                flag = False
                 print(f"{filename}: Total Count = {total_count}")
                 print("Test Count = ", test_count)
                 print("ERROR: Test Count != Total Count")
                 print(struct_count)
                 print("-------------------------------------------")
-            elif total_count == 0:
-                print(f"{filename}: Total Count = {total_count}")
-                print("-------------------------------------------")
-            else:
-                print(f"{filename}: Total Count = {total_count}")
-                print("Test Count = ", test_count)
-                print("Test coverage:", round(test_count / total_count * 100, 2), "%")
-                print("-------------------------------------------")
+    if flag:
+        print("All functions are covered!")
 if __name__ == "__main__":
     main()

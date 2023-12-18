@@ -171,6 +171,30 @@ pub fn test_default(){
 
 #[test]
 #[verifier(external)]
+pub fn test_set_args(){
+    let mut container = Container::default();
+    container.set_args(vec![new_strlit("args").to_string()]);
+    assert_eq!(vec!["args".to_string()], container.into_kube().args.unwrap());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_set_security_context(){
+    let mut container = Container::default();
+    let kube_security_context =  deps_hack::k8s_openapi::api::core::v1::SecurityContext {
+        run_as_user: Some(1000),
+        run_as_group: Some(1000),
+        privileged: Some(true),
+        ..Default::default()
+    };
+    let security_context = SecurityContext::from_kube(kube_security_context.clone());
+
+    container.set_security_context(security_context);
+    assert_eq!(kube_security_context, container.into_kube().security_context.unwrap());
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_clone(){
     let mut container = Container::default();
     container.set_image(new_strlit("image").to_string());
