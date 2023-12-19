@@ -45,6 +45,14 @@ pub fn test_set_app_protocol() {
 
 #[test]
 #[verifier(external)]
+pub fn test_set_protocaol() {
+    let mut service_port = ServicePort::default();
+    service_port.set_protocol(new_strlit("protocol").to_string());
+    assert_eq!("protocol".to_string(), service_port.into_kube().protocol.unwrap());
+}
+
+#[test]
+#[verifier(external)]
 pub fn test_kube() {
     let kube_service_port = deps_hack::k8s_openapi::api::core::v1::ServicePort {
         name: Some("name".to_string()),
