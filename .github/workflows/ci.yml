@@ -34,7 +34,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify fluent controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --time --rlimit 20
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --time --rlimit 50
   rabbitmq-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -57,7 +57,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify rabbitmq controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 20
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
   zookeeper-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -80,7 +80,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify zookeeper controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 20
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 50
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
