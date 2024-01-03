@@ -21,7 +21,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 92caa8f0f64487d5015ed56a0b800b66b3f128bc
+          ref: 3ac6c8318c7e285bf41fc2eb8072c6140ba7cc93
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -44,7 +44,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 92caa8f0f64487d5015ed56a0b800b66b3f128bc
+          ref: 3ac6c8318c7e285bf41fc2eb8072c6140ba7cc93
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -67,7 +67,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 92caa8f0f64487d5015ed56a0b800b66b3f128bc
+          ref: 3ac6c8318c7e285bf41fc2eb8072c6140ba7cc93
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -90,7 +90,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 92caa8f0f64487d5015ed56a0b800b66b3f128bc
+          ref: 3ac6c8318c7e285bf41fc2eb8072c6140ba7cc93
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
