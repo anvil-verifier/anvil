@@ -153,12 +153,12 @@ pub open spec fn handle_list_request(msg: MsgType<E>, s: KubernetesAPIState) -> 
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    let result = Ok(map_to_seq(
-        s.resources, |o: DynamicObjectView| {
-            &&& o.object_ref().namespace == req.namespace
-            &&& o.object_ref().kind == req.kind
-        }
-    ));
+    // TODO: selector should also consider other fields
+    let selector = |o: DynamicObjectView| {
+        &&& o.object_ref().namespace == req.namespace
+        &&& o.object_ref().kind == req.kind
+    };
+    let result = Ok(map_to_seq(s.resources, selector));
     let resp = Message::form_list_resp_msg(msg, result);
     // TODO: Specify the error conditions
     (s, resp)
