@@ -46,6 +46,13 @@ pub struct ZookeeperClusterSpec {
     pub labels: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,
+    #[serde(rename = "securityContext")]
+    pub security_context: Option<k8s_openapi::api::core::v1::PodSecurityContext>,
+    #[serde(rename = "terminationGracePeriodSeconds")]
+    pub termination_grace_period_seconds: Option<i64>,
+    pub volumes: Option<Vec<k8s_openapi::api::core::v1::Volume>>,
+    #[serde(rename = "volumeMounts")]
+    pub volume_mounts: Option<Vec<k8s_openapi::api::core::v1::VolumeMount>>,
 }
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]

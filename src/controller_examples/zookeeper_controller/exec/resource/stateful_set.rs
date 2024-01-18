@@ -297,7 +297,11 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             zk_container.set_image_pull_policy(new_strlit("Always").to_string());
             zk_container.overwrite_resources(zk.spec().resources());
             zk_container.set_volume_mounts({
-                let mut volume_mounts = Vec::new();
+                let mut volume_mounts = if zk.spec().volume_mounts().is_some() {
+                    zk.spec().volume_mounts().unwrap()
+                } else {
+                    Vec::new()
+                };
                 volume_mounts.push({
                     let mut data_volume_mount = VolumeMount::default();
                     data_volume_mount.set_name(new_strlit("data").to_string());
@@ -402,7 +406,11 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes({
-        let mut volumes = Vec::new();
+        let mut volumes = if zk.spec().volumes().is_some() {
+            zk.spec().volumes().unwrap()
+        } else {
+            Vec::new()
+        };
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("conf").to_string());
@@ -433,7 +441,12 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     });
     pod_spec.overwrite_tolerations(zk.spec().tolerations());
     pod_spec.set_node_selector(zk.spec().node_selector());
-
+    if zk.spec().security_context().is_some() {
+        pod_spec.set_security_context(zk.spec().security_context().unwrap());
+    }
+    if zk.spec().termination_grace_period_seconds().is_some() {
+        pod_spec.set_termination_grace_period_seconds(zk.spec().termination_grace_period_seconds().unwrap());
+    }
     pod_spec
 }
 

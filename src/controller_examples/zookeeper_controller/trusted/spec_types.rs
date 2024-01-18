@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
+    affinity::*, api_resource::*, common::*, container::*, dynamic::*, marshal::*, object_meta::*,
+    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
+    volume::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
@@ -162,6 +163,10 @@ pub struct ZookeeperClusterSpecView {
     pub node_selector: Map<StringView, StringView>,
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
+    pub security_context: Option<PodSecurityContextView>,
+    pub termination_grace_period_seconds: Option<int>,
+    pub volumes: Option<Seq<VolumeView>>,
+    pub volume_mounts: Option<Seq<VolumeMountView>>,
 }
 
 pub struct ZookeeperPortsView {

@@ -184,14 +184,20 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
                 ),
                 image_pull_policy: Some(new_strlit("Always")@),
                 resources: zk.spec.resources,
-                volume_mounts: Some(seq![
-                    VolumeMountView::default()
+                volume_mounts: Some({
+                    let data_volume_mount = VolumeMountView::default()
                         .set_name(new_strlit("data")@)
-                        .set_mount_path(new_strlit("/data")@),
-                    VolumeMountView::default()
+                        .set_mount_path(new_strlit("/data")@);
+                    let conf_volume_mount = VolumeMountView::default()
                         .set_name(new_strlit("conf")@)
-                        .set_mount_path(new_strlit("/conf")@),
-                ]),
+                        .set_mount_path(new_strlit("/conf")@);
+                    if zk.spec.volume_mounts.is_Some() {
+                        let extra_volume_mounts = zk.spec.volume_mounts.get_Some_0();
+                        extra_volume_mounts.push(data_volume_mount).push(conf_volume_mount)
+                    } else {
+                        seq![data_volume_mount, conf_volume_mount]
+                    }
+                }),
                 ports: Some(seq![
                     ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(zk.spec.ports.client),
                     ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(zk.spec.ports.quorum),
@@ -224,20 +230,34 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
                 ..ContainerView::default()
             }
         ],
+        // TODO: can we use Seq.add without performance issues?
         volumes: Some({
-            let volumes = seq![
-                VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
-                    ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
-                )
-            ];
-            if zk.spec.persistence.enabled {
-                volumes
+            let conf_volume = VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
+                ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
+            );
+            let data_volume = VolumeView::default().set_name(new_strlit("data")@).set_empty_dir(
+                EmptyDirVolumeSourceView::default()
+            );
+            if zk.spec.volumes.is_Some() {
+                let extra_volumes = zk.spec.volumes.get_Some_0();
+                if zk.spec.persistence.enabled {
+                    extra_volumes.push(conf_volume)
+                } else {
+                    extra_volumes.push(conf_volume).push(data_volume)
+                }
             } else {
-                volumes.push(VolumeView::default().set_name(new_strlit("data")@).set_empty_dir(EmptyDirVolumeSourceView::default()))
+                let volumes = seq![conf_volume];
+                if zk.spec.persistence.enabled {
+                    seq![conf_volume]
+                } else {
+                    seq![conf_volume, data_volume]
+                }
             }
         }),
         tolerations: zk.spec.tolerations,
         node_selector: Some(zk.spec.node_selector),
+        security_context: zk.spec.security_context,
+        termination_grace_period_seconds: zk.spec.termination_grace_period_seconds,
         ..PodSpecView::default()
     }
 }

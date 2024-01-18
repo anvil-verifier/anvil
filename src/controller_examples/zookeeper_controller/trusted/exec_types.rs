@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::exec::{
-    affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*, owner_reference::*,
-    resource::*, resource_requirements::*, toleration::*,
+    affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
+    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
+    volume::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
@@ -240,6 +241,51 @@ impl ZookeeperClusterSpec {
         ensures annotations@ == self@.annotations,
     {
         StringMap::from_rust_map(self.inner.annotations.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn security_context(&self) -> (security_context: Option<PodSecurityContext>)
+        ensures
+            security_context.is_Some() == self@.security_context.is_Some(),
+            security_context.is_Some() ==> security_context.get_Some_0()@ == self@.security_context.get_Some_0(),
+    {
+        match &self.inner.security_context {
+            Some(s) => Some(PodSecurityContext::from_kube(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn termination_grace_period_seconds(&self) -> (termination_grace_period_seconds: Option<i64>)
+        ensures
+            termination_grace_period_seconds.is_Some() == self@.termination_grace_period_seconds.is_Some(),
+            termination_grace_period_seconds.is_Some() ==> termination_grace_period_seconds.get_Some_0() as int == self@.termination_grace_period_seconds.get_Some_0(),
+    {
+        self.inner.termination_grace_period_seconds
+    }
+
+    #[verifier(external_body)]
+    pub fn volumes(&self) -> (volumes: Option<Vec<Volume>>)
+        ensures
+            self@.volumes.is_Some() == volumes.is_Some(),
+            volumes.is_Some() ==> volumes.get_Some_0()@.map_values(|v: Volume| v@) == self@.volumes.get_Some_0(),
+    {
+        match &self.inner.volumes {
+            Some(volumes) => Some(volumes.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::Volume| Volume::from_kube(v)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn volume_mounts(&self) -> (volume_mounts: Option<Vec<VolumeMount>>)
+        ensures
+            self@.volume_mounts.is_Some() == volume_mounts.is_Some(),
+            volume_mounts.is_Some() ==> volume_mounts.get_Some_0()@.map_values(|v: VolumeMount| v@) == self@.volume_mounts.get_Some_0(),
+    {
+        match &self.inner.volume_mounts {
+            Some(volume_mounts) => Some(volume_mounts.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::VolumeMount| VolumeMount::from_kube(v)).collect()),
+            None => None,
+        }
     }
 }
 
