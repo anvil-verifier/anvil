@@ -3,7 +3,10 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::Step, message::*};
+use crate::kubernetes_cluster::spec::{
+    cluster::*, cluster_state_machine::Step,
+    kubernetes_api::state_machine as api_server_state_machine, message::*,
+};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
@@ -45,7 +48,7 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
         &&& obj.object_ref() == key
         &&& obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& obj.metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
-        &&& Self::unmarshallable_object(obj)
+        &&& api_server_state_machine::unmarshallable_object::<K>(obj)
         &&& Self::valid_object_except_k(obj)
     }
 }

@@ -24,11 +24,9 @@ verus! {
 //
 // + Support graceful deletion
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
-
 // TODO: maybe make it a method of DynamicObjectView?
 // TODO: we should just use pattern matching here; but a problem is that K::kind() is not guaranteed to be CustomResourceKind
-pub open spec fn unmarshallable_object(obj: DynamicObjectView) -> bool {
+pub open spec fn unmarshallable_object<K: ResourceView>(obj: DynamicObjectView) -> bool {
     if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal_spec(obj.spec).is_Ok() && ConfigMapView::unmarshal_status(obj.status).is_Ok() }
     else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal_spec(obj.spec).is_Ok() && DaemonSetView::unmarshal_status(obj.status).is_Ok() }
     else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() && PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok() }
@@ -63,7 +61,7 @@ pub open spec fn metadata_transition_validity_check(obj: DynamicObjectView, old_
     }
 }
 
-pub open spec fn valid_object(obj: DynamicObjectView) -> bool {
+pub open spec fn valid_object<K: ResourceView>(obj: DynamicObjectView) -> bool {
     if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(obj).get_Ok_0().state_validation() }
     else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(obj).get_Ok_0().state_validation() }
     else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation() }
@@ -78,15 +76,15 @@ pub open spec fn valid_object(obj: DynamicObjectView) -> bool {
     else { true }
 }
 
-pub open spec fn object_validity_check(obj: DynamicObjectView) -> Option<APIError> {
-    if !Self::valid_object(obj) {
+pub open spec fn object_validity_check<K: ResourceView>(obj: DynamicObjectView) -> Option<APIError> {
+    if !valid_object::<K>(obj) {
         Some(APIError::Invalid)
     } else {
         None
     }
 }
 
-pub open spec fn valid_transition(obj: DynamicObjectView, old_obj: DynamicObjectView) -> bool {
+pub open spec fn valid_transition<K: ResourceView>(obj: DynamicObjectView, old_obj: DynamicObjectView) -> bool {
     if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0()) }
     else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0()) }
     else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().transition_validation(PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0()) }
@@ -101,15 +99,15 @@ pub open spec fn valid_transition(obj: DynamicObjectView, old_obj: DynamicObject
     else { true }
 }
 
-pub open spec fn object_transition_validity_check(obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
-    if !Self::valid_transition(obj, old_obj) {
+pub open spec fn object_transition_validity_check<K: ResourceView>(obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
+    if !valid_transition::<K>(obj, old_obj) {
         Some(APIError::Invalid)
     } else {
         None
     }
 }
 
-pub open spec fn marshalled_default_status(obj: DynamicObjectView) -> Value {
+pub open spec fn marshalled_default_status<K: ResourceView>(obj: DynamicObjectView) -> Value {
     if obj.kind == ConfigMapView::kind() { ConfigMapView::marshal_status(ConfigMapView::default().status()) }
     else if obj.kind == DaemonSetView::kind() { DaemonSetView::marshal_status(DaemonSetView::default().status()) }
     else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::marshal_status(PersistentVolumeClaimView::default().status()) }
@@ -137,14 +135,6 @@ pub open spec fn handle_get_request_inner(req: GetRequest, s: KubernetesAPIState
     }
 }
 
-pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
-    recommends
-        msg.content.is_get_request(),
-{
-    let req = msg.content.get_get_request();
-    (s, Message::form_get_resp_msg(msg, Self::handle_get_request_inner(req, s)))
-}
-
 #[verifier(inline)]
 pub open spec fn handle_list_request_inner(req: ListRequest, s: KubernetesAPIState) -> Result<Seq<DynamicObjectView>, APIError> {
     // TODO: List should consider other fields
@@ -155,22 +145,14 @@ pub open spec fn handle_list_request_inner(req: ListRequest, s: KubernetesAPISta
     Ok(map_to_seq(s.resources, selector))
 }
 
-pub open spec fn handle_list_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
-    recommends
-        msg.content.is_list_request(),
-{
-    let req = msg.content.get_list_request();
-    (s, Message::form_list_resp_msg(msg, Self::handle_list_request_inner(req, s)))
-}
-
-pub open spec fn create_request_admission_check(req: CreateRequest, s: KubernetesAPIState) -> Option<APIError> {
+pub open spec fn create_request_admission_check<K: ResourceView>(req: CreateRequest, s: KubernetesAPIState) -> Option<APIError> {
     if req.obj.metadata.name.is_None() {
         // Creation fails because the name of the provided object is not provided
         Some(APIError::Invalid)
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::unmarshallable_object(req.obj) {
+    } else if !unmarshallable_object::<K>(req.obj) {
         // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -181,21 +163,21 @@ pub open spec fn create_request_admission_check(req: CreateRequest, s: Kubernete
     }
 }
 
-pub open spec fn created_object_validity_check(created_obj: DynamicObjectView) -> Option<APIError> {
-    if Self::metadata_validity_check(created_obj).is_Some() {
-        Self::metadata_validity_check(created_obj)
-    } else if Self::object_validity_check(created_obj).is_Some() {
-        Self::object_validity_check(created_obj)
+pub open spec fn created_object_validity_check<K: ResourceView>(created_obj: DynamicObjectView) -> Option<APIError> {
+    if metadata_validity_check(created_obj).is_Some() {
+        metadata_validity_check(created_obj)
+    } else if object_validity_check::<K>(created_obj).is_Some() {
+        object_validity_check::<K>(created_obj)
     } else {
         None
     }
 }
 
 #[verifier(inline)]
-pub open spec fn handle_create_request_inner(req: CreateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
-    if Self::create_request_admission_check(req, s).is_Some() {
+pub open spec fn handle_create_request_inner<K: ResourceView>(req: CreateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
+    if create_request_admission_check::<K>(req, s).is_Some() {
         // Creation fails.
-        (s, Err(Self::create_request_admission_check(req, s).get_Some_0()))
+        (s, Err(create_request_admission_check::<K>(req, s).get_Some_0()))
     } else {
         let created_obj = DynamicObjectView {
             kind: req.obj.kind,
@@ -207,11 +189,11 @@ pub open spec fn handle_create_request_inner(req: CreateRequest, s: KubernetesAP
                 ..req.obj.metadata
             },
             spec: req.obj.spec,
-            status: Self::marshalled_default_status(req.obj), // Overwrite the status with the default one
+            status: marshalled_default_status::<K>(req.obj), // Overwrite the status with the default one
         };
-        if Self::created_object_validity_check(created_obj).is_Some() {
+        if created_object_validity_check::<K>(created_obj).is_Some() {
             // Creation fails.
-            (s, Err(Self::created_object_validity_check(created_obj).get_Some_0()))
+            (s, Err(created_object_validity_check::<K>(created_obj).get_Some_0()))
         } else {
             // Creation succeeds.
             (KubernetesAPIState {
@@ -226,15 +208,6 @@ pub open spec fn handle_create_request_inner(req: CreateRequest, s: KubernetesAP
     }
 }
 
-pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
-    recommends
-        msg.content.is_create_request(),
-{
-    let req = msg.content.get_create_request();
-    let (s_prime, result) = Self::handle_create_request_inner(req, s);
-    (s_prime, Message::form_create_resp_msg(msg, result))
-}
-
 pub closed spec fn deletion_timestamp() -> StringView;
 
 pub open spec fn handle_delete_request_inner(req: DeleteRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<(), APIError>) {
@@ -247,7 +220,7 @@ pub open spec fn handle_delete_request_inner(req: DeleteRequest, s: KubernetesAP
         if obj.metadata.finalizers.is_Some() && obj.metadata.finalizers.get_Some_0().len() > 0 {
             // With the finalizer(s) in the object, we cannot immediately delete it from the key-value store.
             // Instead, we set the deletion timestamp of this object.
-            let stamped_obj = obj.set_deletion_timestamp(Self::deletion_timestamp());
+            let stamped_obj = obj.set_deletion_timestamp(deletion_timestamp());
             if stamped_obj == obj {
                 (s, Ok(()))
             } else {
@@ -274,15 +247,6 @@ pub open spec fn handle_delete_request_inner(req: DeleteRequest, s: KubernetesAP
     }
 }
 
-pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
-    recommends
-        msg.content.is_delete_request(),
-{
-    let req = msg.content.get_delete_request();
-    let (s_prime, result) = Self::handle_delete_request_inner(req, s);
-    (s_prime, Message::form_delete_resp_msg(msg, result))
-}
-
 // Unconditional update means one can update the object without providing a resource version.
 // For all the supported kinds, unconditional update is disallowed for CustomResource only.
 // Note that if the resource version is provided, it has to be the correct one.
@@ -293,7 +257,7 @@ pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
     }
 }
 
-pub open spec fn update_request_admission_check_helper(name: StringView, namespace: StringView, obj: DynamicObjectView, s: KubernetesAPIState) -> Option<APIError> {
+pub open spec fn update_request_admission_check_helper<K: ResourceView>(name: StringView, namespace: StringView, obj: DynamicObjectView, s: KubernetesAPIState) -> Option<APIError> {
     let key = ObjectRef {
         kind: obj.kind,
         namespace: namespace,
@@ -311,7 +275,7 @@ pub open spec fn update_request_admission_check_helper(name: StringView, namespa
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::unmarshallable_object(obj) {
+    } else if !unmarshallable_object::<K>(obj) {
         // Update fails because the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
@@ -320,7 +284,7 @@ pub open spec fn update_request_admission_check_helper(name: StringView, namespa
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
     } else if obj.metadata.resource_version.is_None()
-        && !Self::allow_unconditional_update(key.kind) {
+        && !allow_unconditional_update(key.kind) {
         // Update fails because the object does not provide a rv and unconditional update is not supported
         Some(APIError::Invalid)
     } else if obj.metadata.resource_version.is_Some()
@@ -337,8 +301,8 @@ pub open spec fn update_request_admission_check_helper(name: StringView, namespa
     }
 }
 
-pub open spec fn update_request_admission_check(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
-    Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
+pub open spec fn update_request_admission_check<K: ResourceView>(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
+    update_request_admission_check_helper::<K>(req.name, req.namespace, req.obj, s)
 }
 
 pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
@@ -357,28 +321,28 @@ pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) 
     updated_obj
 }
 
-pub open spec fn updated_object_validity_check(updated_obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
-    if Self::metadata_validity_check(updated_obj).is_Some() {
-        Self::metadata_validity_check(updated_obj)
-    } else if Self::metadata_transition_validity_check(updated_obj, old_obj).is_Some() {
-        Self::metadata_transition_validity_check(updated_obj, old_obj)
-    } else if Self::object_validity_check(updated_obj).is_Some() {
-        Self::object_validity_check(updated_obj)
-    } else if Self::object_transition_validity_check(updated_obj, old_obj).is_Some() {
-        Self::object_transition_validity_check(updated_obj, old_obj)
+pub open spec fn updated_object_validity_check<K: ResourceView>(updated_obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
+    if metadata_validity_check(updated_obj).is_Some() {
+        metadata_validity_check(updated_obj)
+    } else if metadata_transition_validity_check(updated_obj, old_obj).is_Some() {
+        metadata_transition_validity_check(updated_obj, old_obj)
+    } else if object_validity_check::<K>(updated_obj).is_Some() {
+        object_validity_check::<K>(updated_obj)
+    } else if object_transition_validity_check::<K>(updated_obj, old_obj).is_Some() {
+        object_transition_validity_check::<K>(updated_obj, old_obj)
     } else {
         None
     }
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_request_inner(req: UpdateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
-    if Self::update_request_admission_check(req, s).is_Some() {
+pub open spec fn handle_update_request_inner<K: ResourceView>(req: UpdateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
+    if update_request_admission_check::<K>(req, s).is_Some() {
         // Update fails.
-        (s, Err(Self::update_request_admission_check(req, s).get_Some_0()))
+        (s, Err(update_request_admission_check::<K>(req, s).get_Some_0()))
     } else {
         let old_obj = s.resources[req.key()];
-        let updated_obj = Self::updated_object(req, old_obj);
+        let updated_obj = updated_object(req, old_obj);
         if updated_obj == old_obj {
             // Update is a noop because there is nothing to update
             // so the resource version counter does not increase here,
@@ -388,9 +352,9 @@ pub open spec fn handle_update_request_inner(req: UpdateRequest, s: KubernetesAP
             // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
-            if Self::updated_object_validity_check(updated_obj_with_new_rv, old_obj).is_Some() {
+            if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
                 // Update fails.
-                (s, Err(Self::updated_object_validity_check(updated_obj_with_new_rv, old_obj).get_Some_0()))
+                (s, Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0()))
             } else {
                 // Update succeeds.
                 if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
@@ -430,17 +394,8 @@ pub open spec fn handle_update_request_inner(req: UpdateRequest, s: KubernetesAP
     }
 }
 
-pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
-    recommends
-        msg.content.is_update_request(),
-{
-    let req = msg.content.get_update_request();
-    let (s_prime, result) = Self::handle_update_request_inner(req, s);
-    (s_prime, Message::form_update_resp_msg(msg, result))
-}
-
-pub open spec fn update_status_request_admission_check(req: UpdateStatusRequest, s: KubernetesAPIState) -> Option<APIError> {
-    Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
+pub open spec fn update_status_request_admission_check<K: ResourceView>(req: UpdateStatusRequest, s: KubernetesAPIState) -> Option<APIError> {
+    update_request_admission_check_helper::<K>(req.name, req.namespace, req.obj, s)
 }
 
 pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
@@ -454,13 +409,13 @@ pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: Dynami
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_status_request_inner(req: UpdateStatusRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
-    if Self::update_status_request_admission_check(req, s).is_Some() {
+pub open spec fn handle_update_status_request_inner<K: ResourceView>(req: UpdateStatusRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
+    if update_status_request_admission_check::<K>(req, s).is_Some() {
         // UpdateStatus fails.
-        (s, Err(Self::update_status_request_admission_check(req, s).get_Some_0()))
+        (s, Err(update_status_request_admission_check::<K>(req, s).get_Some_0()))
     } else {
         let old_obj = s.resources[req.key()];
-        let updated_obj = Self::status_updated_object(req, old_obj);
+        let updated_obj = status_updated_object(req, old_obj);
         if updated_obj == old_obj {
             // UpdateStatus is a noop because there is nothing to update
             // so the resource version counter does not increase here,
@@ -470,9 +425,9 @@ pub open spec fn handle_update_status_request_inner(req: UpdateStatusRequest, s:
             // UpdateStatus changes something in the object (in status), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
-            if Self::updated_object_validity_check(updated_obj_with_new_rv, old_obj).is_Some() {
+            if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
                 // UpdateStatus fails.
-                (s, Err(Self::updated_object_validity_check(updated_obj_with_new_rv, old_obj).get_Some_0()))
+                (s, Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0()))
             } else {
                 // UpdateStatus succeeds.
                 (KubernetesAPIState {
@@ -485,12 +440,57 @@ pub open spec fn handle_update_status_request_inner(req: UpdateStatusRequest, s:
     }
 }
 
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+
+pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+    recommends
+        msg.content.is_get_request(),
+{
+    let req = msg.content.get_get_request();
+    (s, Message::form_get_resp_msg(msg, handle_get_request_inner(req, s)))
+}
+
+pub open spec fn handle_list_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+    recommends
+        msg.content.is_list_request(),
+{
+    let req = msg.content.get_list_request();
+    (s, Message::form_list_resp_msg(msg, handle_list_request_inner(req, s)))
+}
+
+pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+    recommends
+        msg.content.is_create_request(),
+{
+    let req = msg.content.get_create_request();
+    let (s_prime, result) = handle_create_request_inner::<K>(req, s);
+    (s_prime, Message::form_create_resp_msg(msg, result))
+}
+
+pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+    recommends
+        msg.content.is_delete_request(),
+{
+    let req = msg.content.get_delete_request();
+    let (s_prime, result) = handle_delete_request_inner(req, s);
+    (s_prime, Message::form_delete_resp_msg(msg, result))
+}
+
+pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+    recommends
+        msg.content.is_update_request(),
+{
+    let req = msg.content.get_update_request();
+    let (s_prime, result) = handle_update_request_inner::<K>(req, s);
+    (s_prime, Message::form_update_resp_msg(msg, result))
+}
+
 pub open spec fn handle_update_status_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_update_status_request(),
 {
     let req = msg.content.get_update_status_request();
-    let (s_prime, result) = Self::handle_update_status_request_inner(req, s);
+    let (s_prime, result) = handle_update_status_request_inner::<K>(req, s);
     (s_prime, Message::form_update_status_resp_msg(msg, result))
 }
 
