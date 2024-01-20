@@ -90,6 +90,18 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn owner_references(&self) -> (owner_references: Option<Vec<OwnerReference>>)
+        ensures
+            self@.owner_references.is_Some() == owner_references.is_Some(),
+            owner_references.is_Some() ==> owner_references.get_Some_0()@.map_values(|o: OwnerReference| o@) == self@.owner_references.get_Some_0(),
+    {
+        match &self.inner.owner_references {
+            Some(o) => Some(o.into_iter().map(|item| OwnerReference::from_kube(item.clone())).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
         ensures res == self@.owner_references_only_contains(owner_ref@),
     {
