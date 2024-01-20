@@ -473,7 +473,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
             Step::KubernetesAPIStep(input) => {
                 assert(!resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = RMQCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -488,7 +488,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = RMQCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -639,7 +639,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
 
     assert forall |s, s_prime: RMQCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let pending_msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
-        let resp = RMQCluster::handle_create_request(pending_msg, s.kubernetes_api_state).1;
+        let resp = RMQCluster::handle_create_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
             SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
@@ -727,7 +727,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
                 assert(!resource_delete_request_msg(get_request(sub_resource, rabbitmq).key)(req));
                 assert(!resource_update_status_request_msg(get_request(sub_resource, rabbitmq).key)(req));
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = RMQCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -743,7 +743,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = RMQCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -824,7 +824,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
 
     assert forall |s, s_prime: RMQCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let pending_msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
-        let resp = RMQCluster::handle_update_request(pending_msg, s.kubernetes_api_state).1;
+        let resp = RMQCluster::handle_update_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
             SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),

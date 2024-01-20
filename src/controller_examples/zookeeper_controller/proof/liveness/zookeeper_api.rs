@@ -537,7 +537,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
             Step::KubernetesAPIStep(input) => {
                 assert(!resource_create_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -552,7 +552,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -687,7 +687,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -703,7 +703,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)

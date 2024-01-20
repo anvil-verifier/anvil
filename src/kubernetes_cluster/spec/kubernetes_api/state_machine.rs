@@ -123,7 +123,7 @@ pub open spec fn marshalled_default_status<K: ResourceView>(obj: DynamicObjectVi
 }
 
 #[verifier(inline)]
-pub open spec fn handle_get_request_inner(req: GetRequest, s: KubernetesAPIState) -> Result<DynamicObjectView, APIError> {
+pub open spec fn handle_get_request(req: GetRequest, s: KubernetesAPIState) -> Result<DynamicObjectView, APIError> {
     if !s.resources.contains_key(req.key) {
         // Get fails
         let result = Err(APIError::ObjectNotFound);
@@ -136,7 +136,7 @@ pub open spec fn handle_get_request_inner(req: GetRequest, s: KubernetesAPIState
 }
 
 #[verifier(inline)]
-pub open spec fn handle_list_request_inner(req: ListRequest, s: KubernetesAPIState) -> Result<Seq<DynamicObjectView>, APIError> {
+pub open spec fn handle_list_request(req: ListRequest, s: KubernetesAPIState) -> Result<Seq<DynamicObjectView>, APIError> {
     // TODO: List should consider other fields
     let selector = |o: DynamicObjectView| {
         &&& o.object_ref().namespace == req.namespace
@@ -174,7 +174,7 @@ pub open spec fn created_object_validity_check<K: ResourceView>(created_obj: Dyn
 }
 
 #[verifier(inline)]
-pub open spec fn handle_create_request_inner<K: ResourceView>(req: CreateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
+pub open spec fn handle_create_request<K: ResourceView>(req: CreateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
     if create_request_admission_check::<K>(req, s).is_Some() {
         // Creation fails.
         (s, Err(create_request_admission_check::<K>(req, s).get_Some_0()))
@@ -210,7 +210,7 @@ pub open spec fn handle_create_request_inner<K: ResourceView>(req: CreateRequest
 
 pub closed spec fn deletion_timestamp() -> StringView;
 
-pub open spec fn handle_delete_request_inner(req: DeleteRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<(), APIError>) {
+pub open spec fn handle_delete_request(req: DeleteRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<(), APIError>) {
     if !s.resources.contains_key(req.key) {
         // Deletion fails.
         (s, Err(APIError::ObjectNotFound))
@@ -336,7 +336,7 @@ pub open spec fn updated_object_validity_check<K: ResourceView>(updated_obj: Dyn
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_request_inner<K: ResourceView>(req: UpdateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
+pub open spec fn handle_update_request<K: ResourceView>(req: UpdateRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
     if update_request_admission_check::<K>(req, s).is_Some() {
         // Update fails.
         (s, Err(update_request_admission_check::<K>(req, s).get_Some_0()))
@@ -409,7 +409,7 @@ pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: Dynami
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_status_request_inner<K: ResourceView>(req: UpdateStatusRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
+pub open spec fn handle_update_status_request<K: ResourceView>(req: UpdateStatusRequest, s: KubernetesAPIState) -> (KubernetesAPIState, Result<DynamicObjectView, APIError>) {
     if update_status_request_admission_check::<K>(req, s).is_Some() {
         // UpdateStatus fails.
         (s, Err(update_status_request_admission_check::<K>(req, s).get_Some_0()))
@@ -442,55 +442,55 @@ pub open spec fn handle_update_status_request_inner<K: ResourceView>(req: Update
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+pub open spec fn handle_get_request_msg(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_get_request(),
 {
     let req = msg.content.get_get_request();
-    (s, Message::form_get_resp_msg(msg, handle_get_request_inner(req, s)))
+    (s, Message::form_get_resp_msg(msg, handle_get_request(req, s)))
 }
 
-pub open spec fn handle_list_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+pub open spec fn handle_list_request_msg(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    (s, Message::form_list_resp_msg(msg, handle_list_request_inner(req, s)))
+    (s, Message::form_list_resp_msg(msg, handle_list_request(req, s)))
 }
 
-pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+pub open spec fn handle_create_request_msg(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    let (s_prime, result) = handle_create_request_inner::<K>(req, s);
+    let (s_prime, result) = handle_create_request::<K>(req, s);
     (s_prime, Message::form_create_resp_msg(msg, result))
 }
 
-pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+pub open spec fn handle_delete_request_msg(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_delete_request(),
 {
     let req = msg.content.get_delete_request();
-    let (s_prime, result) = handle_delete_request_inner(req, s);
+    let (s_prime, result) = handle_delete_request(req, s);
     (s_prime, Message::form_delete_resp_msg(msg, result))
 }
 
-pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+pub open spec fn handle_update_request_msg(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_update_request(),
 {
     let req = msg.content.get_update_request();
-    let (s_prime, result) = handle_update_request_inner::<K>(req, s);
+    let (s_prime, result) = handle_update_request::<K>(req, s);
     (s_prime, Message::form_update_resp_msg(msg, result))
 }
 
-pub open spec fn handle_update_status_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
+pub open spec fn handle_update_status_request_msg(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_update_status_request(),
 {
     let req = msg.content.get_update_status_request();
-    let (s_prime, result) = handle_update_status_request_inner::<K>(req, s);
+    let (s_prime, result) = handle_update_status_request::<K>(req, s);
     (s_prime, Message::form_update_status_resp_msg(msg, result))
 }
 
@@ -500,12 +500,12 @@ pub open spec fn transition_by_etcd(msg: MsgType<E>, s: KubernetesAPIState) -> (
         msg.content.is_APIRequest(),
 {
     match msg.content.get_APIRequest_0() {
-        APIRequest::GetRequest(_) => Self::handle_get_request(msg, s),
-        APIRequest::ListRequest(_) => Self::handle_list_request(msg, s),
-        APIRequest::CreateRequest(_) => Self::handle_create_request(msg, s),
-        APIRequest::DeleteRequest(_) => Self::handle_delete_request(msg, s),
-        APIRequest::UpdateRequest(_) => Self::handle_update_request(msg, s),
-        APIRequest::UpdateStatusRequest(_) => Self::handle_update_status_request(msg, s),
+        APIRequest::GetRequest(_) => Self::handle_get_request_msg(msg, s),
+        APIRequest::ListRequest(_) => Self::handle_list_request_msg(msg, s),
+        APIRequest::CreateRequest(_) => Self::handle_create_request_msg(msg, s),
+        APIRequest::DeleteRequest(_) => Self::handle_delete_request_msg(msg, s),
+        APIRequest::UpdateRequest(_) => Self::handle_update_request_msg(msg, s),
+        APIRequest::UpdateStatusRequest(_) => Self::handle_update_status_request_msg(msg, s),
     }
 }
 

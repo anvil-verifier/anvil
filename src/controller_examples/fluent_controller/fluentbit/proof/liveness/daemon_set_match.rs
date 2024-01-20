@@ -239,7 +239,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
                 if req == req_msg {
-                    let resp_msg = FBCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -255,7 +255,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = FBCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -422,7 +422,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
     assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         let pending_msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
-        let resp = FBCluster::handle_update_request(pending_msg, s.kubernetes_api_state).1;
+        let resp = FBCluster::handle_update_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         DaemonSetView::marshal_preserves_integrity();
     }

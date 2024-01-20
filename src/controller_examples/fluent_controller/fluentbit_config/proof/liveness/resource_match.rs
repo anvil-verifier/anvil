@@ -294,7 +294,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = FBCCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -309,7 +309,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = FBCCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -428,7 +428,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
 
     assert forall |s, s_prime: FBCCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let pending_msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
-        let resp = FBCCluster::handle_create_request(pending_msg, s.kubernetes_api_state).1;
+        let resp = FBCCluster::handle_create_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
             SubResource::Secret => SecretView::marshal_preserves_integrity(),
@@ -488,7 +488,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = FBCCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -504,7 +504,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = FBCCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -571,7 +571,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(spec: TempPr
 
     assert forall |s, s_prime: FBCCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let pending_msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
-        let resp = FBCCluster::handle_update_request(pending_msg, s.kubernetes_api_state).1;
+        let resp = FBCCluster::handle_update_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
             SubResource::Secret => SecretView::marshal_preserves_integrity(),
