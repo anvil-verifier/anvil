@@ -1,3 +1,4 @@
+use crate::executable_model::common::*;
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
 use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
@@ -6,66 +7,11 @@ use crate::kubernetes_api_objects::spec::{
 use vstd::prelude::*;
 use vstd::string::*;
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct ObjectMapKey {
-    pub kind: Kind,
-    pub name: std::string::String,
-    pub namespace: std::string::String,
-}
-
-impl KubeObjectRef {
-    pub fn into_object_map_key(self) -> ObjectMapKey {
-        ObjectMapKey {
-            kind: self.kind.clone(),
-            name: self.name.into_rust_string(),
-            namespace: self.namespace.into_rust_string(),
-        }
-    }
-
-    pub fn from_object_map_key(key: ObjectMapKey) -> KubeObjectRef {
-        KubeObjectRef {
-            kind: key.kind.clone(),
-            name: String::from_rust_string(key.name),
-            namespace: String::from_rust_string(key.namespace),
-        }
-    }
-}
-
 verus! {
-
-pub struct KubeObjectRef {
-    pub kind: Kind,
-    pub name: String,
-    pub namespace: String,
-}
-
-impl View for KubeObjectRef {
-    type V = ObjectRef;
-    open spec fn view(&self) -> ObjectRef {
-        ObjectRef {
-            kind: self.kind,
-            name: self.name@,
-            namespace: self.namespace@,
-        }
-    }
-}
-
-impl std::clone::Clone for KubeObjectRef {
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: Self)
-        ensures result == self
-    {
-        KubeObjectRef {
-            kind: self.kind.clone(),
-            name: self.name.clone(),
-            namespace: self.namespace.clone(),
-        }
-    }
-}
 
 #[verifier(external_body)]
 pub struct ObjectMap {
-    inner: std::collections::BTreeMap<ObjectMapKey, DynamicObject>,
+    inner: std::collections::BTreeMap<ExternalObjectRef, DynamicObject>,
 }
 
 impl ObjectMap {
@@ -132,10 +78,10 @@ impl ObjectMap {
     }
 
     #[verifier(external)]
-    pub fn from_rust_map(inner: std::collections::BTreeMap<ObjectMapKey, DynamicObject>) -> ObjectMap { ObjectMap { inner: inner } }
+    pub fn from_rust_map(inner: std::collections::BTreeMap<ExternalObjectRef, DynamicObject>) -> ObjectMap { ObjectMap { inner: inner } }
 
     #[verifier(external)]
-    pub fn into_rust_map(self) -> std::collections::BTreeMap<ObjectMapKey, DynamicObject> { self.inner }
+    pub fn into_rust_map(self) -> std::collections::BTreeMap<ExternalObjectRef, DynamicObject> { self.inner }
 }
 
 }

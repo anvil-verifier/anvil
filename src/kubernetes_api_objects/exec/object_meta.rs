@@ -123,6 +123,41 @@ impl ObjectMeta {
         }
     }
 
+    // We need this seemingly redundant function because of the inconsistency
+    // between the actual resource version and its spec-level encoding:
+    // one is String while the other is an int.
+    // If we want to reason about the exec code that compares two ObjectMeta's rv,
+    // we need to call this function to prove the result of the comparison is the
+    // same as comparing the two spec-level rv (two ints).
+    #[verifier(external_body)]
+    pub fn resource_version_eq(&self, other: &ObjectMeta) -> (b: bool)
+        ensures b == (self@.resource_version == other@.resource_version)
+    {
+        self.inner.resource_version == other.inner.resource_version
+    }
+
+    // TODO: the uid is not really a number; need to reconsider its spec-level representation
+    #[verifier(external_body)]
+    pub fn uid(&self) -> (uid: Option<String>)
+        ensures
+            self@.uid.is_Some() == uid.is_Some(),
+            uid.is_Some() ==> uid.get_Some_0()@ == int_to_string_view(self@.uid.get_Some_0()),
+    {
+        match &self.inner.uid {
+            Some(item) => Some(String::from_rust_string(item.to_string())),
+            None => None,
+        }
+    }
+
+    // We need this seemingly redundant function for the same
+    // reason of resource_version_eq.
+    #[verifier(external_body)]
+    pub fn uid_eq(&self, other: &ObjectMeta) -> (b: bool)
+        ensures b == (self@.uid == other@.uid)
+    {
+        self.inner.uid == other.inner.uid
+    }
+
     #[verifier(external_body)]
     pub fn has_deletion_timestamp(&self) -> (b: bool)
         ensures b == self@.deletion_timestamp.is_Some(),
