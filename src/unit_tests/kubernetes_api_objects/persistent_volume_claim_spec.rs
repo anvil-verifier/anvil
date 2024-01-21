@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, common::*, dynamic::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, resource::*, resource_requirements::*,
+    api_resource::*, dynamic::*, label_selector::*, object_meta::*, persistent_volume_claim::*,
+    resource::*, resource_requirements::*,
 };
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
