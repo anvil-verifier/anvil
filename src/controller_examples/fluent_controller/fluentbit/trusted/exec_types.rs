@@ -5,9 +5,8 @@ use crate::fluent_controller::fluentbit::trusted::{
 };
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
-    affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
-    owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
-    volume::*,
+    affinity::*, api_resource::*, container::*, dynamic::*, object_meta::*, owner_reference::*,
+    prelude::*, resource::*, resource_requirements::*, toleration::*, volume::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
@@ -188,7 +187,7 @@ impl FluentBitSpec {
 
     #[verifier(external_body)]
     pub fn service_selector(&self) -> (service_selector: Option<StringMap>)
-        ensures 
+        ensures
             service_selector.is_Some() == self@.service_selector.is_Some(),
             service_selector.is_Some() ==> service_selector.get_Some_0()@ == self@.service_selector.get_Some_0(),
     {

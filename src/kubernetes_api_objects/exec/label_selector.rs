@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::exec::{common::*, resource::*};
+use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::label_selector::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
 use vstd::{prelude::*, string::*};

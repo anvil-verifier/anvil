@@ -382,7 +382,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = FBCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -398,7 +398,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = FBCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)

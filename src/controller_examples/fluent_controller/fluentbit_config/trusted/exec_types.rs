@@ -5,7 +5,7 @@ use crate::fluent_controller::fluentbit_config::trusted::{
 };
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, common::*, dynamic::*, object_meta::*, owner_reference::*, resource::*,
+    api_resource::*, dynamic::*, object_meta::*, owner_reference::*, resource::*,
     resource_requirements::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;

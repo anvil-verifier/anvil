@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
-use crate::kubernetes_api_objects::exec::{api_method::*, common::*};
+use crate::kubernetes_api_objects::exec::api_method::*;
 use crate::reconciler::exec::io::*;
 use crate::reconciler::spec::io::*;
 use vstd::prelude::*;

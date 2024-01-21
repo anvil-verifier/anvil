@@ -500,7 +500,7 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
                     APIRequest::UpdateRequest(_) => {}
                     APIRequest::UpdateStatusRequest(_) => {}
                 }
-                assert(msg == Self::handle_get_request(req, s.kubernetes_api_state).1);
+                assert(msg == Self::handle_get_request_msg(req, s.kubernetes_api_state).1);
                 assert(s.resources().contains_key(req.content.get_get_request().key));
                 assert(msg.content.get_get_response().res.get_Ok_0() == s.resources()[req.content.get_get_request().key]);
                 assert(req.content.get_get_request().key == msg.content.get_get_response().res.get_Ok_0().object_ref());
@@ -574,7 +574,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_get_response());
-                        assert(msg == Self::handle_get_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
+                        assert(msg == Self::handle_get_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
                         && msg.content.is_get_response());
                         if msg.content.get_get_response().res.is_Ok() {
@@ -669,7 +669,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_update_response());
-                        assert(msg == Self::handle_update_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
+                        assert(msg == Self::handle_update_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
                         && msg.content.is_update_response());
                         if msg.content.get_update_response().res.is_Ok() {
@@ -769,7 +769,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_create_response());
-                        assert(msg == Self::handle_create_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
+                        assert(msg == Self::handle_create_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
                         && msg.content.is_create_response());
                         if msg.content.get_create_response().res.is_Ok() {

@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::exec::{common::*, owner_reference::*, resource::*};
+use crate::kubernetes_api_objects::exec::{owner_reference::*, resource::*};
 use crate::kubernetes_api_objects::spec::object_meta::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
 use vstd::{prelude::*, string::*};
@@ -90,6 +90,18 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn owner_references(&self) -> (owner_references: Option<Vec<OwnerReference>>)
+        ensures
+            self@.owner_references.is_Some() == owner_references.is_Some(),
+            owner_references.is_Some() ==> owner_references.get_Some_0()@.map_values(|o: OwnerReference| o@) == self@.owner_references.get_Some_0(),
+    {
+        match &self.inner.owner_references {
+            Some(o) => Some(o.into_iter().map(|item| OwnerReference::from_kube(item.clone())).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
         ensures res == self@.owner_references_only_contains(owner_ref@),
     {
@@ -109,6 +121,41 @@ impl ObjectMeta {
             Some(rv) => Some(String::from_rust_string(rv.to_string())),
             None => None,
         }
+    }
+
+    // We need this seemingly redundant function because of the inconsistency
+    // between the actual resource version and its spec-level encoding:
+    // one is String while the other is an int.
+    // If we want to reason about the exec code that compares two ObjectMeta's rv,
+    // we need to call this function to prove the result of the comparison is the
+    // same as comparing the two spec-level rv (two ints).
+    #[verifier(external_body)]
+    pub fn resource_version_eq(&self, other: &ObjectMeta) -> (b: bool)
+        ensures b == (self@.resource_version == other@.resource_version)
+    {
+        self.inner.resource_version == other.inner.resource_version
+    }
+
+    // TODO: the uid is not really a number; need to reconsider its spec-level representation
+    #[verifier(external_body)]
+    pub fn uid(&self) -> (uid: Option<String>)
+        ensures
+            self@.uid.is_Some() == uid.is_Some(),
+            uid.is_Some() ==> uid.get_Some_0()@ == int_to_string_view(self@.uid.get_Some_0()),
+    {
+        match &self.inner.uid {
+            Some(item) => Some(String::from_rust_string(item.to_string())),
+            None => None,
+        }
+    }
+
+    // We need this seemingly redundant function for the same
+    // reason of resource_version_eq.
+    #[verifier(external_body)]
+    pub fn uid_eq(&self, other: &ObjectMeta) -> (b: bool)
+        ensures b == (self@.uid == other@.uid)
+    {
+        self.inner.uid == other.inner.uid
     }
 
     #[verifier(external_body)]

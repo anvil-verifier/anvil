@@ -13,6 +13,7 @@ pub type Uid = int;
 pub type ResourceVersion = int;
 
 #[is_variant]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum Kind {
     ConfigMapKind,
     CustomResourceKind,
@@ -27,6 +28,15 @@ pub enum Kind {
     ServiceKind,
     ServiceAccountKind,
     SecretKind,
+}
+
+impl std::marker::Copy for Kind {}
+
+impl std::clone::Clone for Kind {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    { *self }
 }
 
 pub struct ObjectRef {

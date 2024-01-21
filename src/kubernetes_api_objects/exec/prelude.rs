@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 pub use crate::kubernetes_api_objects::exec::api_method::*;
-pub use crate::kubernetes_api_objects::exec::common::*;
 pub use crate::kubernetes_api_objects::exec::config_map::*;
 pub use crate::kubernetes_api_objects::exec::daemon_set::*;
 pub use crate::kubernetes_api_objects::exec::dynamic::*;

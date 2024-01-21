@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
-    api_method::*, common::*, container::*, label_selector::*, object_meta::*, owner_reference::*,
+    api_method::*, container::*, label_selector::*, object_meta::*, owner_reference::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, prelude::*, resource::*,
     resource_requirements::*, volume::*,
 };
