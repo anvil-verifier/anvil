@@ -64,7 +64,27 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     }
 }
 
-fn update_request_admission_check_helper(name: String, namespace: String, obj: DynamicObject, s: ApiServerState) -> (ret: Option<APIError>)
+fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -> (ret: Option<APIError>)
+    ensures ret == model::create_request_admission_check::<K::V>(req@, s@),
+{
+    if req.obj.metadata().name().is_none() {
+        Some(APIError::Invalid)
+    } else if req.obj.metadata().namespace().is_some() && !req.namespace.eq(&req.obj.metadata().namespace().unwrap()) {
+        Some(APIError::BadRequest)
+    } else if !Self::unmarshallable_object(&req.obj) {
+        Some(APIError::BadRequest)
+    } else if s.resources.contains_key(&KubeObjectRef {
+        kind: req.obj.kind(),
+        name: req.obj.metadata().name().unwrap(),
+        namespace: req.namespace.clone(),
+    }) {
+        Some(APIError::ObjectAlreadyExists)
+    } else {
+        None
+    }
+}
+
+fn update_request_admission_check_helper(name: &String, namespace: &String, obj: &DynamicObject, s: &ApiServerState) -> (ret: Option<APIError>)
     ensures ret == model::update_request_admission_check_helper::<K::V>(name@, namespace@, obj@, s@),
 {
     let key = KubeObjectRef {
