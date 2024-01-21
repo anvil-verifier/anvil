@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::exec::{api_method::*, common::*, dynamic::*, resource::*};
+use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::shim_layer::fault_injection::*;
 use builtin::*;

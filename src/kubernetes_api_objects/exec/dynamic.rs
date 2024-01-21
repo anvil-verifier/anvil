@@ -1,9 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::exec::{
-    common::*, object_meta::*, owner_reference::*, resource::*,
-};
+use crate::kubernetes_api_objects::exec::{object_meta::*, owner_reference::*, resource::*};
 use crate::kubernetes_api_objects::spec::dynamic::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -35,13 +33,6 @@ impl DynamicObject {
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
-
-    // #[verifier(external_body)]
-    // pub fn clone(&self) -> (obj: DynamicObject)
-    //     ensures obj == self,
-    // {
-    //     DynamicObject { inner: self.inner.clone() }
-    // }
 }
 
 impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, common::*, dynamic::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod_template_spec::*, resource::*,
+    api_resource::*, dynamic::*, label_selector::*, object_meta::*, persistent_volume_claim::*,
+    pod_template_spec::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{resource::*, stateful_set::*};
 use crate::vstd_ext::string_map::*;
