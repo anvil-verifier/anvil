@@ -20,13 +20,6 @@ pub struct OwnerReferenceView {
     pub uid: Uid,
 }
 
-impl OwnerReferenceView {
-    pub open spec fn is_controller_ref(self) -> bool {
-        self.controller.is_Some()
-        && self.controller.get_Some_0()
-    }
-}
-
 pub open spec fn owner_reference_to_object_reference(owner_reference: OwnerReferenceView, namespace: StringView) -> ObjectRef {
     ObjectRef {
         kind: owner_reference.kind,

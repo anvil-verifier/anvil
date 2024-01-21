@@ -36,12 +36,12 @@ impl DynamicObject {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (obj: DynamicObject)
-        ensures obj == self,
-    {
-        DynamicObject { inner: self.inner.clone() }
-    }
+    // #[verifier(external_body)]
+    // pub fn clone(&self) -> (obj: DynamicObject)
+    //     ensures obj == self,
+    // {
+    //     DynamicObject { inner: self.inner.clone() }
+    // }
 }
 
 impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {
@@ -50,6 +50,13 @@ impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::kube::api::DynamicObject { self.inner }
+}
+
+impl std::clone::Clone for DynamicObject {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    { DynamicObject { inner: self.inner.clone() } }
 }
 
 impl std::fmt::Debug for DynamicObject {

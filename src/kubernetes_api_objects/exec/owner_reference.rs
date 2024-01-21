@@ -24,6 +24,25 @@ pub struct OwnerReference {
 
 impl OwnerReference {
     pub spec fn view(&self) -> OwnerReferenceView;
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures s@ == self@,
+    {
+        OwnerReference { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
+    pub fn controller(&self) -> (controller: Option<bool>)
+        ensures
+            self@.controller.is_Some() == controller.is_Some(),
+            controller.is_Some() ==> controller.get_Some_0() == self@.controller.get_Some_0(),
+    {
+        match &self.inner.controller {
+            Some(c) => Some(*c),
+            None => None,
+        }
+    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference> for OwnerReference {
