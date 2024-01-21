@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{object_meta::*, owner_reference::*, resource::*};
-use crate::kubernetes_api_objects::spec::dynamic::*;
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -32,6 +32,14 @@ impl DynamicObject {
         ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
+    }
+
+    // TODO: implement this function by parsing inner.types.unwrap().kind
+    #[verifier(external_body)]
+    pub fn kind(&self) -> (kind: Kind)
+        ensures kind == self@.kind,
+    {
+        unimplemented!();
     }
 }
 

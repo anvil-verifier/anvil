@@ -14,7 +14,7 @@ pub struct ObjectMapKey {
 }
 
 impl KubeObjectRef {
-    pub fn to_object_map_key(self) -> ObjectMapKey {
+    pub fn into_object_map_key(self) -> ObjectMapKey {
         ObjectMapKey {
             kind: self.kind.clone(),
             name: self.name.into_rust_string(),
@@ -46,6 +46,19 @@ impl View for KubeObjectRef {
             kind: self.kind,
             name: self.name@,
             namespace: self.namespace@,
+        }
+    }
+}
+
+impl std::clone::Clone for KubeObjectRef {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    {
+        KubeObjectRef {
+            kind: self.kind.clone(),
+            name: self.name.clone(),
+            namespace: self.namespace.clone(),
         }
     }
 }
@@ -92,10 +105,30 @@ impl ObjectMap {
             old(self)@.contains_key(key@) == old_v.is_Some(),
             old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
     {
-        match self.inner.insert(key.to_object_map_key(), value) {
+        match self.inner.insert(key.into_object_map_key(), value) {
             Some(old_v) => Some(old_v.clone()),
             None => None,
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn get(&self, key: &KubeObjectRef) -> (v: Option<DynamicObject>)
+        ensures
+            self@.contains_key(key@) == v.is_Some(),
+            v.is_Some() ==> v.get_Some_0()@ == self@[key@],
+    {
+        // I abuse clone() coz performance does not matter here
+        match self.inner.get(&key.clone().into_object_map_key()) {
+            Some(v) => Some(v.clone()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn contains_key(&self, key: &KubeObjectRef) -> (b: bool)
+        ensures self@.contains_key(key@) == b
+    {
+        self.inner.contains_key(&key.clone().into_object_map_key())
     }
 
     #[verifier(external)]
