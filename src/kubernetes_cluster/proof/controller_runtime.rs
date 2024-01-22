@@ -4,7 +4,7 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::spec::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    cluster::*, controller::common::ControllerAction, controller::state_machine::*, message::*,
+    cluster::*, controller::state_machine::*, controller::types::ControllerAction, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;

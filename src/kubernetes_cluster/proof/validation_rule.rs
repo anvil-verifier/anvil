@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{ControllerActionInput, ControllerStep},
+    controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;

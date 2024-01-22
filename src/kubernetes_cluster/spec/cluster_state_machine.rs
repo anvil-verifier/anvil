@@ -10,11 +10,11 @@ use crate::kubernetes_cluster::spec::{
     },
     client::types::ClientActionInput,
     cluster::Cluster,
-    controller::common::{
+    controller::types::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     external_api::types::{ExternalAPIAction, ExternalAPIActionInput},
-    kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput},
+    kubernetes_api::types::{KubernetesAPIAction, KubernetesAPIActionInput},
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;

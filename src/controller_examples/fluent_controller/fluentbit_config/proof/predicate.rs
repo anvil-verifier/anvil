@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::proof::controller_runtime::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{ControllerActionInput, ControllerStep},
+    controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::temporal_logic::defs::*;

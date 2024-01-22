@@ -15,7 +15,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{ControllerActionInput, ControllerStep},
+    controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -177,7 +177,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 
 #[verifier(spinoff_prover)]
 pub proof fn make_fluentbit_pod_spec_determined_by_spec_and_name(fb1: FluentBitView, fb2: FluentBitView)
-    requires 
+    requires
         fb1.metadata.name.get_Some_0() == fb2.metadata.name.get_Some_0(),
         fb1.spec == fb2.spec,
     ensures make_fluentbit_pod_spec(fb1) == make_fluentbit_pod_spec(fb2),

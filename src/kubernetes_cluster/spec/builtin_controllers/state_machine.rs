@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::spec::{
         garbage_collector::*, stabilizer::*, stateful_set_controller::*, types::*,
     },
     cluster::Cluster,
-    kubernetes_api::common::KubernetesAPIState,
+    kubernetes_api::types::KubernetesAPIState,
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;

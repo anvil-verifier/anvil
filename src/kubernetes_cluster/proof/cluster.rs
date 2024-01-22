@@ -8,12 +8,12 @@ use crate::kubernetes_cluster::spec::{
     client,
     client::*,
     cluster::*,
-    controller::common::{
+    controller::state_machine::*,
+    controller::types::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
-    controller::state_machine::*,
     external_api::types::{ExternalAPIAction, ExternalAPIActionInput, ExternalAPIState},
-    kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
+    kubernetes_api::types::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     message::*,
     network::types::NetworkState,
 };

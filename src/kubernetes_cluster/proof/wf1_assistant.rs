@@ -7,13 +7,11 @@ use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::*,
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
-    },
+    controller::types::{ControllerAction, ControllerActionInput, ControllerState, ControllerStep},
     external_api::types::{
         ExternalAPIAction, ExternalAPIActionInput, ExternalAPIState, ExternalAPIStep,
     },
-    kubernetes_api::common::{
+    kubernetes_api::types::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
     message::*,
