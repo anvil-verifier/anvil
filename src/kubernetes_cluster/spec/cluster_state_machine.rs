@@ -5,16 +5,16 @@ use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
+    api_server::types::{KubernetesAPIAction, KubernetesAPIActionInput},
     builtin_controllers::types::{
         BuiltinControllerChoice, BuiltinControllersAction, BuiltinControllersActionInput,
     },
     client::types::ClientActionInput,
     cluster::Cluster,
-    controller::common::{
+    controller::types::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     external_api::types::{ExternalAPIAction, ExternalAPIActionInput},
-    kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput},
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;

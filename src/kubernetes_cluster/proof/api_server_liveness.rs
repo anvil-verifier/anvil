@@ -5,8 +5,8 @@ use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::*, cluster::*, cluster_state_machine::Step,
-    kubernetes_api::common::KubernetesAPIAction, message::*,
+    api_server::types::KubernetesAPIAction, builtin_controllers::types::*, cluster::*,
+    cluster_state_machine::Step, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;

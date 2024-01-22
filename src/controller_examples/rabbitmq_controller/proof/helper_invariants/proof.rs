@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{ControllerActionInput, ControllerStep},
+    controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::rabbitmq_controller::{
@@ -1486,7 +1486,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)));
 }
 
-/// This lemma demonstrates how to use kubernetes_cluster::proof::kubernetes_api_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
+/// This lemma demonstrates how to use kubernetes_cluster::proof::api_server_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
 /// (referred to as lemma_X) to prove that the system will eventually enter a state where delete stateful set request messages
 /// will never appear in flight.
 ///

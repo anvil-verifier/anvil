@@ -15,7 +15,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{ControllerActionInput, ControllerStep},
+    controller::types::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -177,7 +177,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
 
 #[verifier(spinoff_prover)]
 pub proof fn make_fluentbit_pod_spec_determined_by_spec_and_name(fb1: FluentBitView, fb2: FluentBitView)
-    requires 
+    requires
         fb1.metadata.name.get_Some_0() == fb2.metadata.name.get_Some_0(),
         fb1.spec == fb2.spec,
     ensures make_fluentbit_pod_spec(fb1) == make_fluentbit_pod_spec(fb2),
@@ -808,7 +808,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fb)));
 }
 
-/// This lemma demonstrates how to use kubernetes_cluster::proof::kubernetes_api_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
+/// This lemma demonstrates how to use kubernetes_cluster::proof::api_server_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
 /// (referred to as lemma_X) to prove that the system will eventually enter a state where delete daemon set request messages
 /// will never appear in flight.
 ///
