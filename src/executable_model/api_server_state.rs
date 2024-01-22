@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
     dynamic::{DynamicObjectView, StoredState},
 };
-use crate::kubernetes_cluster::spec::kubernetes_api::common as model_types;
+use crate::kubernetes_cluster::spec::api_server::types as model_types;
 use vstd::prelude::*;
 use vstd::string::*;
 

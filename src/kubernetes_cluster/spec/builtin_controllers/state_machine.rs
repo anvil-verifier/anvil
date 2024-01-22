@@ -4,11 +4,11 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
+    api_server::types::KubernetesAPIState,
     builtin_controllers::{
         garbage_collector::*, stabilizer::*, stateful_set_controller::*, types::*,
     },
     cluster::Cluster,
-    kubernetes_api::types::KubernetesAPIState,
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;

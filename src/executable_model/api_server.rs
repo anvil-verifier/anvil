@@ -11,7 +11,7 @@ use crate::kubernetes_api_objects::exec::prelude::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::controller::types::ControllerState;
 use crate::kubernetes_cluster::spec::{
-    kubernetes_api::common as model_types, kubernetes_api::state_machine as model,
+    api_server::state_machine as model, api_server::types as model_types,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::vstd_ext::{map_lib::*, string_view::*};

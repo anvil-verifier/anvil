@@ -4,6 +4,7 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
+    api_server::types::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     builtin_controllers::types::BuiltinControllerChoice,
     client,
     client::*,
@@ -13,7 +14,6 @@ use crate::kubernetes_cluster::spec::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     external_api::types::{ExternalAPIAction, ExternalAPIActionInput, ExternalAPIState},
-    kubernetes_api::types::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     message::*,
     network::types::NetworkState,
 };

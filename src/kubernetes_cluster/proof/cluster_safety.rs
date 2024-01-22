@@ -4,8 +4,8 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    cluster::*, cluster_state_machine::Step,
-    kubernetes_api::state_machine as api_server_state_machine, message::*,
+    api_server::state_machine as api_server_state_machine, cluster::*, cluster_state_machine::Step,
+    message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
