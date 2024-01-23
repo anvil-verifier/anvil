@@ -162,7 +162,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 let req = input.get_Some_0();
                 StatefulSetView::marshal_spec_preserves_integrity();
                 StatefulSetView::marshal_status_preserves_integrity();
@@ -434,7 +434,7 @@ proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num
         let pending_req_multiset_prime = s_prime.in_flight().filter(update_status_msg_from_bc_for(key));
         let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
                     assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
                 } else {

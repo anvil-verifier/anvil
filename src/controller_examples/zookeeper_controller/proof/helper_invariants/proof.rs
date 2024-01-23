@@ -166,7 +166,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
         if s_prime.ongoing_reconciles().contains_key(key) {
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
             match step {
-                Step::APIServerStep(input) => {
+                Step::ApiServerStep(input) => {
                     let req = input.get_Some_0();
                     assert(!resource_delete_request_msg(get_request(SubResource::ConfigMap, zookeeper).key)(req));
                     assert(!resource_update_status_request_msg(get_request(SubResource::ConfigMap, zookeeper).key)(req));
@@ -283,12 +283,12 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                 }
             );
             assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
-                assert(msg.src.is_APIServer());
+                assert(msg.src.is_ApiServer());
                 assert(msg.content.is_create_response());
                 if msg.content.get_create_response().res.is_Ok() {
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                     match step {
-                        Step::APIServerStep(input) => {
+                        Step::ApiServerStep(input) => {
                             let req_msg = input.get_Some_0();
                             assert(!resource_delete_request_msg(resource_key)(req_msg));
                             assert(!resource_update_request_msg(resource_key)(req_msg));
@@ -429,12 +429,12 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
             );
 
             assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
-                assert(msg.src.is_APIServer());
+                assert(msg.src.is_ApiServer());
                 assert(msg.content.is_update_response());
                 if msg.content.get_update_response().res.is_Ok() {
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                     match step {
-                        Step::APIServerStep(input) => {
+                        Step::ApiServerStep(input) => {
                             let req_msg = input.get_Some_0();
                             assert(!resource_delete_request_msg(resource_key)(req_msg));
                             assert(!resource_update_status_request_msg(resource_key)(req_msg));
@@ -924,7 +924,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
 
     let resource_key = get_request(SubResource::StatefulSet, zookeeper).key;
     assert forall |s, s_prime: ZKCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_APIServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
+        assert forall |msg: ZKMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_ApiServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
         implies msg.content.get_update_status_request().key() != resource_key by {
             if s.in_flight().contains(msg) {
                 assert(msg.content.get_update_status_request().key() != resource_key);
@@ -952,7 +952,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         } else {}
                         assert(msg.content.get_update_status_request().key() != resource_key);
                     },
-                    Step::APIServerStep(_) => {
+                    Step::ApiServerStep(_) => {
                         assert(!msg.content.is_APIRequest());
                         assert(!msg.content.is_update_status_request());
                         assert(false);
@@ -1561,7 +1561,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zooke
     assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) implies cm_rv_stays_unchanged(zookeeper)(s, s_prime) by {
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 let req = input.get_Some_0();
                 assert(!resource_delete_request_msg(cm_key)(req));
                 assert(!resource_update_status_request_msg(cm_key)(req));

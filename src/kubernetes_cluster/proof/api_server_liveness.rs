@@ -5,7 +5,7 @@ use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    api_server::types::APIServerAction, builtin_controllers::types::*, cluster::*,
+    api_server::types::ApiServerAction, builtin_controllers::types::*, cluster::*,
     cluster_state_machine::Step, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -20,7 +20,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
-    spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: APIServerAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: ApiServerAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::kubernetes_api().actions.contains(action),
@@ -93,7 +93,7 @@ pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType
     ensures
         spec.entails(lift_state(|s: Self| {
                     &&& s.in_flight().contains(msg)
-                    &&& msg.dst == HostId::APIServer
+                    &&& msg.dst == HostId::ApiServer
                     &&& msg.content.is_get_request()
                     &&& msg.content.get_get_request().key == key
             }).leads_to(lift_state(|s: Self|
@@ -104,7 +104,7 @@ pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType
     let input = Some(msg);
     let pre = |s: Self| {
         &&& s.in_flight().contains(msg)
-        &&& msg.dst == HostId::APIServer
+        &&& msg.dst == HostId::ApiServer
         &&& msg.content.is_get_request()
         &&& msg.content.get_get_request().key == key
     };
@@ -116,7 +116,7 @@ pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType
     pre(s_prime) || post(s_prime) by {
         let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 if input.get_Some_0() == msg {
                     if s.resources().contains_key(key) {
                         let ok_resp_msg = Message::form_get_resp_msg(msg, Ok(s.resources()[key]));
@@ -168,7 +168,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: Ms
     ensures
         spec.entails(lift_state(|s: Self| {
             &&& s.in_flight().contains(msg)
-            &&& msg.dst == HostId::APIServer
+            &&& msg.dst == HostId::ApiServer
             &&& msg.content.is_get_request()
             &&& msg.content.get_get_request().key == key
         }).leads_to(
@@ -178,7 +178,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: Ms
 {
     let pre = |s: Self| {
         &&& s.in_flight().contains(msg)
-        &&& msg.dst == HostId::APIServer
+        &&& msg.dst == HostId::ApiServer
         &&& msg.content.is_get_request()
         &&& msg.content.get_get_request().key == key
     };
@@ -233,7 +233,7 @@ pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnS
                 &&& (!s.in_flight().contains(msg) || requirements(msg, s))
                 &&& #[trigger] s_prime.in_flight().contains(msg)
                 &&& {
-                    ||| msg.dst.is_APIServer() && msg.content.is_APIRequest()
+                    ||| msg.dst.is_ApiServer() && msg.content.is_APIRequest()
                     ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
                 }
             } ==> requirements(msg, s_prime)
@@ -246,7 +246,7 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(MsgType<
             {
                 &&& #[trigger] s.in_flight().contains(msg)
                 &&& {
-                    ||| msg.dst.is_APIServer() && msg.content.is_APIRequest()
+                    ||| msg.dst.is_ApiServer() && msg.content.is_APIRequest()
                     ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
                 }
             } ==> requirements(msg, s)
@@ -341,7 +341,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
                     &&& #[trigger] s.in_flight().contains(msg)
                     &&& msg.content.get_rest_id() >= rest_id
                     &&& {
-                        ||| msg.dst.is_APIServer() && msg.content.is_APIRequest()
+                        ||| msg.dst.is_ApiServer() && msg.content.is_APIRequest()
                         ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
                     }
                 } ==> requirements(msg, s)
@@ -587,7 +587,7 @@ proof fn pending_requests_num_decreases(spec: TempPred<Self>, rest_id: RestId, m
         let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
         let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
                     assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
                 } else {
@@ -621,7 +621,7 @@ proof fn pending_requests_num_decreases(spec: TempPred<Self>, rest_id: RestId, m
         }
     }
 
-    if msg.dst.is_APIServer() {
+    if msg.dst.is_ApiServer() {
         assert forall |s, s_prime: Self|
             pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
         implies post(s_prime) by {

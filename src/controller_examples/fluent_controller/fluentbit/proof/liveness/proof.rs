@@ -380,7 +380,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({

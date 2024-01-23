@@ -186,7 +186,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
         }
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 let req = input.get_Some_0();
                 if resource_update_request_msg(resource_key)(req) {} else {}
             },

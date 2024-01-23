@@ -19,15 +19,15 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-struct ExecutableAPIServerModel<K> where K: View, K::V: ResourceView {
+struct ExecutableApiServerModel<K> where K: View, K::V: ResourceView {
     k: K,
 }
 
-pub struct ExecutableAPIServerState {
+pub struct ExecutableApiServerState {
     pub resources: StoredState,
 }
 
-impl <K> ExecutableAPIServerModel<K> where K: View, K::V: ResourceView {
+impl <K> ExecutableApiServerModel<K> where K: View, K::V: ResourceView {
 
 #[verifier(external_body)]
 fn unmarshallable_object(obj: &DynamicObject) -> (b: bool)
@@ -64,6 +64,23 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     }
 }
 
+#[verifier(external_body)]
+fn valid_object(obj: &DynamicObject) -> (ret: bool)
+    ensures ret == model::valid_object::<K::V>(obj@)
+{
+    unimplemented!();
+}
+
+fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
+    ensures ret == model::object_validity_check::<K::V>(obj@)
+{
+    if !Self::valid_object(obj) {
+        Some(APIError::Invalid)
+    } else {
+        None
+    }
+}
+
 fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -> (ret: Option<APIError>)
     ensures ret == model::create_request_admission_check::<K::V>(req@, s@),
 {
@@ -83,6 +100,25 @@ fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -
         None
     }
 }
+
+fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<APIError>)
+    ensures ret == model::created_object_validity_check::<K::V>(created_obj@)
+{
+    if Self::metadata_validity_check(created_obj).is_some() {
+        Self::metadata_validity_check(created_obj)
+    } else if Self::object_validity_check(created_obj).is_some() {
+        Self::object_validity_check(created_obj)
+    } else {
+        None
+    }
+}
+
+// #[verifier(external_body)]
+// fn handle_create_request(req: KubeCreateRequest, s: ApiServerState) -> (ret: (ApiServerState, Result<DynamicObject, APIError>))
+//     ensures (ret.0@, ret.1@) == model::handle_create_request::<K::V>(req@, s@)
+// {
+//     unimplemented!();
+// }
 
 fn update_request_admission_check_helper(name: &String, namespace: &String, obj: &DynamicObject, s: &ApiServerState) -> (ret: Option<APIError>)
     ensures ret == model::update_request_admission_check_helper::<K::V>(name@, namespace@, obj@, s@),

@@ -64,7 +64,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
         if s.resources().contains_key(sts_key) && s_prime.resources().contains_key(sts_key) {
             if s.resources()[sts_key].spec != s_prime.resources()[sts_key].spec {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                let input = step.get_APIServerStep_0().get_Some_0();
+                let input = step.get_ApiServerStep_0().get_Some_0();
                 if input.content.is_delete_request() {
                     assert(StatefulSetView::unmarshal(s.resources()[sts_key]).get_Ok_0().spec == StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec);
                 } else {
@@ -323,7 +323,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
     let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq);
     match step {
-        Step::APIServerStep(input) => {
+        Step::ApiServerStep(input) => {
             assert(s.controller_state == s_prime.controller_state);
             assert(s.in_flight().contains(msg));
             if s_prime.resources().contains_key(key) {
@@ -374,7 +374,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
     let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq);
     match step {
-        Step::APIServerStep(input) => {
+        Step::ApiServerStep(input) => {
             assert(s.in_flight().contains(msg));
             assert(s.controller_state == s_prime.controller_state);
             if s_prime.resources().contains_key(key) {
