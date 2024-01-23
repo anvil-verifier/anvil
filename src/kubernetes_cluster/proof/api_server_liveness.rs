@@ -119,11 +119,11 @@ pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType
             Step::ApiServerStep(input) => {
                 if input.get_Some_0() == msg {
                     if s.resources().contains_key(key) {
-                        let ok_resp_msg = Message::form_get_resp_msg(msg, Ok(s.resources()[key]));
+                        let ok_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])});
                         assert(s_prime.in_flight().contains(ok_resp_msg));
                         assert(Message::resp_msg_matches_req_msg(ok_resp_msg, msg));
                     } else {
-                        let err_resp_msg = Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
+                        let err_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)});
                         assert(s_prime.in_flight().contains(err_resp_msg));
                         assert(Message::resp_msg_matches_req_msg(err_resp_msg, msg));
                     }
@@ -148,11 +148,11 @@ pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType
         pre(s) && #[trigger] Self::next()(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resources().contains_key(key) {
-            let ok_resp_msg = Message::form_get_resp_msg(msg, Ok(s.resources()[key]));
+            let ok_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])});
             assert(s_prime.in_flight().contains(ok_resp_msg));
             assert(Message::resp_msg_matches_req_msg(ok_resp_msg, msg));
         } else {
-            let err_resp_msg = Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
+            let err_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)});
             assert(s_prime.in_flight().contains(err_resp_msg));
             assert(Message::resp_msg_matches_req_msg(err_resp_msg, msg));
         }
@@ -172,8 +172,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: Ms
             &&& msg.content.is_get_request()
             &&& msg.content.get_get_request().key == key
         }).leads_to(
-                lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Ok(s.resources()[key]))))
-                .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
+                lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])})))
+                .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)}))))
         )),
 {
     let pre = |s: Self| {
@@ -183,8 +183,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: Ms
         &&& msg.content.get_get_request().key == key
     };
     let post = |s: Self| {
-        ||| s.in_flight().contains(Message::form_get_resp_msg(msg, Ok(s.resources()[key])))
-        ||| s.in_flight().contains(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))
+        ||| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])}))
+        ||| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)}))
     };
     let stronger_next = |s, s_prime: Self| {
         Self::next()(s, s_prime)
@@ -194,8 +194,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: Ms
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
     temp_pred_equality::<Self>(
         lift_state(post),
-        lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Ok(s.resources()[key]))))
-        .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
+        lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])})))
+        .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)}))))
     );
 }
 

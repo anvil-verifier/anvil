@@ -123,26 +123,24 @@ pub open spec fn marshalled_default_status<K: ResourceView>(obj: DynamicObjectVi
 }
 
 #[verifier(inline)]
-pub open spec fn handle_get_request(req: GetRequest, s: ApiServerState) -> Result<DynamicObjectView, APIError> {
+pub open spec fn handle_get_request(req: GetRequest, s: ApiServerState) -> GetResponse {
     if !s.resources.contains_key(req.key) {
         // Get fails
-        let result = Err(APIError::ObjectNotFound);
-        result
+        GetResponse{res: Err(APIError::ObjectNotFound)}
     } else {
         // Get succeeds
-        let result = Ok(s.resources[req.key]);
-        result
+        GetResponse{res: Ok(s.resources[req.key])}
     }
 }
 
 #[verifier(inline)]
-pub open spec fn handle_list_request(req: ListRequest, s: ApiServerState) -> Result<Seq<DynamicObjectView>, APIError> {
+pub open spec fn handle_list_request(req: ListRequest, s: ApiServerState) -> ListResponse {
     // TODO: List should consider other fields
     let selector = |o: DynamicObjectView| {
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
     };
-    Ok(map_to_seq(s.resources, selector))
+    ListResponse{res: Ok(map_to_seq(s.resources, selector))}
 }
 
 pub open spec fn create_request_admission_check<K: ResourceView>(req: CreateRequest, s: ApiServerState) -> Option<APIError> {
@@ -174,10 +172,10 @@ pub open spec fn created_object_validity_check<K: ResourceView>(created_obj: Dyn
 }
 
 #[verifier(inline)]
-pub open spec fn handle_create_request<K: ResourceView>(req: CreateRequest, s: ApiServerState) -> (ApiServerState, Result<DynamicObjectView, APIError>) {
+pub open spec fn handle_create_request<K: ResourceView>(req: CreateRequest, s: ApiServerState) -> (ApiServerState, CreateResponse) {
     if create_request_admission_check::<K>(req, s).is_Some() {
         // Creation fails.
-        (s, Err(create_request_admission_check::<K>(req, s).get_Some_0()))
+        (s, CreateResponse{res: Err(create_request_admission_check::<K>(req, s).get_Some_0())})
     } else {
         let created_obj = DynamicObjectView {
             kind: req.obj.kind,
@@ -193,7 +191,7 @@ pub open spec fn handle_create_request<K: ResourceView>(req: CreateRequest, s: A
         };
         if created_object_validity_check::<K>(created_obj).is_Some() {
             // Creation fails.
-            (s, Err(created_object_validity_check::<K>(created_obj).get_Some_0()))
+            (s, CreateResponse{res: Err(created_object_validity_check::<K>(created_obj).get_Some_0())})
         } else {
             // Creation succeeds.
             (ApiServerState {
@@ -203,17 +201,17 @@ pub open spec fn handle_create_request<K: ResourceView>(req: CreateRequest, s: A
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
-            }, Ok(created_obj))
+            }, CreateResponse{res: Ok(created_obj)})
         }
     }
 }
 
 pub closed spec fn deletion_timestamp() -> StringView;
 
-pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) -> (ApiServerState, Result<(), APIError>) {
+pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) -> (ApiServerState, DeleteResponse) {
     if !s.resources.contains_key(req.key) {
         // Deletion fails.
-        (s, Err(APIError::ObjectNotFound))
+        (s, DeleteResponse{res: Err(APIError::ObjectNotFound)})
     } else {
         // Deletion succeeds.
         let obj = s.resources[req.key];
@@ -222,7 +220,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
             // Instead, we set the deletion timestamp of this object.
             let stamped_obj = obj.set_deletion_timestamp(deletion_timestamp());
             if stamped_obj == obj {
-                (s, Ok(()))
+                (s, DeleteResponse{res: Ok(())})
             } else {
                 let stamped_obj_with_new_rv = stamped_obj.set_resource_version(s.resource_version_counter);
                 (ApiServerState {
@@ -234,7 +232,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
                     resources: s.resources.insert(req.key, stamped_obj_with_new_rv),
                     resource_version_counter: s.resource_version_counter + 1,
                     ..s
-                }, Ok(()))
+                }, DeleteResponse{res: Ok(())})
             }
         } else {
             // The object can be immediately removed from the key-value store.
@@ -242,7 +240,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
                 resources: s.resources.remove(req.key),
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
-            }, Ok(()))
+            }, DeleteResponse{res: Ok(())})
         }
     }
 }
@@ -336,10 +334,10 @@ pub open spec fn updated_object_validity_check<K: ResourceView>(updated_obj: Dyn
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_request<K: ResourceView>(req: UpdateRequest, s: ApiServerState) -> (ApiServerState, Result<DynamicObjectView, APIError>) {
+pub open spec fn handle_update_request<K: ResourceView>(req: UpdateRequest, s: ApiServerState) -> (ApiServerState, UpdateResponse) {
     if update_request_admission_check::<K>(req, s).is_Some() {
         // Update fails.
-        (s, Err(update_request_admission_check::<K>(req, s).get_Some_0()))
+        (s, UpdateResponse{res: Err(update_request_admission_check::<K>(req, s).get_Some_0())})
     } else {
         let old_obj = s.resources[req.key()];
         let updated_obj = updated_object(req, old_obj);
@@ -347,14 +345,14 @@ pub open spec fn handle_update_request<K: ResourceView>(req: UpdateRequest, s: A
             // Update is a noop because there is nothing to update
             // so the resource version counter does not increase here,
             // and the resource version of this object remains the same.
-            (s, Ok(old_obj))
+            (s, UpdateResponse{res: Ok(old_obj)})
         } else {
             // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
             if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
                 // Update fails.
-                (s, Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0()))
+                (s, UpdateResponse{res: Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0())})
             } else {
                 // Update succeeds.
                 if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
@@ -368,7 +366,7 @@ pub open spec fn handle_update_request<K: ResourceView>(req: UpdateRequest, s: A
                         stable_resources: s.stable_resources.remove(req.key()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                         ..s
-                    }, Ok(updated_obj_with_new_rv))
+                    }, UpdateResponse{res: Ok(updated_obj_with_new_rv)})
                 } else {
                     // The delete-during-update case, where the update removes the finalizer from
                     // the object that has a deletion timestamp, so the object needs to be deleted now.
@@ -387,7 +385,7 @@ pub open spec fn handle_update_request<K: ResourceView>(req: UpdateRequest, s: A
                         resources: s.resources.remove(updated_obj_with_new_rv.object_ref()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                         ..s
-                    }, Ok(updated_obj_with_new_rv))
+                    }, UpdateResponse{res: Ok(updated_obj_with_new_rv)})
                 }
             }
         }
@@ -409,10 +407,10 @@ pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: Dynami
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_status_request<K: ResourceView>(req: UpdateStatusRequest, s: ApiServerState) -> (ApiServerState, Result<DynamicObjectView, APIError>) {
+pub open spec fn handle_update_status_request<K: ResourceView>(req: UpdateStatusRequest, s: ApiServerState) -> (ApiServerState, UpdateStatusResponse) {
     if update_status_request_admission_check::<K>(req, s).is_Some() {
         // UpdateStatus fails.
-        (s, Err(update_status_request_admission_check::<K>(req, s).get_Some_0()))
+        (s, UpdateStatusResponse{res: Err(update_status_request_admission_check::<K>(req, s).get_Some_0())})
     } else {
         let old_obj = s.resources[req.key()];
         let updated_obj = status_updated_object(req, old_obj);
@@ -420,21 +418,21 @@ pub open spec fn handle_update_status_request<K: ResourceView>(req: UpdateStatus
             // UpdateStatus is a noop because there is nothing to update
             // so the resource version counter does not increase here,
             // and the resource version of this object remains the same.
-            (s, Ok(old_obj))
+            (s, UpdateStatusResponse{res: Ok(old_obj)})
         } else {
             // UpdateStatus changes something in the object (in status), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
             if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
                 // UpdateStatus fails.
-                (s, Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0()))
+                (s, UpdateStatusResponse{res: Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0())})
             } else {
                 // UpdateStatus succeeds.
                 (ApiServerState {
                     resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
                     resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                     ..s
-                }, Ok(updated_obj_with_new_rv))
+                }, UpdateStatusResponse{res: Ok(updated_obj_with_new_rv)})
             }
         }
     }
@@ -463,8 +461,8 @@ pub open spec fn handle_create_request_msg(msg: MsgType<E>, s: ApiServerState) -
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    let (s_prime, result) = handle_create_request::<K>(req, s);
-    (s_prime, Message::form_create_resp_msg(msg, result))
+    let (s_prime, resp) = handle_create_request::<K>(req, s);
+    (s_prime, Message::form_create_resp_msg(msg, resp))
 }
 
 pub open spec fn handle_delete_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
@@ -472,8 +470,8 @@ pub open spec fn handle_delete_request_msg(msg: MsgType<E>, s: ApiServerState) -
         msg.content.is_delete_request(),
 {
     let req = msg.content.get_delete_request();
-    let (s_prime, result) = handle_delete_request(req, s);
-    (s_prime, Message::form_delete_resp_msg(msg, result))
+    let (s_prime, resp) = handle_delete_request(req, s);
+    (s_prime, Message::form_delete_resp_msg(msg, resp))
 }
 
 pub open spec fn handle_update_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
@@ -481,8 +479,8 @@ pub open spec fn handle_update_request_msg(msg: MsgType<E>, s: ApiServerState) -
         msg.content.is_update_request(),
 {
     let req = msg.content.get_update_request();
-    let (s_prime, result) = handle_update_request::<K>(req, s);
-    (s_prime, Message::form_update_resp_msg(msg, result))
+    let (s_prime, resp) = handle_update_request::<K>(req, s);
+    (s_prime, Message::form_update_resp_msg(msg, resp))
 }
 
 pub open spec fn handle_update_status_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
@@ -490,8 +488,8 @@ pub open spec fn handle_update_status_request_msg(msg: MsgType<E>, s: ApiServerS
         msg.content.is_update_status_request(),
 {
     let req = msg.content.get_update_status_request();
-    let (s_prime, result) = handle_update_status_request::<K>(req, s);
-    (s_prime, Message::form_update_status_resp_msg(msg, result))
+    let (s_prime, resp) = handle_update_status_request::<K>(req, s);
+    (s_prime, Message::form_update_status_resp_msg(msg, resp))
 }
 
 // etcd is modeled as a centralized map that handles get/list/create/delete/update
