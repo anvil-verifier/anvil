@@ -183,7 +183,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
             _ => {},
         }
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input.get_Some_0();
                 if resource_create_request_msg(resource_key)(req) {} else {}
                 if resource_update_request_msg(resource_key)(req) {} else {}

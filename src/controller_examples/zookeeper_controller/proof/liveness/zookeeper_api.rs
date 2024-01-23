@@ -534,7 +534,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_create_request_msg(get_request(SubResource::StatefulSet, zookeeper).key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
                     let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
@@ -619,7 +619,7 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
                 assert(!resource_create_request_msg(sts_key)(input.get_Some_0()));
             },
@@ -683,7 +683,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
@@ -775,7 +775,7 @@ proof fn lemma_from_after_exists_stateful_set_step_to_after_exists_zk_node_step(
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
@@ -865,7 +865,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
                     assert(post(s_prime));
                 }
             },
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(resource_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(resource_key)(input.get_Some_0()));
             },
@@ -957,7 +957,7 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_update_zk_node_step(spec:
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
             },
@@ -1042,7 +1042,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
                     assert(post(s_prime));
                 }
             },
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
             },
@@ -1196,7 +1196,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
                     assert(post(s_prime));
                 }
             },
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
             },
@@ -1287,7 +1287,7 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_create_zk_parent_node_ste
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
@@ -1382,7 +1382,7 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
                     assert(post(s_prime));
                 }
             },
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
@@ -1479,7 +1479,7 @@ proof fn lemma_from_after_create_zk_parent_node_step_to_after_create_zk_node_ste
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
             },
@@ -1564,7 +1564,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
                     assert(post(s_prime));
                 }
             },
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
             },

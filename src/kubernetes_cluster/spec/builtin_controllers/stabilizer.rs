@@ -4,8 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::types::KubernetesAPIState, builtin_controllers::types::*, cluster::Cluster,
-    message::*,
+    api_server::types::APIServerState, builtin_controllers::types::*, cluster::Cluster, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
@@ -19,15 +18,15 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn run_stabilizer() -> BuiltinControllersAction<E::Input, E::Output> {
     Action {
-        precondition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
+        precondition: |input: BuiltinControllersActionInput, s: APIServerState| {
             let key = input.key;
             &&& input.choice.is_Stabilizer()
             // Only stabilize the object that already exists
             &&& s.resources.contains_key(key)
         },
-        transition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
+        transition: |input: BuiltinControllersActionInput, s: APIServerState| {
             let key = input.key;
-            let s_prime = KubernetesAPIState {
+            let s_prime = APIServerState {
                 stable_resources: s.stable_resources.insert(key),
                 ..s
             };

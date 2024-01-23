@@ -109,7 +109,7 @@ pub proof fn lemma_always_daemon_set_in_etcd_satisfies_unchangeable(spec: TempPr
             } else {
                 let step = choose |step| FBCluster::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
+                    Step::APIServerStep(input) => {
                         let req = input.get_Some_0();
                         if resource_create_request_msg(ds_key)(req) {} else {}
                         if resource_update_request_msg(ds_key)(req) {} else {}
@@ -299,7 +299,7 @@ proof fn lemma_always_daemon_set_in_create_request_msg_satisfies_unchangeable(sp
         implies certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
             let step = choose |step| FBCluster::next_step(s, s_prime, step);
             match step {
-                Step::KubernetesAPIStep(input) => {
+                Step::APIServerStep(input) => {
                     assert(s.controller_state == s_prime.controller_state);
                     assert(s.in_flight().contains(msg));
                     if s.resources().contains_key(key) {

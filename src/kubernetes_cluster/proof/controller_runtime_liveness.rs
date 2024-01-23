@@ -451,7 +451,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
             implies pre_1(s_prime) || post_1(s_prime) by {
                 let step = choose |step| Self::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
+                    Step::APIServerStep(input) => {
                         if input.get_Some_0() == req_msg {
                             assert(post_1(s_prime));
                         } else {

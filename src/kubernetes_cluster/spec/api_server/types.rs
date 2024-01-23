@@ -12,27 +12,27 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct KubernetesAPIState {
+pub struct APIServerState {
     pub resources: StoredState,
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
     pub stable_resources: Set<ObjectRef>,
 }
 
-pub enum KubernetesAPIStep {
+pub enum APIServerStep {
     HandleRequest,
 }
 
-pub struct KubernetesAPIActionInput<I, O> {
+pub struct APIServerActionInput<I, O> {
     pub recv: Option<Message<I, O>>,
 }
 
-pub struct KubernetesAPIActionOutput<I, O> {
+pub struct APIServerActionOutput<I, O> {
     pub send: Multiset<Message<I, O>>
 }
 
-pub type KubernetesAPIStateMachine<I, O> = StateMachine<KubernetesAPIState, KubernetesAPIActionInput<I, O>, KubernetesAPIActionInput<I, O>, KubernetesAPIActionOutput<I, O>, KubernetesAPIStep>;
+pub type APIServerStateMachine<I, O> = StateMachine<APIServerState, APIServerActionInput<I, O>, APIServerActionInput<I, O>, APIServerActionOutput<I, O>, APIServerStep>;
 
-pub type KubernetesAPIAction<I, O> = Action<KubernetesAPIState, KubernetesAPIActionInput<I, O>, KubernetesAPIActionOutput<I, O>>;
+pub type APIServerAction<I, O> = Action<APIServerState, APIServerActionInput<I, O>, APIServerActionOutput<I, O>>;
 
 }

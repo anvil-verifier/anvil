@@ -452,7 +452,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_create_request_msg(get_request(sub_resource, fb).key)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
@@ -542,7 +542,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_create_request_msg(get_request(sub_resource, fb).key)(input.get_Some_0()));
             },
             _ => {}
@@ -617,7 +617,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
     assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 if resource_create_request_msg(get_request(sub_resource, fb).key)(input.get_Some_0()) {} else {}
             },
             _ => {},
@@ -674,7 +674,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input.get_Some_0();
                 assert(!resource_update_request_msg(get_request(sub_resource, fb).key)(req));
                 assert(!resource_delete_request_msg(get_request(sub_resource, fb).key)(req));
@@ -784,7 +784,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(spec: TempPr
     assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 assert(!resource_delete_request_msg(resource_key)(input.get_Some_0()));
                 assert(!resource_update_status_request_msg(resource_key)(input.get_Some_0()));
                 if resource_update_request_msg(resource_key)(input.get_Some_0()) {} else {}
@@ -856,7 +856,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(spec: 
     assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input.get_Some_0();
                 assert(!resource_update_status_request_msg(get_request(sub_resource, fb).key)(req));
                 assert(!resource_delete_request_msg(get_request(sub_resource, fb).key)(req));
@@ -907,7 +907,7 @@ pub proof fn lemma_resource_object_is_stable(spec: TempPred<FBCluster>, sub_reso
     assert forall |s, s_prime: FBCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
-            Step::KubernetesAPIStep(input) => {
+            Step::APIServerStep(input) => {
                 let req = input.get_Some_0();
                 assert(!resource_delete_request_msg(get_request(sub_resource, fb).key)(req));
                 assert(!resource_update_status_request_msg(get_request(sub_resource, fb).key)(req));

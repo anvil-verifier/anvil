@@ -110,7 +110,7 @@ pub open spec fn request_sent_by_controller(msg: MsgType<E>) -> bool {
     &&& msg.src.is_CustomController()
     &&& {
         ||| {
-            &&& msg.dst.is_KubernetesAPI()
+            &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         }
         ||| {

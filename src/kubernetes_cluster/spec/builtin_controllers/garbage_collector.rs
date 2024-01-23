@@ -4,8 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::types::KubernetesAPIState, builtin_controllers::types::*, cluster::Cluster,
-    message::*,
+    api_server::types::APIServerState, builtin_controllers::types::*, cluster::Cluster, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
@@ -35,7 +34,7 @@ pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred
 
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E::Output> {
     Action {
-        precondition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
+        precondition: |input: BuiltinControllersActionInput, s: APIServerState| {
             let resources = s.resources;
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
@@ -56,7 +55,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E
                 ||| resources[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
             }
         },
-        transition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
+        transition: |input: BuiltinControllersActionInput, s: APIServerState| {
             let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
                 input.key, input.rest_id_allocator.allocate().1
             ));
