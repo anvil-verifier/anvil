@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*};
-use crate::kubernetes_cluster::spec::api_server::types::KubernetesAPIState;
+use crate::kubernetes_cluster::spec::api_server::types::APIServerState;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -40,13 +40,13 @@ pub struct BuiltinControllersActionOutput<I, O> {
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type BuiltinControllersStateMachine<I, O> = StateMachine<KubernetesAPIState,
+pub type BuiltinControllersStateMachine<I, O> = StateMachine<APIServerState,
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionOutput<I, O>,
                                             BuiltinControllersStep>;
 
-pub type BuiltinControllersAction<I, O> = Action<KubernetesAPIState,
+pub type BuiltinControllersAction<I, O> = Action<APIServerState,
                                         BuiltinControllersActionInput,
                                         BuiltinControllersActionOutput<I, O>>;
 

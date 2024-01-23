@@ -76,7 +76,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
 
 pub open spec fn resource_get_response_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
     |msg: RMQMessage|
-        msg.src.is_KubernetesAPI()
+        msg.src.is_APIServer()
         && msg.content.is_get_response()
         && (
             msg.content.get_get_response().res.is_Ok()
@@ -86,7 +86,7 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> FnSpec(RMQMessage)
 
 pub open spec fn resource_update_response_msg(key: ObjectRef, s: RMQCluster) -> FnSpec(RMQMessage) -> bool {
     |msg: RMQMessage|
-        msg.src.is_KubernetesAPI()
+        msg.src.is_APIServer()
         && msg.content.is_update_response()
         && (
             msg.content.get_update_response().res.is_Ok()
@@ -99,7 +99,7 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: RMQCluster) -> 
 
 pub open spec fn resource_create_response_msg(key: ObjectRef, s: RMQCluster) -> FnSpec(RMQMessage) -> bool {
     |msg: RMQMessage|
-        msg.src.is_KubernetesAPI()
+        msg.src.is_APIServer()
         && msg.content.is_create_response()
         && (
             msg.content.get_create_response().res.is_Ok()
@@ -270,7 +270,7 @@ pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_
     |s: RMQCluster| {
         forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
+            && msg.dst.is_APIServer()
             && !msg.src.is_BuiltinController()
             ==> !resource_update_status_request_msg(get_request(SubResource::StatefulSet, rabbitmq).key)(msg)
     }

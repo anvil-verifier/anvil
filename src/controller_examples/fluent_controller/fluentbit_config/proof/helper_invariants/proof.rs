@@ -482,7 +482,7 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight(spec: TempPred<
                         assert(!msg.content.is_update_status_request());
                         assert(false);
                     },
-                    Step::KubernetesAPIStep(_) => {
+                    Step::APIServerStep(_) => {
                         assert(!msg.content.is_APIRequest());
                         assert(!msg.content.is_update_status_request());
                         assert(false);
@@ -727,7 +727,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(sp
     let key = fbc.object_ref();
     let resource_key = get_request(sub_resource, fbc).key;
     let requirements = |msg: FBCMessage, s: FBCCluster| !{
-        &&& msg.dst.is_KubernetesAPI()
+        &&& msg.dst.is_APIServer()
         &&& msg.content.is_delete_request()
         &&& msg.content.get_delete_request().key == resource_key
     };

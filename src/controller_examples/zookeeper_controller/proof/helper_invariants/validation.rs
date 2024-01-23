@@ -110,7 +110,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
             } else {
                 let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
+                    Step::APIServerStep(input) => {
                         let req = input.get_Some_0();
                         if resource_create_request_msg(sts_key)(req) {} else {}
                         if resource_update_request_msg(sts_key)(req) {} else {}
@@ -301,7 +301,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
         implies certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, ZookeeperClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
             match step {
-                Step::KubernetesAPIStep(input) => {
+                Step::APIServerStep(input) => {
                     assert(s.controller_state == s_prime.controller_state);
                     assert(s.in_flight().contains(msg));
                     if s.resources().contains_key(key) {

@@ -111,7 +111,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0() {
             let step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
             match step {
-                Step::KubernetesAPIStep(input) => {
+                Step::APIServerStep(input) => {
                     assert(s.scheduled_reconciles().contains_key(key) && s.scheduled_reconciles()[key] == s_prime.scheduled_reconciles()[key]);
                     if !s.resources().contains_key(key) {
                         assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
@@ -215,7 +215,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         if s_prime.ongoing_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() {
             match step {
-                Step::KubernetesAPIStep(input) => {
+                Step::APIServerStep(input) => {
                     assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].triggering_cr == s_prime.ongoing_reconciles()[key].triggering_cr);
                     if !s.resources().contains_key(key) {
                         assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));

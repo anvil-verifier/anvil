@@ -110,7 +110,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                 && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             };
             match next_step {
-                Step::KubernetesAPIStep(input) => {
+                Step::APIServerStep(input) => {
                     if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
                         let resp_msg = Self::transition_by_etcd(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1;
                         assert(s_prime.in_flight().contains(resp_msg));

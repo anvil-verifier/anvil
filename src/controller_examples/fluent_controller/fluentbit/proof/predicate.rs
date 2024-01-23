@@ -61,7 +61,7 @@ pub open spec fn pending_req_at_after_get_secret_step_with_fb(fb: FluentBitView)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_secret_req(fb)
@@ -77,7 +77,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_secret_step(
         &&& FBCluster::pending_req_msg_is(s, fb.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
-        &&& req_msg.dst == HostId::KubernetesAPI
+        &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_secret_req(fb)
@@ -92,7 +92,7 @@ pub open spec fn at_after_get_secret_step_and_exists_ok_resp_in_flight(fb: Fluen
         &&& at_fb_step_with_fb(fb, FluentBitReconcileStep::AfterGetSecret)(s)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_secret_req(fb)
@@ -114,7 +114,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(
         &&& at_fb_step_with_fb(fb, FluentBitReconcileStep::AfterGetSecret)(s)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_secret_req(fb)
@@ -165,7 +165,7 @@ pub open spec fn pending_req_in_flight_at_after_get_resource_step(
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_request(sub_resource, fb)
@@ -182,7 +182,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_resource_step
         &&& FBCluster::pending_req_msg_is(s, fb.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
-        &&& req_msg.dst == HostId::KubernetesAPI
+        &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_request(sub_resource, fb)
@@ -208,7 +208,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
         &&& at_fb_step_with_fb(fb, step)(s)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_request(sub_resource, fb)
@@ -232,7 +232,7 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
         &&& at_fb_step_with_fb(fb, step)(s)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_request(sub_resource, fb)
@@ -257,7 +257,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         &&& at_fb_step_with_fb(fb, step)(s)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_request(sub_resource, fb)
@@ -279,7 +279,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
         &&& at_fb_step_with_fb(fb, step)(s)
         &&& FBCluster::has_pending_k8s_api_req_msg(s, fb.object_ref())
         &&& msg.src == HostId::CustomController
-        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_GetRequest()
         &&& request.get_GetRequest_0() == get_request(sub_resource, fb)

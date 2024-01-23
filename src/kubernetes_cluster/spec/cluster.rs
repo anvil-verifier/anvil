@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    api_server::types::KubernetesAPIState,
+    api_server::types::APIServerState,
     client::types::ClientState,
     controller::types::{ControllerState, OngoingReconcile},
     external_api::types::ExternalAPIState,
@@ -26,7 +26,7 @@ verus! {
 /// By using such a struct, we don't have to let all the functions carry the generics; and therefore we don't need to
 /// specify the generics whenever calling those spec or proof functions.
 pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
-    pub kubernetes_api_state: KubernetesAPIState,
+    pub kubernetes_api_state: APIServerState,
     pub controller_state: ControllerState<K, E, R>,
     pub client_state: ClientState,
     pub network_state: NetworkState<E::Input, E::Output>,

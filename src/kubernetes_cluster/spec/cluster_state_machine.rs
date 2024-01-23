@@ -5,7 +5,7 @@ use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    api_server::types::{KubernetesAPIAction, KubernetesAPIActionInput},
+    api_server::types::{APIServerAction, APIServerActionInput},
     builtin_controllers::types::{
         BuiltinControllerChoice, BuiltinControllersAction, BuiltinControllersActionInput,
     },
@@ -26,7 +26,7 @@ verus! {
 
 #[is_variant]
 pub enum Step<Msg> {
-    KubernetesAPIStep(Option<Msg>),
+    APIServerStep(Option<Msg>),
     BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
     ControllerStep((Option<Msg>, Option<ObjectRef>)),
     ClientStep(),
@@ -62,7 +62,7 @@ pub open spec fn init() -> StatePred<Self> {
 pub open spec fn kubernetes_api_next() -> Action<Self, Option<MsgType<E>>, ()> {
     let result = |input: Option<MsgType<E>>, s: Self| {
         let host_result = Self::kubernetes_api().next_result(
-            KubernetesAPIActionInput{ recv: input },
+            APIServerActionInput{ recv: input },
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
@@ -75,7 +75,7 @@ pub open spec fn kubernetes_api_next() -> Action<Self, Option<MsgType<E>>, ()> {
     };
     Action {
         precondition: |input: Option<MsgType<E>>, s: Self| {
-            &&& received_msg_destined_for(input, HostId::KubernetesAPI)
+            &&& received_msg_destined_for(input, HostId::APIServer)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
@@ -289,7 +289,7 @@ pub open spec fn fail_request_transiently() -> Action<Self, (MsgType<E>, APIErro
             let req_msg = input.0;
             let api_err = input.1;
             &&& s.transient_failure_enabled
-            &&& req_msg.dst.is_KubernetesAPI()
+            &&& req_msg.dst.is_APIServer()
             &&& req_msg.content.is_APIRequest()
             &&& (api_err.is_Timeout() || api_err.is_ServerTimeout() || api_err.is_Conflict())
             &&& result(input, s).is_Enabled()
@@ -364,7 +364,7 @@ pub open spec fn stutter() -> Action<Self, (), ()> {
 
 pub open spec fn next_step(s: Self, s_prime: Self, step: Step<MsgType<E>>) -> bool {
     match step {
-        Step::KubernetesAPIStep(input) => Self::kubernetes_api_next().forward(input)(s, s_prime),
+        Step::APIServerStep(input) => Self::kubernetes_api_next().forward(input)(s, s_prime),
         Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => Self::controller_next().forward(input)(s, s_prime),
         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
@@ -399,11 +399,11 @@ pub open spec fn sm_wf_spec() -> TempPred<Self> {
     .and(Self::disable_transient_failure().weak_fairness(()))
 }
 
-pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction<E::Input, E::Output>, input: Option<MsgType<E>>) -> StatePred<Self> {
+pub open spec fn kubernetes_api_action_pre(action: APIServerAction<E::Input, E::Output>, input: Option<MsgType<E>>) -> StatePred<Self> {
     |s: Self| {
         let host_result = Self::kubernetes_api().next_action_result(
             action,
-            KubernetesAPIActionInput{recv: input},
+            APIServerActionInput{recv: input},
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
@@ -412,7 +412,7 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction<E::Input,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 
-        &&& received_msg_destined_for(input, HostId::KubernetesAPI)
+        &&& received_msg_destined_for(input, HostId::APIServer)
         &&& host_result.is_Enabled()
         &&& network_result.is_Enabled()
     }
