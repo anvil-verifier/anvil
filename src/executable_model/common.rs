@@ -67,22 +67,47 @@ impl std::clone::Clone for KubeObjectRef {
 }
 
 impl ApiResource {
-    // TODO: implement this function by parsing inner.kind
     #[verifier(external_body)]
     pub fn kind(&self) -> (kind: Kind)
         ensures kind == self@.kind,
     {
-        unimplemented!();
+        match self.as_kube_ref().kind.as_str() {
+            "ConfigMap" => Kind::ConfigMapKind,
+            "DaemonSet" => Kind::DaemonSetKind,
+            "PersistentVolumeClaim" => Kind::PersistentVolumeClaimKind,
+            "Pod" => Kind::PodKind,
+            "Role" => Kind::RoleKind,
+            "RoleBinding" => Kind::RoleBindingKind,
+            "StatefulSet" => Kind::StatefulSetKind,
+            "Service" => Kind::ServiceKind,
+            "ServiceAccount" => Kind::ServiceAccountKind,
+            "Secret" => Kind::SecretKind,
+            _ => panic!(), // We assume the DynamicObject won't be a custom object
+        }
     }
 }
 
 impl DynamicObject {
-    // TODO: implement this function by parsing inner.types.unwrap().kind
     #[verifier(external_body)]
     pub fn kind(&self) -> (kind: Kind)
         ensures kind == self@.kind,
     {
-        unimplemented!();
+        if self.as_kube_ref().types.is_none() {
+            panic!();
+        }
+        match self.as_kube_ref().types.as_ref().unwrap().kind.as_str() {
+            "ConfigMap" => Kind::ConfigMapKind,
+            "DaemonSet" => Kind::DaemonSetKind,
+            "PersistentVolumeClaim" => Kind::PersistentVolumeClaimKind,
+            "Pod" => Kind::PodKind,
+            "Role" => Kind::RoleKind,
+            "RoleBinding" => Kind::RoleBindingKind,
+            "StatefulSet" => Kind::StatefulSetKind,
+            "Service" => Kind::ServiceKind,
+            "ServiceAccount" => Kind::ServiceAccountKind,
+            "Secret" => Kind::SecretKind,
+            _ => panic!(), // We assume the DynamicObject won't be a custom object
+        }
     }
 
     #[verifier(external_body)]
@@ -103,50 +128,46 @@ impl DynamicObject {
     pub fn set_namespace(&mut self, namespace: String)
         ensures self@ == old(self)@.set_namespace(namespace@),
     {
-        self.inner().metadata.namespace = Some(namespace.into_rust_string());
+        self.as_kube_mut_ref().metadata.namespace = Some(namespace.into_rust_string());
     }
 
     #[verifier(external_body)]
     pub fn set_resource_version(&mut self, resource_version: i64)
         ensures self@ == old(self)@.set_resource_version(resource_version as int),
     {
-        unimplemented!();
+        self.as_kube_mut_ref().metadata.resource_version = Some(resource_version.to_string());
     }
 
     #[verifier(external_body)]
     pub fn set_uid(&mut self, uid: i64)
         ensures self@ == old(self)@.set_uid(uid as int),
     {
-        unimplemented!();
+        self.as_kube_mut_ref().metadata.uid = Some(uid.to_string());
     }
 
     #[verifier(external_body)]
     pub fn unset_deletion_timestamp(&mut self)
         ensures self@ == old(self)@.unset_deletion_timestamp(),
     {
-        self.inner().metadata.deletion_timestamp = None;
+        self.as_kube_mut_ref().metadata.deletion_timestamp = None;
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, other: &DynamicObject)
         ensures self@ == old(self)@.set_spec(other@.spec)
     {
-        unimplemented!();
+        self.as_kube_mut_ref().data = other.as_kube_ref().data.clone()
     }
 
     #[verifier(external_body)]
     pub fn set_status(&mut self, other: &DynamicObject)
         ensures self@ == old(self)@.set_status(other@.status)
-    {
-        unimplemented!();
-    }
+    {}
 
     #[verifier(external_body)]
     pub fn set_default_status<K: ResourceView>(&mut self)
         ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
-    {
-        unimplemented!();
-    }
+    {}
 }
 
 }

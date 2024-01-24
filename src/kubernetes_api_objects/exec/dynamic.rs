@@ -30,7 +30,12 @@ impl DynamicObject {
     }
 
     #[verifier(external)]
-    pub fn inner(&mut self) -> &mut deps_hack::kube::api::DynamicObject {
+    pub fn as_kube_ref(&self) -> &deps_hack::kube::api::DynamicObject {
+        &self.inner
+    }
+
+    #[verifier(external)]
+    pub fn as_kube_mut_ref(&mut self) -> &mut deps_hack::kube::api::DynamicObject {
         &mut self.inner
     }
 
