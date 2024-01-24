@@ -292,7 +292,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -486,7 +486,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({

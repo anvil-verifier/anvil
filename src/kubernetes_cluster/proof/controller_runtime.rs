@@ -110,7 +110,7 @@ pub open spec fn request_sent_by_controller(msg: MsgType<E>) -> bool {
     &&& msg.src.is_CustomController()
     &&& {
         ||| {
-            &&& msg.dst.is_APIServer()
+            &&& msg.dst.is_ApiServer()
             &&& msg.content.is_APIRequest()
         }
         ||| {

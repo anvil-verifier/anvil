@@ -123,6 +123,14 @@ impl ObjectMeta {
         }
     }
 
+    #[verifier(external_body)]
+    pub fn has_some_resource_version(&self) -> (b: bool)
+        ensures
+            self@.resource_version.is_Some() == b,
+    {
+        self.inner.resource_version.is_some()
+    }
+
     // We need this seemingly redundant function because of the inconsistency
     // between the actual resource version and its spec-level encoding:
     // one is String while the other is an int.
@@ -136,17 +144,12 @@ impl ObjectMeta {
         self.inner.resource_version == other.inner.resource_version
     }
 
-    // TODO: the uid is not really a number; need to reconsider its spec-level representation
     #[verifier(external_body)]
-    pub fn uid(&self) -> (uid: Option<String>)
+    pub fn has_some_uid(&self) -> (b: bool)
         ensures
-            self@.uid.is_Some() == uid.is_Some(),
-            uid.is_Some() ==> uid.get_Some_0()@ == int_to_string_view(self@.uid.get_Some_0()),
+            self@.uid.is_Some() == b,
     {
-        match &self.inner.uid {
-            Some(item) => Some(String::from_rust_string(item.to_string())),
-            None => None,
-        }
+        self.inner.uid.is_some()
     }
 
     // We need this seemingly redundant function for the same
@@ -210,14 +213,14 @@ impl ObjectMeta {
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
         ensures self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
     {
-        self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),);
+        self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
         ensures self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
     {
-        self.inner.finalizers = Some(finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),);
+        self.inner.finalizers = Some(finalizers.into_iter().map(|s: String| s.into_rust_string()).collect());
     }
 
     #[verifier(external_body)]

@@ -68,7 +68,7 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
     |s: Self| {
         exists |msg: MsgType<E>| {
             #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_APIServer()
+            && msg.dst.is_ApiServer()
             && msg.content.is_delete_request_with_key(key)
         }
     }
@@ -202,7 +202,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 let req = input.get_Some_0();
                 if resource_create_request_msg(key)(req) {} else {}
                 if resource_update_request_msg(key)(req) {} else {}
@@ -233,7 +233,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
             let msg_to_p = |msg: MsgType<E>| {
                 lift_state(|s: Self| {
                     &&& s.in_flight().contains(msg)
-                    &&& msg.dst.is_APIServer()
+                    &&& msg.dst.is_ApiServer()
                     &&& msg.content.is_delete_request_with_key(key)
                 })
             };
@@ -241,7 +241,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                 let input = Some(msg);
                 let msg_to_p_state = |s: Self| {
                     &&& s.in_flight().contains(msg)
-                    &&& msg.dst.is_APIServer()
+                    &&& msg.dst.is_ApiServer()
                     &&& msg.content.is_delete_request_with_key(key)
                 };
                 let stronger_next = |s, s_prime: Self| {
@@ -266,7 +266,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex) implies tla_exists(msg_to_p).satisfied_by(ex) by {
                         let msg = choose |msg| {
                             &&& #[trigger] ex.head().in_flight().contains(msg)
-                            &&& msg.dst.is_APIServer()
+                            &&& msg.dst.is_ApiServer()
                             &&& msg.content.is_delete_request_with_key(key)
                         };
                         assert(msg_to_p(msg).satisfied_by(ex));

@@ -4,7 +4,7 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::spec::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    api_server::types::{APIServerAction, APIServerActionInput, APIServerState, APIServerStep},
+    api_server::types::{ApiServerAction, ApiServerActionInput, ApiServerState, ApiServerStep},
     builtin_controllers::types::*,
     cluster::*,
     cluster_state_machine::Step,
@@ -24,25 +24,25 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub proof fn kubernetes_api_action_pre_implies_next_pre(action: APIServerAction<E::Input, E::Output>, input: Option<MsgType<E>>)
+pub proof fn kubernetes_api_action_pre_implies_next_pre(action: ApiServerAction<E::Input, E::Output>, input: Option<MsgType<E>>)
     requires Self::kubernetes_api().actions.contains(action),
     ensures valid(lift_state(Self::kubernetes_api_action_pre(action, input)).implies(lift_state(Self::kubernetes_api_next().pre(input)))),
 {
     assert forall |s: Self| #[trigger] Self::kubernetes_api_action_pre(action, input)(s)
     implies Self::kubernetes_api_next().pre(input)(s) by {
         Self::exists_next_kubernetes_api_step(
-            action, APIServerActionInput{recv: input}, s.kubernetes_api_state
+            action, ApiServerActionInput{recv: input}, s.kubernetes_api_state
         );
     };
 }
 
-pub proof fn exists_next_kubernetes_api_step(action: APIServerAction<E::Input, E::Output>, input: APIServerActionInput<E::Input, E::Output>, s: APIServerState)
+pub proof fn exists_next_kubernetes_api_step(action: ApiServerAction<E::Input, E::Output>, input: ApiServerActionInput<E::Input, E::Output>, s: ApiServerState)
     requires
         Self::kubernetes_api().actions.contains(action),
         (action.precondition)(input, s),
     ensures exists |step| (#[trigger] (Self::kubernetes_api().step_to_action)(step).precondition)(input, s),
 {
-    assert(((Self::kubernetes_api().step_to_action)(APIServerStep::HandleRequest).precondition)(input, s));
+    assert(((Self::kubernetes_api().step_to_action)(ApiServerStep::HandleRequest).precondition)(input, s));
 }
 
 pub proof fn external_api_action_pre_implies_next_pre(action: ExternalAPIAction<E>, input: Option<MsgType<E>>)
@@ -112,7 +112,7 @@ pub proof fn builtin_controllers_action_pre_implies_next_pre(action: BuiltinCont
     };
 }
 
-pub proof fn exists_next_builtin_controllers_step(action: BuiltinControllersAction<E::Input, E::Output>, input: BuiltinControllersActionInput, s: APIServerState)
+pub proof fn exists_next_builtin_controllers_step(action: BuiltinControllersAction<E::Input, E::Output>, input: BuiltinControllersActionInput, s: ApiServerState)
     requires
         Self::builtin_controllers().actions.contains(action),
         (action.precondition)(input, s),

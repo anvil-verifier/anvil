@@ -24,7 +24,7 @@ pub type MsgType<E> = Message<<E as ExternalAPI>::Input, <E as ExternalAPI>::Out
 
 #[is_variant]
 pub enum HostId {
-    APIServer,
+    ApiServer,
     BuiltinController,
     CustomController,
     ExternalAPI,
@@ -245,7 +245,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
 impl<I, O> Message<I, O> {
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: RestId) -> Message<I, O> {
-    Message::form_msg(HostId::CustomController, HostId::APIServer, MessageContent::APIRequest(req, req_id))
+    Message::form_msg(HostId::CustomController, HostId::ApiServer, MessageContent::APIRequest(req, req_id))
 }
 
 pub open spec fn controller_external_req_msg(req: I, req_id: RestId) -> Message<I, O> {
@@ -253,11 +253,11 @@ pub open spec fn controller_external_req_msg(req: I, req_id: RestId) -> Message<
 }
 
 pub open spec fn built_in_controller_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
-    Message::form_msg(HostId::BuiltinController, HostId::APIServer, msg_content)
+    Message::form_msg(HostId::BuiltinController, HostId::ApiServer, msg_content)
 }
 
 pub open spec fn client_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
-    Message::form_msg(HostId::Client, HostId::APIServer, msg_content)
+    Message::form_msg(HostId::Client, HostId::ApiServer, msg_content)
 }
 
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message<I, O>, req_msg: Message<I, O>) -> bool {
@@ -289,12 +289,12 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message<I, O>, err: APIError
     recommends req_msg.content.is_APIRequest(),
 {
     match req_msg.content.get_APIRequest_0() {
-        APIRequest::GetRequest(_) => Self::form_get_resp_msg(req_msg, Err(err)),
-        APIRequest::ListRequest(_) => Self::form_list_resp_msg(req_msg, Err(err)),
-        APIRequest::CreateRequest(_) => Self::form_create_resp_msg(req_msg, Err(err)),
-        APIRequest::DeleteRequest(_) => Self::form_delete_resp_msg(req_msg, Err(err)),
-        APIRequest::UpdateRequest(_) => Self::form_update_resp_msg(req_msg, Err(err)),
-        APIRequest::UpdateStatusRequest(_) => Self::form_update_status_resp_msg(req_msg, Err(err)),
+        APIRequest::GetRequest(_) => Self::form_get_resp_msg(req_msg, GetResponse{res: Err(err)}),
+        APIRequest::ListRequest(_) => Self::form_list_resp_msg(req_msg, ListResponse{res: Err(err)}),
+        APIRequest::CreateRequest(_) => Self::form_create_resp_msg(req_msg, CreateResponse{res: Err(err)}),
+        APIRequest::DeleteRequest(_) => Self::form_delete_resp_msg(req_msg, DeleteResponse{res: Err(err)}),
+        APIRequest::UpdateRequest(_) => Self::form_update_resp_msg(req_msg, UpdateResponse{res: Err(err)}),
+        APIRequest::UpdateStatusRequest(_) => Self::form_update_status_resp_msg(req_msg, UpdateStatusResponse{res: Err(err)}),
     }
 }
 
@@ -306,40 +306,40 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent<
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
+pub open spec fn form_get_resp_msg(req_msg: Message<I, O>, resp: GetResponse) -> Message<I, O>
     recommends req_msg.content.is_get_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, Self::get_resp_msg_content(result, req_msg.content.get_rest_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::get_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
-pub open spec fn form_list_resp_msg(req_msg: Message<I, O>, result: Result<Seq<DynamicObjectView>, APIError>) -> Message<I, O>
+pub open spec fn form_list_resp_msg(req_msg: Message<I, O>, resp: ListResponse) -> Message<I, O>
     recommends req_msg.content.is_list_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, Self::list_resp_msg_content(result, req_msg.content.get_rest_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::list_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
-pub open spec fn form_create_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
+pub open spec fn form_create_resp_msg(req_msg: Message<I, O>, resp: CreateResponse) -> Message<I, O>
     recommends req_msg.content.is_create_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, Self::create_resp_msg_content(result, req_msg.content.get_rest_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::create_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
-pub open spec fn form_delete_resp_msg(req_msg: Message<I, O>, result: Result<(), APIError>) -> Message<I, O>
+pub open spec fn form_delete_resp_msg(req_msg: Message<I, O>, resp: DeleteResponse) -> Message<I, O>
     recommends req_msg.content.is_delete_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, Self::delete_resp_msg_content(result, req_msg.content.get_rest_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::delete_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
-pub open spec fn form_update_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
+pub open spec fn form_update_resp_msg(req_msg: Message<I, O>, resp: UpdateResponse) -> Message<I, O>
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, Self::update_resp_msg_content(result, req_msg.content.get_rest_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::update_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
-pub open spec fn form_update_status_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
+pub open spec fn form_update_status_resp_msg(req_msg: Message<I, O>, resp: UpdateStatusResponse) -> Message<I, O>
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, Self::update_status_resp_msg_content(result, req_msg.content.get_rest_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::update_status_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
 pub open spec fn form_external_resp_msg(req_msg: Message<I, O>, resp: O) -> Message<I, O>
@@ -390,40 +390,28 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
     }), req_id)
 }
 
-pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
-    MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
-        res: res,
-    }), resp_id)
+pub open spec fn get_resp_msg_content(resp: GetResponse, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::GetResponse(resp), resp_id)
 }
 
-pub open spec fn list_resp_msg_content(res: Result<Seq<DynamicObjectView>, APIError>, resp_id: RestId) -> MessageContent<I, O> {
-    MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
-        res: res,
-    }), resp_id)
+pub open spec fn list_resp_msg_content(resp: ListResponse, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::ListResponse(resp), resp_id)
 }
 
-pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
-    MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
-        res: res,
-    }), resp_id)
+pub open spec fn create_resp_msg_content(resp: CreateResponse, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::CreateResponse(resp), resp_id)
 }
 
-pub open spec fn delete_resp_msg_content(res: Result<(), APIError>, resp_id: RestId) -> MessageContent<I, O> {
-    MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
-        res: res,
-    }), resp_id)
+pub open spec fn delete_resp_msg_content(resp: DeleteResponse, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::DeleteResponse(resp), resp_id)
 }
 
-pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
-    MessageContent::APIResponse(APIResponse::UpdateResponse(UpdateResponse{
-        res: res,
-    }), resp_id)
+pub open spec fn update_resp_msg_content(resp: UpdateResponse, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::UpdateResponse(resp), resp_id)
 }
 
-pub open spec fn update_status_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
-    MessageContent::APIResponse(APIResponse::UpdateStatusResponse(UpdateStatusResponse{
-        res: res,
-    }), resp_id)
+pub open spec fn update_status_resp_msg_content(resp: UpdateStatusResponse, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp), resp_id)
 }
 
 pub open spec fn external_resp_msg_content(resp: O, resp_id: RestId) -> MessageContent<I, O> {
@@ -436,7 +424,7 @@ pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message
     |msg: Message<I, O>| {
         &&& msg.content.get_rest_id() < rest_id
         &&& {
-            ||| msg.dst.is_APIServer() && msg.content.is_APIRequest()
+            ||| msg.dst.is_ApiServer() && msg.content.is_APIRequest()
             ||| msg.dst.is_ExternalAPI() && msg.content.is_ExternalAPIRequest()
         }
     }
@@ -444,7 +432,7 @@ pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message
 
 pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == key.namespace
         && msg.content.get_create_request().obj.kind == key.kind
@@ -454,28 +442,28 @@ pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -
 
 pub open spec fn update_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key() == key
 }
 
 pub open spec fn update_status_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_update_status_request()
         && msg.content.get_update_status_request().key() == key
 }
 
 pub open spec fn delete_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_delete_request()
         && msg.content.get_delete_request().key == key
 }
 
 pub open spec fn update_status_msg_from_bc_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.src.is_BuiltinController()
         && msg.content.is_update_status_request()
         && msg.content.get_update_status_request().key() == key
@@ -491,14 +479,14 @@ pub open spec fn received_msg_destined_for<I, O>(recv: Option<Message<I, O>>, ho
 
 pub open spec fn resource_get_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_get_request()
         && msg.content.get_get_request().key == key
 }
 
 pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == key.namespace
         && msg.content.get_create_request().obj.metadata.name == Some(key.name)
@@ -507,21 +495,21 @@ pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> FnSpec(Mes
 
 pub open spec fn resource_update_status_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_update_status_request()
         && msg.content.get_update_status_request().key() == key
 }
 
 pub open spec fn resource_update_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key() == key
 }
 
 pub open spec fn resource_delete_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
-        msg.dst.is_APIServer()
+        msg.dst.is_ApiServer()
         && msg.content.is_delete_request()
         && msg.content.get_delete_request().key == key
 }

@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::types::APIServerState, builtin_controllers::types::*, cluster::Cluster, message::*,
+    api_server::types::ApiServerState, builtin_controllers::types::*, cluster::Cluster, message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
@@ -18,7 +18,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn run_daemon_set_controller() -> BuiltinControllersAction<E::Input, E::Output> {
     Action {
-        precondition: |input: BuiltinControllersActionInput, s: APIServerState| {
+        precondition: |input: BuiltinControllersActionInput, s: ApiServerState| {
             let resources = s.resources;
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
@@ -31,7 +31,7 @@ pub open spec fn run_daemon_set_controller() -> BuiltinControllersAction<E::Inpu
             // and it is not stable yet
             &&& !s.stable_resources.contains(key)
         },
-        transition: |input: BuiltinControllersActionInput, s: APIServerState| {
+        transition: |input: BuiltinControllersActionInput, s: ApiServerState| {
             let resources = s.resources;
             let key = input.key;
             let number_ready = input.choice.get_DaemonSetController_number_ready();

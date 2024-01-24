@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::types::APIServerState,
+    api_server::types::ApiServerState,
     builtin_controllers::{
         garbage_collector::*, stabilizer::*, stateful_set_controller::*, types::*,
     },
@@ -23,7 +23,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine<E::Input, E::Output> {
     StateMachine {
-        init: |s: APIServerState| {
+        init: |s: ApiServerState| {
             true
         },
         actions: set![

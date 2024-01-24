@@ -43,7 +43,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec: 
             } else {
                 match step {
                     Step::ControllerStep(_) => {},
-                    Step::APIServerStep(input) => {
+                    Step::ApiServerStep(input) => {
                         assert(s.in_flight().contains(input.get_Some_0()));
                         assert(id == input.get_Some_0().content.get_rest_id());
                     },
@@ -260,7 +260,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
             assert_by(
                 s_prime.in_flight().count(msg) == 1, {
                     match step {
-                        Step::APIServerStep(input) => {
+                        Step::ApiServerStep(input) => {
                             let req = input.get_Some_0();
                             let (_, resp) = Self::transition_by_etcd(req, s.kubernetes_api_state);
                             assert(resp.content.get_rest_id() == req.content.get_rest_id());
@@ -327,7 +327,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
     if (msg_2.content.is_APIResponse()) {
         let next_step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
         match next_step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 let req_msg = input.get_Some_0();
                 assert(s.network_state.in_flight.count(req_msg) <= 1);
                 assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
@@ -354,14 +354,14 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
 
 pub open spec fn is_ok_get_response_msg() -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
-        msg.src.is_APIServer()
+        msg.src.is_ApiServer()
         && msg.content.is_get_response()
         && msg.content.get_get_response().res.is_Ok()
 }
 
 pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
-        msg.src.is_APIServer()
+        msg.src.is_ApiServer()
         && msg.content.is_get_response()
         && msg.content.get_get_response().res.is_Ok()
         && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
@@ -369,14 +369,14 @@ pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpe
 
 pub open spec fn is_ok_update_response_msg() -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
-        msg.src.is_APIServer()
+        msg.src.is_ApiServer()
         && msg.content.is_update_response()
         && msg.content.get_update_response().res.is_Ok()
 }
 
 pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
-        msg.src.is_APIServer()
+        msg.src.is_ApiServer()
         && msg.content.is_update_response()
         && msg.content.get_update_response().res.is_Ok()
         && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
@@ -384,14 +384,14 @@ pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> Fn
 
 pub open spec fn is_ok_create_response_msg() -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
-        msg.src.is_APIServer()
+        msg.src.is_ApiServer()
         && msg.content.is_create_response()
         && msg.content.get_create_response().res.is_Ok()
 }
 
 pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
-        msg.src.is_APIServer()
+        msg.src.is_ApiServer()
         && msg.content.is_create_response()
         && msg.content.get_create_response().res.is_Ok()
         && msg.content.get_create_response().res.get_Ok_0().object_ref() == key
@@ -432,7 +432,7 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
             if s.in_flight().contains(msg) {
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else {
-                let input = step.get_APIServerStep_0().get_Some_0();
+                let input = step.get_ApiServerStep_0().get_Some_0();
                 match input.content.get_APIRequest_0() {
                     APIRequest::GetRequest(req) => {
                         if Self::is_ok_get_response_msg()(msg) {
@@ -490,8 +490,8 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
                 }
             } else {
                 let step = choose |step| Self::next_step(s, s_prime, step);
-                assert(step.is_APIServerStep());
-                let req = step.get_APIServerStep_0().get_Some_0();
+                assert(step.is_ApiServerStep());
+                let req = step.get_ApiServerStep_0().get_Some_0();
                 match req.content.get_APIRequest_0() {
                     APIRequest::GetRequest(_) => {}
                     APIRequest::ListRequest(_) => {}
@@ -570,12 +570,12 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                         assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
-                Step::APIServerStep(input) => {
+                Step::ApiServerStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_get_response());
                         assert(msg == Self::handle_get_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
-                        assert(msg.src.is_APIServer()
+                        assert(msg.src.is_ApiServer()
                         && msg.content.is_get_response());
                         if msg.content.get_get_response().res.is_Ok() {
                             assert(s.resources().contains_key(req_key));
@@ -587,7 +587,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                 Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src.is_ApiServer());
                         assert(msg.content.is_get_response());
                         assert(msg.content.get_get_response().res.is_Err());
                     }
@@ -665,12 +665,12 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                         assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
-                Step::APIServerStep(input) => {
+                Step::ApiServerStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_update_response());
                         assert(msg == Self::handle_update_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
-                        assert(msg.src.is_APIServer()
+                        assert(msg.src.is_ApiServer()
                         && msg.content.is_update_response());
                         if msg.content.get_update_response().res.is_Ok() {
                             assert(s.resources().contains_key(req_key));
@@ -682,7 +682,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                 Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src.is_ApiServer());
                         assert(msg.content.is_update_response());
                         assert(msg.content.get_update_response().res.is_Err());
                     }
@@ -765,12 +765,12 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                         assert(Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg));
                     }
                 },
-                Step::APIServerStep(input) => {
+                Step::ApiServerStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(msg.content.is_create_response());
                         assert(msg == Self::handle_create_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
-                        assert(msg.src.is_APIServer()
+                        assert(msg.src.is_ApiServer()
                         && msg.content.is_create_response());
                         if msg.content.get_create_response().res.is_Ok() {
                             assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().obj.metadata.name.is_Some());
@@ -782,7 +782,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                 Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_APIServer());
+                        assert(msg.src.is_ApiServer());
                         assert(msg.content.is_create_response());
                         assert(msg.content.get_create_response().res.is_Err());
                     }

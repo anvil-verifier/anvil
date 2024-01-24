@@ -88,7 +88,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
             if s.resources().contains_key(key) {
                 let step = choose |step| Self::next_step(s, s_prime, step);
                 match step {
-                    Step::APIServerStep(input) => {
+                    Step::ApiServerStep(input) => {
                         match input.get_Some_0().content.get_APIRequest_0() {
                             APIRequest::GetRequest(_) => {}
                             APIRequest::ListRequest(_) => {}

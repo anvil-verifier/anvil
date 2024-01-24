@@ -165,7 +165,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                         SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
                             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                             match step {
-                                Step::APIServerStep(input) => {
+                                Step::ApiServerStep(input) => {
                                     let req = input.get_Some_0();
                                     assert(!resource_delete_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
                                     assert(!resource_update_status_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
@@ -325,13 +325,13 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
     let key = rabbitmq.object_ref();
     let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
     assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
-        assert(msg.src.is_APIServer());
+        assert(msg.src.is_ApiServer());
         assert(msg.content.is_create_response());
         if msg.content.get_create_response().res.is_Ok() {
             assert(RMQCluster::is_ok_create_response_msg()(msg));
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
-                Step::APIServerStep(input) => {
+                Step::ApiServerStep(input) => {
                     let req_msg = input.get_Some_0();
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_request_msg(resource_key)(req_msg));
@@ -503,12 +503,12 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
     let key = rabbitmq.object_ref();
     let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
     assert forall |msg: RMQMessage| s_prime.in_flight().contains(msg) && #[trigger] Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
-        assert(msg.src.is_APIServer());
+        assert(msg.src.is_ApiServer());
         assert(msg.content.is_update_response());
         if msg.content.get_update_response().res.is_Ok() {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
-                Step::APIServerStep(input) => {
+                Step::ApiServerStep(input) => {
                     let req_msg = input.get_Some_0();
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
@@ -1013,7 +1013,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
 
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     assert forall |s, s_prime: RMQCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_APIServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
+        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_ApiServer() && !msg.src.is_BuiltinController() && msg.content.is_update_status_request()
         implies msg.content.get_update_status_request().key() != resource_key by {
             if s.in_flight().contains(msg) {
                 assert(msg.content.get_update_status_request().key() != resource_key);
@@ -1047,7 +1047,7 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                         assert(!msg.content.is_update_status_request());
                         assert(false);
                     },
-                    Step::APIServerStep(_) => {
+                    Step::ApiServerStep(_) => {
                         assert(!msg.content.is_APIRequest());
                         assert(!msg.content.is_update_status_request());
                         assert(false);
@@ -1775,7 +1775,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<RMQCluster>, rabb
     assert forall |s, s_prime| #[trigger] stronger_inv(s, s_prime) implies cm_rv_stays_unchanged(rabbitmq)(s, s_prime) by {
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
-            Step::APIServerStep(input) => {
+            Step::ApiServerStep(input) => {
                 let req = input.get_Some_0();
                 assert(!resource_delete_request_msg(cm_key)(req));
                 assert(!resource_update_status_request_msg(cm_key)(req));

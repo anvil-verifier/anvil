@@ -25,21 +25,25 @@ impl View for DynamicObject {
 
 impl DynamicObject {
     #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta { &self.inner.metadata }
+    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+        &self.inner.metadata
+    }
+
+    #[verifier(external)]
+    pub fn as_kube_ref(&self) -> &deps_hack::kube::api::DynamicObject {
+        &self.inner
+    }
+
+    #[verifier(external)]
+    pub fn as_kube_mut_ref(&mut self) -> &mut deps_hack::kube::api::DynamicObject {
+        &mut self.inner
+    }
 
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
-    // TODO: implement this function by parsing inner.types.unwrap().kind
-    #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
-    {
-        unimplemented!();
     }
 }
 

@@ -17,8 +17,8 @@ pub type ResourceVersion = int;
 pub enum Kind {
     ConfigMapKind,
     CustomResourceKind,
-    ClusterRoleKind,
-    ClusterRoleBindingKind,
+    // ClusterRoleKind,
+    // ClusterRoleBindingKind,
     DaemonSetKind,
     PersistentVolumeClaimKind,
     PodKind,
