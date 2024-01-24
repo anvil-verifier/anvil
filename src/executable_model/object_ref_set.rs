@@ -41,6 +41,15 @@ impl ObjectRefSet {
         ObjectRefSet { inner: self.inner.clone() }
     }
 
+    #[verifier(external_body)]
+    pub fn remove(&mut self, key: &KubeObjectRef) -> (b: bool)
+        ensures
+            self@ == old(self)@.remove(key@),
+            b == old(self)@.contains(key@),
+    {
+        self.inner.remove(&key.clone().into_object_map_key())
+    }
+
     #[verifier(external)]
     pub fn from_rust_set(inner: std::collections::BTreeSet<ExternalObjectRef>) -> ObjectRefSet { ObjectRefSet { inner: inner } }
 

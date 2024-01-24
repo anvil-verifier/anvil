@@ -51,7 +51,6 @@ impl View for KubeObjectRef {
 }
 
 impl std::clone::Clone for KubeObjectRef {
-    #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
     {

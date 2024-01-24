@@ -107,18 +107,18 @@ pub open spec fn object_transition_validity_check<K: ResourceView>(obj: DynamicO
     }
 }
 
-pub open spec fn marshalled_default_status<K: ResourceView>(obj: DynamicObjectView) -> Value {
-    if obj.kind == ConfigMapView::kind() { ConfigMapView::marshal_status(ConfigMapView::default().status()) }
-    else if obj.kind == DaemonSetView::kind() { DaemonSetView::marshal_status(DaemonSetView::default().status()) }
-    else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::marshal_status(PersistentVolumeClaimView::default().status()) }
-    else if obj.kind == PodView::kind() { PodView::marshal_status(PodView::default().status()) }
-    else if obj.kind == RoleBindingView::kind() { RoleBindingView::marshal_status(RoleBindingView::default().status()) }
-    else if obj.kind == RoleView::kind() { RoleView::marshal_status(RoleView::default().status()) }
-    else if obj.kind == SecretView::kind() { SecretView::marshal_status(SecretView::default().status()) }
-    else if obj.kind == ServiceView::kind() { ServiceView::marshal_status(ServiceView::default().status()) }
-    else if obj.kind == StatefulSetView::kind() { StatefulSetView::marshal_status(StatefulSetView::default().status()) }
-    else if obj.kind == ServiceAccountView::kind() { ServiceAccountView::marshal_status(ServiceAccountView::default().status()) }
-    else if obj.kind == K::kind() { K::marshal_status(K::default().status()) }
+pub open spec fn marshalled_default_status<K: ResourceView>(kind: Kind) -> Value {
+    if kind == ConfigMapView::kind() { ConfigMapView::marshal_status(ConfigMapView::default().status()) }
+    else if kind == DaemonSetView::kind() { DaemonSetView::marshal_status(DaemonSetView::default().status()) }
+    else if kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::marshal_status(PersistentVolumeClaimView::default().status()) }
+    else if kind == PodView::kind() { PodView::marshal_status(PodView::default().status()) }
+    else if kind == RoleBindingView::kind() { RoleBindingView::marshal_status(RoleBindingView::default().status()) }
+    else if kind == RoleView::kind() { RoleView::marshal_status(RoleView::default().status()) }
+    else if kind == SecretView::kind() { SecretView::marshal_status(SecretView::default().status()) }
+    else if kind == ServiceView::kind() { ServiceView::marshal_status(ServiceView::default().status()) }
+    else if kind == StatefulSetView::kind() { StatefulSetView::marshal_status(StatefulSetView::default().status()) }
+    else if kind == ServiceAccountView::kind() { ServiceAccountView::marshal_status(ServiceAccountView::default().status()) }
+    else if kind == K::kind() { K::marshal_status(K::default().status()) }
     else { arbitrary() }
 }
 
@@ -187,7 +187,7 @@ pub open spec fn handle_create_request<K: ResourceView>(req: CreateRequest, s: A
                 ..req.obj.metadata
             },
             spec: req.obj.spec,
-            status: marshalled_default_status::<K>(req.obj), // Overwrite the status with the default one
+            status: marshalled_default_status::<K>(req.obj.kind), // Overwrite the status with the default one
         };
         if created_object_validity_check::<K>(created_obj).is_Some() {
             // Creation fails.

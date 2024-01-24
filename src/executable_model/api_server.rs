@@ -19,6 +19,79 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+impl DynamicObject {
+    // TODO: implement this function by parsing inner.types.unwrap().kind
+    #[verifier(external_body)]
+    pub fn kind(&self) -> (kind: Kind)
+        ensures kind == self@.kind,
+    {
+        unimplemented!();
+    }
+
+    #[verifier(external_body)]
+    pub fn object_ref(&self) -> (object_ref: KubeObjectRef)
+        requires
+            self@.metadata.name.is_Some(),
+            self@.metadata.namespace.is_Some(),
+        ensures object_ref@ == self@.object_ref(),
+    {
+        KubeObjectRef {
+            kind: self.kind(),
+            name: self.metadata().name().unwrap(),
+            namespace: self.metadata().namespace().unwrap(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_namespace(&mut self, namespace: String)
+        ensures self@ == old(self)@.set_namespace(namespace@),
+    {
+        self.inner().metadata.namespace = Some(namespace.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_resource_version(&mut self, resource_version: i64)
+        ensures self@ == old(self)@.set_resource_version(resource_version as int),
+    {
+        unimplemented!();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_uid(&mut self, uid: i64)
+        ensures self@ == old(self)@.set_uid(uid as int),
+    {
+        unimplemented!();
+    }
+
+    #[verifier(external_body)]
+    pub fn unset_deletion_timestamp(&mut self)
+        ensures self@ == old(self)@.unset_deletion_timestamp(),
+    {
+        self.inner().metadata.deletion_timestamp = None;
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.set_spec(other@.spec)
+    {
+        unimplemented!();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_status(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.set_status(other@.status)
+    {
+        unimplemented!();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_default_status<K: ResourceView>(&mut self)
+        ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
+    {
+        unimplemented!();
+    }
+}
+
 struct ExecutableApiServerModel<K> where K: View, K::V: ResourceView {
     k: K,
 }
@@ -113,12 +186,39 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
     }
 }
 
-// #[verifier(external_body)]
-// fn handle_create_request(req: KubeCreateRequest, s: ApiServerState) -> (ret: (ApiServerState, Result<DynamicObject, APIError>))
-//     ensures (ret.0@, ret.1@) == model::handle_create_request::<K::V>(req@, s@)
-// {
-//     unimplemented!();
-// }
+fn handle_create_request(req: &KubeCreateRequest, s: ApiServerState) -> (ret: (ApiServerState, KubeCreateResponse))
+    requires
+        s.resource_version_counter < i64::MAX,
+        s.uid_counter < i64::MAX,
+    ensures (ret.0@, ret.1@) == model::handle_create_request::<K::V>(req@, s@)
+{
+    // TODO: use if-let?
+    let request_check_error = Self::create_request_admission_check(req, &s);
+    if request_check_error.is_some() {
+        let resp = KubeCreateResponse{res: Err(request_check_error.unwrap())};
+        (s, resp)
+    } else {
+        let mut created_obj = req.obj.clone();
+        created_obj.set_namespace(req.namespace.clone());
+        created_obj.set_resource_version(s.resource_version_counter);
+        created_obj.set_uid(s.uid_counter);
+        created_obj.unset_deletion_timestamp();
+        created_obj.set_default_status::<K::V>();
+        let object_check_error = Self::created_object_validity_check(&created_obj);
+        if object_check_error.is_some() {
+            let resp = KubeCreateResponse{res: Err(object_check_error.unwrap())};
+            (s, resp)
+        } else {
+            let mut s_prime = s;
+            s_prime.resources.insert(created_obj.object_ref(), created_obj.clone());
+            s_prime.stable_resources.remove(&created_obj.object_ref());
+            s_prime.uid_counter = s_prime.uid_counter + 1;
+            s_prime.resource_version_counter = s_prime.resource_version_counter + 1;
+            let resp = KubeCreateResponse{res: Ok(created_obj)};
+            (s_prime, resp)
+        }
+    }
+}
 
 fn update_request_admission_check_helper(name: &String, namespace: &String, obj: &DynamicObject, s: &ApiServerState) -> (ret: Option<APIError>)
     ensures ret == model::update_request_admission_check_helper::<K::V>(name@, namespace@, obj@, s@),
@@ -139,13 +239,13 @@ fn update_request_admission_check_helper(name: &String, namespace: &String, obj:
         Some(APIError::BadRequest)
     } else if !s.resources.contains_key(&key) {
         Some(APIError::ObjectNotFound)
-    } else if obj.metadata().resource_version().is_none()
+    } else if !obj.metadata().has_some_resource_version()
     && !Self::allow_unconditional_update(&key.kind) {
         Some(APIError::Invalid)
-    } else if obj.metadata().resource_version().is_some()
+    } else if obj.metadata().has_some_resource_version()
     && !obj.metadata().resource_version_eq(&s.resources.get(&key).unwrap().metadata()) {
         Some(APIError::Conflict)
-    } else if obj.metadata().uid().is_some()
+    } else if obj.metadata().has_some_uid()
     && !obj.metadata().uid_eq(&s.resources.get(&key).unwrap().metadata()) {
         Some(APIError::InternalError)
     } else {
