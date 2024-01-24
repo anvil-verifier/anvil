@@ -47,7 +47,7 @@ impl ObjectRefSet {
             self@ == old(self)@.remove(key@),
             b == old(self)@.contains(key@),
     {
-        self.inner.remove(&key.clone().into_object_map_key())
+        self.inner.remove(&key.clone().into_external_object_ref())
     }
 
     #[verifier(external)]

@@ -51,7 +51,7 @@ impl ObjectMap {
             old(self)@.contains_key(key@) == old_v.is_Some(),
             old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
     {
-        match self.inner.insert(key.into_object_map_key(), value) {
+        match self.inner.insert(key.into_external_object_ref(), value) {
             Some(old_v) => Some(old_v.clone()),
             None => None,
         }
@@ -64,7 +64,7 @@ impl ObjectMap {
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
     {
         // I abuse clone() coz performance does not matter here
-        match self.inner.get(&key.clone().into_object_map_key()) {
+        match self.inner.get(&key.clone().into_external_object_ref()) {
             Some(v) => Some(v.clone()),
             None => None,
         }
@@ -74,7 +74,7 @@ impl ObjectMap {
     pub fn contains_key(&self, key: &KubeObjectRef) -> (b: bool)
         ensures self@.contains_key(key@) == b
     {
-        self.inner.contains_key(&key.clone().into_object_map_key())
+        self.inner.contains_key(&key.clone().into_external_object_ref())
     }
 
     #[verifier(external)]

@@ -5,102 +5,13 @@ use crate::executable_model::{
     api_server_state::ApiServerState, common::*, object_map::ObjectMap,
     object_ref_set::ObjectRefSet,
 };
-use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::exec::{api_resource::*, prelude::*};
-use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::controller::types::ControllerState;
+use crate::kubernetes_api_objects::{error::*, exec::prelude::*, spec::prelude::*};
 use crate::kubernetes_cluster::spec::{
     api_server::state_machine as model, api_server::types as model_types,
 };
-use crate::reconciler::spec::reconciler::Reconciler;
-use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
-
-impl ApiResource {
-    // TODO: implement this function by parsing inner.kind
-    #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
-    {
-        unimplemented!();
-    }
-}
-
-impl DynamicObject {
-    // TODO: implement this function by parsing inner.types.unwrap().kind
-    #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn object_ref(&self) -> (object_ref: KubeObjectRef)
-        requires
-            self@.metadata.name.is_Some(),
-            self@.metadata.namespace.is_Some(),
-        ensures object_ref@ == self@.object_ref(),
-    {
-        KubeObjectRef {
-            kind: self.kind(),
-            name: self.metadata().name().unwrap(),
-            namespace: self.metadata().namespace().unwrap(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn set_namespace(&mut self, namespace: String)
-        ensures self@ == old(self)@.set_namespace(namespace@),
-    {
-        self.inner().metadata.namespace = Some(namespace.into_rust_string());
-    }
-
-    #[verifier(external_body)]
-    pub fn set_resource_version(&mut self, resource_version: i64)
-        ensures self@ == old(self)@.set_resource_version(resource_version as int),
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn set_uid(&mut self, uid: i64)
-        ensures self@ == old(self)@.set_uid(uid as int),
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn unset_deletion_timestamp(&mut self)
-        ensures self@ == old(self)@.unset_deletion_timestamp(),
-    {
-        self.inner().metadata.deletion_timestamp = None;
-    }
-
-    #[verifier(external_body)]
-    pub fn set_spec(&mut self, other: &DynamicObject)
-        ensures self@ == old(self)@.set_spec(other@.spec)
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn set_status(&mut self, other: &DynamicObject)
-        ensures self@ == old(self)@.set_status(other@.status)
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn set_default_status<K: ResourceView>(&mut self)
-        ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
-    {
-        unimplemented!();
-    }
-}
 
 struct ExecutableApiServerModel<K> where K: View, K::V: ResourceView {
     k: K,
