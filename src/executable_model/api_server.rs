@@ -7,7 +7,7 @@ use crate::executable_model::{
 };
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::exec::prelude::*;
+use crate::kubernetes_api_objects::exec::{api_resource::*, prelude::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::controller::types::ControllerState;
 use crate::kubernetes_cluster::spec::{
@@ -18,6 +18,16 @@ use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
+
+impl ApiResource {
+    // TODO: implement this function by parsing inner.kind
+    #[verifier(external_body)]
+    pub fn kind(&self) -> (kind: Kind)
+        ensures kind == self@.kind,
+    {
+        unimplemented!();
+    }
+}
 
 impl DynamicObject {
     // TODO: implement this function by parsing inner.types.unwrap().kind
@@ -151,6 +161,21 @@ fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
         Some(APIError::Invalid)
     } else {
         None
+    }
+}
+
+fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: KubeGetResponse)
+    ensures ret@ == model::handle_get_request(req@, s@)
+{
+    let object_ref = KubeObjectRef {
+        kind: req.api_resource.kind(),
+        name: req.name.clone(),
+        namespace: req.namespace.clone(),
+    };
+    if !s.resources.contains_key(&object_ref) {
+        KubeGetResponse{res: Err(APIError::ObjectNotFound)}
+    } else {
+        KubeGetResponse{res: Ok(s.resources.get(&object_ref).unwrap())}
     }
 }
 
