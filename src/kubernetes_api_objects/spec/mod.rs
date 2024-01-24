@@ -3,8 +3,6 @@
 pub mod affinity;
 pub mod api_method;
 pub mod api_resource;
-// pub mod cluster_role;
-// pub mod cluster_role_binding;
 pub mod common;
 pub mod config_map;
 pub mod container;
