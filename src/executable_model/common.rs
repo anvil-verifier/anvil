@@ -1,4 +1,6 @@
-use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, dynamic::DynamicObject};
+use crate::kubernetes_api_objects::exec::{
+    api_resource::ApiResource, dynamic::DynamicObject, prelude::*,
+};
 use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
     dynamic::{DynamicObjectView, StoredState},
@@ -168,6 +170,77 @@ impl DynamicObject {
     pub fn set_default_status<K: ResourceView>(&mut self)
         ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
     {}
+}
+
+impl ConfigMap {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { true }
+}
+
+impl DaemonSet {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl Pod {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl PersistentVolumeClaim {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl RoleBinding {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        self.role_ref().api_group().eq(&new_strlit("rbac.authorization.k8s.io").to_string())
+        && (self.role_ref().kind().eq(&new_strlit("Role").to_string())
+            || self.role_ref().kind().eq(&new_strlit("ClusterRole").to_string()))
+    }
+}
+
+impl Secret {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { true }
+}
+
+impl Service {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl ServiceAccount {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { true }
+}
+
+impl StatefulSet {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        self.spec().is_some() && if self.spec().unwrap().replicas().is_some() {
+            self.spec().unwrap().replicas().unwrap() >= 0
+        } else {
+            true
+        }
+    }
+}
+
+pub trait HasValidationRules: View
+where Self::V: ResourceView,
+{
+    fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation();
 }
 
 }

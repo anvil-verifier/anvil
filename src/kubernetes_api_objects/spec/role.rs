@@ -125,7 +125,7 @@ impl ResourceView for RoleView {
 
     open spec fn state_validation(self) -> bool {
         &&& self.policy_rules.is_Some()
-            ==> forall |i| 0 <= i < self.policy_rules.get_Some_0().len() ==> #[trigger] self.policy_rules.get_Some_0()[i].state_validation()
+            ==> (forall |i| 0 <= i < self.policy_rules.get_Some_0().len() ==> #[trigger] self.policy_rules.get_Some_0()[i].state_validation())
     }
 
     open spec fn transition_validation(self, old_obj: RoleView) -> bool {
