@@ -58,8 +58,8 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     }
 }
 
-#[verifier(external_body)]
 fn valid_object(obj: &DynamicObject) -> (ret: bool)
+    requires model::unmarshallable_object::<K::V>(obj@)
     ensures ret == model::valid_object::<K::V>(obj@)
 {
     match obj.kind() {
@@ -73,11 +73,18 @@ fn valid_object(obj: &DynamicObject) -> (ret: bool)
         Kind::ServiceKind => Service::unmarshal(obj.clone()).unwrap().state_validation(),
         Kind::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().state_validation(),
         Kind::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::CustomResourceKind => K::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::CustomResourceKind => {
+            proof {
+                K::V::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                K::V::kind_is_custom_resource();
+            }
+            K::unmarshal(obj.clone()).unwrap().state_validation()
+        },
     }
 }
 
 fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
+    requires model::unmarshallable_object::<K::V>(obj@)
     ensures ret == model::object_validity_check::<K::V>(obj@)
 {
     if !Self::valid_object(obj) {
@@ -123,6 +130,7 @@ fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -
 }
 
 fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<APIError>)
+    requires model::unmarshallable_object::<K::V>(created_obj@)
     ensures ret == model::created_object_validity_check::<K::V>(created_obj@)
 {
     if Self::metadata_validity_check(created_obj).is_some() {

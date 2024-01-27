@@ -18,26 +18,46 @@ verus! {
 // + Need more validation checks.
 //   For example, RoleBinding's roleRef is immutable: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#clusterrolebinding-example
 //
-// + Create and update should ignore the status fields provided by the object
-//
-// + Check kind-specific strategy like AllowUnconditionalUpdate() and AllowCreateOnUpdate()
+// + Check kind-specific strategy like AllowCreateOnUpdate()
 //
 // + Support graceful deletion
 
-pub open spec fn unmarshallable_object<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
+#[verifier(inline)]
+pub open spec fn unmarshallable_spec<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec).is_Ok() && ConfigMapView::unmarshal_status(obj.status).is_Ok(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec).is_Ok() && DaemonSetView::unmarshal_status(obj.status).is_Ok(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() && PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok(),
-        Kind::PodKind => PodView::unmarshal_spec(obj.spec).is_Ok() && PodView::unmarshal_status(obj.status).is_Ok(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal_spec(obj.spec).is_Ok() && RoleBindingView::unmarshal_status(obj.status).is_Ok(),
-        Kind::RoleKind => RoleView::unmarshal_spec(obj.spec).is_Ok() && RoleView::unmarshal_status(obj.status).is_Ok(),
-        Kind::SecretKind => SecretView::unmarshal_spec(obj.spec).is_Ok() && SecretView::unmarshal_status(obj.status).is_Ok(),
-        Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok() && ServiceView::unmarshal_status(obj.status).is_Ok(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok() && StatefulSetView::unmarshal_status(obj.status).is_Ok(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() && ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
-        Kind::CustomResourceKind => K::unmarshal_spec(obj.spec).is_Ok() && K::unmarshal_status(obj.status).is_Ok(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::PodKind => PodView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::RoleBindingKind => RoleBindingView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::RoleKind => RoleView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::SecretKind => SecretView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::CustomResourceKind => K::unmarshal_spec(obj.spec).is_Ok(),
     }
+}
+
+#[verifier(inline)]
+pub open spec fn unmarshallable_status<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
+    match obj.kind {
+        Kind::ConfigMapKind => ConfigMapView::unmarshal_status(obj.status).is_Ok(),
+        Kind::DaemonSetKind => DaemonSetView::unmarshal_status(obj.status).is_Ok(),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok(),
+        Kind::PodKind => PodView::unmarshal_status(obj.status).is_Ok(),
+        Kind::RoleBindingKind => RoleBindingView::unmarshal_status(obj.status).is_Ok(),
+        Kind::RoleKind => RoleView::unmarshal_status(obj.status).is_Ok(),
+        Kind::SecretKind => SecretView::unmarshal_status(obj.status).is_Ok(),
+        Kind::ServiceKind => ServiceView::unmarshal_status(obj.status).is_Ok(),
+        Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status).is_Ok(),
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
+        Kind::CustomResourceKind => K::unmarshal_status(obj.status).is_Ok(),
+    }
+}
+
+pub open spec fn unmarshallable_object<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
+    unmarshallable_spec::<K>(obj) && unmarshallable_status::<K>(obj)
 }
 
 pub open spec fn metadata_validity_check(obj: DynamicObjectView) -> Option<APIError> {
