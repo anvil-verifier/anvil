@@ -1,4 +1,6 @@
-use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, dynamic::DynamicObject};
+use crate::kubernetes_api_objects::exec::{
+    api_resource::ApiResource, dynamic::DynamicObject, prelude::*,
+};
 use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
     dynamic::{DynamicObjectView, StoredState},
@@ -168,6 +170,112 @@ impl DynamicObject {
     pub fn set_default_status<K: ResourceView>(&mut self)
         ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
     {}
+}
+
+impl ConfigMap {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { true }
+}
+
+impl DaemonSet {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl Pod {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl PersistentVolumeClaim {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl PolicyRule {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        self.api_groups().is_some()
+        && self.api_groups().as_ref().unwrap().len() > 0
+        && self.resources().is_some()
+        && self.resources().as_ref().unwrap().len() > 0
+        && self.verbs().len() > 0
+    }
+}
+
+impl Role {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        if self.policy_rules().is_some() {
+            let policy_rules = self.policy_rules().unwrap();
+            let mut all_valid = true;
+            let mut i = 0;
+            while i < policy_rules.len()
+                invariant
+                    all_valid == (forall |j| #![trigger policy_rules[j]] 0 <= j < i ==> policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)[j].state_validation()),
+                    i <= policy_rules.len(),
+            {
+                all_valid = all_valid && policy_rules[i].state_validation();
+                i += 1;
+            }
+            all_valid
+        } else {
+            true
+        }
+    }
+}
+
+impl RoleBinding {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        self.role_ref().api_group().eq(&new_strlit("rbac.authorization.k8s.io").to_string())
+        && (self.role_ref().kind().eq(&new_strlit("Role").to_string())
+            || self.role_ref().kind().eq(&new_strlit("ClusterRole").to_string()))
+    }
+}
+
+impl Secret {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { true }
+}
+
+impl Service {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { self.spec().is_some() }
+}
+
+impl ServiceAccount {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    { true }
+}
+
+impl StatefulSet {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        self.spec().is_some() && if self.spec().unwrap().replicas().is_some() {
+            self.spec().unwrap().replicas().unwrap() >= 0
+        } else {
+            true
+        }
+    }
+}
+
+pub trait HasValidationRules: View
+where Self::V: ResourceView,
+{
+    fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation();
 }
 
 }

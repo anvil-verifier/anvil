@@ -49,6 +49,13 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
+    pub fn role_ref(&self) -> (role_ref: RoleRef)
+        ensures role_ref@ == self@.role_ref,
+    {
+        RoleRef::from_kube(self.inner.role_ref.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures self@ == old(self)@.set_metadata(metadata@),
     {
@@ -135,6 +142,21 @@ impl RoleRef {
     {
         RoleRef { inner: self.inner.clone() }
     }
+
+    #[verifier(external_body)]
+    pub fn api_group(&self) -> (api_group: String)
+        ensures api_group@ == self@.api_group
+    {
+        String::from_rust_string(self.inner.api_group.to_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn kind(&self) -> (kind: String)
+        ensures kind@ == self@.kind
+    {
+        String::from_rust_string(self.inner.kind.to_string())
+    }
+
 
     #[verifier(external_body)]
     pub fn set_api_group(&mut self, api_group: String)
