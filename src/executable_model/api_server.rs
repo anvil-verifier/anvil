@@ -51,7 +51,7 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
 {
     if obj.metadata().owner_references().is_some()
     && obj.metadata().owner_references().unwrap().len() > 1
-    && Self::controller_references(&obj.metadata().owner_references().unwrap()).len() >= 2 {
+    && Self::controller_references(&obj.metadata().owner_references().unwrap()).len() > 1 {
         Some(APIError::Invalid)
     } else {
         None

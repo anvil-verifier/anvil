@@ -63,7 +63,7 @@ pub open spec fn unmarshallable_object<K: CustomResourceView>(obj: DynamicObject
 pub open spec fn metadata_validity_check(obj: DynamicObjectView) -> Option<APIError> {
     if obj.metadata.owner_references.is_Some()
     && obj.metadata.owner_references.get_Some_0().len() > 1
-    && obj.metadata.owner_references.get_Some_0().filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()).len() >= 2 {
+    && obj.metadata.owner_references.get_Some_0().filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()).len() > 1 {
         Some(APIError::Invalid)
     } else {
         None
