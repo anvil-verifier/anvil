@@ -85,7 +85,7 @@ pub fn update_role(fb: &FluentBit, found_role: Role) -> (role: Role)
 {
     let mut role = found_role.clone();
     let made_role = make_role(fb);
-    role.set_policy_rules(make_policy_rules(fb));
+    role.set_rules(make_rules(fb));
     role.set_metadata({
         let mut metadata = found_role.metadata();
         metadata.set_owner_references(make_owner_references(fb));
@@ -104,7 +104,7 @@ pub fn make_role_name(fb: &FluentBit) -> (name: String)
     fb.metadata().name().unwrap().concat(new_strlit("-role"))
 }
 
-pub fn make_policy_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
+pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
     requires fb@.well_formed(),
     ensures rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(fb@).policy_rules.get_Some_0(),
 {
@@ -168,7 +168,7 @@ pub fn make_role(fb: &FluentBit) -> (role: Role)
         metadata.set_annotations(fb.spec().annotations());
         metadata
     });
-    role.set_policy_rules(make_policy_rules(fb));
+    role.set_rules(make_rules(fb));
     role
 }
 

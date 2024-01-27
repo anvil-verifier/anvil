@@ -212,8 +212,8 @@ impl Role {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     {
-        if self.policy_rules().is_some() {
-            let policy_rules = self.policy_rules().unwrap();
+        if self.rules().is_some() {
+            let policy_rules = self.rules().unwrap();
             let mut all_valid = true;
             let mut i = 0;
             while i < policy_rules.len()

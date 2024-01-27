@@ -102,7 +102,7 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView {
             .set_owner_references(make_owner_references(rabbitmq))
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
-        ).set_policy_rules(
+        ).set_rules(
             seq![
                 PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("endpoints")@]).set_verbs(seq![new_strlit("get")@]),
                 PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("events")@]).set_verbs(seq![new_strlit("create")@]),

@@ -29,7 +29,7 @@ impl RoleView {
         }
     }
 
-    pub open spec fn set_policy_rules(self, policy_rules: Seq<PolicyRuleView>) -> RoleView {
+    pub open spec fn set_rules(self, policy_rules: Seq<PolicyRuleView>) -> RoleView {
         RoleView {
             policy_rules: Some(policy_rules),
             ..self

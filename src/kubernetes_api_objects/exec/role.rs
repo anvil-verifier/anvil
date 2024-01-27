@@ -45,7 +45,7 @@ impl Role {
     }
 
     #[verifier(external_body)]
-    pub fn policy_rules(&self) -> (policy_rules: Option<Vec<PolicyRule>>)
+    pub fn rules(&self) -> (policy_rules: Option<Vec<PolicyRule>>)
         ensures
             self@.policy_rules.is_Some() == policy_rules.is_Some(),
             policy_rules.is_Some() ==> policy_rules.get_Some_0()@.map_values(|policy_rule: PolicyRule| policy_rule@) == self@.policy_rules.get_Some_0()
@@ -64,8 +64,8 @@ impl Role {
     }
 
     #[verifier(external_body)]
-    pub fn set_policy_rules(&mut self, policy_rules: Vec<PolicyRule>)
-        ensures self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
+    pub fn set_rules(&mut self, policy_rules: Vec<PolicyRule>)
+        ensures self@ == old(self)@.set_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()

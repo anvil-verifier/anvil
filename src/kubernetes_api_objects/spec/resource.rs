@@ -92,12 +92,10 @@ pub trait ResourceView: Sized {
 }
 
 // TODO: use an unit here
-pub struct EmptyStatusView {
-    pub empty: i32,
-}
+pub struct EmptyStatusView {}
 
 pub open spec fn empty_status() -> EmptyStatusView {
-    EmptyStatusView { empty: 0 }
+    EmptyStatusView {}
 }
 
 pub trait CustomResourceView: ResourceView {
