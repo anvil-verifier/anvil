@@ -13,7 +13,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-struct ExecutableApiServerModel<K> where K: View, K::V: CustomResourceView {
+struct ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
     k: K,
 }
 
@@ -21,7 +21,7 @@ pub struct ExecutableApiServerState {
     pub resources: StoredState,
 }
 
-impl <K> ExecutableApiServerModel<K> where K: View, K::V: CustomResourceView {
+impl <K> ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
 
 #[verifier(external_body)]
 fn unmarshallable_object(obj: &DynamicObject) -> (b: bool)
@@ -62,7 +62,19 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
 fn valid_object(obj: &DynamicObject) -> (ret: bool)
     ensures ret == model::valid_object::<K::V>(obj@)
 {
-    unimplemented!();
+    match obj.kind() {
+        Kind::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::PodKind => Pod::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::RoleKind => Role::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::SecretKind => Secret::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::ServiceKind => Service::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::CustomResourceKind => K::unmarshal(obj.clone()).unwrap().state_validation(),
+    }
 }
 
 fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)

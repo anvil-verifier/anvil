@@ -1,3 +1,4 @@
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::ApiResource, dynamic::DynamicObject, prelude::*,
 };
@@ -271,9 +272,14 @@ impl StatefulSet {
     }
 }
 
-pub trait HasValidationRules: View
-where Self::V: CustomResourceView,
+pub trait CustomResource: View
+where Self::V: CustomResourceView, Self: std::marker::Sized
 {
+    fn unmarshal(obj: DynamicObject) -> (res: Result<Self, ParseDynamicObjectError>)
+        ensures
+            res.is_Ok() == Self::V::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == Self::V::unmarshal(obj@).get_Ok_0();
+
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
 }
