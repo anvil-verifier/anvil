@@ -13,7 +13,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-struct ExecutableApiServerModel<K> where K: View, K::V: ResourceView {
+struct ExecutableApiServerModel<K> where K: View, K::V: CustomResourceView {
     k: K,
 }
 
@@ -21,7 +21,7 @@ pub struct ExecutableApiServerState {
     pub resources: StoredState,
 }
 
-impl <K> ExecutableApiServerModel<K> where K: View, K::V: ResourceView {
+impl <K> ExecutableApiServerModel<K> where K: View, K::V: CustomResourceView {
 
 #[verifier(external_body)]
 fn unmarshallable_object(obj: &DynamicObject) -> (b: bool)
