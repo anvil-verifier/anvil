@@ -91,12 +91,18 @@ pub trait ResourceView: Sized {
 
 }
 
+// TODO: use an unit here
 pub struct EmptyStatusView {
     pub empty: i32,
 }
 
 pub open spec fn empty_status() -> EmptyStatusView {
     EmptyStatusView { empty: 0 }
+}
+
+pub trait CustomResourceView: ResourceView {
+    proof fn kind_is_custom_resource()
+        ensures Self::kind() == Kind::CustomResourceKind;
 }
 
 }
