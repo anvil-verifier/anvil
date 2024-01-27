@@ -38,7 +38,7 @@ pub fn test_metadata() {
 
 #[test]
 #[verifier(external)]
-pub fn test_set_policy_rules() {
+pub fn test_set_rules() {
     let mut role = Role::default();
     let policy_rule_gen = || {
         let mut policy_rule_1 = PolicyRule::default();
@@ -78,7 +78,7 @@ pub fn test_set_policy_rules() {
         policy_rules.push(policy_rule_2);
         policy_rules
     };
-    role.set_policy_rules(policy_rule_gen());
+    role.set_rules(policy_rule_gen());
     assert_eq!(
         policy_rule_gen()
             .into_iter()
@@ -134,7 +134,7 @@ pub fn test_clone() {
     object_meta.set_name(new_strlit("name").to_string());
     object_meta.set_namespace(new_strlit("namespace").to_string());
     role.set_metadata(object_meta.clone());
-    role.set_policy_rules(policy_rule_gen());
+    role.set_rules(policy_rule_gen());
     let role_clone = role.clone();
     assert_eq!(role.into_kube(), role_clone.into_kube());
 }

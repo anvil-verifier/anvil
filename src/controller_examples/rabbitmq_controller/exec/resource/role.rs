@@ -82,7 +82,7 @@ pub fn update_role(rabbitmq: &RabbitmqCluster, found_role: Role) -> (role: Role)
 {
     let mut role = found_role.clone();
     let made_role = make_role(rabbitmq);
-    role.set_policy_rules(make_policy_rules(rabbitmq));
+    role.set_rules(make_rules(rabbitmq));
     role.set_metadata({
         let mut metadata = found_role.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));
@@ -101,7 +101,7 @@ pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     rabbitmq.metadata().name().unwrap().concat(new_strlit("-peer-discovery"))
 }
 
-pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
+pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
     requires rabbitmq@.well_formed(),
     ensures rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(rabbitmq@).policy_rules.get_Some_0(),
 {
@@ -203,7 +203,7 @@ pub fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
-    role.set_policy_rules(make_policy_rules(rabbitmq));
+    role.set_rules(make_rules(rabbitmq));
     role
 }
 
