@@ -150,6 +150,10 @@ impl ResourceView for ZookeeperClusterView {
     }
 }
 
+impl CustomResourceView for ZookeeperClusterView {
+    proof fn kind_is_custom_resource() {}
+}
+
 pub struct ZookeeperClusterSpecView {
     pub replicas: int,
     pub image: StringView,

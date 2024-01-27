@@ -13,7 +13,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn reconciler_init_and_no_pending_req(cr_key: ObjectRef) -> StatePred<Self> {
     |s: Self| {

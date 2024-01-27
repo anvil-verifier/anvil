@@ -150,6 +150,10 @@ impl ResourceView for RabbitmqClusterView {
 
 }
 
+impl CustomResourceView for RabbitmqClusterView {
+    proof fn kind_is_custom_resource() {}
+}
+
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
     pub image: StringView,

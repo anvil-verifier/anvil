@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 /// Everytime when we reason about update request message, we can only consider those valid ones (see validata_update_request).
 /// However, listing all requirements makes spec looks cumbersome (consider using validate_create/update_request); we can only

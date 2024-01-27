@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
     dynamic::{DynamicObjectView, StoredState},
-    resource::ResourceView,
+    resource::{CustomResourceView, ResourceView},
 };
 use crate::kubernetes_cluster::spec::{
     api_server::state_machine as model, api_server::types as model_types,
@@ -167,7 +167,7 @@ impl DynamicObject {
     {}
 
     #[verifier(external_body)]
-    pub fn set_default_status<K: ResourceView>(&mut self)
+    pub fn set_default_status<K: CustomResourceView>(&mut self)
         ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
     {}
 }
@@ -272,7 +272,7 @@ impl StatefulSet {
 }
 
 pub trait HasValidationRules: View
-where Self::V: ResourceView,
+where Self::V: CustomResourceView,
 {
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();

@@ -137,6 +137,10 @@ impl ResourceView for FluentBitView {
     open spec fn transition_validation(self, old_obj: FluentBitView) -> bool { true }
 }
 
+impl CustomResourceView for FluentBitView {
+    proof fn kind_is_custom_resource() {}
+}
+
 pub struct FluentBitSpecView {
     pub fluentbit_config_name: StringView,
     pub image: StringView,
