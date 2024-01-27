@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_pre_leads_to_post_by_external_api(
     spec: TempPred<Self>, input: Option<MsgType<E>>, next: ActionPred<Self>, action: ExternalAPIAction<E>, pre: StatePred<Self>, post: StatePred<Self>

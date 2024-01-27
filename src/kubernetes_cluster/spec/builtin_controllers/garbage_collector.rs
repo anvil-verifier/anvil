@@ -19,7 +19,7 @@ verus! {
 //
 // + Specify orphan dependents
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {

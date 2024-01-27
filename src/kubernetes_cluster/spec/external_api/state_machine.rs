@@ -13,7 +13,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn handle_external_request_helper(req_msg: MsgType<E>, s: ExternalAPIState<E>, resources: StoredState) -> (ExternalAPIState<E>, MsgType<E>) {
     let (inner_s_prime, resp) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), resources, s.state);

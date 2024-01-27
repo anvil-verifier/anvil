@@ -167,7 +167,7 @@ impl DynamicObject {
     {}
 
     #[verifier(external_body)]
-    pub fn set_default_status<K: ResourceView>(&mut self)
+    pub fn set_default_status<K: CustomResourceView>(&mut self)
         ensures self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind))
     {}
 }

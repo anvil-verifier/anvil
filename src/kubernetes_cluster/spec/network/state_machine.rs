@@ -13,7 +13,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn deliver() -> Action<NetworkState<E::Input, E::Output>, MessageOps<E::Input, E::Output>, ()> {
     Action {
