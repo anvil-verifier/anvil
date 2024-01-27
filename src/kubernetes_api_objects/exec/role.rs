@@ -44,6 +44,17 @@ impl Role {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
+    #[verifier(external_body)]
+    pub fn policy_rules(&self) -> (policy_rules: Option<Vec<PolicyRule>>)
+        ensures
+            self@.policy_rules.is_Some() == policy_rules.is_Some(),
+            policy_rules.is_Some() ==> policy_rules.get_Some_0()@.map_values(|policy_rule: PolicyRule| policy_rule@) == self@.policy_rules.get_Some_0()
+    {
+        match &self.inner.rules {
+            Some(p) => Some(p.into_iter().map(|item| PolicyRule::from_kube(item.clone())).collect()),
+            None => None,
+        }
+    }
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
@@ -119,6 +130,38 @@ impl PolicyRule {
         PolicyRule {
             inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule::default(),
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn api_groups(&self) -> (api_groups: Option<Vec<String>>)
+        ensures
+            self@.api_groups.is_Some() == api_groups.is_Some(),
+            api_groups.is_Some() ==> api_groups.get_Some_0()@.map_values(|api_group: String| api_group@) == self@.api_groups.get_Some_0()
+    {
+        match &self.inner.api_groups {
+            Some(a) => Some(a.into_iter().map(|item| String::from_rust_string(item.clone())).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn resources(&self) -> (resources: Option<Vec<String>>)
+        ensures
+            self@.resources.is_Some() == resources.is_Some(),
+            resources.is_Some() ==> resources.get_Some_0()@.map_values(|resource: String| resource@) == self@.resources.get_Some_0()
+    {
+        match &self.inner.resources {
+            Some(a) => Some(a.into_iter().map(|item| String::from_rust_string(item.clone())).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn verbs(&self) -> (verbs: Vec<String>)
+        ensures
+            verbs@.map_values(|verb: String| verb@) == self@.verbs
+    {
+        self.inner.verbs.clone().into_iter().map(|item| String::from_rust_string(item)).collect()
     }
 
     #[verifier(external_body)]

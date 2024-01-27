@@ -196,6 +196,41 @@ impl PersistentVolumeClaim {
     { self.spec().is_some() }
 }
 
+impl PolicyRule {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        self.api_groups().is_some()
+        && self.api_groups().as_ref().unwrap().len() > 0
+        && self.resources().is_some()
+        && self.resources().as_ref().unwrap().len() > 0
+        && self.verbs().len() > 0
+    }
+}
+
+impl Role {
+    pub fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        if self.policy_rules().is_some() {
+            let policy_rules = self.policy_rules().unwrap();
+            let mut all_valid = true;
+            let mut i = 0;
+            while i < policy_rules.len()
+                invariant
+                    all_valid == (forall |j| #![trigger policy_rules[j]] 0 <= j < i ==> policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)[j].state_validation()),
+                    i <= policy_rules.len(),
+            {
+                all_valid = all_valid && policy_rules[i].state_validation();
+                i += 1;
+            }
+            all_valid
+        } else {
+            true
+        }
+    }
+}
+
 impl RoleBinding {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
