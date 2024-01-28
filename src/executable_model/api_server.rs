@@ -13,7 +13,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-struct ExecutableApiServerModel<K> where K: View, K::V: CustomResourceView {
+struct ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
     k: K,
 }
 
@@ -21,7 +21,7 @@ pub struct ExecutableApiServerState {
     pub resources: StoredState,
 }
 
-impl <K> ExecutableApiServerModel<K> where K: View, K::V: CustomResourceView {
+impl <K> ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
 
 #[verifier(external_body)]
 fn unmarshallable_object(obj: &DynamicObject) -> (b: bool)
@@ -51,21 +51,40 @@ fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
 {
     if obj.metadata().owner_references().is_some()
     && obj.metadata().owner_references().unwrap().len() > 1
-    && Self::controller_references(&obj.metadata().owner_references().unwrap()).len() >= 2 {
+    && Self::controller_references(&obj.metadata().owner_references().unwrap()).len() > 1 {
         Some(APIError::Invalid)
     } else {
         None
     }
 }
 
-#[verifier(external_body)]
 fn valid_object(obj: &DynamicObject) -> (ret: bool)
+    requires model::unmarshallable_object::<K::V>(obj@)
     ensures ret == model::valid_object::<K::V>(obj@)
 {
-    unimplemented!();
+    match obj.kind() {
+        Kind::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::PodKind => Pod::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::RoleKind => Role::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::SecretKind => Secret::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::ServiceKind => Service::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().state_validation(),
+        Kind::CustomResourceKind => {
+            proof {
+                K::V::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                K::V::kind_is_custom_resource();
+            }
+            K::unmarshal(obj.clone()).unwrap().state_validation()
+        },
+    }
 }
 
 fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
+    requires model::unmarshallable_object::<K::V>(obj@)
     ensures ret == model::object_validity_check::<K::V>(obj@)
 {
     if !Self::valid_object(obj) {
@@ -111,6 +130,7 @@ fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -
 }
 
 fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<APIError>)
+    requires model::unmarshallable_object::<K::V>(created_obj@)
     ensures ret == model::created_object_validity_check::<K::V>(created_obj@)
 {
     if Self::metadata_validity_check(created_obj).is_some() {
