@@ -118,7 +118,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Set up a kind cluster
-        run: kind create cluster --image kindest/node:v1.26.0
+        run: kind create cluster --image kindest/node:v1.26.3
       - name: Run conformance tests
         run: cargo test conformance_tests -- --nocapture
   framework-verification:
