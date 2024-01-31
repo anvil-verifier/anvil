@@ -144,17 +144,16 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
     }
 }
 
-pub fn handle_create_request(req: &KubeCreateRequest, s: ApiServerState) -> (ret: (ApiServerState, KubeCreateResponse))
+pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) -> (ret: KubeCreateResponse)
     requires
-        s.resource_version_counter < i64::MAX,
-        s.uid_counter < i64::MAX,
-    ensures (ret.0@, ret.1@) == model::handle_create_request::<K::V>(req@, s@)
+        old(s).resource_version_counter < i64::MAX,
+        old(s).uid_counter < i64::MAX,
+    ensures (s@, ret@) == model::handle_create_request::<K::V>(req@, old(s)@)
 {
     // TODO: use if-let?
-    let request_check_error = Self::create_request_admission_check(req, &s);
+    let request_check_error = Self::create_request_admission_check(req, s);
     if request_check_error.is_some() {
-        let resp = KubeCreateResponse{res: Err(request_check_error.unwrap())};
-        (s, resp)
+        KubeCreateResponse{res: Err(request_check_error.unwrap())}
     } else {
         let mut created_obj = req.obj.clone();
         created_obj.set_namespace(req.namespace.clone());
@@ -164,16 +163,13 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: ApiServerState) -> (ret
         created_obj.set_default_status::<K::V>();
         let object_check_error = Self::created_object_validity_check(&created_obj);
         if object_check_error.is_some() {
-            let resp = KubeCreateResponse{res: Err(object_check_error.unwrap())};
-            (s, resp)
+            KubeCreateResponse{res: Err(object_check_error.unwrap())}
         } else {
-            let mut s_prime = s;
-            s_prime.resources.insert(created_obj.object_ref(), created_obj.clone());
-            s_prime.stable_resources.remove(&created_obj.object_ref());
-            s_prime.uid_counter = s_prime.uid_counter + 1;
-            s_prime.resource_version_counter = s_prime.resource_version_counter + 1;
-            let resp = KubeCreateResponse{res: Ok(created_obj)};
-            (s_prime, resp)
+            s.resources.insert(created_obj.object_ref(), created_obj.clone());
+            s.stable_resources.remove(&created_obj.object_ref());
+            s.uid_counter = s.uid_counter + 1;
+            s.resource_version_counter = s.resource_version_counter + 1;
+            KubeCreateResponse{res: Ok(created_obj)}
         }
     }
 }
