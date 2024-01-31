@@ -108,6 +108,12 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+          ref: 3ac6c8318c7e285bf41fc2eb8072c6140ba7cc93
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
