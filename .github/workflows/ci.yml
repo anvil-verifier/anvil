@@ -103,8 +103,8 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Run unit tests
-        run: cargo test
-  model-conformance-verification:
+        run: cargo test unit_tests
+  framework-verification:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -126,7 +126,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify conformance of the executable model
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh model_tests.rs --time --rlimit 50
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil.rs --crate-type lib --time
   fluent-e2e-test:
     runs-on: ubuntu-20.04
     steps:

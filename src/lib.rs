@@ -3,6 +3,8 @@
 
 #![allow(unused_imports)]
 
+pub mod conformance_tests;
+pub mod executable_model;
 pub mod external_api;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;

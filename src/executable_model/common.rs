@@ -1,12 +1,6 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::exec::{
-    api_resource::ApiResource, dynamic::DynamicObject, prelude::*,
-};
-use crate::kubernetes_api_objects::spec::{
-    common::{Kind, ObjectRef},
-    dynamic::{DynamicObjectView, StoredState},
-    resource::{CustomResourceView, ResourceView},
-};
+use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, prelude::*};
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::state_machine as model, api_server::types as model_types,
 };
@@ -125,6 +119,13 @@ impl DynamicObject {
             name: self.metadata().name().unwrap(),
             namespace: self.metadata().namespace().unwrap(),
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures self@ == old(self)@.set_name(name@),
+    {
+        self.as_kube_mut_ref().metadata.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -285,5 +286,131 @@ where Self::V: CustomResourceView, Self: std::marker::Sized
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
 }
+
+pub struct SimpleCRView {
+    pub metadata: ObjectMetaView,
+    pub spec: SimpleCRSpecView,
+    pub status: Option<SimpleCRStatusView>,
+}
+
+pub struct SimpleCRSpecView {}
+
+pub struct SimpleCRStatusView {}
+
+impl ResourceView for SimpleCRView {
+    type Spec = SimpleCRSpecView;
+    type Status = Option<SimpleCRStatusView>;
+
+    open spec fn default() -> SimpleCRView {
+        SimpleCRView {
+            metadata: ObjectMetaView::default(),
+            spec: arbitrary(),
+            status: None,
+        }
+    }
+
+    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
+
+    open spec fn kind() -> Kind { Kind::CustomResourceKind }
+
+    open spec fn object_ref(self) -> ObjectRef {
+        ObjectRef {
+            kind: Self::kind(),
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
+    proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> SimpleCRSpecView { self.spec }
+
+    open spec fn status(self) -> Option<SimpleCRStatusView> { self.status }
+
+    open spec fn marshal(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: Self::kind(),
+            metadata: self.metadata,
+            spec: SimpleCRView::marshal_spec(self.spec),
+            status: SimpleCRView::marshal_status(self.status),
+        }
+    }
+
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, ParseDynamicObjectError> {
+        if obj.kind != Self::kind() {
+            Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !SimpleCRView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Ok(SimpleCRView {
+                metadata: obj.metadata,
+                spec: SimpleCRView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: SimpleCRView::unmarshal_status(obj.status).get_Ok_0(),
+            })
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {
+        SimpleCRView::marshal_spec_preserves_integrity();
+        SimpleCRView::marshal_status_preserves_integrity();
+    }
+
+    proof fn marshal_preserves_metadata() {}
+
+    proof fn marshal_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
+
+    closed spec fn marshal_status(s: Option<SimpleCRStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_spec_preserves_integrity() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
+
+    open spec fn state_validation(self) -> bool { true }
+
+    open spec fn transition_validation(self, old_obj: SimpleCRView) -> bool { true }
+}
+
+impl CustomResourceView for SimpleCRView {
+    proof fn kind_is_custom_resource() {}
+}
+
+#[verifier(external_body)]
+pub struct SimpleCR {}
+
+impl View for SimpleCR {
+    type V = SimpleCRView;
+
+    spec fn view(&self) -> SimpleCRView;
+}
+
+impl CustomResource for SimpleCR {
+    #[verifier(external_body)]
+    fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, ParseDynamicObjectError>)
+        ensures
+            res.is_Ok() == SimpleCRView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::unmarshal(obj@).get_Ok_0(),
+    {
+        Ok(SimpleCR {})
+    }
+
+    fn state_validation(&self) -> (ret: bool)
+        ensures ret == self@.state_validation()
+    {
+        true
+    }
+}
+
 
 }

@@ -13,13 +13,15 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-struct ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
+pub struct ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
     k: K,
 }
 
 pub struct ExecutableApiServerState {
     pub resources: StoredState,
 }
+
+pub type SimpleExecutableApiServerModel = ExecutableApiServerModel<SimpleCR>;
 
 impl <K> ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
 
@@ -94,7 +96,7 @@ fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     }
 }
 
-fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: KubeGetResponse)
+pub fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: KubeGetResponse)
     ensures ret@ == model::handle_get_request(req@, s@)
 {
     let object_ref = KubeObjectRef {
@@ -142,7 +144,7 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
     }
 }
 
-fn handle_create_request(req: &KubeCreateRequest, s: ApiServerState) -> (ret: (ApiServerState, KubeCreateResponse))
+pub fn handle_create_request(req: &KubeCreateRequest, s: ApiServerState) -> (ret: (ApiServerState, KubeCreateResponse))
     requires
         s.resource_version_counter < i64::MAX,
         s.uid_counter < i64::MAX,

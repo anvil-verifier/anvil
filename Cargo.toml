@@ -10,6 +10,5 @@ vstd = { path = "../verus/source/pervasive" }
 deps_hack = { path = "src/deps_hack" }
 tungstenite = "0.20.1"
 
-# [[bin]]
-# name = "zookeeper_controller"
-# path = "src/zookeeper_controller.rs"
+[dev-dependencies]
+proptest = "1.4.0"
