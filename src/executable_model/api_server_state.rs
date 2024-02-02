@@ -10,11 +10,24 @@ use vstd::string::*;
 
 verus! {
 
+// This is the exec version of crate::kubernetes_cluster::spec::api_server::types::ApiServerState
+// and is used as the "state" of the exec API server model.
 pub struct ApiServerState {
     pub resources: ObjectMap,
     pub uid_counter: i64,
     pub resource_version_counter: i64,
     pub stable_resources: ObjectRefSet,
+}
+
+impl ApiServerState {
+    pub fn new() -> ApiServerState {
+        ApiServerState {
+            resources: ObjectMap::new(),
+            uid_counter: 0,
+            resource_version_counter: 0,
+            stable_resources: ObjectRefSet::new(),
+        }
+    }
 }
 
 impl View for ApiServerState {

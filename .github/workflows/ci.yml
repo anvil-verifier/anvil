@@ -103,8 +103,42 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Run unit tests
-        run: cargo test
-  model-conformance-verification:
+        run: cargo test unit_tests
+  conformance-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+          ref: 3ac6c8318c7e285bf41fc2eb8072c6140ba7cc93
+      - name: Move Verus
+        run: mv verus ../verus
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Build Verus
+        run: |
+          cd ../verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.20"
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.20.0
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Set up a kind cluster
+        run: kind create cluster
+      - name: Run conformance tests
+        run: cargo test conformance_tests -- --nocapture
+  framework-verification:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -126,7 +160,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify conformance of the executable model
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh model_tests.rs --time --rlimit 50
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil.rs --crate-type lib --time
   fluent-e2e-test:
     runs-on: ubuntu-20.04
     steps:

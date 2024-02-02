@@ -14,5 +14,3 @@ pub mod temporal_logic;
 pub mod vstd_ext;
 
 use vstd::prelude::*;
-
-fn main() {}

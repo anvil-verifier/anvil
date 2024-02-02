@@ -15,4 +15,5 @@ src/liblib.rlib
 verifiable-controllers.code-workspace
 src/.verus-solver-log/
 src/*.d
+src/*.rlib
 tools/*.json

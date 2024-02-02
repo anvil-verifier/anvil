@@ -13,7 +13,7 @@ pub type Uid = int;
 pub type ResourceVersion = int;
 
 #[is_variant]
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Kind {
     ConfigMapKind,
     CustomResourceKind,

@@ -9,6 +9,8 @@ use vstd::string::*;
 
 verus! {
 
+// This is the exec version of the map used in crate::kubernetes_cluster::spec::api_server::types::ApiServerState
+// for storing the cluster state (i.e., the k8s objects).
 #[verifier(external_body)]
 pub struct ObjectMap {
     inner: std::collections::BTreeMap<ExternalObjectRef, DynamicObject>,
