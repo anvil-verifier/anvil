@@ -108,9 +108,15 @@ fn create_new_testing_namespace(len: usize) -> Option<std::string::String> {
 }
 
 proptest! {
+    // We specify that proptest will generate 50 test cases for the test function below
+    // and each test case is a vector of generated_request with a length between 1 and 50.
     #![proptest_config(ProptestConfig::with_cases(50))]
     #[test]
     fn test_model(generated_request_sequence in prop::collection::vec(generated_request_strategy(), 1..=50).no_shrink()) {
+        // Since we share the same kind cluster for different test cases, it is important to isolate different test cases.
+        // We do so by running them in different namespace.
+        // For each test case, we generate a random namespace.
+        // If the namespace already exists (which happens very rarely), we skip this test case.
         let namespace_opt = create_new_testing_namespace(generated_request_sequence.len());
         prop_assume!(namespace_opt.is_some());
         let namespace = namespace_opt.unwrap();
@@ -118,6 +124,7 @@ proptest! {
         let mut api_server_state = ApiServerState::new();
         for generated_request in generated_request_sequence {
             match generated_request {
+                // Testing get request handler
                 GeneratedRequest::Get{kind, name} => {
                     let get_request = KubeGetRequest {
                         api_resource: kind.to_api_resource(),
@@ -137,6 +144,7 @@ proptest! {
 
                     prop_assert_eq!(model_resp.res.is_ok(), kind_resp.is_ok());
                 }
+                // Testing create request handler
                 GeneratedRequest::Create{kind, name} => {
                     let obj = {
                         let mut obj = kind.to_default_dynamic_object();

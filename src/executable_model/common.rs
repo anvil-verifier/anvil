@@ -7,6 +7,10 @@ use crate::kubernetes_cluster::spec::{
 use vstd::prelude::*;
 use vstd::string::*;
 
+// We use ExternalObjectRef, instead of KubeObjectRef, as the key of the ObjectMap
+// because the key has to implement a few traits including Ord and PartialOrd.
+// It's easy to implement such traits for ExternalObjectRef but hard for KubeObjectRef
+// because it internally uses vstd::string::String, which does not implement such traits.
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct ExternalObjectRef {
     pub kind: Kind,
@@ -64,6 +68,7 @@ impl std::clone::Clone for KubeObjectRef {
 }
 
 impl ApiResource {
+    // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
     pub fn kind(&self) -> (kind: Kind)
         ensures kind == self@.kind,
@@ -85,6 +90,7 @@ impl ApiResource {
 }
 
 impl DynamicObject {
+    // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
     pub fn kind(&self) -> (kind: Kind)
         ensures kind == self@.kind,
@@ -106,6 +112,9 @@ impl DynamicObject {
             _ => panic!(), // We assume the DynamicObject won't be a custom object
         }
     }
+
+    // We implement getter and setter functions of the DynamicObject
+    // which are used by the exec API server model.
 
     #[verifier(external_body)]
     pub fn object_ref(&self) -> (object_ref: KubeObjectRef)
@@ -175,6 +184,10 @@ impl DynamicObject {
             model::unmarshallable_status::<K>(self@),
     {}
 }
+
+// We implement the validation logic in exec code for different k8s object types below
+// which are called by the exec API server model.
+// These validation functions must conform to their correspondences of the spec-level objects.
 
 impl ConfigMap {
     pub fn state_validation(&self) -> (ret: bool)
@@ -275,6 +288,9 @@ impl StatefulSet {
     }
 }
 
+// CustomResource is the trait that associates the exec methods (e.g., unmarshal)
+// with their spec correspondences, and is only used for proving the executable API server model
+// conforms to the spec model.
 pub trait CustomResource: View
 where Self::V: CustomResourceView, Self: std::marker::Sized
 {
@@ -286,6 +302,9 @@ where Self::V: CustomResourceView, Self: std::marker::Sized
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
 }
+
+// SimpleCRView and SimpleCR are types only used for instantiating the executable API server model,
+// which is only used for conformance tests, so we keep the two types minimal.
 
 pub struct SimpleCRView {
     pub metadata: ObjectMetaView,

@@ -13,6 +13,14 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+// The ExecutableApiServerModel is an executable version of the spec-level ApiServerModel
+// defined in crate::kubernetes_cluster::spec::api_server.
+// The main purpose of creating this exec model is to validate the trusted ApiServerModel
+// which our verification depends on.
+// The validation is done in two steps: (1) we prove ExecutableApiServerModel conforms to the ApiServerModel,
+// and (2) we run conformance tests by comparing the external behavior of ExecutableApiServerModel and the real
+// Kubernetes implementation (in a kind cluster).
+// The conformance tests can be found in crate::conformance_tests.
 pub struct ExecutableApiServerModel<K> where K: View + CustomResource, K::V: CustomResourceView {
     k: K,
 }

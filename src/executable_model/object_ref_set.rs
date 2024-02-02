@@ -6,6 +6,8 @@ use vstd::string::*;
 
 verus! {
 
+// This is the exec version of the set used in crate::kubernetes_cluster::spec::api_server::types::ApiServerState
+// for storing the key of the stable objects.
 #[verifier(external_body)]
 pub struct ObjectRefSet {
     inner: std::collections::BTreeSet<ExternalObjectRef>,
