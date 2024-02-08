@@ -1,0 +1,176 @@
+sort string
+sort json_value
+sort uid
+sort resource_version
+sort kind @no_minimize @printed_by(const_printer) @no_print
+
+immutable constant ConfigMapKind: kind @no_print
+immutable constant CustomResourceKind: kind @no_print
+immutable constant DaemonSetKind: kind @no_print
+immutable constant PersistentVolumeClaimKind: kind @no_print
+immutable constant PodKind: kind @no_print
+immutable constant RoleKind: kind @no_print
+immutable constant RoleBindingKind: kind @no_print
+immutable constant StatefulSetKind: kind @no_print
+immutable constant ServiceKind: kind @no_print
+immutable constant ServiceAccountKind: kind @no_print
+immutable constant SecretKind: kind @no_print
+
+axiom distinct(ConfigMapKind,
+    CustomResourceKind,
+    DaemonSetKind,
+    PersistentVolumeClaimKind,
+    PodKind,
+    RoleKind,
+    RoleBindingKind,
+    StatefulSetKind,
+    ServiceKind,
+    ServiceAccountKind,
+    SecretKind
+)
+
+axiom forall K:kind. (K = ConfigMapKind |
+    K = CustomResourceKind |
+    K = DaemonSetKind |
+    K = PersistentVolumeClaimKind |
+    K = PodKind |
+    K = RoleKind |
+    K = RoleBindingKind |
+    K = StatefulSetKind |
+    K = ServiceKind |
+    K = ServiceAccountKind |
+    K = SecretKind)
+
+immutable constant uid_none: uid
+
+# Below are used to define the API server state
+
+mutable relation uid_used(uid) # uid counter
+mutable relation resource_version_used(resource_version) # rv counter
+
+# This is the resources (Map<ObjectRef, DynamicObjectView>)
+mutable relation cluster_state_objects(
+    # ObjectRef
+    kind,
+    string,
+    string,
+    # DynamicObjectView
+    kind,
+    # metadata
+    string, # name in ObjectMeta
+    string, # namespace in ObjectMeta
+    resource_version,
+    uid,
+    # owner_reference in ObjectMeta
+    kind, string, uid,
+    # spec
+    json_value,
+    # status
+    json_value
+)
+
+invariant cluster_state_objects(K, N, NS, K1, N1, NS1, RV1, U1, KK1, S1, UU1, JSPEC1, JSTATUS1)
+    & cluster_state_objects(K, N, NS, K2, N2, NS2, RV2, U2, KK2, S2, UU2, JSPEC2, JSTATUS2)
+    -> K1 = K2 
+        & N1 = N2
+        & NS1 = NS2
+        & RV1 = RV2
+        & U1 = U2
+        & KK1 = KK2
+        & S1 = S2
+        & UU1 = UU2
+        & JSPEC1 = JSPEC2
+        & JSTATUS1 = JSTATUS2
+
+mutable relation stable_resources(kind, string, string)
+
+# Below are used to define the network state
+
+sort rest_id
+sort host @no_minimize @printed_by(const_printer) @no_print
+
+immutable constant Client: host @no_print
+immutable constant CustomController: host @no_print
+immutable constant BuiltInController: host @no_print
+
+axiom distinct(Client,
+    CustomController,
+    BuiltInController
+)
+
+axiom forall H:host. (H = Client |
+    H = CustomController |
+    H = BuiltInController)
+
+mutable relation rest_id_used(rest_id) # rest id counter
+
+mutable relation get_request(rest_id, host, kind, string, string)
+mutable relation create_request(rest_id, host, string,
+    # DynamicObjectView
+    kind,
+    # metadata
+    string, # name in ObjectMeta
+    string, # namespace in ObjectMeta
+    resource_version,
+    uid,
+    # owner_reference in ObjectMeta
+    kind, string, uid,
+    # spec
+    json_value,
+    # status
+    json_value)
+mutable relation delete_request(rest_id, host, kind, string, string)
+mutable relation update_request(rest_id, host, string, string,
+    # DynamicObjectView
+    kind,
+    # metadata
+    string, # name in ObjectMeta
+    string, # namespace in ObjectMeta
+    resource_version,
+    uid,
+    # owner_reference in ObjectMeta
+    kind, string, uid,
+    # spec
+    json_value,
+    # status
+    json_value)
+mutable relation update_status_request(rest_id, host, string, string,
+    # DynamicObjectView
+    kind,
+    # metadata
+    string, # name in ObjectMeta
+    string, # namespace in ObjectMeta
+    resource_version,
+    uid,
+    # owner_reference in ObjectMeta
+    kind, string, uid,
+    # spec
+    json_value,
+    # status
+    json_value)
+
+mutable relation error_response(rest_id, host)
+
+mutable relation get_create_update_response(rest_id, host,
+    # DynamicObjectView
+    kind,
+    # metadata
+    string, # name in ObjectMeta
+    string, # namespace in ObjectMeta
+    resource_version,
+    uid,
+    # owner_reference in ObjectMeta
+    kind, string, uid,
+    # spec
+    json_value,
+    # status
+    json_value)
+mutable relation delete_response(rest_id, host)
+
+# auxiliary state
+mutable relation crash_enabled
+mutable relation transient_failure_enabled
+
+# controller state
+
+
