@@ -244,6 +244,44 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn selector(&self) -> (selector: LabelSelector)
+        ensures selector@ == self@.selector,
+    {
+        LabelSelector::from_kube(self.inner.selector.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn service_name(&self) -> (service_name: String)
+        ensures service_name@ == self@.service_name,
+    {
+        String::from_rust_string(self.inner.service_name.to_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn pod_management_policy(&self) -> (pod_management_policy: Option<String>)
+        ensures
+            self@.pod_management_policy.is_Some() == pod_management_policy.is_Some(),
+            pod_management_policy.is_Some() ==> pod_management_policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+    {
+        match &self.inner.pod_management_policy {
+            Some(p) => Some(String::from_rust_string(p.to_string())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn volume_claim_templates(&self) -> (volume_claim_templates: Option<Vec<PersistentVolumeClaim>>)
+        ensures
+            self@.volume_claim_templates.is_Some() == volume_claim_templates.is_Some(),
+            volume_claim_templates.is_Some() ==> volume_claim_templates.get_Some_0()@.map_values(|p: PersistentVolumeClaim| p@) == self@.volume_claim_templates.get_Some_0(),
+    {
+        match &self.inner.volume_claim_templates {
+            Some(p) => Some(p.into_iter().map(|item| PersistentVolumeClaim::from_kube(item.clone())).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn template(&self) -> (template: PodTemplateSpec)
         ensures template@ == self@.template,
     {

@@ -137,6 +137,13 @@ impl RoleRef {
     }
 
     #[verifier(external_body)]
+    pub fn eq(&self, other: &Self) -> (b: bool)
+        ensures b == (self.view() == other.view())
+    {
+        self.inner == other.inner
+    }
+
+    #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
         ensures c@ == self@,
     {

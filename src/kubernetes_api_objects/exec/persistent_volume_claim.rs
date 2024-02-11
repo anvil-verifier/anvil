@@ -29,6 +29,13 @@ impl PersistentVolumeClaim {
     pub spec fn view(&self) -> PersistentVolumeClaimView;
 
     #[verifier(external_body)]
+    pub fn eq(&self, other: &Self) -> (b: bool)
+        ensures b == (self.view() == other.view())
+    {
+        self.inner == other.inner
+    }
+
+    #[verifier(external_body)]
     pub fn default() -> (pvc: PersistentVolumeClaim)
         ensures pvc@ == PersistentVolumeClaimView::default(),
     {
