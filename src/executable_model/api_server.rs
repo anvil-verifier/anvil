@@ -107,6 +107,36 @@ fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     }
 }
 
+fn valid_transition(obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: bool)
+    requires
+        model::unmarshallable_object::<K::V>(obj@),
+        model::unmarshallable_object::<K::V>(old_obj@),
+        old_obj@.kind == obj@.kind,
+        model::valid_object::<K::V>(obj@),
+        model::valid_object::<K::V>(old_obj@),
+    ensures ret == model::valid_transition::<K::V>(obj@, old_obj@)
+{
+    match obj.kind() {
+        Kind::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().transition_validation(&ConfigMap::unmarshal(old_obj.clone()).unwrap()),
+        Kind::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().transition_validation(&DaemonSet::unmarshal(old_obj.clone()).unwrap()),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().transition_validation(&PersistentVolumeClaim::unmarshal(old_obj.clone()).unwrap()),
+        Kind::PodKind => Pod::unmarshal(obj.clone()).unwrap().transition_validation(&Pod::unmarshal(old_obj.clone()).unwrap()),
+        Kind::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().transition_validation(&RoleBinding::unmarshal(old_obj.clone()).unwrap()),
+        Kind::RoleKind => Role::unmarshal(obj.clone()).unwrap().transition_validation(&Role::unmarshal(old_obj.clone()).unwrap()),
+        Kind::SecretKind => Secret::unmarshal(obj.clone()).unwrap().transition_validation(&Secret::unmarshal(old_obj.clone()).unwrap()),
+        Kind::ServiceKind => Service::unmarshal(obj.clone()).unwrap().transition_validation(&Service::unmarshal(old_obj.clone()).unwrap()),
+        Kind::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().transition_validation(&StatefulSet::unmarshal(old_obj.clone()).unwrap()),
+        Kind::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().transition_validation(&ServiceAccount::unmarshal(old_obj.clone()).unwrap()),
+        Kind::CustomResourceKind => {
+            proof {
+                K::V::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                K::V::kind_is_custom_resource();
+            }
+            K::unmarshal(obj.clone()).unwrap().transition_validation(&K::unmarshal(old_obj.clone()).unwrap())
+        },
+    }
+}
+
 pub fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: KubeGetResponse)
     ensures ret@ == model::handle_get_request(req@, s@)
 {

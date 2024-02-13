@@ -366,6 +366,8 @@ impl StatefulSet {
                 let mut all_equal = true;
                 let mut i = 0;
                 if new_volume_claim_templates.len() != old_volume_claim_templates.len() {
+                    proof { assert(self@.spec.get_Some_0().volume_claim_templates.get_Some_0().len() != old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0().len()) }
+                    proof { assert(!(self@.spec.get_Some_0().volume_claim_templates.get_Some_0() =~= old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0())) }
                     false
                 } else {
                     while i < new_volume_claim_templates.len()
@@ -381,7 +383,6 @@ impl StatefulSet {
                         i += 1;
                     }
                     proof { assert(all_equal == (self@.spec.get_Some_0().volume_claim_templates =~= old_obj@.spec.get_Some_0().volume_claim_templates)) }
-                    proof { assert(all_equal == self@.transition_validation(old_obj@)) }
                     all_equal
                 }
             } else {
