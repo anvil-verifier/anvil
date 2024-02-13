@@ -1,3 +1,4 @@
+use crate::executable_model::string_set::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, prelude::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
@@ -85,6 +86,18 @@ impl ApiResource {
             "ServiceAccount" => Kind::ServiceAccountKind,
             "Secret" => Kind::SecretKind,
             _ => panic!(), // We assume the DynamicObject won't be a custom object
+        }
+    }
+}
+
+impl ObjectMeta {
+    pub fn finalizers_as_set(&self) -> (ret: StringSet)
+        ensures ret@ == self@.finalizers_as_set()
+    {
+        if self.finalizers().is_none() {
+            StringSet::empty()
+        } else {
+            string_vec_to_string_set(self.finalizers().unwrap())
         }
     }
 }
@@ -368,6 +381,7 @@ impl StatefulSet {
                         i += 1;
                     }
                     proof { assert(all_equal == (self@.spec.get_Some_0().volume_claim_templates =~= old_obj@.spec.get_Some_0().volume_claim_templates)) }
+                    proof { assert(all_equal == self@.transition_validation(old_obj@)) }
                     all_equal
                 }
             } else {
@@ -390,6 +404,9 @@ where Self::V: CustomResourceView, Self: std::marker::Sized
 
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
+
+    fn transition_validation(&self, old_obj: &Self) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@);
 }
 
 // SimpleCRView and SimpleCR are types only used for instantiating the executable API server model,
@@ -518,7 +535,28 @@ impl CustomResource for SimpleCR {
     {
         true
     }
+
+    fn transition_validation(&self, old_obj: &Self) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    {
+        true
+    }
 }
 
+#[verifier(external_body)]
+pub fn filter_controller_references(owner_references: Vec<OwnerReference>) -> (ret: Vec<OwnerReference>)
+    ensures ret@.map_values(|o: OwnerReference| o@) == owner_references@.map_values(|o: OwnerReference| o@).filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0())
+{
+    // TODO: is there a way to prove postconditions involving filter?
+    // TODO: clone the entire Vec instead of clone in map()
+    owner_references.iter().map(|o: &OwnerReference| o.clone()).filter(|o: &OwnerReference| o.controller().is_some() && o.controller().unwrap()).collect()
+}
+
+#[verifier(external_body)]
+pub fn string_vec_to_string_set(s: Vec<String>) -> (ret: StringSet)
+    ensures ret@ == s@.map_values(|s: String| s@).to_set()
+{
+    StringSet::from_rust_set(s.into_iter().map(|s: String| s.into_rust_string()).collect())
+}
 
 }

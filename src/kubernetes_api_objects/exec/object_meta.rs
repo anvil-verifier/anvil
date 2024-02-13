@@ -90,6 +90,18 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn finalizers(&self) -> (finalizers: Option<Vec<String>>)
+        ensures
+            self@.finalizers.is_Some() == finalizers.is_Some(),
+            finalizers.is_Some() ==> finalizers.get_Some_0()@.map_values(|s: String| s@) == self@.finalizers.get_Some_0(),
+    {
+        match &self.inner.finalizers {
+            Some(o) => Some(o.into_iter().map(|item| String::from_rust_string(item.clone())).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn owner_references(&self) -> (owner_references: Option<Vec<OwnerReference>>)
         ensures
             self@.owner_references.is_Some() == owner_references.is_Some(),

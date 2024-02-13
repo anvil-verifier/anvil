@@ -47,22 +47,25 @@ fn allow_unconditional_update(kind: &Kind) -> (b: bool)
     }
 }
 
-#[verifier(external_body)]
-fn controller_references(owner_references: &Vec<OwnerReference>) -> (ret: Vec<OwnerReference>)
-    ensures ret@.map_values(|o: OwnerReference| o@) == owner_references@.map_values(|o: OwnerReference| o@).filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0())
-{
-    // TODO: is there a way to prove postconditions involving filter?
-    // TODO: clone the entire Vec instead of clone in map()
-    owner_references.iter().map(|o: &OwnerReference| o.clone()).filter(|o: &OwnerReference| o.controller().is_some() && o.controller().unwrap()).collect()
-}
-
 fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     ensures ret == model::metadata_validity_check(obj@)
 {
     if obj.metadata().owner_references().is_some()
     && obj.metadata().owner_references().unwrap().len() > 1
-    && Self::controller_references(&obj.metadata().owner_references().unwrap()).len() > 1 {
+    && filter_controller_references(obj.metadata().owner_references().unwrap()).len() > 1 {
         Some(APIError::Invalid)
+    } else {
+        None
+    }
+}
+
+fn metadata_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: Option<APIError>)
+    ensures ret == model::metadata_transition_validity_check(obj@, old_obj@)
+{
+    if old_obj.metadata().has_deletion_timestamp()
+    && obj.metadata().finalizers().is_some()
+    && !obj.metadata().finalizers_as_set().subset_of(&old_obj.metadata().finalizers_as_set()) {
+        Some(APIError::Forbidden)
     } else {
         None
     }
