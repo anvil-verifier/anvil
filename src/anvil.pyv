@@ -16,6 +16,22 @@ immutable constant ServiceKind: kind @no_print
 immutable constant ServiceAccountKind: kind @no_print
 immutable constant SecretKind: kind @no_print
 
+sort rest_id
+sort host @no_minimize @printed_by(const_printer) @no_print
+
+immutable constant Client: host @no_print
+immutable constant CustomController: host @no_print
+immutable constant BuiltInController: host @no_print
+
+axiom distinct(Client,
+    CustomController,
+    BuiltInController
+)
+
+axiom forall H:host. (H = Client |
+    H = CustomController |
+    H = BuiltInController)
+
 axiom distinct(ConfigMapKind,
     CustomResourceKind,
     DaemonSetKind,
@@ -69,6 +85,8 @@ mutable relation cluster_state_objects(
     json_value
 )
 
+init !cluster_state_objects(K, N, NS, K1, N1, NS1, RV1, U1, KK1, S1, UU1, JSPEC1, JSTATUS1)
+
 invariant cluster_state_objects(K, N, NS, K1, N1, NS1, RV1, U1, KK1, S1, UU1, JSPEC1, JSTATUS1)
     & cluster_state_objects(K, N, NS, K2, N2, NS2, RV2, U2, KK2, S2, UU2, JSPEC2, JSTATUS2)
     -> K1 = K2 
@@ -85,23 +103,6 @@ invariant cluster_state_objects(K, N, NS, K1, N1, NS1, RV1, U1, KK1, S1, UU1, JS
 mutable relation stable_resources(kind, string, string)
 
 # Below are used to define the network state
-
-sort rest_id
-sort host @no_minimize @printed_by(const_printer) @no_print
-
-immutable constant Client: host @no_print
-immutable constant CustomController: host @no_print
-immutable constant BuiltInController: host @no_print
-
-axiom distinct(Client,
-    CustomController,
-    BuiltInController
-)
-
-axiom forall H:host. (H = Client |
-    H = CustomController |
-    H = BuiltInController)
-
 mutable relation rest_id_used(rest_id) # rest id counter
 
 mutable relation get_request(rest_id, host, kind, string, string)
@@ -119,6 +120,22 @@ mutable relation create_request(rest_id, host, string,
     json_value,
     # status
     json_value)
+init !create_request(
+    V1,
+    V2,
+    V3,
+    V4,
+    V5,
+    V6,
+    V7,
+    V8,
+    V9,
+    V10,
+    V11,
+    V12,
+    V13
+    )
+
 mutable relation delete_request(rest_id, host, kind, string, string)
 mutable relation update_request(rest_id, host, string, string,
     # DynamicObjectView
@@ -173,4 +190,134 @@ mutable relation transient_failure_enabled
 
 # controller state
 
+mutable relation reconcile_step_init(kind, string, string)
+mutable relation reconcile_step_after_get(kind, string, string)
+mutable relation reconcile_step_after_create(kind, string, string)
+mutable relation reconcile_step_after_update(kind, string, string)
+mutable relation reconcile_step_error(kind, string, string)
+mutable relation reconcile_step_done(kind, string, string)
+
+mutable relation pending_req_msg(kind, string, string, rest_id) # rest_id is sufficient here
+mutable relation triggering_cr(
+    # ObjectRef
+    kind, string, string,
+    # the triggering CR (omitting spec and status)
+    string, string, resource_version, uid
+)
+
+# Client actions
+
+transition client_create_custom_resource(
+    # DynamicObjectView
+    # metadata
+    obj_name: string, # name in ObjectMeta
+    obj_namespace: string, # namespace in ObjectMeta
+    obj_rv:resource_version,
+    # owner_reference in ObjectMeta
+    obj_owner_ref_kind: kind, obj_owner_ref_name: string, obj_owner_ref_uid: uid,
+    # spec
+    obj_spec: json_value,
+    # status
+    obj_status: json_value,
+    # rest id to use
+    my_rest_id: rest_id
+)
+    modifies rest_id_used, create_request
+    & (!rest_id_used(my_rest_id))
+    & (forall i. rest_id_used'(i) <-> (rest_id_used(i) | i = my_rest_id))
+    & (forall any_rest_id, any_host, any_ns_in_req,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name_in_obj, # name in ObjectMeta
+        any_ns_in_obj, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value.
+
+        create_request'(any_rest_id, any_host, any_ns_in_req,
+            # DynamicObjectView
+            any_kind,
+            # metadata
+            any_name_in_obj, # name in ObjectMeta
+            any_ns_in_obj, # namespace in ObjectMeta
+            any_resource_version,
+            any_uid,
+            # owner_reference in ObjectMeta
+            any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+            # spec
+            any_spec_json_value,
+            # status
+            any_status_json_value
+        )
+        <->
+        (
+            create_request(any_rest_id, any_host, any_ns_in_req,
+                # DynamicObjectView
+                any_kind,
+                # metadata
+                any_name_in_obj, # name in ObjectMeta
+                any_ns_in_obj, # namespace in ObjectMeta
+                any_resource_version,
+                any_uid,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+                # spec
+                any_spec_json_value,
+                # status
+                any_status_json_value
+            ) 
+            | 
+            (
+                any_rest_id = my_rest_id
+                & any_host = Client
+                & any_ns_in_req = obj_namespace
+                & any_kind = CustomResourceKind
+                & any_name_in_obj = obj_name
+                & any_ns_in_obj = obj_namespace
+                & any_resource_version = obj_rv
+                & any_uid = uid_none
+                & any_owner_ref_kind = obj_owner_ref_kind
+                & any_owner_ref_name = obj_owner_ref_name
+                & any_owner_ref_uid = obj_owner_ref_uid
+                & any_spec_json_value = obj_spec
+                & any_status_json_value = obj_status
+            )
+        )
+    )
+
+invariant forall any_rest_id, any_host, any_ns_in_req,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name_in_obj, # name in ObjectMeta
+        any_ns_in_obj, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value.
+        create_request(any_rest_id, any_host, any_ns_in_req,
+                # DynamicObjectView
+                any_kind,
+                # metadata
+                any_name_in_obj, # name in ObjectMeta
+                any_ns_in_obj, # namespace in ObjectMeta
+                any_resource_version,
+                any_uid,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+                # spec
+                any_spec_json_value,
+                # status
+                any_status_json_value
+        ) -> rest_id_used(any_rest_id) 
 
