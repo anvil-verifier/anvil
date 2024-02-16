@@ -137,6 +137,14 @@ init !create_request(
     )
 
 mutable relation delete_request(rest_id, host, kind, string, string)
+init !delete_request(
+    V1,
+    V2,
+    V3,
+    V4,
+    V5
+    )
+
 mutable relation update_request(rest_id, host, string, string,
     # DynamicObjectView
     kind,
@@ -151,6 +159,23 @@ mutable relation update_request(rest_id, host, string, string,
     json_value,
     # status
     json_value)
+init !update_request(
+    V1,
+    V2,
+    V3,
+    V4,
+    V5,
+    V6,
+    V7,
+    V8,
+    V9,
+    V10,
+    V11,
+    V12,
+    V13,
+    V14
+    )
+
 mutable relation update_status_request(rest_id, host, string, string,
     # DynamicObjectView
     kind,
@@ -320,4 +345,176 @@ invariant forall any_rest_id, any_host, any_ns_in_req,
                 # status
                 any_status_json_value
         ) -> rest_id_used(any_rest_id) 
+
+
+transition client_update_custom_resource(
+    # DynamicObjectView
+    # metadata
+    obj_name: string, # name in ObjectMeta
+    obj_namespace: string, # namespace in ObjectMeta
+    obj_rv:resource_version,
+    # owner_reference in ObjectMeta
+    obj_owner_ref_kind: kind, obj_owner_ref_name: string, obj_owner_ref_uid: uid,
+    # spec
+    obj_spec: json_value,
+    # status
+    obj_status: json_value,
+    # rest id to use
+    my_rest_id: rest_id
+)
+    modifies rest_id_used, update_request
+    & (!rest_id_used(my_rest_id))
+    & (forall i. rest_id_used'(i) <-> (rest_id_used(i) | i = my_rest_id))
+    & (forall any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name_in_obj, # name in ObjectMeta
+        any_ns_in_obj, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value.
+
+        update_request'(any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+            # DynamicObjectView
+            any_kind,
+            # metadata
+            any_name_in_obj, # name in ObjectMeta
+            any_ns_in_obj, # namespace in ObjectMeta
+            any_resource_version,
+            any_uid,
+            # owner_reference in ObjectMeta
+            any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+            # spec
+            any_spec_json_value,
+            # status
+            any_status_json_value
+        )
+        <->
+        (
+            update_request(any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+                # DynamicObjectView
+                any_kind,
+                # metadata
+                any_name_in_obj, # name in ObjectMeta
+                any_ns_in_obj, # namespace in ObjectMeta
+                any_resource_version,
+                any_uid,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+                # spec
+                any_spec_json_value,
+                # status
+                any_status_json_value
+            ) 
+            | 
+            (
+                any_rest_id = my_rest_id
+                & any_host = Client
+                & any_ns_in_req = obj_namespace
+                & any_name_in_req = obj_name
+                & any_kind = CustomResourceKind
+                & any_name_in_obj = obj_name
+                & any_ns_in_obj = obj_namespace
+                & any_resource_version = obj_rv
+                & any_uid = uid_none
+                & any_owner_ref_kind = obj_owner_ref_kind
+                & any_owner_ref_name = obj_owner_ref_name
+                & any_owner_ref_uid = obj_owner_ref_uid
+                & any_spec_json_value = obj_spec
+                & any_status_json_value = obj_status
+            )
+        )
+    )
+
+invariant forall any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name_in_obj, # name in ObjectMeta
+        any_ns_in_obj, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value.
+        update_request(any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+                # DynamicObjectView
+                any_kind,
+                # metadata
+                any_name_in_obj, # name in ObjectMeta
+                any_ns_in_obj, # namespace in ObjectMeta
+                any_resource_version,
+                any_uid,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+                # spec
+                any_spec_json_value,
+                # status
+                any_status_json_value
+        ) -> rest_id_used(any_rest_id) 
+invariant forall any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name_in_obj, # name in ObjectMeta
+        any_ns_in_obj, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value.
+        update_request(any_rest_id, any_host, any_ns_in_req, any_name_in_req,
+                # DynamicObjectView
+                any_kind,
+                # metadata
+                any_name_in_obj, # name in ObjectMeta
+                any_ns_in_obj, # namespace in ObjectMeta
+                any_resource_version,
+                any_uid,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+                # spec
+                any_spec_json_value,
+                # status
+                any_status_json_value
+        ) -> rest_id_used(any_rest_id)
+
+transition client_delete_custom_resource(
+    obj_namespace: string,
+    obj_name: string,
+    # rest id to use
+    my_rest_id: rest_id
+)
+    modifies rest_id_used, delete_request
+    & (!rest_id_used(my_rest_id))
+    & (forall i. rest_id_used'(i) <-> (rest_id_used(i) | i = my_rest_id))
+    & (forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
+        delete_request'(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req)
+        <->
+        (
+            delete_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) 
+            | 
+            (
+                any_rest_id = my_rest_id
+                & any_host = Client
+                & any_kind = CustomResourceKind
+                & any_ns_in_req = obj_namespace
+                & any_name_in_req = obj_name
+            )
+        )
+    )
+invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
+        delete_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
 
