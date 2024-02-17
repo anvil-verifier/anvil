@@ -137,6 +137,22 @@ fn valid_transition(obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: bool)
     }
 }
 
+fn object_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: Option<APIError>)
+    requires
+        model::unmarshallable_object::<K::V>(obj@),
+        model::unmarshallable_object::<K::V>(old_obj@),
+        old_obj@.kind == obj@.kind,
+        model::valid_object::<K::V>(obj@),
+        model::valid_object::<K::V>(old_obj@),
+    ensures ret == model::object_transition_validity_check::<K::V>(obj@, old_obj@)
+{
+    if !Self::valid_transition(obj, old_obj) {
+        Some(APIError::Invalid)
+    } else {
+        None
+    }
+}
+
 pub fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: KubeGetResponse)
     ensures ret@ == model::handle_get_request(req@, s@)
 {
