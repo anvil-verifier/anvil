@@ -38,15 +38,6 @@ fn unmarshallable_object(obj: &DynamicObject) -> (b: bool)
     ensures b == model::unmarshallable_object::<K::V>(obj@),
 { true }
 
-fn allow_unconditional_update(kind: &Kind) -> (b: bool)
-    ensures b == model::allow_unconditional_update(*kind)
-{
-    match kind {
-        Kind::CustomResourceKind => false,
-        _ => true,
-    }
-}
-
 fn metadata_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
     ensures ret == model::metadata_validity_check(obj@)
 {
@@ -231,8 +222,17 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
     }
 }
 
+fn allow_unconditional_update(kind: &Kind) -> (ret: bool)
+    ensures ret == model::allow_unconditional_update(*kind)
+{
+    match kind {
+        Kind::CustomResourceKind => false,
+        _ => true,
+    }
+}
+
 fn update_request_admission_check_helper(name: &String, namespace: &String, obj: &DynamicObject, s: &ApiServerState) -> (ret: Option<APIError>)
-    ensures ret == model::update_request_admission_check_helper::<K::V>(name@, namespace@, obj@, s@),
+    ensures ret == model::update_request_admission_check_helper::<K::V>(name@, namespace@, obj@, s@)
 {
     let key = KubeObjectRef {
         kind: obj.kind(),
@@ -262,6 +262,12 @@ fn update_request_admission_check_helper(name: &String, namespace: &String, obj:
     } else {
         None
     }
+}
+
+fn update_request_admission_check(req: &KubeUpdateRequest, s: &ApiServerState) -> (ret: Option<APIError>)
+    ensures ret == model::update_request_admission_check::<K::V>(req@, s@)
+{
+    Self::update_request_admission_check_helper(&req.name, &req.namespace, &req.obj, s)
 }
 
 }
