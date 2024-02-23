@@ -6,3 +6,4 @@ pub mod common;
 pub mod object_map;
 pub mod object_ref_set;
 pub mod prelude;
+pub mod string_set;

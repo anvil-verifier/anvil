@@ -26,6 +26,13 @@ impl LabelSelector {
     pub spec fn view(&self) -> LabelSelectorView;
 
     #[verifier(external_body)]
+    pub fn eq(&self, other: &Self) -> (b: bool)
+        ensures b == (self.view() == other.view())
+    {
+        self.inner == other.inner
+    }
+
+    #[verifier(external_body)]
     pub fn default() -> (label_selector: LabelSelector)
         ensures label_selector@ == LabelSelectorView::default(),
     {

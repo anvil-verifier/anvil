@@ -1,9 +1,11 @@
+use crate::executable_model::string_set::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, prelude::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::state_machine as model, api_server::types as model_types,
 };
+use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -89,6 +91,74 @@ impl ApiResource {
     }
 }
 
+impl ObjectMeta {
+    pub fn finalizers_as_set(&self) -> (ret: StringSet)
+        ensures ret@ == self@.finalizers_as_set()
+    {
+        if self.finalizers().is_none() {
+            StringSet::empty()
+        } else {
+            string_vec_to_string_set(self.finalizers().unwrap())
+        }
+    }
+}
+
+impl DynamicObjectView {
+    pub open spec fn unset_deletion_timestamp(self) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                deletion_timestamp: None,
+                ..self.metadata
+            },
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_deletion_stamp(self, deletion_timestamp: Option<StringView>) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                deletion_timestamp: deletion_timestamp,
+                ..self.metadata
+            },
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_uid(self, uid: Option<int>) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                uid: uid,
+                ..self.metadata
+            },
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_resource_version(self, resource_version: Option<int>) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                resource_version: resource_version,
+                ..self.metadata
+            },
+            ..self
+        }
+    }
+
+    pub open spec fn set_spec(self, spec: Value) -> DynamicObjectView {
+        DynamicObjectView {
+            spec: spec,
+            ..self
+        }
+    }
+
+    pub open spec fn set_status(self, status: Value) -> DynamicObjectView {
+        DynamicObjectView {
+            status: status,
+            ..self
+        }
+    }
+}
+
 impl DynamicObject {
     // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
@@ -152,10 +222,24 @@ impl DynamicObject {
     }
 
     #[verifier(external_body)]
+    pub fn set_resource_version_from(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.overwrite_resource_version(other@.metadata.resource_version),
+    {
+        self.as_kube_mut_ref().metadata.resource_version = other.as_kube_ref().metadata.resource_version.clone();
+    }
+
+    #[verifier(external_body)]
     pub fn set_uid(&mut self, uid: i64)
         ensures self@ == old(self)@.set_uid(uid as int),
     {
         self.as_kube_mut_ref().metadata.uid = Some(uid.to_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_uid_from(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.overwrite_uid(other@.metadata.uid),
+    {
+        self.as_kube_mut_ref().metadata.uid = other.as_kube_ref().metadata.uid.clone();
     }
 
     #[verifier(external_body)]
@@ -166,14 +250,41 @@ impl DynamicObject {
     }
 
     #[verifier(external_body)]
-    pub fn set_spec(&mut self, other: &DynamicObject)
+    pub fn set_deletion_timestamp_from(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.overwrite_deletion_stamp(other@.metadata.deletion_timestamp),
+    {
+        self.as_kube_mut_ref().metadata.deletion_timestamp = other.as_kube_ref().metadata.deletion_timestamp.clone();
+    }
+
+    #[verifier(external_body)]
+    pub fn eq(&self, other: &DynamicObject) -> (ret: bool)
+        ensures ret == (self@ == other@)
+    {
+        self.as_kube_ref() == other.as_kube_ref()
+    }
+
+    #[verifier(external_body)]
+    pub fn set_metadata_from(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.set_metadata(other@.metadata)
+    {
+        self.as_kube_mut_ref().metadata = other.as_kube_ref().metadata.clone()
+    }
+
+    // We intentionally leave set_spec_from overly sets the data and
+    // set_status_from does not set any data because they are rather
+    // difficult to implement: we'll have to unmarshal other.inner and extract
+    // the spec/status part from the json representation.
+    // Since these two are left empty, the conformance test should not check
+    // the content of the spec and status.
+    #[verifier(external_body)]
+    pub fn set_spec_from(&mut self, other: &DynamicObject)
         ensures self@ == old(self)@.set_spec(other@.spec)
     {
         self.as_kube_mut_ref().data = other.as_kube_ref().data.clone()
     }
 
     #[verifier(external_body)]
-    pub fn set_status(&mut self, other: &DynamicObject)
+    pub fn set_status_from(&mut self, other: &DynamicObject)
         ensures self@ == old(self)@.set_status(other@.status)
     {}
 
@@ -193,24 +304,45 @@ impl ConfigMap {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     { true }
+
+    pub fn transition_validation(&self, old_obj: &ConfigMap) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    { true }
 }
 
 impl DaemonSet {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     { self.spec().is_some() }
+
+    pub fn transition_validation(&self, old_obj: &DaemonSet) -> (ret: bool)
+        requires
+            self@.state_validation(),
+            old_obj@.state_validation(),
+        ensures ret == self@.transition_validation(old_obj@)
+    {
+        self.spec().unwrap().selector().eq(&old_obj.spec().unwrap().selector())
+    }
 }
 
 impl Pod {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     { self.spec().is_some() }
+
+    pub fn transition_validation(&self, old_obj: &Pod) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    { true }
 }
 
 impl PersistentVolumeClaim {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     { self.spec().is_some() }
+
+    pub fn transition_validation(&self, old_obj: &PersistentVolumeClaim) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    { true }
 }
 
 impl PolicyRule {
@@ -246,6 +378,10 @@ impl Role {
             true
         }
     }
+
+    pub fn transition_validation(&self, old_obj: &Role) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    { true }
 }
 
 impl RoleBinding {
@@ -256,11 +392,22 @@ impl RoleBinding {
         && (self.role_ref().kind().eq(&new_strlit("Role").to_string())
             || self.role_ref().kind().eq(&new_strlit("ClusterRole").to_string()))
     }
+
+    pub fn transition_validation(&self, old_obj: &RoleBinding) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    {
+        self.role_ref().eq(&old_obj.role_ref())
+    }
 }
 
 impl Secret {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
+    { true }
+
+
+    pub fn transition_validation(&self, old_obj: &Secret) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
     { true }
 }
 
@@ -268,11 +415,19 @@ impl Service {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     { self.spec().is_some() }
+
+    pub fn transition_validation(&self, old_obj: &Service) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    { true }
 }
 
 impl ServiceAccount {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
+    { true }
+
+    pub fn transition_validation(&self, old_obj: &ServiceAccount) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
     { true }
 }
 
@@ -285,6 +440,53 @@ impl StatefulSet {
         } else {
             true
         }
+    }
+
+    pub fn transition_validation(&self, old_obj: &StatefulSet) -> (ret: bool)
+        requires
+            self@.state_validation(),
+            old_obj@.state_validation(),
+        ensures ret == self@.transition_validation(old_obj@)
+    {
+        self.spec().unwrap().selector().eq(&old_obj.spec().unwrap().selector())
+        && self.spec().unwrap().service_name().eq(&old_obj.spec().unwrap().service_name())
+        && (self.spec().unwrap().pod_management_policy().is_none() == old_obj.spec().unwrap().pod_management_policy().is_none()
+            && if self.spec().unwrap().pod_management_policy().is_some() {
+                self.spec().unwrap().pod_management_policy().unwrap().eq(&old_obj.spec().unwrap().pod_management_policy().unwrap())
+            } else {
+                true
+            }
+        )
+        && (self.spec().unwrap().volume_claim_templates().is_none() == old_obj.spec().unwrap().volume_claim_templates().is_none()
+            && if self.spec().unwrap().volume_claim_templates().is_some() {
+                let new_volume_claim_templates = self.spec().unwrap().volume_claim_templates().unwrap();
+                let old_volume_claim_templates = old_obj.spec().unwrap().volume_claim_templates().unwrap();
+                let mut all_equal = true;
+                let mut i = 0;
+                if new_volume_claim_templates.len() != old_volume_claim_templates.len() {
+                    proof { assert(self@.spec.get_Some_0().volume_claim_templates.get_Some_0().len() != old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0().len()) }
+                    proof { assert(!(self@.spec.get_Some_0().volume_claim_templates.get_Some_0() =~= old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0())) }
+                    false
+                } else {
+                    while i < new_volume_claim_templates.len()
+                        invariant
+                            all_equal == (forall |j| #![trigger new_volume_claim_templates[j]]
+                                0 <= j < i
+                                    ==> new_volume_claim_templates@.map_values(|p: PersistentVolumeClaim| p@)[j] == old_volume_claim_templates@.map_values(|p: PersistentVolumeClaim| p@)[j]
+                            ),
+                            i <= new_volume_claim_templates.len(),
+                            new_volume_claim_templates.len() == old_volume_claim_templates.len(),
+                    {
+                        all_equal = all_equal && new_volume_claim_templates[i].eq(&old_volume_claim_templates[i]);
+                        i += 1;
+                    }
+                    proof { assert(all_equal == (self@.spec.get_Some_0().volume_claim_templates =~= old_obj@.spec.get_Some_0().volume_claim_templates)) }
+                    all_equal
+                }
+            } else {
+                true
+            }
+        )
     }
 }
 
@@ -301,6 +503,9 @@ where Self::V: CustomResourceView, Self: std::marker::Sized
 
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
+
+    fn transition_validation(&self, old_obj: &Self) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@);
 }
 
 // SimpleCRView and SimpleCR are types only used for instantiating the executable API server model,
@@ -429,7 +634,28 @@ impl CustomResource for SimpleCR {
     {
         true
     }
+
+    fn transition_validation(&self, old_obj: &Self) -> (ret: bool)
+        ensures ret == self@.transition_validation(old_obj@)
+    {
+        true
+    }
 }
 
+#[verifier(external_body)]
+pub fn filter_controller_references(owner_references: Vec<OwnerReference>) -> (ret: Vec<OwnerReference>)
+    ensures ret@.map_values(|o: OwnerReference| o@) == owner_references@.map_values(|o: OwnerReference| o@).filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0())
+{
+    // TODO: is there a way to prove postconditions involving filter?
+    // TODO: clone the entire Vec instead of clone in map()
+    owner_references.iter().map(|o: &OwnerReference| o.clone()).filter(|o: &OwnerReference| o.controller().is_some() && o.controller().unwrap()).collect()
+}
+
+#[verifier(external_body)]
+pub fn string_vec_to_string_set(s: Vec<String>) -> (ret: StringSet)
+    ensures ret@ == s@.map_values(|s: String| s@).to_set()
+{
+    StringSet::from_rust_set(s.into_iter().map(|s: String| s.into_rust_string()).collect())
+}
 
 }
