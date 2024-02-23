@@ -194,6 +194,7 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
 
 pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) -> (ret: KubeCreateResponse)
     requires
+        // No integer overflow
         old(s).resource_version_counter < i64::MAX,
         old(s).uid_counter < i64::MAX,
     ensures (s@, ret@) == model::handle_create_request::<K::V>(req@, old(s)@)
@@ -305,10 +306,15 @@ fn updated_object_validity_check(updated_obj: &DynamicObject, old_obj: &DynamicO
 
 pub fn handle_update_request(req: &KubeUpdateRequest, s: &mut ApiServerState) -> (ret: KubeUpdateResponse)
     requires
+        // No integer overflow
         old(s).resource_version_counter < i64::MAX,
+        // The old version is marshallable
         old(s)@.resources.contains_key(req@.key()) ==> model::unmarshallable_object::<K::V>(old(s)@.resources[req@.key()]),
+        // The old version passes state validation
         old(s)@.resources.contains_key(req@.key()) ==> model::valid_object::<K::V>(old(s)@.resources[req@.key()]),
+        // The old version has the right key (name, namespace, kind)
         old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
+        // All the three preconditions above are proved by the invariant lemma_always_each_object_in_etcd_is_well_formed
     ensures (s@, ret@) == model::handle_update_request::<K::V>(req@, old(s)@)
 {
     let request_check_error = Self::update_request_admission_check(req, s);
@@ -347,7 +353,62 @@ pub fn handle_update_request(req: &KubeUpdateRequest, s: &mut ApiServerState) ->
             }
         }
     }
+}
 
+fn update_status_request_admission_check(req: &KubeUpdateStatusRequest, s: &ApiServerState) -> (ret: Option<APIError>)
+    ensures ret == model::update_status_request_admission_check::<K::V>(req@, s@)
+{
+    Self::update_request_admission_check_helper(&req.name, &req.namespace, &req.obj, s)
+}
+
+fn status_updated_object(req: &KubeUpdateStatusRequest, old_obj: &DynamicObject) -> (ret: DynamicObject)
+    ensures ret@ == model::status_updated_object(req@, old_obj@)
+{
+    let mut status_updated_object = req.obj.clone();
+    status_updated_object.set_metadata_from(old_obj);
+    status_updated_object.set_spec_from(old_obj);
+    status_updated_object
+}
+
+pub fn handle_update_status_request(req: &KubeUpdateStatusRequest, s: &mut ApiServerState) -> (ret: KubeUpdateStatusResponse)
+    requires
+        // No integer overflow
+        old(s).resource_version_counter < i64::MAX,
+        // The old version is marshallable
+        old(s)@.resources.contains_key(req@.key()) ==> model::unmarshallable_object::<K::V>(old(s)@.resources[req@.key()]),
+        // The old version passes state validation
+        old(s)@.resources.contains_key(req@.key()) ==> model::valid_object::<K::V>(old(s)@.resources[req@.key()]),
+        // The old version has the right key (name, namespace, kind)
+        old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
+        // All the three preconditions above are proved by the invariant lemma_always_each_object_in_etcd_is_well_formed
+    ensures (s@, ret@) == model::handle_update_status_request::<K::V>(req@, old(s)@)
+{
+    let request_check_error = Self::update_status_request_admission_check(req, s);
+    if request_check_error.is_some() {
+        KubeUpdateStatusResponse{res: Err(request_check_error.unwrap())}
+    } else {
+        let req_key = KubeObjectRef {
+            kind: req.obj.kind(),
+            namespace: req.namespace.clone(),
+            name: req.name.clone(),
+        };
+        let old_obj = s.resources.get(&req_key).unwrap();
+        let mut status_updated_obj = Self::status_updated_object(&req, &old_obj);
+        if status_updated_obj.eq(&old_obj) {
+            KubeUpdateStatusResponse{res: Ok(old_obj)}
+        } else {
+            status_updated_obj.set_resource_version(s.resource_version_counter);
+            let status_updated_obj_with_new_rv = status_updated_obj; // This renaming is just to stay consistent with the model
+            let object_check_error = Self::updated_object_validity_check(&status_updated_obj_with_new_rv, &old_obj);
+            if object_check_error.is_some() {
+                KubeUpdateStatusResponse{res: Err(object_check_error.unwrap())}
+            } else {
+                s.resources.insert(req_key, status_updated_obj_with_new_rv.clone());
+                s.resource_version_counter = s.resource_version_counter + 1;
+                KubeUpdateStatusResponse{res: Ok(status_updated_obj_with_new_rv)}
+            }
+        }
+    }
 }
 
 }

@@ -263,7 +263,15 @@ impl DynamicObject {
         self.as_kube_ref() == other.as_kube_ref()
     }
 
-    // We leave_spec_from and set_status_from empty because they are rather
+    #[verifier(external_body)]
+    pub fn set_metadata_from(&mut self, other: &DynamicObject)
+        ensures self@ == old(self)@.set_metadata(other@.metadata)
+    {
+        self.as_kube_mut_ref().metadata = other.as_kube_ref().metadata.clone()
+    }
+
+    // We intentionally leave set_spec_from overly sets the data and
+    // set_status_from does not set any data because they are rather
     // difficult to implement: we'll have to unmarshal other.inner and extract
     // the spec/status part from the json representation.
     // Since these two are left empty, the conformance test should not check
