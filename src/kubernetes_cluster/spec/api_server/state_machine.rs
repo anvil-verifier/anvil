@@ -379,7 +379,8 @@ pub open spec fn handle_update_request<K: CustomResourceView>(req: UpdateRequest
                 // Update succeeds.
                 if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
                     || (updated_obj_with_new_rv.metadata.finalizers.is_Some()
-                        && updated_obj_with_new_rv.metadata.finalizers.get_Some_0().len() > 0) {
+                        && updated_obj_with_new_rv.metadata.finalizers.get_Some_0().len() > 0)
+                {
                     // The regular update case, where the object has no deletion timestamp set
                     // or has at least one finalizer.
                     (ApiServerState {

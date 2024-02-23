@@ -270,6 +270,86 @@ fn update_request_admission_check(req: &KubeUpdateRequest, s: &ApiServerState) -
     Self::update_request_admission_check_helper(&req.name, &req.namespace, &req.obj, s)
 }
 
+fn updated_object(req: &KubeUpdateRequest, old_obj: &DynamicObject) -> (ret: DynamicObject)
+    ensures ret@ == model::updated_object(req@, old_obj@)
+{
+    let mut updated_obj = req.obj.clone();
+    updated_obj.set_namespace(req.namespace.clone());
+    updated_obj.set_resource_version_from(old_obj);
+    updated_obj.set_uid_from(old_obj);
+    updated_obj.set_deletion_timestamp_from(old_obj);
+    updated_obj.set_status_from(old_obj);
+    updated_obj
+}
+
+fn updated_object_validity_check(updated_obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: Option<APIError>)
+    requires
+        model::unmarshallable_object::<K::V>(updated_obj@),
+        model::unmarshallable_object::<K::V>(old_obj@),
+        old_obj@.kind == updated_obj@.kind,
+        model::valid_object::<K::V>(old_obj@),
+    ensures ret == model::updated_object_validity_check::<K::V>(updated_obj@, old_obj@)
+{
+    if Self::metadata_validity_check(updated_obj).is_some() {
+        Self::metadata_validity_check(updated_obj)
+    } else if Self::metadata_transition_validity_check(updated_obj, old_obj).is_some() {
+        Self::metadata_transition_validity_check(updated_obj, old_obj)
+    } else if Self::object_validity_check(updated_obj).is_some() {
+        Self::object_validity_check(updated_obj)
+    } else if Self::object_transition_validity_check(updated_obj, old_obj).is_some() {
+        Self::object_transition_validity_check(updated_obj, old_obj)
+    } else {
+        None
+    }
+}
+
+pub fn handle_update_request(req: &KubeUpdateRequest, s: &mut ApiServerState) -> (ret: KubeUpdateResponse)
+    requires
+        old(s).resource_version_counter < i64::MAX,
+        old(s)@.resources.contains_key(req@.key()) ==> model::unmarshallable_object::<K::V>(old(s)@.resources[req@.key()]),
+        old(s)@.resources.contains_key(req@.key()) ==> model::valid_object::<K::V>(old(s)@.resources[req@.key()]),
+        old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
+    ensures (s@, ret@) == model::handle_update_request::<K::V>(req@, old(s)@)
+{
+    let request_check_error = Self::update_request_admission_check(req, s);
+    if request_check_error.is_some() {
+        KubeUpdateResponse{res: Err(request_check_error.unwrap())}
+    } else {
+        let req_key = KubeObjectRef {
+            kind: req.obj.kind(),
+            namespace: req.namespace.clone(),
+            name: req.name.clone(),
+        };
+        let old_obj = s.resources.get(&req_key).unwrap();
+        let mut updated_obj = Self::updated_object(&req, &old_obj);
+        if updated_obj.eq(&old_obj) {
+            KubeUpdateResponse{res: Ok(old_obj)}
+        } else {
+            updated_obj.set_resource_version(s.resource_version_counter);
+            let updated_obj_with_new_rv = updated_obj; // This renaming is just to stay consistent with the model
+            let object_check_error = Self::updated_object_validity_check(&updated_obj_with_new_rv, &old_obj);
+            if object_check_error.is_some() {
+                KubeUpdateResponse{res: Err(object_check_error.unwrap())}
+            } else {
+                if !updated_obj_with_new_rv.metadata().has_deletion_timestamp()
+                    || (updated_obj_with_new_rv.metadata().finalizers().is_some()
+                        && updated_obj_with_new_rv.metadata().finalizers().unwrap().len() > 0)
+                {
+                    s.stable_resources.remove(&req_key);
+                    s.resources.insert(req_key, updated_obj_with_new_rv.clone());
+                    s.resource_version_counter = s.resource_version_counter + 1;
+                    KubeUpdateResponse{res: Ok(updated_obj_with_new_rv)}
+                } else {
+                    s.resources.remove(&updated_obj_with_new_rv.object_ref());
+                    s.resource_version_counter = s.resource_version_counter + 1;
+                    KubeUpdateResponse{res: Ok(updated_obj_with_new_rv)}
+                }
+            }
+        }
+    }
+
+}
+
 }
 
 }

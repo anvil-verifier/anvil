@@ -60,6 +60,16 @@ impl ObjectMap {
     }
 
     #[verifier(external_body)]
+    pub fn remove(&mut self, key: &KubeObjectRef) -> (old_v: Option<DynamicObject>)
+        ensures
+            self@ == old(self)@.remove(key@),
+            old(self)@.contains_key(key@) == old_v.is_Some(),
+            old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
+    {
+        self.inner.remove(&key.clone().into_external_object_ref())
+    }
+
+    #[verifier(external_body)]
     pub fn get(&self, key: &KubeObjectRef) -> (v: Option<DynamicObject>)
         ensures
             self@.contains_key(key@) == v.is_Some(),
