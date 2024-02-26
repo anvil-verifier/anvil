@@ -256,6 +256,18 @@ impl DynamicObject {
         self.as_kube_mut_ref().metadata.deletion_timestamp = other.as_kube_ref().metadata.deletion_timestamp.clone();
     }
 
+
+    // This function sets the deletion timestamp to the current time.
+    // This seems a bit inconsistent with the model's behavior which
+    // always sets it to the return value of deletion_timestamp().
+    // However, this function is actually closer to Kubernetes' real behavior.
+    #[verifier(external_body)]
+    pub fn set_current_deletion_timestamp(&mut self)
+        ensures self@ == old(self)@.set_deletion_timestamp(model::deletion_timestamp()),
+    {
+        self.as_kube_mut_ref().metadata.deletion_timestamp = Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(deps_hack::chrono::Utc::now()));
+    }
+
     #[verifier(external_body)]
     pub fn eq(&self, other: &DynamicObject) -> (ret: bool)
         ensures ret == (self@ == other@)

@@ -62,8 +62,6 @@ impl View for KubeGetRequest {
 }
 
 /// KubeListRequest has the namespace to instantiate an Api.
-///
-/// Note that the kind is indicated by the upper layer Kube{ObjectKind}Request.
 
 pub struct KubeListRequest {
     pub api_resource: ApiResource,
