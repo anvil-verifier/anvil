@@ -228,6 +228,14 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
     }
 }
 
+// Here we make a compromise when modeling the behavior of setting
+// deletion timestamp to each object that is deemed to be deleted.
+// The real Kubernetes' behavior uses the current timestamp as the
+// deletion timestamp, but we only use an opaque string here.
+// This is fine because the request handling logic we want to model
+// only cares whether the object has a deletion timestamp or not.
+// By using this closed deletion_timestamp() function, we make the
+// modeling and proof much easier compared to modelling the real clock.
 pub closed spec fn deletion_timestamp() -> StringView;
 
 pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) -> (ApiServerState, DeleteResponse) {
@@ -240,11 +248,12 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
         if obj.metadata.finalizers.is_Some() && obj.metadata.finalizers.get_Some_0().len() > 0 {
             // With the finalizer(s) in the object, we cannot immediately delete it from the key-value store.
             // Instead, we set the deletion timestamp of this object.
-            let stamped_obj = obj.set_deletion_timestamp(deletion_timestamp());
-            if stamped_obj == obj {
+            // If the object already has a deletion timestamp, then skip.
+            if obj.metadata.deletion_timestamp.is_Some() {
                 (s, DeleteResponse{res: Ok(())})
             } else {
-                let stamped_obj_with_new_rv = stamped_obj.set_resource_version(s.resource_version_counter);
+                let stamped_obj_with_new_rv = obj.set_deletion_timestamp(deletion_timestamp())
+                                                    .set_resource_version(s.resource_version_counter);
                 (ApiServerState {
                     // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
                     // This is intended because using stamped_obj.object_ref() will require us to use

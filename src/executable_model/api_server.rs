@@ -147,15 +147,15 @@ fn object_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObject
 pub fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: KubeGetResponse)
     ensures ret@ == model::handle_get_request(req@, s@)
 {
-    let object_ref = KubeObjectRef {
+    let req_key = KubeObjectRef {
         kind: req.api_resource.kind(),
         name: req.name.clone(),
         namespace: req.namespace.clone(),
     };
-    if !s.resources.contains_key(&object_ref) {
+    if !s.resources.contains_key(&req_key) {
         KubeGetResponse{res: Err(APIError::ObjectNotFound)}
     } else {
-        KubeGetResponse{res: Ok(s.resources.get(&object_ref).unwrap())}
+        KubeGetResponse{res: Ok(s.resources.get(&req_key).unwrap())}
     }
 }
 
@@ -219,6 +219,38 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
             s.uid_counter = s.uid_counter + 1;
             s.resource_version_counter = s.resource_version_counter + 1;
             KubeCreateResponse{res: Ok(created_obj)}
+        }
+    }
+}
+
+pub fn handle_delete_request(req: &KubeDeleteRequest, s: &mut ApiServerState) -> (ret: KubeDeleteResponse)
+    requires old(s).resource_version_counter < i64::MAX // No integer overflow
+    ensures (s@, ret@) == model::handle_delete_request(req@, old(s)@)
+{
+    let req_key = KubeObjectRef {
+        kind: req.api_resource.kind(),
+        name: req.name.clone(),
+        namespace: req.namespace.clone(),
+    };
+    if !s.resources.contains_key(&req_key) {
+        KubeDeleteResponse{res: Err(APIError::ObjectNotFound)}
+    } else {
+        let mut obj = s.resources.get(&req_key).unwrap();
+        if obj.metadata().finalizers().is_some() && obj.metadata().finalizers().unwrap().len() > 0 {
+            if obj.metadata().has_deletion_timestamp() {
+                KubeDeleteResponse{res: Ok(())}
+            } else {
+                obj.set_current_deletion_timestamp();
+                obj.set_resource_version(s.resource_version_counter);
+                let stamped_obj_with_new_rv = obj; // This renaming is just to stay consistent with the model
+                s.resources.insert(req_key, stamped_obj_with_new_rv);
+                s.resource_version_counter = s.resource_version_counter + 1;
+                KubeDeleteResponse{res: Ok(())}
+            }
+        } else {
+            s.resources.remove(&req_key);
+            s.resource_version_counter = s.resource_version_counter + 1;
+            KubeDeleteResponse{res: Ok(())}
         }
     }
 }
