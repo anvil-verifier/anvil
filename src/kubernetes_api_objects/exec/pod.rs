@@ -297,11 +297,10 @@ impl View for PodSecurityContext {
     spec fn view(&self) -> PodSecurityContextView;
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PodSecurityContext> for PodSecurityContext {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext) -> PodSecurityContext { PodSecurityContext { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSecurityContext { self.inner }
 }
 
@@ -316,11 +315,10 @@ impl View for LocalObjectReference {
     spec fn view(&self) -> LocalObjectReferenceView;
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::LocalObjectReference> for LocalObjectReference {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference) -> LocalObjectReference { LocalObjectReference { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LocalObjectReference { self.inner }
 }
 

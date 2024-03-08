@@ -108,11 +108,10 @@ impl PersistentVolumeClaim {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim> for PersistentVolumeClaim {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim) -> PersistentVolumeClaim { PersistentVolumeClaim { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim { self.inner }
 }
 
@@ -162,13 +161,12 @@ impl PersistentVolumeClaimSpec {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec> for PersistentVolumeClaimSpec {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec) -> PersistentVolumeClaimSpec {
         PersistentVolumeClaimSpec { inner: inner }
     }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec { self.inner }
 }
 

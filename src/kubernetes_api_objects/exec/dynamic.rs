@@ -47,11 +47,10 @@ impl DynamicObject {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::kube::api::DynamicObject) -> DynamicObject { DynamicObject { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::kube::api::DynamicObject { self.inner }
 }
 
@@ -62,8 +61,8 @@ impl std::clone::Clone for DynamicObject {
     { DynamicObject { inner: self.inner.clone() } }
 }
 
+#[verifier(external)]
 impl std::fmt::Debug for DynamicObject {
-    #[verifier(external)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.inner.fmt(f) }
 }
 

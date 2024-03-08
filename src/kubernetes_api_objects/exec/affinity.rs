@@ -27,11 +27,10 @@ impl Affinity {
     pub spec fn view(&self) -> AffinityView;
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::Affinity> for Affinity {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Affinity) -> Affinity { Affinity { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Affinity { self.inner }
 }
 

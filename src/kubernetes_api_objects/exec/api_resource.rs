@@ -26,15 +26,14 @@ impl ApiResource {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::kube::api::ApiResource> for ApiResource {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::kube::api::ApiResource) -> ApiResource {
         ApiResource {
             inner: inner
         }
     }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::kube::api::ApiResource {
         self.inner
     }

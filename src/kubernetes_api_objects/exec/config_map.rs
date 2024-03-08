@@ -109,11 +109,10 @@ impl ConfigMap {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::ConfigMap> for ConfigMap {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap { ConfigMap { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMap { self.inner }
 }
 
