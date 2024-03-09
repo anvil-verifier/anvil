@@ -24,16 +24,16 @@ pub struct StateMachine <
     #[verifier(maybe_negative)] Step,
 > {
     /// Check if it is the initial internal state.
-    pub init: FnSpec(State) -> bool,
+    pub init: spec_fn(State) -> bool,
 
     /// The set of actions the state machine can take.
     pub actions: Set<Action<State, ActionInput, Output>>,
 
     /// Return the corresponding action of the binding step.
-    pub step_to_action: FnSpec(Step) -> Action<State, ActionInput, Output>,
+    pub step_to_action: spec_fn(Step) -> Action<State, ActionInput, Output>,
 
     /// Return the input to the host action.
-    pub action_input: FnSpec(Step, Input) -> ActionInput,
+    pub action_input: spec_fn(Step, Input) -> ActionInput,
 }
 
 impl<State, Input, ActionInput, Output, Step> StateMachine<State, Input, ActionInput, Output, Step> {
@@ -67,7 +67,7 @@ impl<State, Input, ActionInput, Output, Step> StateMachine<State, Input, ActionI
 /// and there is no need for `step_to_action` or `action_input`.
 pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] MessageOps> {
     /// Check if it is the initial internal state.
-    pub init: FnSpec(State) -> bool,
+    pub init: spec_fn(State) -> bool,
 
     /// The deliver action that (1) sends zero or one message to a host and (2) takes any number of messages from a host.
     pub deliver: Action<State, MessageOps, ()>,

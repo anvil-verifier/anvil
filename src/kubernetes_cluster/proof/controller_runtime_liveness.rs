@@ -195,7 +195,7 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
 }
 
 pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
-    spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
+    spec: TempPred<Self>, cr: K, state: spec_fn(R::T) -> bool, next_state: spec_fn(R::T) -> bool
 )
     requires
         cr.object_ref().kind == K::kind(),
@@ -252,7 +252,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
 }
 
 pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
-    spec: TempPred<Self>, cr: K, init_state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
+    spec: TempPred<Self>, cr: K, init_state: spec_fn(R::T) -> bool, next_state: spec_fn(R::T) -> bool
 )
     requires
         cr.object_ref().kind == K::kind(),
@@ -304,7 +304,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
 }
 
 pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(
-    spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
+    spec: TempPred<Self>, cr: K, state: spec_fn(R::T) -> bool, next_state: spec_fn(R::T) -> bool
 )
     requires
         cr.object_ref().kind == K::kind(),
@@ -376,7 +376,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
 }
 
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
-    spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
+    spec: TempPred<Self>, cr: K, state: spec_fn(R::T) -> bool, next_state: spec_fn(R::T) -> bool
 )
     requires
         cr.object_ref().kind == K::kind(),
@@ -404,7 +404,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(
-    spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool
+    spec: TempPred<Self>, cr: K, state: spec_fn(R::T) -> bool
 )
     requires
         cr.object_ref().kind == K::kind(),
@@ -515,7 +515,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
 }
 
 pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile_idle(
-    spec: TempPred<Self>, cr: K, state: FnSpec(R::T) -> bool, next_state: FnSpec(R::T) -> bool
+    spec: TempPred<Self>, cr: K, state: spec_fn(R::T) -> bool, next_state: spec_fn(R::T) -> bool
 )
     requires
         cr.object_ref().kind == K::kind(),

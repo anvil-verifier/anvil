@@ -73,7 +73,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
     }
 }
 
-pub open spec fn resource_get_response_msg(key: ObjectRef) -> FnSpec(FBCMessage) -> bool {
+pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(FBCMessage) -> bool {
     |msg: FBCMessage|
         msg.src.is_ApiServer()
         && msg.content.is_get_response()
@@ -83,7 +83,7 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> FnSpec(FBCMessage)
         )
 }
 
-pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCCluster) -> FnSpec(FBCMessage) -> bool {
+pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCCluster) -> spec_fn(FBCMessage) -> bool {
     |msg: FBCMessage|
         msg.src.is_ApiServer()
         && msg.content.is_update_response()
@@ -96,7 +96,7 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: FBCCluster) -> 
         )
 }
 
-pub open spec fn resource_create_response_msg(key: ObjectRef, s: FBCCluster) -> FnSpec(FBCMessage) -> bool {
+pub open spec fn resource_create_response_msg(key: ObjectRef, s: FBCCluster) -> spec_fn(FBCMessage) -> bool {
     |msg: FBCMessage|
         msg.src.is_ApiServer()
         && msg.content.is_create_response()

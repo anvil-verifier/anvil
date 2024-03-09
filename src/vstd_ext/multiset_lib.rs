@@ -13,7 +13,7 @@ pub proof fn len_is_zero_means_count_for_each_value_is_zero<V>(m: Multiset<V>)
     }
 }
 
-pub proof fn filtered_size_is_zero_means_no_such_value<V>(m: Multiset<V>, f: FnSpec(V) -> bool)
+pub proof fn filtered_size_is_zero_means_no_such_value<V>(m: Multiset<V>, f: spec_fn(V) -> bool)
     ensures (m.filter(f).len() == 0) == (forall |v: V| !(#[trigger] m.contains(v) && f(v)))
 {
     if forall |v: V| !(#[trigger] m.contains(v) && f(v)) {
@@ -31,7 +31,7 @@ pub proof fn filtered_size_is_zero_means_no_such_value<V>(m: Multiset<V>, f: FnS
     }
 }
 
-pub proof fn filtered_size_is_one_means_only_one_such_value<V>(m: Multiset<V>, f: FnSpec(V) -> bool)
+pub proof fn filtered_size_is_one_means_only_one_such_value<V>(m: Multiset<V>, f: spec_fn(V) -> bool)
     ensures
         (m.filter(f).len() == 1) == {
             &&& exists |v| #[trigger] m.contains(v) && f(v)

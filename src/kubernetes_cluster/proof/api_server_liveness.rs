@@ -226,7 +226,7 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
 ///     (s.in_flight(msg) ==> requirements(msg, s)) ==> (s_prime.in_flight(msg) ==> requirements(msg, s_prime))
 /// If we think of s.in_flight(msg) ==> requirements(msg, s) as an invariant, it is the same as the proof of invariants in previous
 /// proof strategy.
-pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnSpec(MsgType<E>, Self) -> bool) -> ActionPred<Self> {
+pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: spec_fn(MsgType<E>, Self) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
         forall |msg: MsgType<E>|
             {
@@ -240,7 +240,7 @@ pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnS
     }
 }
 
-pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(MsgType<E>, Self) -> bool) -> StatePred<Self> {
+pub open spec fn every_in_flight_req_msg_satisfies(requirements: spec_fn(MsgType<E>, Self) -> bool) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
             {
@@ -256,11 +256,11 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(MsgType<
 /// This lemma shows that if spec ensures every newly created Kubernetes api request message satisfies some requirements,
 /// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
 ///
-/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec (i.e., a closure)
+/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a spec_fn (i.e., a closure)
 /// as parameter which can be defined by callers and require spec |= [](every_new_req_msg_if_in_flight_then_satisfies(requirements)).
 ///
 /// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
-pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec: TempPred<Self>, requirements: FnSpec(MsgType<E>, Self) -> bool)
+pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec: TempPred<Self>, requirements: spec_fn(MsgType<E>, Self) -> bool)
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -290,7 +290,7 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec: 
 }
 
 /// This lemma is an assistant one for the previous one without rest_id.
-pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(spec: TempPred<Self>, requirements: FnSpec(MsgType<E>, Self) -> bool, rest_id: nat)
+pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(spec: TempPred<Self>, requirements: spec_fn(MsgType<E>, Self) -> bool, rest_id: nat)
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),

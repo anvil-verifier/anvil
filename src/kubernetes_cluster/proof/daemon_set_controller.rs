@@ -20,7 +20,7 @@ verus! {
 impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn every_in_flight_create_req_msg_for_this_ds_matches(
-    key: ObjectRef, make_fn: FnSpec() -> DaemonSetView
+    key: ObjectRef, make_fn: spec_fn() -> DaemonSetView
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg| {
@@ -33,7 +33,7 @@ pub open spec fn every_in_flight_create_req_msg_for_this_ds_matches(
 }
 
 pub open spec fn every_in_flight_update_req_msg_for_this_ds_matches(
-    key: ObjectRef, make_fn: FnSpec() -> DaemonSetView
+    key: ObjectRef, make_fn: spec_fn() -> DaemonSetView
 ) -> StatePred<Self> {
     |s: Self| {
         let made_ds = make_fn();
@@ -58,7 +58,7 @@ pub open spec fn every_in_flight_update_req_msg_for_this_ds_matches(
 }
 
 pub open spec fn daemon_set_not_exist_or_updated_or_no_more_status_from_bc(
-    key: ObjectRef, make_fn: FnSpec() -> DaemonSetView
+    key: ObjectRef, make_fn: spec_fn() -> DaemonSetView
 ) -> StatePred<Self> {
     |s: Self| {
         ||| !s.resources().contains_key(key)
@@ -82,7 +82,7 @@ pub open spec fn daemon_set_not_exist_or_updated_or_no_more_status_from_bc(
 /// This lemma is very similar to lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_more_pending_req
 /// but does not consider the dependency on a configmap('s rv)
 
-pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: FnSpec() -> DaemonSetView)
+pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: spec_fn() -> DaemonSetView)
     requires
         key.kind == DaemonSetView::kind(),
         spec.entails(always(lift_action(Self::next()))),
@@ -134,7 +134,7 @@ pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_mo
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
-proof fn lemma_true_leads_to_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: FnSpec() -> DaemonSetView)
+proof fn lemma_true_leads_to_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: spec_fn() -> DaemonSetView)
     requires
         key.kind == DaemonSetView::kind(),
         spec.entails(always(lift_action(Self::next()))),
@@ -189,7 +189,7 @@ proof fn lemma_true_leads_to_daemon_set_not_exist_or_updated_or_no_more_pending_
     sandwich_leads_to_by_or_temp(spec, lift_state(key_exists), lift_state(post), lift_state(key_not_exists));
 }
 
-proof fn lemma_pending_update_status_req_num_is_n_leads_to_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: FnSpec() -> DaemonSetView, msg_num: nat)
+proof fn lemma_pending_update_status_req_num_is_n_leads_to_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: spec_fn() -> DaemonSetView, msg_num: nat)
     requires
         key.kind == DaemonSetView::kind(),
         spec.entails(always(lift_action(Self::next()))),
@@ -289,7 +289,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_daemon_set_not_exist_
     }
 }
 
-proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_decreases(spec: TempPred<Self>, key: ObjectRef, make_fn: FnSpec() -> DaemonSetView, msg_num: nat, msg: MsgType<E>)
+proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_decreases(spec: TempPred<Self>, key: ObjectRef, make_fn: spec_fn() -> DaemonSetView, msg_num: nat, msg: MsgType<E>)
     requires
         key.kind == DaemonSetView::kind(),
         msg_num > 0,

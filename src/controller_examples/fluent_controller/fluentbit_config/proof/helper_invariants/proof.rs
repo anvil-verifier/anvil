@@ -843,7 +843,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
     );
 }
 
-pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCCluster>, p: TempPred<FBCCluster>, a_to_p: FnSpec(SubResource)->TempPred<FBCCluster>)
+pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<FBCCluster>, p: TempPred<FBCCluster>, a_to_p: spec_fn(SubResource)->TempPred<FBCCluster>)
     requires forall |a: SubResource| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
     ensures spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {

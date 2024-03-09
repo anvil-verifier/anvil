@@ -154,11 +154,11 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
     );
 }
 
-pub open spec fn at_step1_or_step2_closure(step1: ZookeeperReconcileStep, step2: ZookeeperReconcileStep) -> FnSpec(ZookeeperReconcileState) -> bool {
+pub open spec fn at_step1_or_step2_closure(step1: ZookeeperReconcileStep, step2: ZookeeperReconcileStep) -> spec_fn(ZookeeperReconcileState) -> bool {
     |s: ZookeeperReconcileState| s.reconcile_step == step1 || s.reconcile_step == step2
 }
 
-pub open spec fn at_step1_or_step2_or_step3_closure(step1: ZookeeperReconcileStep, step2: ZookeeperReconcileStep, step3: ZookeeperReconcileStep) -> FnSpec(ZookeeperReconcileState) -> bool {
+pub open spec fn at_step1_or_step2_or_step3_closure(step1: ZookeeperReconcileStep, step2: ZookeeperReconcileStep, step3: ZookeeperReconcileStep) -> spec_fn(ZookeeperReconcileState) -> bool {
     |s: ZookeeperReconcileState| s.reconcile_step == step1 || s.reconcile_step == step2 || s.reconcile_step == step3
 }
 

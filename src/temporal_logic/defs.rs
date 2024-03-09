@@ -7,7 +7,7 @@ use vstd::prelude::*;
 verus! {
 
 pub struct Execution<T> {
-    pub nat_to_state: FnSpec(nat) -> T,
+    pub nat_to_state: spec_fn(nat) -> T,
 }
 
 impl<T> Execution<T> {
@@ -26,16 +26,16 @@ impl<T> Execution<T> {
     }
 }
 
-pub type StatePred<T> = FnSpec(T) -> bool;
+pub type StatePred<T> = spec_fn(T) -> bool;
 
-pub type ActionPred<T> = FnSpec(T, T) -> bool;
+pub type ActionPred<T> = spec_fn(T, T) -> bool;
 
 pub struct TempPred<#[verifier(maybe_negative)] T> {
-    pub pred: FnSpec(Execution<T>) -> bool,
+    pub pred: spec_fn(Execution<T>) -> bool,
 }
 
 impl<T> TempPred<T> {
-    pub open spec fn new(pred: FnSpec(Execution<T>) -> bool) -> Self {
+    pub open spec fn new(pred: spec_fn(Execution<T>) -> bool) -> Self {
         TempPred {
             pred: pred,
         }
@@ -122,12 +122,12 @@ pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 }
 
 /// `\A` for temporal predicates in TLA+ (i.e., `forall` in Verus).
-pub open spec fn tla_forall<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> TempPred<T> {
+pub open spec fn tla_forall<T, A>(a_to_temp_pred: spec_fn(A) -> TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| forall |a: A| #[trigger] a_to_temp_pred(a).satisfied_by(ex))
 }
 
 /// `\E` for temporal predicates in TLA+ (i.e., `exists` in Verus).
-pub open spec fn tla_exists<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> TempPred<T> {
+pub open spec fn tla_exists<T, A>(a_to_temp_pred: spec_fn(A) -> TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| exists |a: A| #[trigger] a_to_temp_pred(a).satisfied_by(ex))
 }
 

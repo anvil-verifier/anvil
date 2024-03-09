@@ -8,7 +8,7 @@ trait VerusClone: View + Sized {
         ensures self == r;
 }
 
-fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_spec: FnSpec(V)->bool) -> (r: Vec<V>)
+fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_spec: spec_fn(V)->bool) -> (r: Vec<V>)
     requires
         forall|v: V| #[trigger] f.requires((&v,)),
         forall |v:V,r:bool| f.ensures((&v,), r) ==> f_spec(v) == r,

@@ -55,11 +55,11 @@ pub open spec fn no_pending_req_at_fbc_step_with_fbc(fbc: FluentBitConfigView, s
     }
 }
 
-pub open spec fn at_step_closure(step: FluentBitConfigReconcileStep) -> FnSpec(FluentBitConfigReconcileState) -> bool {
+pub open spec fn at_step_closure(step: FluentBitConfigReconcileStep) -> spec_fn(FluentBitConfigReconcileState) -> bool {
     |s: FluentBitConfigReconcileState| s.reconcile_step == step
 }
 
-pub open spec fn at_step1_or_step2_closure(step1: FluentBitConfigReconcileStep, step2: FluentBitConfigReconcileStep) -> FnSpec(FluentBitConfigReconcileState) -> bool {
+pub open spec fn at_step1_or_step2_closure(step1: FluentBitConfigReconcileStep, step2: FluentBitConfigReconcileStep) -> spec_fn(FluentBitConfigReconcileState) -> bool {
     |s: FluentBitConfigReconcileState| s.reconcile_step == step1 || s.reconcile_step == step2
 }
 

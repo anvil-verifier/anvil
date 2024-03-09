@@ -20,7 +20,7 @@ verus! {
 impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn every_in_flight_create_req_msg_for_this_sts_matches(
-    key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView
+    key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView
 ) -> StatePred<Self> {
     |s: Self| {
         let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
@@ -34,7 +34,7 @@ pub open spec fn every_in_flight_create_req_msg_for_this_sts_matches(
 }
 
 pub open spec fn every_in_flight_update_req_msg_for_this_sts_matches(
-    key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView
+    key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView
 ) -> StatePred<Self> {
     |s: Self| {
         let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
@@ -78,7 +78,7 @@ pub open spec fn no_status_update_req_msg_from_bc_for_this_object(key: ObjectRef
 }
 
 pub open spec fn stateful_set_not_exist_or_updated_or_no_more_status_from_bc(
-    key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView
+    key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView
 ) -> StatePred<Self> {
     |s: Self| {
         ||| !s.resources().contains_key(key)
@@ -127,7 +127,7 @@ pub open spec fn stateful_set_not_exist_or_updated_or_no_more_status_from_bc(
 /// controller can directly go through.
 
 pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_more_pending_req(
-    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView
+    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView
 )
     requires
         key.kind == StatefulSetView::kind(),
@@ -183,7 +183,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
-proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView)
+proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView)
     requires
         key.kind == StatefulSetView::kind(),
         spec.entails(always(lift_action(Self::next()))),
@@ -240,7 +240,7 @@ proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pendin
 }
 
 proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(
-    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView, msg_num: nat
+    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView, msg_num: nat
 )
     requires
         key.kind == StatefulSetView::kind(),
@@ -347,7 +347,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
 }
 
 proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num_decreases(
-    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView, msg_num: nat, msg: MsgType<E>
+    spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView, msg_num: nat, msg: MsgType<E>
 )
     requires
         key.kind == StatefulSetView::kind(),

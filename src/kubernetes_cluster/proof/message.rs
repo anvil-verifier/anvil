@@ -352,14 +352,14 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
     }
 }
 
-pub open spec fn is_ok_get_response_msg() -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn is_ok_get_response_msg() -> spec_fn(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_ApiServer()
         && msg.content.is_get_response()
         && msg.content.get_get_response().res.is_Ok()
 }
 
-pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_ApiServer()
         && msg.content.is_get_response()
@@ -367,14 +367,14 @@ pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpe
         && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
 }
 
-pub open spec fn is_ok_update_response_msg() -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn is_ok_update_response_msg() -> spec_fn(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_ApiServer()
         && msg.content.is_update_response()
         && msg.content.get_update_response().res.is_Ok()
 }
 
-pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_ApiServer()
         && msg.content.is_update_response()
@@ -382,14 +382,14 @@ pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> Fn
         && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
 }
 
-pub open spec fn is_ok_create_response_msg() -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn is_ok_create_response_msg() -> spec_fn(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_ApiServer()
         && msg.content.is_create_response()
         && msg.content.get_create_response().res.is_Ok()
 }
 
-pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_ApiServer()
         && msg.content.is_create_response()

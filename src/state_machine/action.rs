@@ -9,10 +9,10 @@ verus! {
 
 pub struct Action<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input, #[verifier(maybe_negative)] Output> {
     /// The condition that enables the host action.
-    pub precondition: FnSpec(Input, State) -> bool,
+    pub precondition: spec_fn(Input, State) -> bool,
 
     /// The new internal state and output made by the transition.
-    pub transition: FnSpec(Input, State) -> (State, Output),
+    pub transition: spec_fn(Input, State) -> (State, Output),
 }
 
 impl<State, Input, Output> Action<State, Input, Output> {

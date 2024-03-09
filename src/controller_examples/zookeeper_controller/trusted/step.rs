@@ -63,8 +63,8 @@ impl ZKAPIError {
     }
 }
 
+#[verifier(external)]
 impl std::fmt::Debug for ZKAPIError {
-    #[verifier(external)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             ZKAPIError::ZKNodeExistsFailed => write!(f, "ZKNodeExistsFailed"),
