@@ -16,13 +16,12 @@ verus! {
 /// * `ActionInput`: The input to feed to the action. It might be a compound of `Input` and other types.
 /// * `Output`: The output to send to the external world of the state machine. For example a set of messages.
 /// * `Step`: The step binding variable that the state machine chooses to decide the action.
-pub struct StateMachine <
-    #[verifier(maybe_negative)] State,
-    #[verifier(maybe_negative)] Input,
-    #[verifier(maybe_negative)] ActionInput,
-    #[verifier(maybe_negative)] Output,
-    #[verifier(maybe_negative)] Step,
-> {
+#[verifier(reject_recursive_types(State))]
+#[verifier(reject_recursive_types(Input))]
+#[verifier(reject_recursive_types(ActionInput))]
+#[verifier(reject_recursive_types(Output))]
+#[verifier(reject_recursive_types(Step))]
+pub struct StateMachine <State, Input, ActionInput, Output, Step> {
     /// Check if it is the initial internal state.
     pub init: spec_fn(State) -> bool,
 
@@ -65,7 +64,9 @@ impl<State, Input, ActionInput, Output, Step> StateMachine<State, Input, ActionI
 
 /// `NetworkStateMachine` is similar to `StateMachine` except that it has only one action `deliver`
 /// and there is no need for `step_to_action` or `action_input`.
-pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] MessageOps> {
+#[verifier(reject_recursive_types(State))]
+#[verifier(reject_recursive_types(MessageOps))]
+pub struct NetworkStateMachine <State, MessageOps> {
     /// Check if it is the initial internal state.
     pub init: spec_fn(State) -> bool,
 
