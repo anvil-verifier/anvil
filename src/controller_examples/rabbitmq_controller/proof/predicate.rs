@@ -54,7 +54,7 @@ pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: Rabbitm
     }
 }
 
-pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(RabbitmqReconcileState) -> bool {
+pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> spec_fn(RabbitmqReconcileState) -> bool {
     |s: RabbitmqReconcileState| s.reconcile_step == step
 }
 

@@ -107,11 +107,10 @@ impl FluentBitConfig {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::FluentBitConfig> for FluentBitConfig {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::FluentBitConfig) -> FluentBitConfig { FluentBitConfig { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::FluentBitConfig { self.inner }
 }
 

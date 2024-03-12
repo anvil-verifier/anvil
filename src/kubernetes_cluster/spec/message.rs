@@ -420,7 +420,7 @@ pub open spec fn external_resp_msg_content(resp: O, resp_id: RestId) -> MessageC
 
 }
 
-pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>| {
         &&& msg.content.get_rest_id() < rest_id
         &&& {
@@ -430,7 +430,7 @@ pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message
     }
 }
 
-pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_create_request()
@@ -440,28 +440,28 @@ pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -
         && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
 }
 
-pub open spec fn update_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn update_msg_for<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key() == key
 }
 
-pub open spec fn update_status_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn update_status_msg_for<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_update_status_request()
         && msg.content.get_update_status_request().key() == key
 }
 
-pub open spec fn delete_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn delete_msg_for<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_delete_request()
         && msg.content.get_delete_request().key == key
 }
 
-pub open spec fn update_status_msg_from_bc_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn update_status_msg_from_bc_for<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.src.is_BuiltinController()
@@ -477,14 +477,14 @@ pub open spec fn received_msg_destined_for<I, O>(recv: Option<Message<I, O>>, ho
     }
 }
 
-pub open spec fn resource_get_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn resource_get_request_msg<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_get_request()
         && msg.content.get_get_request().key == key
 }
 
-pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_create_request()
@@ -493,21 +493,21 @@ pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> FnSpec(Mes
         && msg.content.get_create_request().obj.kind == key.kind
 }
 
-pub open spec fn resource_update_status_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn resource_update_status_request_msg<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_update_status_request()
         && msg.content.get_update_status_request().key() == key
 }
 
-pub open spec fn resource_update_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn resource_update_request_msg<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key() == key
 }
 
-pub open spec fn resource_delete_request_msg<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+pub open spec fn resource_delete_request_msg<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_delete_request()

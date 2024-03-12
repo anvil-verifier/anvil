@@ -134,11 +134,10 @@ impl ZookeeperCluster {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::ZookeeperCluster) -> ZookeeperCluster { ZookeeperCluster { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperCluster { self.inner }
 }
 

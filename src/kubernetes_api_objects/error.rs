@@ -21,8 +21,8 @@ pub enum APIError {
     Other
 }
 
+#[verifier(external)]
 impl std::fmt::Debug for APIError {
-    #[verifier(external)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             APIError::BadRequest => write!(f, "BadRequest"),
@@ -47,8 +47,8 @@ pub enum ParseDynamicObjectError {
     ExecError,
 }
 
+#[verifier(external)]
 impl std::fmt::Debug for ParseDynamicObjectError {
-    #[verifier(external)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             ParseDynamicObjectError::MissingField => write!(f, "MissingField"),

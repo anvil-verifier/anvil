@@ -92,8 +92,8 @@ impl View for ZKAPIOutput {
 
 pub struct ZKAPIShimLayer {}
 
+#[verifier(external)]
 impl ExternalAPIShimLayer<ZKAPIInput, ZKAPIOutput> for ZKAPIShimLayer {
-    #[verifier(external)]
     fn call_external_api(input: ZKAPIInput) -> ZKAPIOutput {
         match input {
             ZKAPIInput::ExistsRequest(zk_name, zk_namespace, port, path)
@@ -107,8 +107,9 @@ impl ExternalAPIShimLayer<ZKAPIInput, ZKAPIOutput> for ZKAPIShimLayer {
 }
 
 struct NoopWatcher;
+
+#[verifier(external)]
 impl Watcher for NoopWatcher {
-    #[verifier(external)]
     fn handle(&self, _e: WatchedEvent) {}
 }
 

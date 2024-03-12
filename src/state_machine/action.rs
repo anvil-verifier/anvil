@@ -7,12 +7,15 @@ use vstd::prelude::*;
 
 verus! {
 
-pub struct Action<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input, #[verifier(maybe_negative)] Output> {
+#[verifier(reject_recursive_types(State))]
+#[verifier(reject_recursive_types(Input))]
+#[verifier(reject_recursive_types(Output))]
+pub struct Action<State, Input, Output> {
     /// The condition that enables the host action.
-    pub precondition: FnSpec(Input, State) -> bool,
+    pub precondition: spec_fn(Input, State) -> bool,
 
     /// The new internal state and output made by the transition.
-    pub transition: FnSpec(Input, State) -> (State, Output),
+    pub transition: spec_fn(Input, State) -> (State, Output),
 }
 
 impl<State, Input, Output> Action<State, Input, Output> {

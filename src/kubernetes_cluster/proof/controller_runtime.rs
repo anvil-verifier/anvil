@@ -65,7 +65,7 @@ pub open spec fn at_reconcile_state(key: ObjectRef, state: R::T) -> StatePred<Se
     }
 }
 
-pub open spec fn at_expected_reconcile_states(key: ObjectRef, expected_states: FnSpec(R::T) -> bool) -> StatePred<Self>
+pub open spec fn at_expected_reconcile_states(key: ObjectRef, expected_states: spec_fn(R::T) -> bool) -> StatePred<Self>
     recommends
         key.kind.is_CustomResourceKind()
 {
@@ -94,7 +94,7 @@ pub open spec fn no_pending_req_msg(s: Self, key: ObjectRef) -> bool {
     s.ongoing_reconciles()[key].pending_req_msg.is_None()
 }
 
-pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state: FnSpec(R::T) -> bool) -> StatePred<Self>
+pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state: spec_fn(R::T) -> bool) -> StatePred<Self>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -121,7 +121,7 @@ pub open spec fn request_sent_by_controller(msg: MsgType<E>) -> bool {
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool, req_msg: MsgType<E>
+    key: ObjectRef, state: spec_fn(R::T) -> bool, req_msg: MsgType<E>
 ) -> StatePred<Self> {
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
@@ -132,7 +132,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(
 }
 
 pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool
+    key: ObjectRef, state: spec_fn(R::T) -> bool
 ) -> StatePred<Self>
     recommends
         key.kind.is_CustomResourceKind(),
@@ -152,7 +152,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
 }
 
 pub open spec fn no_pending_req_msg_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool
+    key: ObjectRef, state: spec_fn(R::T) -> bool
 ) -> StatePred<Self>
     recommends
         key.kind.is_CustomResourceKind(),
@@ -164,7 +164,7 @@ pub open spec fn no_pending_req_msg_at_reconcile_state(
 }
 
 pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool
+    key: ObjectRef, state: spec_fn(R::T) -> bool
 ) -> StatePred<Self>
     recommends
         key.kind.is_CustomResourceKind(),

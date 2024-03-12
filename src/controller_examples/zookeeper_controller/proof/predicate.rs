@@ -27,7 +27,7 @@ pub open spec fn sub_resource_state_matches(sub_resource: SubResource, zk: Zooke
     }
 }
 
-pub open spec fn at_step_closure(step: ZookeeperReconcileStep) -> FnSpec(ZookeeperReconcileState) -> bool {
+pub open spec fn at_step_closure(step: ZookeeperReconcileStep) -> spec_fn(ZookeeperReconcileState) -> bool {
     |s: ZookeeperReconcileState| s.reconcile_step == step
 }
 
@@ -333,7 +333,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_ste
     }
 }
 
-pub open spec fn zk_set_data_request_msg(zk: ZookeeperClusterView) -> FnSpec(ZKMessage) -> bool {
+pub open spec fn zk_set_data_request_msg(zk: ZookeeperClusterView) -> spec_fn(ZKMessage) -> bool {
     |msg: ZKMessage|
         msg.dst.is_ExternalAPI()
         && msg.content.is_ExternalAPIRequest()
@@ -342,7 +342,7 @@ pub open spec fn zk_set_data_request_msg(zk: ZookeeperClusterView) -> FnSpec(ZKM
         && msg.content.get_ExternalAPIRequest_0().get_SetDataRequest_1() == zk.metadata.namespace.get_Some_0()
 }
 
-pub open spec fn zk_create_node_request_msg(zk: ZookeeperClusterView) -> FnSpec(ZKMessage) -> bool {
+pub open spec fn zk_create_node_request_msg(zk: ZookeeperClusterView) -> spec_fn(ZKMessage) -> bool {
     |msg: ZKMessage|
         msg.dst.is_ExternalAPI()
         && msg.content.is_ExternalAPIRequest()

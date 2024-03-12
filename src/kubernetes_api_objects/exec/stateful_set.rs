@@ -133,13 +133,12 @@ impl StatefulSet {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSet> for StatefulSet {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet) -> StatefulSet {
         StatefulSet { inner: inner }
     }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
         self.inner
     }
@@ -301,13 +300,12 @@ impl StatefulSetSpec {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for StatefulSetSpec {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec) -> StatefulSetSpec {
         StatefulSetSpec { inner: inner }
     }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
         self.inner
     }
@@ -350,11 +348,10 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy { StatefulSetPersistentVolumeClaimRetentionPolicy { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy { self.inner }
 }
 
@@ -376,11 +373,10 @@ impl StatefulSetStatus {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus> for StatefulSetStatus {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus { StatefulSetStatus { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus { self.inner }
 }
 

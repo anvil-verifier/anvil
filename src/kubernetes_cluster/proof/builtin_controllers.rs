@@ -24,7 +24,7 @@ impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, 
 ///
 /// For example, in some lemma we use msg.content.get_update_request().obj.kind == key.kind, so this requirement is added here.
 pub open spec fn every_update_msg_sets_owner_references_as(
-    key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
+    key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -35,7 +35,7 @@ pub open spec fn every_update_msg_sets_owner_references_as(
 }
 
 pub open spec fn every_create_msg_sets_owner_references_as(
-    key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
+    key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -45,13 +45,13 @@ pub open spec fn every_create_msg_sets_owner_references_as(
     }
 }
 
-pub open spec fn objects_owner_references_satisfies(key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool) -> StatePred<Self> {
+pub open spec fn objects_owner_references_satisfies(key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool) -> StatePred<Self> {
     |s: Self| {
         s.resources().contains_key(key) ==> requirements(s.resources()[key].metadata.owner_references)
     }
 }
 
-pub open spec fn objects_owner_references_violates(key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool) -> StatePred<Self> {
+pub open spec fn objects_owner_references_violates(key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool) -> StatePred<Self> {
     |s: Self| {
         s.resources().contains_key(key) && !requirements(s.resources()[key].metadata.owner_references)
     }
@@ -104,7 +104,7 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 ///
 /// This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
-    spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
+    spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 )
     requires
         spec.entails(always(lift_state(Self::busy_disabled()))),
@@ -215,7 +215,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
 }
 
 proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
-    spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
+    spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 )
     requires
         spec.entails(always(lift_state(Self::busy_disabled()))),

@@ -107,11 +107,10 @@ impl DaemonSet {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSet> for DaemonSet {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSet) -> DaemonSet { DaemonSet { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSet { self.inner }
 }
 
@@ -166,11 +165,10 @@ impl DaemonSetSpec {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec> for DaemonSetSpec {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec) -> DaemonSetSpec { DaemonSetSpec { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec { self.inner }
 }
 
@@ -190,11 +188,10 @@ impl DaemonSetStatus {
     }
 }
 
+#[verifier(external)]
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus> for DaemonSetStatus {
-    #[verifier(external)]
     fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus) -> DaemonSetStatus { DaemonSetStatus { inner: inner } }
 
-    #[verifier(external)]
     fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus { self.inner }
 }
 
