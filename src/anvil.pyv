@@ -106,6 +106,14 @@ mutable relation stable_resources(kind, string, string)
 mutable relation rest_id_used(rest_id) # rest id counter
 
 mutable relation get_request(rest_id, host, kind, string, string)
+init !get_request(
+    V1,
+    V2,
+    V3,
+    V4,
+    V5
+    )
+
 mutable relation create_request(rest_id, host, string,
     # DynamicObjectView
     kind,
@@ -316,6 +324,7 @@ transition client_create_custom_resource(
         )
     )
 
+# if you have a create request, then its rest_id is already used
 invariant forall any_rest_id, any_host, any_ns_in_req,
         # DynamicObjectView
         any_kind,
@@ -460,35 +469,6 @@ invariant forall any_rest_id, any_host, any_ns_in_req, any_name_in_req,
                 any_spec_json_value,
                 # status
                 any_status_json_value
-        ) -> rest_id_used(any_rest_id) 
-invariant forall any_rest_id, any_host, any_ns_in_req, any_name_in_req,
-        # DynamicObjectView
-        any_kind,
-        # metadata
-        any_name_in_obj, # name in ObjectMeta
-        any_ns_in_obj, # namespace in ObjectMeta
-        any_resource_version,
-        any_uid,
-        # owner_reference in ObjectMeta
-        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
-        # spec
-        any_spec_json_value,
-        # status
-        any_status_json_value.
-        update_request(any_rest_id, any_host, any_ns_in_req, any_name_in_req,
-                # DynamicObjectView
-                any_kind,
-                # metadata
-                any_name_in_obj, # name in ObjectMeta
-                any_ns_in_obj, # namespace in ObjectMeta
-                any_resource_version,
-                any_uid,
-                # owner_reference in ObjectMeta
-                any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
-                # spec
-                any_spec_json_value,
-                # status
-                any_status_json_value
         ) -> rest_id_used(any_rest_id)
 
 transition client_delete_custom_resource(
@@ -515,6 +495,23 @@ transition client_delete_custom_resource(
             )
         )
     )
-invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
-        delete_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
+# invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
+#        delete_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
 
+invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
+        get_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
+
+# Safety property: rest_id is unique among requests and responses
+# Verus version is also called in_flight_msg_has_unique_id
+invariant forall any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2.
+        get_request(any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1) 
+        & get_request(any_rest_id, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2)
+        -> any_host1 = any_host2 & any_kind1 = any_kind2 & any_name_in_req1 = any_name_in_req2 & any_ns_in_req1 = any_ns_in_req2
+
+
+# Safety property: rest_id is unique among requests and responses
+# Verus version is also called in_flight_msg_has_unique_id
+invariant forall any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2.
+        delete_request(any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1) 
+        & delete_request(any_rest_id, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2)
+        -> any_host1 = any_host2 & any_kind1 = any_kind2 & any_name_in_req1 = any_name_in_req2 & any_ns_in_req1 = any_ns_in_req2
