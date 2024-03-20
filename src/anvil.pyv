@@ -68,8 +68,8 @@ mutable relation resource_version_used(resource_version) # rv counter
 mutable relation cluster_state_objects(
     # ObjectRef
     kind,
-    string,
-    string,
+    string, # name
+    string, # namespace
     # DynamicObjectView
     kind,
     # metadata
@@ -200,7 +200,7 @@ mutable relation update_status_request(rest_id, host, string, string,
     json_value)
 
 mutable relation error_response(rest_id, host)
-
+# one response type for get/create/update requests
 mutable relation get_create_update_response(rest_id, host,
     # DynamicObjectView
     kind,
@@ -215,6 +215,20 @@ mutable relation get_create_update_response(rest_id, host,
     json_value,
     # status
     json_value)
+init !get_create_update_response(
+    V1,
+    V2,
+    V3,
+    V4,
+    V5,
+    V6,
+    V7,
+    V8,
+    V9,
+    V10,
+    V11,
+    V12
+    )
 mutable relation delete_response(rest_id, host)
 
 # auxiliary state
@@ -495,23 +509,270 @@ transition client_delete_custom_resource(
             )
         )
     )
-# invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
-#        delete_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
+invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
+       delete_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
 
 invariant forall any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req.
         get_request(any_rest_id, any_host, any_kind, any_ns_in_req, any_name_in_req) -> rest_id_used(any_rest_id)
 
-# Safety property: rest_id is unique among requests and responses
+# Safety property: rest_id is unique among get requests
 # Verus version is also called in_flight_msg_has_unique_id
 invariant forall any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2.
         get_request(any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1) 
         & get_request(any_rest_id, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2)
         -> any_host1 = any_host2 & any_kind1 = any_kind2 & any_name_in_req1 = any_name_in_req2 & any_ns_in_req1 = any_ns_in_req2
 
+# Safety property: rest_id is unique among create requests
+# Verus version is also called in_flight_msg_has_unique_id
+invariant forall any_rest_id,
+        any_host1,
+        any_ns_in_req1,
+        # DynamicObjectView
+        any_kind1,
+        # metadata
+        any_name_in_obj1, # name in ObjectMeta
+        any_ns_in_obj1, # namespace in ObjectMeta
+        any_resource_version1,
+        any_uid1,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind1, any_owner_ref_name1, any_owner_ref_uid1,
+        # spec
+        any_spec_json_value1,
+        # status
+        any_status_json_value1,
+        any_host2,
+        any_ns_in_req2,
+        # DynamicObjectView
+        any_kind2,
+        # metadata
+        any_name_in_obj2, # name in ObjectMeta
+        any_ns_in_obj2, # namespace in ObjectMeta
+        any_resource_version2,
+        any_uid2,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind2, any_owner_ref_name2, any_owner_ref_uid2,
+        # spec
+        any_spec_json_value2,
+        # status
+        any_status_json_value2.
+        create_request(any_rest_id, any_host1, any_ns_in_req1,
+                # DynamicObjectView
+                any_kind1,
+                # metadata
+                any_name_in_obj1, # name in ObjectMeta
+                any_ns_in_obj1, # namespace in ObjectMeta
+                any_resource_version1,
+                any_uid1,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind1, any_owner_ref_name1, any_owner_ref_uid1,
+                # spec
+                any_spec_json_value1,
+                # status
+                any_status_json_value1
+        )
+        & create_request(any_rest_id, any_host2, any_ns_in_req2,
+                # DynamicObjectView
+                any_kind2,
+                # metadata
+                any_name_in_obj2, # name in ObjectMeta
+                any_ns_in_obj2, # namespace in ObjectMeta
+                any_resource_version2,
+                any_uid2,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind2, any_owner_ref_name2, any_owner_ref_uid2,
+                # spec
+                any_spec_json_value2,
+                # status
+                any_status_json_value2
+        ) -> any_host1 = any_host2 & any_kind1 = any_kind2 & any_name_in_obj1 = any_name_in_obj2 & any_ns_in_obj1 = any_ns_in_obj2
+        & any_resource_version1 = any_resource_version2 & any_uid1 = any_uid2 & any_owner_ref_kind1 = any_owner_ref_kind2
+        & any_owner_ref_name1 = any_owner_ref_name2 & any_owner_ref_uid1 = any_owner_ref_uid2
+        & any_spec_json_value1 = any_spec_json_value2 & any_status_json_value1 = any_status_json_value2
 
-# Safety property: rest_id is unique among requests and responses
+# Safety property: rest_id is unique among update requests
+# Verus version is also called in_flight_msg_has_unique_id
+invariant forall any_rest_id,
+        any_host1,
+        any_ns_in_req1,
+        any_name_in_req1,
+        # DynamicObjectView
+        any_kind1,
+        # metadata
+        any_name_in_obj1, # name in ObjectMeta
+        any_ns_in_obj1, # namespace in ObjectMeta
+        any_resource_version1,
+        any_uid1,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind1, any_owner_ref_name1, any_owner_ref_uid1,
+        # spec
+        any_spec_json_value1,
+        # status
+        any_status_json_value1,
+        any_host2,
+        any_ns_in_req2,
+        any_name_in_req2,
+        # DynamicObjectView
+        any_kind2,
+        # metadata
+        any_name_in_obj2, # name in ObjectMeta
+        any_ns_in_obj2, # namespace in ObjectMeta
+        any_resource_version2,
+        any_uid2,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind2, any_owner_ref_name2, any_owner_ref_uid2,
+        # spec
+        any_spec_json_value2,
+        # status
+        any_status_json_value2.
+        update_request(any_rest_id, any_host1, any_ns_in_req1,
+                any_name_in_req1,
+                # DynamicObjectView
+                any_kind1,
+                # metadata
+                any_name_in_obj1, # name in ObjectMeta
+                any_ns_in_obj1, # namespace in ObjectMeta
+                any_resource_version1,
+                any_uid1,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind1, any_owner_ref_name1, any_owner_ref_uid1,
+                # spec
+                any_spec_json_value1,
+                # status
+                any_status_json_value1
+        )
+        & update_request(any_rest_id, any_host2, any_ns_in_req2,
+                any_name_in_req2,
+                # DynamicObjectView
+                any_kind2,
+                # metadata
+                any_name_in_obj2, # name in ObjectMeta
+                any_ns_in_obj2, # namespace in ObjectMeta
+                any_resource_version2,
+                any_uid2,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind2, any_owner_ref_name2, any_owner_ref_uid2,
+                # spec
+                any_spec_json_value2,
+                # status
+                any_status_json_value2
+        ) -> any_host1 = any_host2 & any_kind1 = any_kind2 & any_name_in_obj1 = any_name_in_obj2 & any_ns_in_obj1 = any_ns_in_obj2
+        & any_resource_version1 = any_resource_version2 & any_uid1 = any_uid2 & any_owner_ref_kind1 = any_owner_ref_kind2
+        & any_owner_ref_name1 = any_owner_ref_name2 & any_owner_ref_uid1 = any_owner_ref_uid2
+        & any_spec_json_value1 = any_spec_json_value2 & any_status_json_value1 = any_status_json_value2
+
+
+# Safety property: rest_id is unique among delete requests
 # Verus version is also called in_flight_msg_has_unique_id
 invariant forall any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2.
         delete_request(any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1) 
         & delete_request(any_rest_id, any_host2, any_kind2, any_ns_in_req2, any_name_in_req2)
         -> any_host1 = any_host2 & any_kind1 = any_kind2 & any_name_in_req1 = any_name_in_req2 & any_ns_in_req1 = any_ns_in_req2
+
+# TODO: add six pairs showing there are no different requests with the same rest_id, also for the response
+invariant forall any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1, any_host2,
+        any_ns_in_req2,
+        # DynamicObjectView
+        any_kind2,
+        # metadata
+        any_name_in_obj2, # name in ObjectMeta
+        any_ns_in_obj2, # namespace in ObjectMeta
+        any_resource_version2,
+        any_uid2,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind2, any_owner_ref_name2, any_owner_ref_uid2,
+        # spec
+        any_spec_json_value2,
+        # status
+        any_status_json_value2.
+        get_request(any_rest_id, any_host1, any_kind1, any_ns_in_req1, any_name_in_req1)
+        & create_request(any_rest_id, any_host2, any_ns_in_req2,
+                # DynamicObjectView
+                any_kind2,
+                # metadata
+                any_name_in_obj2, # name in ObjectMeta
+                any_ns_in_obj2, # namespace in ObjectMeta
+                any_resource_version2,
+                any_uid2,
+                # owner_reference in ObjectMeta
+                any_owner_ref_kind2, any_owner_ref_name2, any_owner_ref_uid2,
+                # spec
+                any_spec_json_value2,
+                # status
+                any_status_json_value2
+        ) -> false
+
+# The API server's transitions
+# for handling get requests
+transition handle_get_request_success(
+    id: rest_id, h: host, k: kind, ns: string, name: string, rv: resource_version, object_uid: uid,
+    owner_k: kind, owner_name: string, owner_uid: uid, spec: json_value, status: json_value
+)
+    modifies get_request, get_create_update_response
+    & get_request(id, h, k, ns, name)
+    & cluster_state_objects(k, name, ns, k, name, ns, rv, object_uid, owner_k, owner_name, owner_uid, spec, status)
+    & (forall any_id, any_h, any_k, any_ns, any_name.
+        get_request'(any_id, any_h, any_k, any_ns, any_name) <->
+        (
+            get_request(any_id, any_h, any_k, any_ns, any_name)
+            & !(any_id = id & any_h = h & any_k = k & any_ns = ns & any_name = name)
+        )
+    )
+    & (forall any_rest_id, any_host,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name, # name in ObjectMeta
+        any_ns, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value.
+        get_create_update_response'(any_rest_id, any_host,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name, # name in ObjectMeta
+        any_ns, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value) <->
+        (get_create_update_response(any_rest_id, any_host,
+        # DynamicObjectView
+        any_kind,
+        # metadata
+        any_name, # name in ObjectMeta
+        any_ns, # namespace in ObjectMeta
+        any_resource_version,
+        any_uid,
+        # owner_reference in ObjectMeta
+        any_owner_ref_kind, any_owner_ref_name, any_owner_ref_uid,
+        # spec
+        any_spec_json_value,
+        # status
+        any_status_json_value) | (
+            any_rest_id = id
+            & any_host = h
+            & any_kind = k
+            & any_name = name
+            & any_ns = ns
+            & any_resource_version = rv
+            & any_uid = object_uid
+            & any_owner_ref_kind = owner_k
+            & any_owner_ref_name = owner_name
+            & any_owner_ref_uid = owner_uid
+            & any_spec_json_value = spec
+            & any_status_json_value = status
+        ))
+    )
+
+# TODO: invariants relating requests and response and rest_id_used
+# TODO: more transitions for other handling logic
