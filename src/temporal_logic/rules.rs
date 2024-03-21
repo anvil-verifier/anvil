@@ -1352,7 +1352,7 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
 
 /// Get the initial leads_to.
 /// pre:
-///     spec |= [](p /\ next => p' /\ q')
+///     spec |= [](p /\ next => p' \/ q')
 ///     spec |= [](p /\ next /\ forward => q')
 ///     spec |= []next
 ///     spec |= []p ~> forward
@@ -1421,7 +1421,7 @@ pub proof fn wf1_variant_borrow_from_spec_temp<T>(spec: TempPred<T>, next: TempP
 
 /// Get the initial leads_to with a stronger wf assumption than wf1_variant.
 /// pre:
-///     |= p /\ next => p' /\ q'
+///     |= p /\ next => p' \/ q'
 ///     |= p /\ next /\ forward => q'
 ///     |= p => enabled(forward)
 ///     spec |= []next
