@@ -11,8 +11,10 @@ verus! {
 // request type of a reconciler.
 // Similarly, Output is the output type of the external api, which composes the Response<?> type of a reconciler.
 // Note that we can encapsulate all the required libraries here, so each reconciler only has one ExternalAPI type.
-pub trait ExternalAPIShimLayer<Input: View, Output: View> {
-    fn call_external_api(input: Input) -> Output;
+pub trait ExternalAPIShimLayer {
+    type Input: View;
+    type Output: View;
+    fn call_external_api(input: Self::Input) -> Self::Output;
 }
 
 // An empty library that implements External Library.
@@ -20,7 +22,9 @@ pub trait ExternalAPIShimLayer<Input: View, Output: View> {
 // Users can define a reconciler as Reconciler<xx, xx, EmptyType, EmptyType, EmptyAPI>.
 pub struct EmptyAPIShimLayer {}
 
-impl ExternalAPIShimLayer<EmptyType, EmptyType> for EmptyAPIShimLayer {
+impl ExternalAPIShimLayer for EmptyAPIShimLayer {
+    type Input = EmptyType;
+    type Output = EmptyType;
     fn call_external_api(_input: EmptyType) -> EmptyType {
         EmptyType {}
     }

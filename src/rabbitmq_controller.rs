@@ -39,11 +39,11 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::RabbitmqCluster::crd())?);
     } else if cmd == String::from("run") {
         println!("running rabbitmq-controller");
-        run_controller::<deps_hack::RabbitmqCluster, RabbitmqCluster, RabbitmqReconciler, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(false).await?;
+        run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler>(false).await?;
         println!("controller terminated");
     } else if cmd == String::from("crash") {
         println!("running rabbitmq-controller in crash-testing mode");
-        run_controller::<deps_hack::RabbitmqCluster, RabbitmqCluster, RabbitmqReconciler, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(true).await?;
+        run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler>(true).await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\", \"run\" or \"crash\"");

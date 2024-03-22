@@ -24,7 +24,11 @@ verus! {
 
 pub struct RabbitmqReconciler {}
 
-impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
+impl Reconciler for RabbitmqReconciler {
+    type R = RabbitmqCluster;
+    type T = RabbitmqReconcileState;
+    type ExternalAPIType = EmptyAPIShimLayer;
+
     open spec fn well_formed(rabbitmq: &RabbitmqCluster) -> bool { rabbitmq@.well_formed() }
 
     fn reconcile_init_state() -> RabbitmqReconcileState {
