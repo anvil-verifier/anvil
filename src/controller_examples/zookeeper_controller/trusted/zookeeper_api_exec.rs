@@ -93,7 +93,9 @@ impl View for ZKAPIOutput {
 pub struct ZKAPIShimLayer {}
 
 #[verifier(external)]
-impl ExternalAPIShimLayer<ZKAPIInput, ZKAPIOutput> for ZKAPIShimLayer {
+impl ExternalAPIShimLayer for ZKAPIShimLayer {
+    type Input = ZKAPIInput;
+    type Output = ZKAPIOutput;
     fn call_external_api(input: ZKAPIInput) -> ZKAPIOutput {
         match input {
             ZKAPIInput::ExistsRequest(zk_name, zk_namespace, port, path)

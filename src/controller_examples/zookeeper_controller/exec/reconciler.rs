@@ -25,7 +25,11 @@ verus! {
 
 pub struct ZookeeperReconciler {}
 
-impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, ZKAPIInput, ZKAPIOutput, ZKAPIShimLayer> for ZookeeperReconciler {
+impl Reconciler for ZookeeperReconciler {
+    type R = ZookeeperCluster;
+    type T = ZookeeperReconcileState;
+    type ExternalAPIType = ZKAPIShimLayer;
+
     open spec fn well_formed(zk: &ZookeeperCluster) -> bool { zk@.well_formed() }
 
     fn reconcile_init_state() -> ZookeeperReconcileState {
