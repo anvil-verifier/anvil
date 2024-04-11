@@ -1,4 +1,4 @@
-name: Controller build
+name: Artifact evaluation image build
 on:
   workflow_dispatch:
 env:
