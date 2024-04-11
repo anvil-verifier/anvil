@@ -17,9 +17,9 @@ jobs:
       - name: Build artifact evaluation image
         run: |
           cp docker/ae/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/ae:latest .
-          docker tag ghcr.io/${{ env.IMAGE_NAME }}/ae:latest ghcr.io/${{ env.IMAGE_NAME }}/ae:${{ github.sha }}
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/anvil-ae:latest .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/anvil-ae:latest ghcr.io/${{ env.IMAGE_NAME }}/anvil-ae:${{ github.sha }}
       - name: Push artifact evaluation image
         run: |
-          docker push ghcr.io/${{ env.IMAGE_NAME }}/ae:latest
-          docker push ghcr.io/${{ env.IMAGE_NAME }}/ae:${{ github.sha }}
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/anvil-ae:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/anvil-ae:${{ github.sha }}
