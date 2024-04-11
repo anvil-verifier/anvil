@@ -12,7 +12,7 @@ def main():
     zk_raw_data = json.load(open("zookeeper.json"))
     rmq_raw_data = json.load(open("rabbitmq.json"))
     fb_raw_data = json.load(open("fluent.json"))
-    anvil_raw_data = json.load(open("lib.json"))
+    anvil_raw_data = json.load(open("anvil.json"))
     print("ZooKeeper:")
     print("Liveness & {}".format(zk_data["Liveness"] / 1000))
     print("Safety & {}".format(zk_data["Safety"] / 1000))

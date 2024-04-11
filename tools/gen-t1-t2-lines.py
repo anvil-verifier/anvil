@@ -12,7 +12,7 @@ def count_total_lines(data):
 
 def gen_for_controller(controller):
     os.system(
-        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/{}_table {}".format(
+        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/{}_loc_table {}".format(
             controller, controller
         )
     )
@@ -94,7 +94,7 @@ def main():
     gen_for_controller("fluent")
 
     os.system(
-        "python3 count-anvil-lines.py $VERUS_DIR/source/tools/line_count/lib_table"
+        "python3 count-anvil-lines.py $VERUS_DIR/source/tools/line_count/anvil_loc_table"
     )
     anvil_data = json.load(open("anvil-lines.json"))
     total_lines = count_total_lines(anvil_data)
