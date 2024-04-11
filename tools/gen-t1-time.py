@@ -1,6 +1,8 @@
 import os
 import json
 
+indent = "    "
+
 
 def main():
     os.system("python3 count-time.py zookeeper.json zookeeper")
@@ -13,31 +15,45 @@ def main():
     rmq_raw_data = json.load(open("rabbitmq.json"))
     fb_raw_data = json.load(open("fluent.json"))
     anvil_raw_data = json.load(open("anvil.json"))
-    print("ZooKeeper:")
-    print("Liveness & {}".format(zk_data["Liveness"] / 1000))
-    print("Safety & {}".format(zk_data["Safety"] / 1000))
-    print("Conformance & {}".format(zk_data["Impl"] / 1000))
+    print("ZooKeeper controller:")
+    print(indent + "Liveness & {}".format(zk_data["Liveness"] / 1000))
+    print(indent + "Safety & {}".format(zk_data["Safety"] / 1000))
+    print(indent + "Conformance & {}".format(zk_data["Impl"] / 1000))
     print(
-        "Total & {} ({})".format(
+        indent
+        + "Total & {} ({})".format(
             zk_data["Total"] / 1000, zk_raw_data["times-ms"]["total"] / 1000
         )
     )
-    print("RabbitMQ:")
-    print("Liveness & {}".format(rmq_data["Liveness"] / 1000))
-    print("Safety & {}".format(rmq_data["Safety"] / 1000))
-    print("Conformance & {}".format(rmq_data["Impl"] / 1000))
+    print("RabbitMQ controller:")
+    print(indent + "Liveness & {}".format(rmq_data["Liveness"] / 1000))
+    print(indent + "Safety & {}".format(rmq_data["Safety"] / 1000))
+    print(indent + "Conformance & {}".format(rmq_data["Impl"] / 1000))
     print(
-        "Total & {} ({})".format(
+        indent
+        + "Total & {} ({})".format(
             rmq_data["Total"] / 1000, rmq_raw_data["times-ms"]["total"] / 1000
         )
     )
-    print("Fluent:")
-    print("Liveness & {}".format(fb_data["Liveness"] / 1000))
-    print("Safety & {}".format(fb_data["Safety"] / 1000))
-    print("Conformance & {}".format(fb_data["Impl"] / 1000))
+    print("Fluent controller:")
+    print(indent + "Liveness & {}".format(fb_data["Liveness"] / 1000))
+    print(indent + "Safety & {}".format(fb_data["Safety"] / 1000))
+    print(indent + "Conformance & {}".format(fb_data["Impl"] / 1000))
     print(
-        "Total & {} ({})".format(
+        indent
+        + "Total & {} ({})".format(
             fb_data["Total"] / 1000, fb_raw_data["times-ms"]["total"] / 1000
+        )
+    )
+    print(
+        "Total(all) & {} ({})".format(
+            (zk_data["Total"] + rmq_data["Total"] + fb_data["Total"]) / 1000,
+            (
+                zk_raw_data["times-ms"]["total"]
+                + rmq_raw_data["times-ms"]["total"]
+                + fb_raw_data["times-ms"]["total"]
+            )
+            / 1000,
         )
     )
     # print("Anvil:")

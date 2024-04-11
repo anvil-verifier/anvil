@@ -1,6 +1,16 @@
 import os
 import json
 
+indent = "    "
+
+count_missed_lines = False
+
+cap_controllers = {
+    "zookeeper": "ZooKeeper controller",
+    "rabbitmq": "RabbitMQ controller",
+    "fluent": "Fluent controller",
+}
+
 
 def count_total_lines(data):
     lines = 0
@@ -18,74 +28,138 @@ def gen_for_controller(controller):
     )
     data = json.load(open("{}-loc.json".format(controller)))
 
-    total_lines = count_total_lines(data)
-    total_lines -= data["liveness_inv"]["Proof"]
+    total = {
+        "Trusted": 0,
+        "Exec": 0,
+        "Proof": 0,
+    }
+    if count_missed_lines:
+        missed_lines = count_total_lines(data)
+        missed_lines -= data["liveness_inv"]["Proof"]
 
-    print("{}:".format(controller))
+    print("{}:".format(cap_controllers[controller]))
+
+    # Count LoC for liveness proof
     print(
-        "Liveness & {} & -- & {}".format(
+        indent
+        + "Liveness & {} & -- & {}".format(
             data["liveness_theorem"]["Trusted"],
             data["liveness_proof"]["Proof"],
         )
     )
-    total_lines -= data["liveness_theorem"]["Trusted"]
-    total_lines -= data["liveness_proof"]["Proof"]
+    total["Trusted"] += data["liveness_theorem"]["Trusted"]
+    total["Proof"] += data["liveness_proof"]["Proof"]
+    if count_missed_lines:
+        missed_lines -= data["liveness_theorem"]["Trusted"]
+        missed_lines -= data["liveness_proof"]["Proof"]
 
     if controller == "rabbitmq":
+        # Count LoC for safety proof for RabbitMQ controller only
         print(
-            "Safety & {} & -- & {}".format(
+            indent
+            + "Safety & {} & -- & {}".format(
                 data["safety_theorem"]["Trusted"],
                 data["safety_proof"]["Proof"],
             )
         )
-        total_lines -= data["safety_theorem"]["Trusted"]
-        total_lines -= data["safety_proof"]["Proof"]
+        total["Trusted"] += data["safety_theorem"]["Trusted"]
+        total["Proof"] += data["safety_proof"]["Proof"]
+        if count_missed_lines:
+            missed_lines -= data["safety_theorem"]["Trusted"]
+            missed_lines -= data["safety_proof"]["Proof"]
 
     if controller == "fluent":
+        # Count LoC for conformance proof
+        # for Fluent controller only because its conformance theorem takes 10 lines (it has two reconcile loops)
         print(
-            "Conformance & 10 & -- & {}".format(
+            indent
+            + "Conformance & 10 & -- & {}".format(
                 data["reconcile_impl"]["Proof"] - 10,
             )
         )
+        total["Trusted"] += 10
+        total["Proof"] += data["reconcile_impl"]["Proof"] - 10
     else:
+        # Count LoC for conformance proof for the other two controllers whose conformance theorem takes only 5 lines
         print(
-            "Conformance & 5 & -- & {}".format(
+            indent
+            + "Conformance & 5 & -- & {}".format(
                 data["reconcile_impl"]["Proof"] - 5,
             )
         )
-    total_lines -= data["reconcile_impl"]["Proof"]
+        total["Trusted"] += 5
+        total["Proof"] += data["reconcile_impl"]["Proof"] - 5
+    if count_missed_lines:
+        missed_lines -= data["reconcile_impl"]["Proof"]
+
+    # Count LoC for controller model
     print(
-        "Controller model & -- & -- & {}".format(
+        indent
+        + "Controller model & -- & -- & {}".format(
             data["reconcile_model"]["Proof"],
         )
     )
-    total_lines -= data["reconcile_model"]["Proof"]
+    total["Proof"] += data["reconcile_model"]["Proof"]
+    if count_missed_lines:
+        missed_lines -= data["reconcile_model"]["Proof"]
+
+    # Count LoC for controller implementation
     print(
-        "Controller impl & -- & {} & --".format(
+        indent
+        + "Controller impl & -- & {} & --".format(
             data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"],
         )
     )
-    total_lines -= data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"]
+    total["Exec"] += data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"]
+    if count_missed_lines:
+        missed_lines -= data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"]
+
+    # Count LoC for trusted wrapper
     print(
-        "Trusted wrapper & {} & -- & --".format(
+        indent
+        + "Trusted wrapper & {} & -- & --".format(
             data["wrapper"]["Trusted"],
         )
     )
-    total_lines -= data["wrapper"]["Trusted"]
+    total["Trusted"] += data["wrapper"]["Trusted"]
+    if count_missed_lines:
+        missed_lines -= data["wrapper"]["Trusted"]
+
     if controller == "zookeeper":
+        # Count LoC for trusted ZooKeeper API for ZooKeeper controller only
         print(
-            "Trusted ZooKeeper API & {} & -- & --".format(
+            indent
+            + "Trusted ZooKeeper API & {} & -- & --".format(
                 data["external_model"]["Trusted"],
             )
         )
-        total_lines -= data["external_model"]["Trusted"]
+        total["Trusted"] += data["external_model"]["Trusted"]
+        if count_missed_lines:
+            missed_lines -= data["external_model"]["Trusted"]
+
+    # Count LoC for trusted entry point
     print(
-        "Trusted entry point & {} & -- & --".format(
+        indent
+        + "Trusted entry point & {} & -- & --".format(
             data["entry"]["Trusted"],
         )
     )
-    total_lines -= data["entry"]["Trusted"]
-    # print("{} lines are not included".format(total_lines))
+    total["Trusted"] += data["entry"]["Trusted"]
+    if count_missed_lines:
+        missed_lines -= data["entry"]["Trusted"]
+
+    # Count total LoC
+    print(
+        indent
+        + "Total & {} & {} & {}".format(
+            total["Trusted"],
+            total["Exec"],
+            total["Proof"],
+        )
+    )
+    if count_missed_lines:
+        print("{} lines are not included".format(missed_lines))
+    return total
 
 
 def gen_for_anvil():
@@ -93,45 +167,71 @@ def gen_for_anvil():
         "python3 count-anvil-loc.py $VERUS_DIR/source/tools/line_count/anvil_loc_table"
     )
     anvil_data = json.load(open("anvil-loc.json"))
-    total_lines = count_total_lines(anvil_data)
-    total_lines -= anvil_data["test_lines"]["Exec"]
+    if count_missed_lines:
+        missed_lines = count_total_lines(anvil_data)
+        missed_lines -= anvil_data["test_lines"]["Exec"]
     print("Anvil:")
     print(
-        "Lemmas & -- & -- & {}".format(
+        indent
+        + "Lemmas & -- & -- & {}".format(
             anvil_data["k8s_lemma_lines"]["Proof"]
             + anvil_data["tla_lemma_lines"]["Proof"]
         )
     )
-    total_lines -= (
-        anvil_data["k8s_lemma_lines"]["Proof"] + anvil_data["tla_lemma_lines"]["Proof"]
-    )
+    if count_missed_lines:
+        missed_lines -= (
+            anvil_data["k8s_lemma_lines"]["Proof"]
+            + anvil_data["tla_lemma_lines"]["Proof"]
+        )
     print(
-        "TLA embedding & {} & -- & --".format(
+        indent
+        + "TLA embedding & {} & -- & --".format(
             anvil_data["tla_embedding_lines"]["Trusted"]
         )
     )
-    total_lines -= anvil_data["tla_embedding_lines"]["Trusted"]
-    print("Model & {} & -- & --".format(anvil_data["other_lines"]["Trusted"]))
-    total_lines -= anvil_data["other_lines"]["Trusted"]
+    if count_missed_lines:
+        missed_lines -= anvil_data["tla_embedding_lines"]["Trusted"]
+    print(indent + "Model & {} & -- & --".format(anvil_data["other_lines"]["Trusted"]))
+    if count_missed_lines:
+        missed_lines -= anvil_data["other_lines"]["Trusted"]
     print(
-        "Object view & {} & -- & --".format(anvil_data["object_model_lines"]["Trusted"])
+        indent
+        + "Object view & {} & -- & --".format(
+            anvil_data["object_model_lines"]["Trusted"]
+        )
     )
-    total_lines -= anvil_data["object_model_lines"]["Trusted"]
+    if count_missed_lines:
+        missed_lines -= anvil_data["object_model_lines"]["Trusted"]
     print(
-        "Object wrapper & {} & -- & --".format(
+        indent
+        + "Object wrapper & {} & -- & --".format(
             anvil_data["object_wrapper_lines"]["Trusted"]
         )
     )
-    total_lines -= anvil_data["object_wrapper_lines"]["Trusted"]
-    print("Shim layer & {} & -- & --".format(anvil_data["other_lines"]["Exec"]))
-    total_lines -= anvil_data["other_lines"]["Exec"]
-    # print("{} lines are not included".format(total_lines))
+    if count_missed_lines:
+        missed_lines -= anvil_data["object_wrapper_lines"]["Trusted"]
+    print(
+        indent + "Shim layer & {} & -- & --".format(anvil_data["other_lines"]["Exec"])
+    )
+    if count_missed_lines:
+        missed_lines -= anvil_data["other_lines"]["Exec"]
+    if count_missed_lines:
+        print("{} lines are not included".format(missed_lines))
 
 
 def main():
-    gen_for_controller("zookeeper")
-    gen_for_controller("rabbitmq")
-    gen_for_controller("fluent")
+    zookeeper_total = gen_for_controller("zookeeper")
+    rabbitmq_total = gen_for_controller("rabbitmq")
+    fluent_total = gen_for_controller("fluent")
+    print(
+        "Total(all) & {} & {} & {}".format(
+            zookeeper_total["Trusted"]
+            + rabbitmq_total["Trusted"]
+            + fluent_total["Trusted"],
+            zookeeper_total["Exec"] + rabbitmq_total["Exec"] + fluent_total["Exec"],
+            zookeeper_total["Proof"] + rabbitmq_total["Proof"] + fluent_total["Proof"],
+        )
+    )
     # gen_for_anvil()
 
 
