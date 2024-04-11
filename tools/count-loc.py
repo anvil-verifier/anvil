@@ -148,7 +148,7 @@ def parse_table_and_collect_lines(file_path, controller_name):
                 liveness_proof_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
                 liveness_proof_lines["Proof"] += int(stripped_cols[SPEC_COL])
             else:
-                print(line)  # Print out the lines that are hard to classify
+                # print(line)  # Print out the lines that are hard to classify
                 other_lines["Exec"] += int(stripped_cols[EXEC_COL])
                 other_lines["Proof"] += int(stripped_cols[PROOF_COL])
                 other_lines["Proof"] += int(stripped_cols[PROOF_AND_EXEC_COL])
@@ -166,7 +166,7 @@ def parse_table_and_collect_lines(file_path, controller_name):
         "entry": entry_lines,
         "other": other_lines,
     }
-    json.dump(all_lines, open(controller_name + "-lines.json", "w"), indent=4)
+    json.dump(all_lines, open(controller_name + "-loc.json", "w"), indent=4)
 
 
 def main():
