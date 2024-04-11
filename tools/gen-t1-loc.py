@@ -3,7 +3,7 @@ import json
 
 indent = "    "
 
-count_missed_lines = False
+debug = False
 
 cap_controllers = {
     "zookeeper": "ZooKeeper controller",
@@ -33,7 +33,7 @@ def gen_for_controller(controller):
         "Exec": 0,
         "Proof": 0,
     }
-    if count_missed_lines:
+    if debug:
         missed_lines = count_total_lines(data)
         missed_lines -= data["liveness_inv"]["Proof"]
 
@@ -49,7 +49,7 @@ def gen_for_controller(controller):
     )
     total["Trusted"] += data["liveness_theorem"]["Trusted"]
     total["Proof"] += data["liveness_proof"]["Proof"]
-    if count_missed_lines:
+    if debug:
         missed_lines -= data["liveness_theorem"]["Trusted"]
         missed_lines -= data["liveness_proof"]["Proof"]
 
@@ -64,7 +64,7 @@ def gen_for_controller(controller):
         )
         total["Trusted"] += data["safety_theorem"]["Trusted"]
         total["Proof"] += data["safety_proof"]["Proof"]
-        if count_missed_lines:
+        if debug:
             missed_lines -= data["safety_theorem"]["Trusted"]
             missed_lines -= data["safety_proof"]["Proof"]
 
@@ -89,7 +89,7 @@ def gen_for_controller(controller):
         )
         total["Trusted"] += 5
         total["Proof"] += data["reconcile_impl"]["Proof"] - 5
-    if count_missed_lines:
+    if debug:
         missed_lines -= data["reconcile_impl"]["Proof"]
 
     # Count LoC for controller model
@@ -100,7 +100,7 @@ def gen_for_controller(controller):
         )
     )
     total["Proof"] += data["reconcile_model"]["Proof"]
-    if count_missed_lines:
+    if debug:
         missed_lines -= data["reconcile_model"]["Proof"]
 
     # Count LoC for controller implementation
@@ -111,7 +111,7 @@ def gen_for_controller(controller):
         )
     )
     total["Exec"] += data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"]
-    if count_missed_lines:
+    if debug:
         missed_lines -= data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"]
 
     # Count LoC for trusted wrapper
@@ -122,7 +122,7 @@ def gen_for_controller(controller):
         )
     )
     total["Trusted"] += data["wrapper"]["Trusted"]
-    if count_missed_lines:
+    if debug:
         missed_lines -= data["wrapper"]["Trusted"]
 
     if controller == "zookeeper":
@@ -134,7 +134,7 @@ def gen_for_controller(controller):
             )
         )
         total["Trusted"] += data["external_model"]["Trusted"]
-        if count_missed_lines:
+        if debug:
             missed_lines -= data["external_model"]["Trusted"]
 
     # Count LoC for trusted entry point
@@ -145,7 +145,7 @@ def gen_for_controller(controller):
         )
     )
     total["Trusted"] += data["entry"]["Trusted"]
-    if count_missed_lines:
+    if debug:
         missed_lines -= data["entry"]["Trusted"]
 
     # Count total LoC
@@ -157,7 +157,7 @@ def gen_for_controller(controller):
             total["Proof"],
         )
     )
-    if count_missed_lines:
+    if debug:
         print("{} lines are not included".format(missed_lines))
     return total
 
@@ -167,7 +167,7 @@ def gen_for_anvil():
         "python3 count-anvil-loc.py $VERUS_DIR/source/tools/line_count/anvil_loc_table"
     )
     anvil_data = json.load(open("anvil-loc.json"))
-    if count_missed_lines:
+    if debug:
         missed_lines = count_total_lines(anvil_data)
         missed_lines -= anvil_data["test_lines"]["Exec"]
     print("Anvil:")
@@ -178,7 +178,7 @@ def gen_for_anvil():
             + anvil_data["tla_lemma_lines"]["Proof"]
         )
     )
-    if count_missed_lines:
+    if debug:
         missed_lines -= (
             anvil_data["k8s_lemma_lines"]["Proof"]
             + anvil_data["tla_lemma_lines"]["Proof"]
@@ -189,10 +189,10 @@ def gen_for_anvil():
             anvil_data["tla_embedding_lines"]["Trusted"]
         )
     )
-    if count_missed_lines:
+    if debug:
         missed_lines -= anvil_data["tla_embedding_lines"]["Trusted"]
     print(indent + "Model & {} & -- & --".format(anvil_data["other_lines"]["Trusted"]))
-    if count_missed_lines:
+    if debug:
         missed_lines -= anvil_data["other_lines"]["Trusted"]
     print(
         indent
@@ -200,7 +200,7 @@ def gen_for_anvil():
             anvil_data["object_model_lines"]["Trusted"]
         )
     )
-    if count_missed_lines:
+    if debug:
         missed_lines -= anvil_data["object_model_lines"]["Trusted"]
     print(
         indent
@@ -208,14 +208,14 @@ def gen_for_anvil():
             anvil_data["object_wrapper_lines"]["Trusted"]
         )
     )
-    if count_missed_lines:
+    if debug:
         missed_lines -= anvil_data["object_wrapper_lines"]["Trusted"]
     print(
         indent + "Shim layer & {} & -- & --".format(anvil_data["other_lines"]["Exec"])
     )
-    if count_missed_lines:
+    if debug:
         missed_lines -= anvil_data["other_lines"]["Exec"]
-    if count_missed_lines:
+    if debug:
         print("{} lines are not included".format(missed_lines))
 
 
