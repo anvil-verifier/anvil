@@ -40,13 +40,13 @@ def main():
             fb_data["Total"] / 1000, fb_raw_data["times-ms"]["total"] / 1000
         )
     )
-    print("Anvil:")
-    print(
-        "Reusable lemmas & {} ({})".format(
-            anvil_raw_data["times-ms"]["total-verify"] / 1000,
-            anvil_raw_data["times-ms"]["total"] / 1000,
-        )
-    )
+    # print("Anvil:")
+    # print(
+    #     "Reusable lemmas & {} ({})".format(
+    #         anvil_raw_data["times-ms"]["total-verify"] / 1000,
+    #         anvil_raw_data["times-ms"]["total"] / 1000,
+    #     )
+    # )
 
 
 if __name__ == "__main__":

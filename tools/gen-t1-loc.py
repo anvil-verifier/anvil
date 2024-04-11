@@ -12,11 +12,11 @@ def count_total_lines(data):
 
 def gen_for_controller(controller):
     os.system(
-        "python3 count-lines.py $VERUS_DIR/source/tools/line_count/{}_loc_table {}".format(
+        "python3 count-loc.py $VERUS_DIR/source/tools/line_count/{}_loc_table {}".format(
             controller, controller
         )
     )
-    data = json.load(open("{}-lines.json".format(controller)))
+    data = json.load(open("{}-loc.json".format(controller)))
 
     total_lines = count_total_lines(data)
     total_lines -= data["liveness_inv"]["Proof"]
@@ -85,18 +85,14 @@ def gen_for_controller(controller):
         )
     )
     total_lines -= data["entry"]["Trusted"]
-    print("{} lines are not included".format(total_lines))
+    # print("{} lines are not included".format(total_lines))
 
 
-def main():
-    gen_for_controller("zookeeper")
-    gen_for_controller("rabbitmq")
-    gen_for_controller("fluent")
-
+def gen_for_anvil():
     os.system(
-        "python3 count-anvil-lines.py $VERUS_DIR/source/tools/line_count/anvil_loc_table"
+        "python3 count-anvil-loc.py $VERUS_DIR/source/tools/line_count/anvil_loc_table"
     )
-    anvil_data = json.load(open("anvil-lines.json"))
+    anvil_data = json.load(open("anvil-loc.json"))
     total_lines = count_total_lines(anvil_data)
     total_lines -= anvil_data["test_lines"]["Exec"]
     print("Anvil:")
@@ -129,7 +125,14 @@ def main():
     total_lines -= anvil_data["object_wrapper_lines"]["Trusted"]
     print("Shim layer & {} & -- & --".format(anvil_data["other_lines"]["Exec"]))
     total_lines -= anvil_data["other_lines"]["Exec"]
-    print("{} lines are not included".format(total_lines))
+    # print("{} lines are not included".format(total_lines))
+
+
+def main():
+    gen_for_controller("zookeeper")
+    gen_for_controller("rabbitmq")
+    gen_for_controller("fluent")
+    # gen_for_anvil()
 
 
 if __name__ == "__main__":

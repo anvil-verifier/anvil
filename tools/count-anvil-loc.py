@@ -116,7 +116,7 @@ def parse_table_and_collect_lines(file_path):
         "object_wrapper_lines": object_wrapper_lines,
         "other_lines": other_lines,
     }
-    json.dump(all_lines, open("anvil-lines.json", "w"), indent=4)
+    json.dump(all_lines, open("anvil-loc.json", "w"), indent=4)
 
 
 def main():
