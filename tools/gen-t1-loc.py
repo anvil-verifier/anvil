@@ -42,7 +42,7 @@ def gen_for_controller(controller):
     # Count LoC for liveness proof
     print(
         indent
-        + "Liveness & {} & -- & {}".format(
+        + "Liveness\t\t\t& {}\t& --\t& {}".format(
             data["liveness_theorem"]["Trusted"],
             data["liveness_proof"]["Proof"],
         )
@@ -57,7 +57,7 @@ def gen_for_controller(controller):
         # Count LoC for safety proof for RabbitMQ controller only
         print(
             indent
-            + "Safety & {} & -- & {}".format(
+            + "Safety\t\t\t& {}\t& --\t& {}".format(
                 data["safety_theorem"]["Trusted"],
                 data["safety_proof"]["Proof"],
             )
@@ -73,7 +73,7 @@ def gen_for_controller(controller):
         # for Fluent controller only because its conformance theorem takes 10 lines (it has two reconcile loops)
         print(
             indent
-            + "Conformance & 10 & -- & {}".format(
+            + "Conformance\t\t\t& 10\t& --\t& {}".format(
                 data["reconcile_impl"]["Proof"] - 10,
             )
         )
@@ -83,7 +83,7 @@ def gen_for_controller(controller):
         # Count LoC for conformance proof for the other two controllers whose conformance theorem takes only 5 lines
         print(
             indent
-            + "Conformance & 5 & -- & {}".format(
+            + "Conformance\t\t\t& 5\t& --\t& {}".format(
                 data["reconcile_impl"]["Proof"] - 5,
             )
         )
@@ -95,7 +95,7 @@ def gen_for_controller(controller):
     # Count LoC for controller model
     print(
         indent
-        + "Controller model & -- & -- & {}".format(
+        + "Controller model\t\t& --\t& --\t& {}".format(
             data["reconcile_model"]["Proof"],
         )
     )
@@ -106,7 +106,7 @@ def gen_for_controller(controller):
     # Count LoC for controller implementation
     print(
         indent
-        + "Controller impl & -- & {} & --".format(
+        + "Controller impl\t\t& --\t& {}\t& --".format(
             data["reconcile_model"]["Exec"] + data["reconcile_impl"]["Exec"],
         )
     )
@@ -117,7 +117,7 @@ def gen_for_controller(controller):
     # Count LoC for trusted wrapper
     print(
         indent
-        + "Trusted wrapper & {} & -- & --".format(
+        + "Trusted wrapper\t\t& {}\t& --\t& --".format(
             data["wrapper"]["Trusted"],
         )
     )
@@ -129,7 +129,7 @@ def gen_for_controller(controller):
         # Count LoC for trusted ZooKeeper API for ZooKeeper controller only
         print(
             indent
-            + "Trusted ZooKeeper API & {} & -- & --".format(
+            + "Trusted ZooKeeper API\t& {}\t& --\t& --".format(
                 data["external_model"]["Trusted"],
             )
         )
@@ -140,7 +140,7 @@ def gen_for_controller(controller):
     # Count LoC for trusted entry point
     print(
         indent
-        + "Trusted entry point & {} & -- & --".format(
+        + "Trusted entry point\t\t& {}\t& --\t& --".format(
             data["entry"]["Trusted"],
         )
     )
@@ -151,7 +151,7 @@ def gen_for_controller(controller):
     # Count total LoC
     print(
         indent
-        + "Total & {} & {} & {}".format(
+        + "Total\t\t\t& {}\t& {}\t& {}".format(
             total["Trusted"],
             total["Exec"],
             total["Proof"],
@@ -173,7 +173,7 @@ def gen_for_anvil():
     print("Anvil:")
     print(
         indent
-        + "Lemmas & -- & -- & {}".format(
+        + "Lemmas\t\t\t& --\t& --\t& {}".format(
             anvil_data["k8s_lemma_lines"]["Proof"]
             + anvil_data["tla_lemma_lines"]["Proof"]
         )
@@ -185,18 +185,21 @@ def gen_for_anvil():
         )
     print(
         indent
-        + "TLA embedding & {} & -- & --".format(
+        + "TLA embedding\t\t& {}\t& --\t& --".format(
             anvil_data["tla_embedding_lines"]["Trusted"]
         )
     )
     if debug:
         missed_lines -= anvil_data["tla_embedding_lines"]["Trusted"]
-    print(indent + "Model & {} & -- & --".format(anvil_data["other_lines"]["Trusted"]))
+    print(
+        indent
+        + "Model\t\t\t& {}\t& --\t& --".format(anvil_data["other_lines"]["Trusted"])
+    )
     if debug:
         missed_lines -= anvil_data["other_lines"]["Trusted"]
     print(
         indent
-        + "Object view & {} & -- & --".format(
+        + "Object view\t\t\t& {}\t& --\t& --".format(
             anvil_data["object_model_lines"]["Trusted"]
         )
     )
@@ -204,14 +207,15 @@ def gen_for_anvil():
         missed_lines -= anvil_data["object_model_lines"]["Trusted"]
     print(
         indent
-        + "Object wrapper & {} & -- & --".format(
+        + "Object wrapper\t\t& {}\t& --\t& --".format(
             anvil_data["object_wrapper_lines"]["Trusted"]
         )
     )
     if debug:
         missed_lines -= anvil_data["object_wrapper_lines"]["Trusted"]
     print(
-        indent + "Shim layer & {} & -- & --".format(anvil_data["other_lines"]["Exec"])
+        indent
+        + "Shim layer\t\t\t& {}\t& --\t& --".format(anvil_data["other_lines"]["Exec"])
     )
     if debug:
         missed_lines -= anvil_data["other_lines"]["Exec"]
@@ -224,7 +228,7 @@ def main():
     rabbitmq_total = gen_for_controller("rabbitmq")
     fluent_total = gen_for_controller("fluent")
     print(
-        "Total(all) & {} & {} & {}".format(
+        "Total(all)\t\t\t& {}\t& {}\t& {}".format(
             zookeeper_total["Trusted"]
             + rabbitmq_total["Trusted"]
             + fluent_total["Trusted"],
