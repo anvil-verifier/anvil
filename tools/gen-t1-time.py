@@ -16,37 +16,37 @@ def main():
     fb_raw_data = json.load(open("fluent.json"))
     anvil_raw_data = json.load(open("anvil.json"))
     print("ZooKeeper controller:")
-    print(indent + "Liveness & {}".format(zk_data["Liveness"] / 1000))
-    print(indent + "Safety & {}".format(zk_data["Safety"] / 1000))
-    print(indent + "Conformance & {}".format(zk_data["Impl"] / 1000))
+    print(indent + "Liveness\t& {}".format(zk_data["Liveness"] / 1000))
+    # print(indent + "Safety\t& {}".format(zk_data["Safety"] / 1000))
+    print(indent + "Conformance\t& {}".format(zk_data["Impl"] / 1000))
     print(
         indent
-        + "Total & {} ({})".format(
+        + "Total\t& {} ({})".format(
             zk_data["Total"] / 1000, zk_raw_data["times-ms"]["total"] / 1000
         )
     )
     print("RabbitMQ controller:")
-    print(indent + "Liveness & {}".format(rmq_data["Liveness"] / 1000))
-    print(indent + "Safety & {}".format(rmq_data["Safety"] / 1000))
-    print(indent + "Conformance & {}".format(rmq_data["Impl"] / 1000))
+    print(indent + "Liveness\t& {}".format(rmq_data["Liveness"] / 1000))
+    print(indent + "Safety\t& {}".format(rmq_data["Safety"] / 1000))
+    print(indent + "Conformance\t& {}".format(rmq_data["Impl"] / 1000))
     print(
         indent
-        + "Total & {} ({})".format(
+        + "Total\t& {} ({})".format(
             rmq_data["Total"] / 1000, rmq_raw_data["times-ms"]["total"] / 1000
         )
     )
     print("Fluent controller:")
-    print(indent + "Liveness & {}".format(fb_data["Liveness"] / 1000))
-    print(indent + "Safety & {}".format(fb_data["Safety"] / 1000))
-    print(indent + "Conformance & {}".format(fb_data["Impl"] / 1000))
+    print(indent + "Liveness\t& {}".format(fb_data["Liveness"] / 1000))
+    # print(indent + "Safety\t& {}".format(fb_data["Safety"] / 1000))
+    print(indent + "Conformance\t& {}".format(fb_data["Impl"] / 1000))
     print(
         indent
-        + "Total & {} ({})".format(
+        + "Total\t& {} ({})".format(
             fb_data["Total"] / 1000, fb_raw_data["times-ms"]["total"] / 1000
         )
     )
     print(
-        "Total(all) & {} ({})".format(
+        "Total(all)\t& {} ({})".format(
             (zk_data["Total"] + rmq_data["Total"] + fb_data["Total"]) / 1000,
             (
                 zk_raw_data["times-ms"]["total"]
