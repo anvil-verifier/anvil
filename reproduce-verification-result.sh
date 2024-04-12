@@ -16,19 +16,19 @@ PREFIX="${GREEN}"
 
 CUR_DIR=$(pwd)
 
-echo -e "${PREFIX} Verifying Anvil framework...${NC}"
+echo -e "${PREFIX}Verifying Anvil framework...${NC}"
 ./build.sh anvil.rs --crate-type=lib --emit=dep-info --time --time-expanded --output-json --rlimit 50 > anvil.json
 
-echo -e "${PREFIX} Verifying Fluent controller...${NC}"
+echo -e "${PREFIX}Verifying Fluent controller...${NC}"
 ./verify-controller-only.sh fluent
 
-echo -e "${PREFIX} Verifying RabbitMQ controller...${NC}"
+echo -e "${PREFIX}Verifying RabbitMQ controller...${NC}"
 ./verify-controller-only.sh rabbitmq
 
-echo -e "${PREFIX} Verifying ZooKeeper controller...${NC}"
+echo -e "${PREFIX}Verifying ZooKeeper controller...${NC}"
 ./verify-controller-only.sh zookeeper
 
-echo -e "${PREFIX} Calling Verus line counting tool...${NC}"
+echo -e "${PREFIX}Calling Verus line counting tool...${NC}"
 pushd $VERUS_DIR/source/tools/line_count
 cargo run --release -- $CUR_DIR/src/anvil.d > anvil_loc_table
 cargo run --release -- $CUR_DIR/src/fluent_controller.d > fluent_loc_table
@@ -36,24 +36,19 @@ cargo run --release -- $CUR_DIR/src/rabbitmq_controller.d > rabbitmq_loc_table
 cargo run --release -- $CUR_DIR/src/zookeeper_controller.d > zookeeper_loc_table
 popd
 
-echo -e "${PREFIX} Writing verification time results to tools/t1-time.txt${NC}"
+echo -e "${PREFIX}Generating Table 1 to tools/t1.txt${NC}"
 cp anvil.json tools/anvil.json
 cp fluent.json tools/fluent.json
 cp rabbitmq.json tools/rabbitmq.json
 cp zookeeper.json tools/zookeeper.json
 pushd tools
-python3 gen-t1-time.py > t1-time.txt
+python3 gen-t1.py > t1.txt
 popd
 
-echo -e "${PREFIX} Generating code size results to tools/t1-loc.txt${NC}"
-pushd tools
-python3 gen-t1-loc.py > t1-loc.txt
-popd
-
-echo -e "${PREFIX} Presenting verification results from Verus. You are expected to see 0 errors for Anvil and the three controllers, which means everything is verified.${NC}"
+echo -e "${PREFIX}Presenting verification results from Verus. You are expected to see 0 errors for Anvil and the three controllers, which means everything is verified.${NC}"
 cat anvil.json | grep "errors"
 cat fluent.json | grep "errors"
 cat rabbitmq.json | grep "errors"
 cat zookeeper.json | grep "errors"
 
-echo -e "${PREFIX} To check the verification time and code size results, just run cat tools/t1-time.txt and cat tools/t1-loc.txt.${NC}"
+# echo -e "${PREFIX}To check the verification time and code size results, just run cat tools/t1-time.txt and cat tools/t1-loc.txt.${NC}"

@@ -6,4 +6,5 @@ SHELL ["/bin/bash", "-c"]
 
 COPY . .
 
-RUN apt install -y pkg-config libssl-dev python3
+RUN apt install -y pkg-config libssl-dev python3 python3-pip
+RUN pip3 install tabulate
