@@ -21,22 +21,7 @@ def gen_for_anvil():
     anvil_loc_data = json.load(open("anvil-loc.json"))
     anvil_raw_data = json.load(open("anvil.json"))
 
-    # print(
-    #     "Reusable lemmas & {} ({})".format(
-    #         anvil_raw_data["times-ms"]["total-verify"] / 1000,
-    #         anvil_raw_data["times-ms"]["total"] / 1000,
-    #     )
-    # )
-
-    # print("Anvil:")
     table.append(["Anvil", "", "", "", ""])
-    # print(
-    #     indent
-    #     + "Lemmas\t\t\t& --\t& --\t& {}".format(
-    #         anvil_loc_data["k8s_lemma_lines"]["Proof"]
-    #         + anvil_loc_data["tla_lemma_lines"]["Proof"]
-    #     )
-    # )
     table.append(
         [
             indent + "Lemmas",
@@ -52,13 +37,6 @@ def gen_for_anvil():
             ),
         ]
     )
-
-    # print(
-    #     indent
-    #     + "TLA embedding\t\t& {}\t& --\t& --".format(
-    #         anvil_loc_data["tla_embedding_lines"]["Trusted"]
-    #     )
-    # )
     table.append(
         [
             indent + "TLA embedding",
@@ -68,11 +46,6 @@ def gen_for_anvil():
             "--",
         ]
     )
-
-    # print(
-    #     indent
-    #     + "Model\t\t\t& {}\t& --\t& --".format(anvil_loc_data["other_lines"]["Trusted"])
-    # )
     table.append(
         [
             indent + "Model",
@@ -82,13 +55,6 @@ def gen_for_anvil():
             "--",
         ]
     )
-
-    # print(
-    #     indent
-    #     + "Object view\t\t\t& {}\t& --\t& --".format(
-    #         anvil_loc_data["object_model_lines"]["Trusted"]
-    #     )
-    # )
     table.append(
         [
             indent + "Object view",
@@ -98,13 +64,6 @@ def gen_for_anvil():
             "--",
         ]
     )
-
-    # print(
-    #     indent
-    #     + "Object wrapper\t\t& {}\t& --\t& --".format(
-    #         anvil_loc_data["object_wrapper_lines"]["Trusted"]
-    #     )
-    # )
     table.append(
         [
             indent + "Object wrapper",
@@ -114,10 +73,6 @@ def gen_for_anvil():
             "--",
         ]
     )
-    # print(
-    #     indent
-    #     + "Shim layer\t\t\t& {}\t& --\t& --".format(anvil_loc_data["other_lines"]["Exec"])
-    # )
     table.append(
         [
             indent + "Shim layer",
