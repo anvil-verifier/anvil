@@ -4,13 +4,130 @@ from tabulate import tabulate
 
 indent = "|---"
 
-debug = False
+print_anvil = False
 
 cap_controllers = {
     "zookeeper": "ZooKeeper controller",
     "rabbitmq": "RabbitMQ controller",
     "fluent": "Fluent controller",
 }
+
+
+def gen_for_anvil():
+    table = []
+    os.system(
+        "python3 count-anvil-loc.py $VERUS_DIR/source/tools/line_count/anvil_loc_table"
+    )
+    anvil_loc_data = json.load(open("anvil-loc.json"))
+    anvil_raw_data = json.load(open("anvil.json"))
+
+    # print(
+    #     "Reusable lemmas & {} ({})".format(
+    #         anvil_raw_data["times-ms"]["total-verify"] / 1000,
+    #         anvil_raw_data["times-ms"]["total"] / 1000,
+    #     )
+    # )
+
+    # print("Anvil:")
+    table.append(["Anvil", "", "", "", ""])
+    # print(
+    #     indent
+    #     + "Lemmas\t\t\t& --\t& --\t& {}".format(
+    #         anvil_loc_data["k8s_lemma_lines"]["Proof"]
+    #         + anvil_loc_data["tla_lemma_lines"]["Proof"]
+    #     )
+    # )
+    table.append(
+        [
+            indent + "Lemmas",
+            "--",
+            "--",
+            str(
+                anvil_loc_data["k8s_lemma_lines"]["Proof"]
+                + anvil_loc_data["tla_lemma_lines"]["Proof"]
+            ),
+            "{} ({})".format(
+                anvil_raw_data["times-ms"]["total-verify"] / 1000,
+                anvil_raw_data["times-ms"]["total"] / 1000,
+            ),
+        ]
+    )
+
+    # print(
+    #     indent
+    #     + "TLA embedding\t\t& {}\t& --\t& --".format(
+    #         anvil_loc_data["tla_embedding_lines"]["Trusted"]
+    #     )
+    # )
+    table.append(
+        [
+            indent + "TLA embedding",
+            str(anvil_loc_data["tla_embedding_lines"]["Trusted"]),
+            "--",
+            "--",
+            "--",
+        ]
+    )
+
+    # print(
+    #     indent
+    #     + "Model\t\t\t& {}\t& --\t& --".format(anvil_loc_data["other_lines"]["Trusted"])
+    # )
+    table.append(
+        [
+            indent + "Model",
+            str(anvil_loc_data["other_lines"]["Trusted"]),
+            "--",
+            "--",
+            "--",
+        ]
+    )
+
+    # print(
+    #     indent
+    #     + "Object view\t\t\t& {}\t& --\t& --".format(
+    #         anvil_loc_data["object_model_lines"]["Trusted"]
+    #     )
+    # )
+    table.append(
+        [
+            indent + "Object view",
+            str(anvil_loc_data["object_model_lines"]["Trusted"]),
+            "--",
+            "--",
+            "--",
+        ]
+    )
+
+    # print(
+    #     indent
+    #     + "Object wrapper\t\t& {}\t& --\t& --".format(
+    #         anvil_loc_data["object_wrapper_lines"]["Trusted"]
+    #     )
+    # )
+    table.append(
+        [
+            indent + "Object wrapper",
+            str(anvil_loc_data["object_wrapper_lines"]["Trusted"]),
+            "--",
+            "--",
+            "--",
+        ]
+    )
+    # print(
+    #     indent
+    #     + "Shim layer\t\t\t& {}\t& --\t& --".format(anvil_loc_data["other_lines"]["Exec"])
+    # )
+    table.append(
+        [
+            indent + "Shim layer",
+            str(anvil_loc_data["other_lines"]["Exec"]),
+            "--",
+            "--",
+            "--",
+        ]
+    )
+    return table
 
 
 def gen_for_controller(controller):
@@ -193,6 +310,8 @@ def main():
             ),
         ]
     )
+    if print_anvil:
+        table += gen_for_anvil()
     headers = [
         "",
         "Trusted (LoC)",
