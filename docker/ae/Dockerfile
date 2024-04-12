@@ -6,4 +6,4 @@ SHELL ["/bin/bash", "-c"]
 
 COPY . .
 
-RUN apt install -y pkg-config libssl-dev
+RUN apt install -y pkg-config libssl-dev python3
