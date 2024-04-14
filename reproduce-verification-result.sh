@@ -45,7 +45,7 @@ pushd tools
 python3 gen-t1.py > t1.txt
 popd
 
-echo -e "${PREFIX}Presenting verification results from Verus. You are expected to see 0 errors for Anvil and the three controllers, which means everything is verified.${NC}"
+echo -e "${PREFIX}Presenting verification results from Verus. You should see 0 errors for Anvil and the three controllers, which means everything is verified.${NC}"
 cat anvil.json | grep "errors"
 cat fluent.json | grep "errors"
 cat rabbitmq.json | grep "errors"
