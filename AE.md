@@ -13,9 +13,11 @@ The entire artifact evaluation process can take about X hours.
 1. [Kick-the-tires Instructions](#kick-the-tires-instructions-5-minutes)
 2. [Full Evaluation Instructions](#full-evaluation-instructions-X-hours)
 
-## Kick-the-tires Instructions (~4 compute-minutes + ~1 human-minute)
+## Kick-the-tires Instructions (~X compute-minutes + ~Y human-minute)
 
-Following kick-the-tires instructions, you will download a container image prepared by us with all the dependencies installed, and reproduce the verification result for one controller we built.
+Following kick-the-tires instructions, you will (1) verify one controller using the container image we prepared, and (2) run a small subset of the workloads used for evaluating the controller's performance.
+
+### Verifying one controller (~4 compute-minutes + ~1 human-minute)
 
 Before following the instructions, please ensure you have [Docker](https://docs.docker.com/engine/install/) installed on your machine.
 
@@ -44,6 +46,10 @@ It takes about 4 minutes to finish on a MacBook Pro 2019.
 cat zookeeper.json | grep "errors"
 ```
 The result should be `"errors": 0,`, meaning that all the proofs are verified. If you do not see the expected output, please let us know.
+
+### Running workloads of one controller (~X compute-minutes + ~Y human-minute)
+
+TO-DO
 
 ## Full Evaluation Instructions (~X compute-hours + ~Y human-minutes)
 
@@ -119,4 +125,4 @@ When comparing this generated table to the original Table 1 in the paper, please
 
 Following the instructions, you will reproduce the key results that the verified controllers achieve comparable performance to the unverified reference controllers as shown in Table 3.
 
-
+TO-DO
