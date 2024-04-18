@@ -47,7 +47,7 @@ cat zookeeper.json | grep "errors"
 ```
 The result should be `"errors": 0,`, meaning that all the proofs are verified. If you do not see the expected output, please let us know.
 
-### Running workloads of one controller (~X compute-minutes + ~Y human-minute)
+### Running workloads of one controller (~3 compute-hours + ~10 human-minute)
 
 **Step 1: setup environment**
 
@@ -83,11 +83,11 @@ To circumvent the problem, either
 1. Recreate the experiment using the same profile, or
 2. SSH into the machine and manually rerun the startup:
 
-    ```sh
-    sudo su - geniuser
-    bash /local/repository/scripts/cloudlab_startup_run_by_geniuser.sh
-    exit
-    ```
+```sh
+sudo su - geniuser
+bash /local/repository/scripts/cloudlab_startup_run_by_geniuser.sh
+exit
+```
 
 </details>
 
@@ -195,7 +195,7 @@ When comparing this generated table to the original Table 1 in the paper, please
 - The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is expected to be spent on the "Liveness" row**.
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
-### Reproducing Performance Results in Table 3 (~X compute-minutes + ~Y human-minutes)
+### Reproducing Performance Results in Table 3 (~10 compute-hours + ~10 human-minutes)
 
 Following the instructions, you will reproduce the key results that the verified controllers achieve comparable performance to the unverified reference controllers as shown in Table 3.
 
