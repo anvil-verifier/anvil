@@ -47,9 +47,83 @@ cat zookeeper.json | grep "errors"
 ```
 The result should be `"errors": 0,`, meaning that all the proofs are verified. If you do not see the expected output, please let us know.
 
-### Running workloads of one controller (~X compute-minutes + ~Y human-minute)
+### Running workloads of one controller (~3 compute-hours + ~10 human-minute)
 
-TO-DO
+**Step 1: setup environment**
+
+If you are a first timer of CloudLab, we encourage you to read the CloudLab doc for an overview of how Artifact Evaluation is generally conducted on CloudLab.
+
+[CloudLab For Artifact Evaluation](https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)
+
+If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php),
+  and ask the OSDI AEC chair to add you to the OSDI AEC project. Please let us know if you have trouble accessing cloudlab, we can help set up the experiment and give you access.
+
+We recommend you to use the machine type, [c6420](https://www.cloudlab.us/p/Sieve-Acto/anvil-ae?refspec=refs/heads/main) (CloudLab profile), which was used by the evaluation. Note that the machine may not be available all the time. You would need to submit a resource reservation to guarantee the availability of the resource.
+
+We provide CloudLab profile to automatically select the c6420 as the machine type and set up
+  all the environment.
+
+To use the profile, follow the [link](https://www.cloudlab.us/p/Sieve-Acto/anvil-ae?refspec=refs/heads/main)
+and keep hitting `next` to create the experiment.
+You should see that CloudLab starts to provision the machine and our profile will run a StartUp
+  script to set the environment up.
+
+The start up would take around 15 minutes.
+Please patiently wait for "Status" to become `Ready` and "Startup" to become `Finished`.
+After that, Acto is installed at the `workdir/acto` directory under your `$HOME` directory.
+
+Access the machine using `ssh` or through the `shell` provided by the CloudLab Web UI.
+
+<details><summary>Seeing `Exited (2)` in the "Startup" column?</summary>
+
+There could sometimes be transient network issues within the CloudLab cluster, which prevent e.g. `pip install` in the startup scripts from functioning as expected.
+
+To circumvent the problem, either
+
+1. Recreate the experiment using the same profile, or
+2. SSH into the machine and manually rerun the startup:
+
+```sh
+sudo su - geniuser
+bash /local/repository/scripts/cloudlab_startup_run_by_geniuser.sh
+exit
+```
+
+</details>
+
+<details><summary>Setting up local environment (skip this if using the CloudLab profile)</summary>
+ 
+* A Linux system with Docker support
+* Python 3.10 or newer
+* Install `pip3` by running `sudo apt install python3-pip`
+* Install [Golang](https://go.dev/doc/install)
+* Clone the repo recursively by running `git clone --recursive --branch anvil-dev https://github.com/xlab-uiuc/acto.git`
+* Install Python dependencies by running `pip3 install -r requirements-dev.txt` in the project
+* Install `Kind` by running `go install sigs.k8s.io/kind@v0.20.0`
+* Install `Kubectl` by running `curl -LO https://dl.k8s.io/release/v1.22.9/bin/linux/amd64/kubectl` and `sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl`
+
+</details>
+
+**Step 2: run workload**
+
+First witch into the `acto` repository cloned from the Step 1, and run the following command to start running the workload.
+```bash
+bash anvil-ae-one-controller.sh
+```
+It runs 10% of the workloads for the ZooKeeper controller, and prints the table to the file `anvil-table-3.txt`.
+It takes approximately 3 hours to finish.
+
+**Step 3: check the performance result**
+```bash
+cat anvil-table-3.txt
+```
+
+and you should see a generated table like this:
+| Controller                         |   Verified (Anvil) Mean |   Verified (Anvil) Max |   Reference (unverified) Mean |   Reference (unverified) Max |
+|------------------------------------|-------------------------|------------------------|-------------------------------|------------------------------|
+| testrun-anvil-zk-performance       |                 151.655 |                160.793 |                       145.006 |                      160.501 |
+
+#### 
 
 ## Full Evaluation Instructions (~X compute-hours + ~Y human-minutes)
 
@@ -121,8 +195,29 @@ When comparing this generated table to the original Table 1 in the paper, please
 - The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is expected to be spent on the "Liveness" row**.
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
-### Reproducing Performance Results in Table 3 (~X compute-minutes + ~Y human-minutes)
+### Reproducing Performance Results in Table 3 (~10 compute-hours + ~10 human-minutes)
 
 Following the instructions, you will reproduce the key results that the verified controllers achieve comparable performance to the unverified reference controllers as shown in Table 3.
 
-TO-DO
+**Step 1: setup environment**
+Same as the Kick-the-tires Instructions.
+
+**Step 2: run workload**
+
+```bash
+bash anvil-ae-sampled.sh
+```
+It runs 10% of the workloads for the three controllers, and prints the table to the file `anvil-table-3.txt`.
+It takes approximately 10 hours to finish.
+
+**Step 3: check the performance result**
+```bash
+cat anvil-table-3.txt
+```
+
+and you should see a generated table like this:
+| Controller                         |   Verified (Anvil) Mean |   Verified (Anvil) Max |   Reference (unverified) Mean |   Reference (unverified) Max |
+|------------------------------------|-------------------------|------------------------|-------------------------------|------------------------------|
+| testrun-anvil-zk-performance       |                 151.655 |                160.793 |                       145.006 |                      160.501 |
+| testrun-anvil-rabbitmq-performance |                 217.23  |                360.532 |                       214.493 |                      357.244 |
+| testrun-anvil-fluent-performance   |                  37.989 |                 40.339 |                        29.188 |                       35.648 |
