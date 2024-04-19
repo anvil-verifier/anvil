@@ -58,12 +58,12 @@ If you are a first timer of CloudLab, we encourage you to read the CloudLab doc 
 If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php),
   and ask the OSDI AEC chair to add you to the OSDI AEC project. Please let us know if you have trouble accessing cloudlab, we can help set up the experiment and give you access.
 
-We recommend you to use the machine type, [c6420](https://www.cloudlab.us/instantiate.php?project=Sieve-Acto&profile=acto-cloudlab&refspec=refs/heads/main) (CloudLab profile), which was used by the evaluation. Note that the machine may not be available all the time. You would need to submit a resource reservation to guarantee the availability of the resource.
+We recommend you to use the machine type, [c6420](https://www.cloudlab.us/p/Sieve-Acto/anvil-ae?refspec=refs/heads/main) (CloudLab profile), which was used by the evaluation. Note that the machine may not be available all the time. You would need to submit a resource reservation to guarantee the availability of the resource.
 
 We provide CloudLab profile to automatically select the c6420 as the machine type and set up
   all the environment.
 
-To use the profile, follow the [link](https://www.cloudlab.us/instantiate.php?project=Sieve-Acto&profile=acto-cloudlab&refspec=refs/heads/main)
+To use the profile, follow the [link](https://www.cloudlab.us/p/Sieve-Acto/anvil-ae?refspec=refs/heads/main)
 and keep hitting `next` to create the experiment.
 You should see that CloudLab starts to provision the machine and our profile will run a StartUp
   script to set the environment up.
