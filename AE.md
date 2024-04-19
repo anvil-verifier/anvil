@@ -56,7 +56,7 @@ If you are a first timer of CloudLab, we encourage you to read the CloudLab doc 
 [CloudLab For Artifact Evaluation](https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)
 
 If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php),
-  and ask the SOSP AEC chair to add you to the SOSP AEC project. Please let us know if you have trouble accessing cloudlab, we can help set up the experiment and give you access.
+  and ask the OSDI AEC chair to add you to the OSDI AEC project. Please let us know if you have trouble accessing cloudlab, we can help set up the experiment and give you access.
 
 We recommend you to use the machine type, [c6420](https://www.cloudlab.us/instantiate.php?project=Sieve-Acto&profile=acto-cloudlab&refspec=refs/heads/main) (CloudLab profile), which was used by the evaluation. Note that the machine may not be available all the time. You would need to submit a resource reservation to guarantee the availability of the resource.
 
