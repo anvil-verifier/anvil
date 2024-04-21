@@ -10,10 +10,10 @@ The goal is to reproduce the key results to support the claim. Specifically, the
 
 The entire artifact evaluation process can take about X hours.
 
-1. [Kick-the-tires Instructions](#kick-the-tires-instructions)
-2. [Full Evaluation Instructions](#full-evaluation-instructions)
+1. [Kick-the-tires Instructions](#kick-the-tires-instructions-3-compute-hours--6-human-minutes)
+2. [Full Evaluation Instructions](#full-evaluation-instructions-10-compute-hours--6-human-minutes)
 
-## Kick-the-tires Instructions (~X compute-minutes + ~Y human-minute)
+## Kick-the-tires Instructions (~3 compute-hours + ~6 human-minutes)
 
 Following kick-the-tires instructions, you will (1) verify one controller using the container image we prepared, and (2) run a small subset of the workloads used for evaluating the controller's performance.
 
@@ -86,7 +86,7 @@ Sometimes the script might fail due to transient network issues. The script is s
 * Install `Kind` by running `go install sigs.k8s.io/kind@v0.20.0`
 * Install `Kubectl` by running `curl -LO https://dl.k8s.io/release/v1.22.9/bin/linux/amd64/kubectl` and `sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl`
 
-After that, clone the [Acto](https://github.com/xlab-uiuc/acto) repo and checkout to the `anvil-dev` branch. Run the instructions below inside the `acto` directory.
+Run all the instructions below inside the cloned `acto` repo.
 
 If you encounter any problem, please contact us on HotCRP.
 </details>
@@ -118,7 +118,7 @@ You should see a table like this:
 ```
 Note that the absolute numbers depends on the platform, but you should observe that the verified ZooKeeper controller is not significantly slower than the unverified one. In most cases, they have similar execution time.
 
-## Full Evaluation Instructions (~X compute-hours + ~Y human-minutes)
+## Full Evaluation Instructions (~10 compute-hours + ~6 human-minutes)
 
 Following full evaluation instructions, you will reproduce the verification results in Table 1 and the performance results in Table 3. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will **highlight** the key pattern you should be able to observe from such numbers.
 
@@ -188,11 +188,15 @@ When comparing this generated table to the original Table 1 in the paper, please
 - The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is expected to be spent on the "Liveness" row.**
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
-### Reproducing Performance Results in Table 3 (~10 compute-hours + ~10 human-minutes)
+### Reproducing Performance Results in Table 3 (~10 compute-hours + ~3 human-minutes)
 
 Following the instructions, you will reproduce the key results that the verified controllers achieve comparable performance to the unverified reference controllers as shown in Table 3.
 
-You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-3-compute-hours--5-human-minutes). In the path `~/workdir/acto/` inside your CloudLab machine, run
+You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-3-compute-hours--5-human-minutes).
+
+We suggest you use `tmux` as the command will take hours.
+
+In the path `~/workdir/acto/` inside your CloudLab machine, run
 ```bash
 bash anvil-ae-sampled.sh
 ```
