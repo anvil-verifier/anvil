@@ -10,10 +10,10 @@ The goal is to reproduce the key results to support the claim. Specifically, the
 
 The entire artifact evaluation process can take about X hours.
 
-1. [Kick-the-tires Instructions](#kick-the-tires-instructions-3-compute-hours--6-human-minutes)
-2. [Full Evaluation Instructions](#full-evaluation-instructions-10-compute-hours--6-human-minutes)
+1. [Kick-the-tires Instructions](#kick-the-tires-instructions-1-5-compute-hours--6-human-minutes)
+2. [Full Evaluation Instructions](#full-evaluation-instructions-7-compute-hours--6-human-minutes)
 
-## Kick-the-tires Instructions (~3 compute-hours + ~6 human-minutes)
+## Kick-the-tires Instructions (~1.5 compute-hours + ~6 human-minutes)
 
 Following kick-the-tires instructions, you will (1) verify one controller using the container image we prepared, and (2) run a small subset of the workloads used for evaluating the controller's performance.
 
@@ -47,7 +47,7 @@ cat zookeeper.json | grep "errors"
 ```
 The result should be `"errors": 0,`, meaning that all the proofs are verified. If you do not see the expected output, please let us know.
 
-### Running workloads of one controller (~3 compute-hours + ~5 human-minutes)
+### Running workloads of one controller (~1.5 compute-hours + ~5 human-minutes)
 
 The following instructions require some environment setup to run (part of) the performance evaluation. We highly suggest you use the CloudLab machine with the image we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, we encourage you to read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab]((https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the OSDI AEC chair to add you to the OSDI AEC project.
 
@@ -94,17 +94,12 @@ If you encounter any problem, please contact us on HotCRP.
 
 **Step 2: run the workload**
 
-From now we suggest you use `tmux` as the command will take hours.
+From now we suggest you use `tmux` as the command can take hours.
 ```bash
 cd ~/workdir/acto/
-bash anvil-ae-one-controller.sh
+bash anvil-ae-one-controller.sh 0.05
 ```
-It takes approximately 3 hours to finish.
-
-<details><summary>Seeing urllib3.exceptions.SSLError: [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:2578)?</summary>
-
-This is benign and will not affect the result. You can ignore it.
-</details>
+It takes ~1.5 hours to finish on CloudLab c6420.
 
 **Step 3: check the performance result**
 ```bash
@@ -112,13 +107,13 @@ cat anvil-table-3.txt
 ```
 You should see a table like this:
 ```
-| Controller                         |   Verified (Anvil) Mean |   Verified (Anvil) Max |   Reference (unverified) Mean |   Reference (unverified) Max |
-|------------------------------------|-------------------------|------------------------|-------------------------------|------------------------------|
-| testrun-anvil-zk-performance       |                 151.655 |                160.793 |                       145.006 |                      160.501 |
+| Controller   |   Verified (Anvil) Mean |   Verified (Anvil) Max |   Reference (unverified) Mean |   Reference (unverified) Max |
+|--------------|-------------------------|------------------------|-------------------------------|------------------------------|
+| Zookeeper    |                 149.953 |                159.953 |                       141.854 |                      160.174 |
 ```
-Note that the absolute numbers depends on the platform, but you should observe that the verified ZooKeeper controller is not significantly slower than the unverified one. In most cases, they have similar execution time.
+Note that the absolute numbers depends on the platform.
 
-## Full Evaluation Instructions (~10 compute-hours + ~6 human-minutes)
+## Full Evaluation Instructions (~7 compute-hours + ~6 human-minutes)
 
 Following full evaluation instructions, you will reproduce the verification results in Table 1 and the performance results in Table 3. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will **highlight** the key pattern you should be able to observe from such numbers.
 
@@ -188,28 +183,38 @@ When comparing this generated table to the original Table 1 in the paper, please
 - The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is expected to be spent on the "Liveness" row.**
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
-### Reproducing Performance Results in Table 3 (~10 compute-hours + ~3 human-minutes)
+### Reproducing Performance Results in Table 3 (~7 compute-hours + ~3 human-minutes)
 
 Following the instructions, you will reproduce the key results that the verified controllers achieve comparable performance to the unverified reference controllers as shown in Table 3.
 
-You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-3-compute-hours--5-human-minutes).
+You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-1.5-compute-hours--5-human-minutes).
 
 We suggest you use `tmux` as the command will take hours.
 
 In the path `~/workdir/acto/` inside your CloudLab machine, run
 ```bash
-bash anvil-ae-sampled.sh
+bash anvil-ae-sampled.sh 0.05
 ```
-This command runs 10% of the workloads for the three controllers and their unverified references. It takes approximately 10 hours to finish on CloudLab c6420. After it's done, to see the generated Table 3, run
+This command runs 5% of the workloads for the three controllers and their unverified references. It takes ~7 hours to finish on CloudLab c6420. After it's done, to see the generated Table 3, run
 ```bash
 cat anvil-table-3.txt
 ```
 and you should see a generated table like this:
 ```
-| Controller                         |   Verified (Anvil) Mean |   Verified (Anvil) Max |   Reference (unverified) Mean |   Reference (unverified) Max |
-|------------------------------------|-------------------------|------------------------|-------------------------------|------------------------------|
-| testrun-anvil-zk-performance       |                 151.655 |                160.793 |                       145.006 |                      160.501 |
-| testrun-anvil-rabbitmq-performance |                 217.23  |                360.532 |                       214.493 |                      357.244 |
-| testrun-anvil-fluent-performance   |                  37.989 |                 40.339 |                        29.188 |                       35.648 |
+| Controller   |   Verified (Anvil) Mean |   Verified (Anvil) Max |   Reference (unverified) Mean |   Reference (unverified) Max |
+|--------------|-------------------------|------------------------|-------------------------------|------------------------------|
+| Zookeeper    |                 149.953 |                159.953 |                       141.854 |                      160.174 |
+| RabbitMQ     |                 201.167 |                356.158 |                       202.159 |                      356.013 |
+| FluentBit    |                  32.087 |                 33.049 |                        29.634 |                       33.26  |
 ```
-The absolute numbers heavily depend on the platform and it's totally expected that they are not exactly the same as the Table 3 in the paper. **Regardless of the platform, you should still be able to observe that the verified controllers are not significantly slower than their unverified references.** In fact, in most cases the difference is even negligible.
+The numbers are the execution time (in milliseconds) it takes for the verified/reference controller to do reconciliation. The absolute numbers depend on the platform. You might observe that the execution time is much shorter compared to the Table 3 in the paper. This is because the machine configuration has changed. **Regardless of the platform, you should still be able to observe that the verified controllers are not significantly slower than their unverified references.** The verified controller should be at worst ~2X slower than the corresponding reference one. In fact, in most cases their differences are negligible (as shown above).
+
+<details><summary>I want to run all the workloads?</summary>
+
+Note that this will take 100+ hours to finish. If you really want to do that, run
+```bash
+bash anvil-ae-sampled.sh 1
+```
+</details>
+
+
