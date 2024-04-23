@@ -111,7 +111,7 @@ You should see a table like this:
 |--------------|-------------------------|------------------------|-------------------------------|------------------------------|
 | Zookeeper    |                 149.953 |                159.953 |                       141.854 |                      160.174 |
 ```
-Note that the absolute numbers depends on the platform.
+Note that the absolute numbers depends on the platform. If you do not see the expected table, please let us know.
 
 ## Full Evaluation Instructions (~7 compute-hours + ~6 human-minutes)
 
