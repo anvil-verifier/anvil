@@ -8,9 +8,9 @@ In the paper, we make the claim that
 
 The goal is to reproduce the key results to support the claim. Specifically, the key results are (1) verification results in Figure 1 in Section 7 and (2) performance results in Figure 3 in Section 7.
 
-The entire artifact evaluation process can take about X hours.
+The entire artifact evaluation process can take about 9 hours (mostly machine time).
 
-1. [Kick-the-tires Instructions](#kick-the-tires-instructions-1-5-compute-hours--6-human-minutes)
+1. [Kick-the-tires Instructions](#kick-the-tires-instructions-15-compute-hours--6-human-minutes)
 2. [Full Evaluation Instructions](#full-evaluation-instructions-7-compute-hours--6-human-minutes)
 
 ## Kick-the-tires Instructions (~1.5 compute-hours + ~6 human-minutes)
@@ -187,7 +187,7 @@ When comparing this generated table to the original Table 1 in the paper, please
 
 Following the instructions, you will reproduce the key results that the verified controllers achieve comparable performance to the unverified reference controllers as shown in Table 3.
 
-You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-1.5-compute-hours--5-human-minutes).
+You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-15-compute-hours--5-human-minutes).
 
 We suggest you use `tmux` as the command will take hours.
 
