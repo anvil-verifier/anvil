@@ -23,7 +23,7 @@ Before following the instructions, please ensure you have [Docker](https://docs.
 
 **Step 1: download the container image (~3.56GB)**
 ```bash
-docker pull docker pull ghcr.io/vmware-research/verifiable-controllers/anvil-ae:latest
+docker pull ghcr.io/vmware-research/verifiable-controllers/anvil-ae:latest
 ```
 Note: If you cannot download the image, try to [authenticate to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry) and pull again.
 
@@ -49,7 +49,7 @@ The result should be `"errors": 0,`, meaning that all the proofs are verified. I
 
 ### Running workloads of one controller (~1.5 compute-hours + ~5 human-minutes)
 
-The following instructions require some environment setup to run (part of) the performance evaluation. We highly suggest you use the CloudLab machine with the image we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, we encourage you to read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab]((https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the OSDI AEC chair to add you to the OSDI AEC project.
+The following instructions require some environment setup to run the workloads. We highly suggest you use the CloudLab machine with the profiles we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, you can read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab]((https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the OSDI AEC chair to add you to the OSDI AEC project.
 
 To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: c6420, c220g5 and c220g2. Please note these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
 
