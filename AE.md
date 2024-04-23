@@ -23,7 +23,7 @@ Before following the instructions, please ensure you have [Docker](https://docs.
 
 **Step 1: download the container image (~3.56GB)**
 ```bash
-docker pull docker pull ghcr.io/vmware-research/verifiable-controllers/anvil-ae:latest
+docker pull ghcr.io/vmware-research/verifiable-controllers/anvil-ae:latest
 ```
 Note: If you cannot download the image, try to [authenticate to the container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry) and pull again.
 
