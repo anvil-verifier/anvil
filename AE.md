@@ -180,7 +180,7 @@ and you should see a generated table like this:
 | Total(all)                | 2330            | 3940         | 23975         | 715.807 (551.653)          |
 ```
 When comparing this generated table to the original Table 1 in the paper, please note that:
-- The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is expected to be spent on the "Liveness" row.**
+- The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is spent on the "Liveness" row.**
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
 ### Reproducing Performance Results in Table 3 (~7 compute-hours + ~3 human-minutes)
