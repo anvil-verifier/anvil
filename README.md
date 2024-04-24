@@ -19,7 +19,7 @@ Following kick-the-tires instructions, you will (1) verify one controller using 
 
 ### Verifying one controller (~4 compute-minutes + ~1 human-minute)
 
-Before following the instructions, please ensure you have [Docker](https://docs.docker.com/engine/install/) installed on your machine.
+The instructions in this section can be run on any machine with [docker](https://docs.docker.com/engine/install/) installed.
 
 **Step 1: download the container image (~3.56GB)**
 ```bash
@@ -49,7 +49,7 @@ The result should be `"errors": 0,`, meaning that all the proofs are verified. I
 
 ### Running workloads of one controller (~1.5 compute-hours + ~5 human-minutes)
 
-The following instructions require some environment setup to run the workloads. We highly suggest you use the CloudLab machine with the profiles we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, you can read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab]((https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the OSDI AEC chair to add you to the OSDI AEC project.
+The instructions in this section require some environment setup to run the controller workloads. We highly suggest you use the CloudLab machine with the profiles we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, you can read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab]((https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the OSDI AEC chair to add you to the OSDI AEC project.
 
 To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: c6420, c220g5 and c220g2. Please note these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
 
@@ -94,12 +94,12 @@ If you encounter any problem, please contact us on HotCRP.
 
 **Step 2: run the workload**
 
-From now we suggest you use `tmux` as the command can take hours.
+We suggest you use `tmux` when running on remote machines as the command can take hours.
 ```bash
 cd ~/workdir/acto/
 bash anvil-ae-one-controller.sh 0.05
 ```
-It takes ~1.5 hours to finish on CloudLab c6420.
+It takes ~1.5 hours to finish on CloudLab c6420. Note that if you chose to manually set up the environment, you need to replace `~/workdir/acto/` with the path to the cloned `acto` repo on your machine instead.
 
 **Step 3: check the performance result**
 ```bash
@@ -180,7 +180,7 @@ and you should see a generated table like this:
 | Total(all)                | 2330            | 3940         | 23975         | 715.807 (551.653)          |
 ```
 When comparing this generated table to the original Table 1 in the paper, please note that:
-- The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time is spent on the "Liveness" row.**
+- The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time (> 70%) is spent on the "Liveness" row.**
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
 ### Reproducing Performance Results in Table 3 (~7 compute-hours + ~3 human-minutes)
@@ -189,7 +189,7 @@ Following the instructions, you will reproduce the key results that the verified
 
 You will reuse the CloudLab machine as in the [Kick-the-tires Instructions](#running-workloads-of-one-controller-15-compute-hours--5-human-minutes).
 
-We suggest you use `tmux` as the command will take hours.
+We suggest you use `tmux` when running on remote machines as the command will take hours.
 
 In the path `~/workdir/acto/` inside your CloudLab machine, run
 ```bash
@@ -207,7 +207,7 @@ and you should see a generated table like this:
 | RabbitMQ     |                 201.167 |                356.158 |                       202.159 |                      356.013 |
 | FluentBit    |                  32.087 |                 33.049 |                        29.634 |                       33.26  |
 ```
-The numbers are the execution time (in milliseconds) it takes for the verified/reference controller to do reconciliation. The absolute numbers depend on the platform. You might observe that the execution time is much shorter compared to the Table 3 in the paper. This is because the machine configuration has changed. **Regardless of the platform, you should still be able to observe that the verified controllers are not significantly slower than their unverified references.** The verified controller should be at worst ~2X slower than the corresponding reference one. In fact, in most cases their differences are negligible (as shown above).
+The numbers are the execution time (in milliseconds) it takes for the verified/reference controller to do reconciliation. The absolute numbers depend on the platform. You might observe that the execution times are shorter compared to the numbers reported in the paper. This is because the machine configuration and Acto (the tool we use to run workloads) have changed. **Regardless of the platform, you should still be able to observe that the verified controllers are NOT significantly slower than their unverified references.** The execution time of each verified controller should be within 2.5X of the execution time of the corresponding reference controller, in terms of both mean and max time. In fact, in most cases their differences are negligible (as shown above).
 
 <details><summary>I want to run all the workloads?</summary>
 
