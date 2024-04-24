@@ -115,7 +115,7 @@ Note that the absolute numbers depends on the platform. If you do not see the ex
 
 ## Full Evaluation Instructions (~7 compute-hours + ~6 human-minutes)
 
-Following full evaluation instructions, you will reproduce the verification results in Table 1 and the performance results in Table 3. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will **highlight** the key pattern you should be able to observe from such numbers.
+Following full evaluation instructions, you will reproduce the verification results in Table 1 and the performance results in Table 3. These are the key results that support the claim in the paper. The absolute number of the time-related results heavily depend on the platform, but we will **highlight** the key pattern you should be able to observe.
 
 ### Reproducing Verification Results in Table 1 (~12 compute-minutes + ~3 human-minutes)
 
@@ -141,7 +141,7 @@ Presenting verification results from Verus. You should see 0 errors for Anvil an
 + grep errors
     "errors": 0,
 ```
-All the `"errors": 0,` mean that the Anvil framework and the three controllers are verified.
+**The most important results are the `"errors": 0,`, meaning that the Anvil framework and the three controllers are verified.**
 
 To see the generated Table 1, run
 ```bash
@@ -180,7 +180,7 @@ and you should see a generated table like this:
 | Total(all)                | 2330            | 3940         | 23975         | 715.807 (551.653)          |
 ```
 When comparing this generated table to the original Table 1 in the paper, please note that:
-- The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. **Regardless of the platform, you should still be able to observe that most of the time (> 70%) is spent on the "Liveness" row.**
+- The numbers in the "Time to verify" column heavily depend on the platform. The numbers we show above are different from those in the paper because the platform configuration and the solver version have changed since the submission. You might find the absolute numbers generated on your platform are different from the numbers shown above, which is expected. Regardless of the platform, you should still be able to observe that most of the time (> 70%) is spent on the "Liveness" row.
 - The numbers in the "Trusted", "Exec" and "Proof" should be deterministic. You might notice some minor difference when comparing them to the numbers reported in the paper. This is because we have slightly updated the controllers' implementations and proofs since the submission.
 
 ### Reproducing Performance Results in Table 3 (~7 compute-hours + ~3 human-minutes)
@@ -207,7 +207,7 @@ and you should see a generated table like this:
 | RabbitMQ     |                 201.167 |                356.158 |                       202.159 |                      356.013 |
 | FluentBit    |                  32.087 |                 33.049 |                        29.634 |                       33.26  |
 ```
-The numbers are the execution time (in milliseconds) it takes for the verified/reference controller to do reconciliation. The absolute numbers depend on the platform. You might observe that the execution times are shorter compared to the numbers reported in the paper. This is because the machine configuration and Acto (the tool we use to run workloads) have changed. **Regardless of the platform, you should still be able to observe that the verified controllers are NOT significantly slower than their unverified references.** The execution time of each verified controller should be within 2.5X of the execution time of the corresponding reference controller, in terms of both mean and max time. In fact, in most cases their differences are negligible (as shown above).
+The numbers are the execution time (in milliseconds) it takes for the verified/reference controller to do reconciliation. The absolute numbers depend on the platform. You might observe that the execution times are shorter compared to the numbers reported in the paper. This is because the machine configuration and Acto (the tool we use to run workloads) have changed since the submission. **Regardless of the platform, you should still be able to observe that the verified controllers are NOT significantly slower than their unverified references.** The execution time of each verified controller should be within 2.5X of the execution time of the corresponding reference controller, in terms of both mean and max time. In fact, in most cases their differences are negligible (as shown above).
 
 <details><summary>I want to run all the workloads?</summary>
 
