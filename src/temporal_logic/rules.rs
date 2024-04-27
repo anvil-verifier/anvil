@@ -1483,55 +1483,6 @@ pub proof fn valid_implies_implies_leads_to<T>(spec: TempPred<T>, p: TempPred<T>
     implies_to_leads_to(spec, p, q);
 }
 
-/// Weaken entails by implies.
-/// pre:
-///     |= p => q
-///     spec |= p
-/// post:
-///     spec |= q
-pub proof fn entails_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.implies(q)),
-        spec.entails(p),
-    ensures spec.entails(q)
-{
-    valid_implies_trans::<T>(spec, p, q);
-}
-
-/// Implies is preserved by and.
-/// pre:
-///     spec|= [](p1 => p2)
-///     spec|= [](q1 => q2)
-/// post:
-///     spec|= [](p1 /\ q1 => p2 /\ q2)
-pub proof fn implies_preserved_by_and_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
-    requires
-        spec.entails(always(p1.implies(p2))),
-        spec.entails(always(q1.implies(q2))),
-    ensures spec.entails(always(p1.and(q1).implies(p2.and(q2)))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(p1.and(q1).implies(p2.and(q2))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] p1.and(q1).satisfied_by(ex.suffix(i)) implies p2.and(q2).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex, spec, always(p1.implies(p2)));
-            implies_apply::<T>(ex, spec, always(q1.implies(q2)));
-            implies_apply::<T>(ex.suffix(i), p1, p2);
-            implies_apply::<T>(ex.suffix(i), q1, q2);
-        };
-    };
-}
-
-/// Sandwich always implies with p.
-/// pre:
-///     spec |= [](q1 => q2)
-/// post:
-///     spec |= [](p /\ q1 => p /\ q2)
-pub proof fn sandwich_always_implies_by_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
-    requires spec.entails(always(q1.implies(q2))),
-    ensures spec.entails(always(p.and(q1).implies(p.and(q2)))),
-{
-    implies_preserved_by_and_temp::<T>(spec, p, p, q1, q2);
-}
-
 /// Introduce always to both sides of implies.
 /// pre:
 ///     |= p => q
@@ -1568,46 +1519,6 @@ pub proof fn always_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPre
     };
 }
 
-/// Merge an always and an eventually into an eventually.
-/// pre:
-///     spec |= []p
-///     spec |= <>q
-/// post:
-///     spec |= <>(p /\ q)
-pub proof fn always_and_eventually_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(p)),
-        spec.entails(eventually(q)),
-    ensures spec.entails(eventually(p.and(q))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(p.and(q)).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p));
-        implies_apply::<T>(ex, spec, eventually(q));
-        let witness_idx = eventually_choose_witness::<T>(ex, q);
-        eventually_proved_by_witness::<T>(ex, p.and(q), witness_idx);
-    };
-}
-
-/// Introduce leads_to when there is always.
-/// pre:
-///     spec |= []q
-/// post:
-///     spec |= p ~> []q
-pub proof fn always_prepend_leads_to_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires spec.entails(always(q)),
-    ensures spec.entails(p.leads_to(always(q))),
-{
-    assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.leads_to(always(q)).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(q));
-        always_double::<T>(ex, q);
-        assert forall |i| p.satisfied_by(#[trigger] ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
-            always_propagate_forwards::<T>(ex, always(q), i);
-            always_unfold::<T>(ex.suffix(i), always(q));
-            eventually_proved_by_witness::<T>(ex.suffix(i), always(q), 0);
-        };
-    };
-}
-
 /// Introduce always to both sides of always implies.
 /// pre:
 ///     spec |= [](p => q)
@@ -1629,83 +1540,6 @@ pub proof fn always_implies_preserved_by_always_temp<T>(spec: TempPred<T>, p: Te
                 implies_apply::<T>(ex.suffix(i).suffix(j), p, q);
             };
         };
-    };
-}
-
-/// Weaken always implies by implies.
-/// pre:
-///     spec |= [](p2 => p1)
-///     spec |= [](q1 => q2)
-///     spec |= [](p1 => q1)
-/// post:
-///     spec |= [](p2 => q2)
-pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
-    requires
-        spec.entails(always(p2.implies(p1))),
-        spec.entails(always(q1.implies(q2))),
-        spec.entails(always(p1.implies(q1))),
-    ensures spec.entails(always(p2.implies(q2))),
-{
-    always_implies_trans_temp::<T>(spec, p2, p1, q1);
-    always_implies_trans_temp::<T>(spec, p2, q1, q2);
-}
-
-/// Connect two implies inside always by transitivity.
-/// pre:
-///     spec |= [](p => q)
-///     spec |= [](q => r)
-/// post:
-///     spec |= [](p => r)
-pub proof fn always_implies_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
-    requires
-        spec.entails(always(p.implies(q))),
-        spec.entails(always(q.implies(r))),
-    ensures spec.entails(always(p.implies(r))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p.implies(r)).satisfied_by(ex) by {
-        assert forall |i: nat| #[trigger] p.satisfied_by(ex.suffix(i))
-        implies r.satisfied_by(ex.suffix(i)) by {
-            entails_apply(ex, spec, always(p.implies(q)));
-            entails_apply(ex, spec, always(q.implies(r)));
-            always_unfold(ex, p.implies(q));
-            always_unfold(ex, q.implies(r));
-        }
-    };
-}
-
-/// Introduce eventually to both sides of implies.
-/// pre:
-///     |= p => q
-/// post:
-///     |= <>p => <>q
-pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
-    requires valid(p.implies(q)),
-    ensures valid(eventually(p).implies(eventually(q))),
-{
-    assert forall |ex| eventually(p).satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
-        eventually_unfold::<T>(ex, p);
-        let p_witness = eventually_choose_witness::<T>(ex, p);
-        implies_apply::<T>(ex.suffix(p_witness), p, q);
-    };
-}
-
-/// Weaken eventually by implies.
-/// pre:
-///     |= p => q
-///     spec |= <>p
-/// post:
-///     spec |= <>q
-pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.implies(q)),
-        spec.entails(eventually(p)),
-    ensures spec.entails(eventually(q)),
-{
-    implies_preserved_by_eventually_temp::<T>(p, q);
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, eventually(p));
-        implies_apply::<T>(ex, eventually(p), eventually(q));
     };
 }
 
@@ -2090,31 +1924,6 @@ pub proof fn leads_to_stable_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: Te
             };
 
             eventually_proved_by_witness::<T>(ex.suffix(i), always(q), witness_idx);
-        };
-    };
-}
-
-/// Show that if the conclusion of leads_to is never true, then the premise of leads_to is never true
-/// pre:
-///     spec |= p ~> q
-/// ensures:
-///     spec |= []([]~q => []~p)
-pub proof fn leads_to_contraposition_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires spec.entails(p.leads_to(q)),
-    ensures spec.entails(always(always(not(q)).implies(always(not(p))))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(not(q)).implies(always(not(p)))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] always(not(q)).satisfied_by(ex.suffix(i)) implies always(not(p)).satisfied_by(ex.suffix(i)) by {
-            assert forall |j| #[trigger] not(p).satisfied_by(ex.suffix(i).suffix(j)) by {
-                implies_apply::<T>(ex, spec, p.leads_to(q));
-                leads_to_unfold::<T>(ex, p, q);
-                execution_equality::<T>(ex.suffix(i + j), ex.suffix(i).suffix(j));
-
-                always_propagate_forwards::<T>(ex.suffix(i), not(q), j);
-                not_eventually_by_always_not::<T>(ex.suffix(i).suffix(j), q);
-
-                not_proved_by_contraposition::<T>(ex.suffix(i).suffix(j), p, eventually(q));
-            };
         };
     };
 }
