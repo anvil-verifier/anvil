@@ -51,13 +51,13 @@ The result should be `"errors": 0,`, meaning that all the proofs are verified. I
 
 The instructions in this section require some environment setup to run the controller workloads. We highly suggest you use the CloudLab machine with the profiles we prepared, as all the environment setup work will be a matter of running one script. If you are a first timer of CloudLab, you can read the CloudLab doc for an overview of how [artifact evaluation is generally conducted on CloudLab]((https://docs.cloudlab.us/repeatable-research.html#%28part._aec-members%29)). If you do not already have a CloudLab account, please apply for one following this [link](https://www.cloudlab.us/signup.php), and ask the OSDI AEC chair to add you to the OSDI AEC project.
 
-To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: c6420, c220g5 and c220g2. Please note these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
+To make the evaluation process smooth, we have prepared CloudLab profiles for setting up the environment for three hardware types: Clemson c6420, Wisconsin c220g5 and Wisconsin c220g2. Please note these machines may not be available all the time. You can [submit a resource reservation](https://docs.cloudlab.us/reservations.html) to guarantee the availability of the machine.
 
 **Please let us know if you have trouble accessing CloudLab, we can help set up the experiment and give you access.**
 
 **Step 1: setup environment**
 
-Click the [link](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c6420&refspec=refs/heads/main) (which instantiates a CloudLab machine with the profile `anvil-ae-c6420`) and keep hitting `next` to create the experiment. You should see that CloudLab starts to provision the machine, which typically takes ~5 minutes. Please patiently wait for "Status" to become `Ready`. After the machine is ready, log into the machine using `ssh` (with the key provided to CloudLab) or using the `shell` provided by the CloudLab Web UI, and then run
+Click **one** of the following three links: [profile `anvil-ae-c6420`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c6420&refspec=refs/heads/main), [profile `anvil-ae-c220g5`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c220g5&refspec=refs/heads/main), or [profile `anvil-ae-c220g2`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c220g2&refspec=refs/heads/main), and keep hitting `next` to create the experiment. You should see that CloudLab starts to provision the machine, which typically takes ~5 minutes. Please patiently wait for "Status" to become `Ready`. After the machine is ready, log into the machine using `ssh` (with the key provided to CloudLab) or using the `shell` provided by the CloudLab Web UI, and then run
 ```bash
 bash /local/repository/scripts/cloudlab_startup_run_by_creator.sh
 ```
@@ -67,7 +67,7 @@ Please note that by default you **only have access to the machine for 16 hours**
 
 <details><summary>No available machine?</summary>
 
-You can also try [profile `anvil-ae-c220g5`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c220g5&refspec=refs/heads/main) or [profile `anvil-ae-c220g2`](https://www.cloudlab.us/instantiate.php?project=anvil&profile=anvil-ae-c220g2&refspec=refs/heads/main). If you still cannot get a machine, please contact us on HotCRP.
+You can try to reserve one machine of Clemson c6420, Wisconsin c220g5 or Wisconsin c220g2. If you still cannot get a machine, please contact us on HotCRP.
 </details>
 
 <details><summary>The script fails in the middle?</summary>
