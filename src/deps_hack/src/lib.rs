@@ -267,3 +267,14 @@ pub struct FluentBitConfigSpec {
     #[serde(rename = "parsersConfig")]
     pub parsers_config: String,
 }
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
+#[kube(shortname = "vrs", namespaced)]
+pub struct VReplicaSetSpec {
+    pub replicas: Option<i32>,
+    pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
+}
