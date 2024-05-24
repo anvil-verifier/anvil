@@ -188,6 +188,13 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn set_generate_name(&mut self, generate_name: String)
+        ensures self@ == old(self)@.set_generate_name(generate_name@),
+    {
+        self.inner.generate_name = Some(generate_name.into_rust_string());
+    }
+
+    #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
         ensures self@ == old(self)@.set_namespace(namespace@),
     {

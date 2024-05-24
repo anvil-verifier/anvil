@@ -24,7 +24,6 @@ pub struct VReplicaSetReconciler {}
 
 pub struct VReplicaSetReconcileState {
     pub reconcile_step: VReplicaSetReconcileStep,
-    pub latest_config_map_rv_opt: Option<StringView>,
 }
 
 pub struct VReplicaSetView {
@@ -40,11 +39,15 @@ impl VReplicaSetView {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
         &&& self.metadata.uid.is_Some()
+        // TODO: ensure that the following is consistent with k8s's ReplicaSet
+        &&& self.spec.template.is_Some()
+        &&& self.spec.template.get_Some_0().metadata.is_Some()
+        &&& self.spec.template.get_Some_0().spec.is_Some()
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
         OwnerReferenceView {
-            block_owner_deletion: None,
+            block_owner_deletion: Some(true),
             controller: Some(true),
             kind: Self::kind(),
             name: self.metadata.name.get_Some_0(),

@@ -8,6 +8,7 @@ verus! {
 #[is_variant]
 pub enum VReplicaSetReconcileStep {
     Init,
+    AfterCreatePod(i32),
     Done,
     Error,
 }

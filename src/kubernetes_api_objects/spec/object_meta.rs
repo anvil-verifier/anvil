@@ -14,6 +14,7 @@ verus! {
 
 pub struct ObjectMetaView {
     pub name: Option<StringView>,
+    pub generate_name: Option<StringView>,
     pub namespace: Option<StringView>,
     pub resource_version: Option<ResourceVersion>,
     pub uid: Option<Uid>,
@@ -28,6 +29,7 @@ impl ObjectMetaView {
     pub open spec fn default() -> ObjectMetaView {
         ObjectMetaView {
             name: None,
+            generate_name: None,
             namespace: None,
             resource_version: None,
             uid: None,
@@ -49,6 +51,13 @@ impl ObjectMetaView {
     pub open spec fn set_name(self, name: StringView) -> ObjectMetaView {
         ObjectMetaView {
             name: Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_generate_name(self, generate_name: StringView) -> ObjectMetaView {
+        ObjectMetaView {
+            generate_name: Some(generate_name),
             ..self
         }
     }

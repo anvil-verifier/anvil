@@ -19,7 +19,6 @@ pub struct VReplicaSetReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: VReplicaSetReconcileStep,
-    pub latest_config_map_rv_opt: Option<String>,
 }
 
 impl std::clone::Clone for VReplicaSetReconcileState {
@@ -30,11 +29,6 @@ impl std::clone::Clone for VReplicaSetReconcileState {
     {
         VReplicaSetReconcileState {
             reconcile_step: self.reconcile_step,
-            latest_config_map_rv_opt:
-                match &self.latest_config_map_rv_opt {
-                    Some(n) => Some(n.clone()),
-                    None => None,
-                }
         }
     }
 }
@@ -45,11 +39,6 @@ impl View for VReplicaSetReconcileState {
     open spec fn view(&self) -> spec_types::VReplicaSetReconcileState {
         spec_types::VReplicaSetReconcileState {
             reconcile_step: self.reconcile_step,
-            latest_config_map_rv_opt:
-                match self.latest_config_map_rv_opt {
-                    Some(s) => Some(s@),
-                    None => None,
-                },
         }
     }
 }
