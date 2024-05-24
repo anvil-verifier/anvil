@@ -1,0 +1,91 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vstatefulsets.anvil.dev
+spec:
+  group: anvil.dev
+  names:
+    categories: []
+    kind: VStatefulSet
+    plural: vstatefulsets
+    shortNames:
+      - vsts
+    singular: vstatefulset
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns: []
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: "Auto-generated derived type for VStatefulSetSpec via `CustomResource`"
+          properties:
+            spec:
+              properties:
+                minReadySeconds:
+                  format: int32
+                  type: integer
+                podManagementPolicy:
+                  type: string
+                replicas:
+                  format: int32
+                  type: integer
+                revisionHistoryLimit:
+                  format: int32
+                  type: integer
+                serviceName:
+                  type: string
+              required:
+                - minReadySeconds
+                - podManagementPolicy
+                - replicas
+                - revisionHistoryLimit
+                - serviceName
+              type: object
+            status:
+              nullable: true
+              properties:
+                availableReplicas:
+                  format: int32
+                  type: integer
+                collisionCount:
+                  format: int32
+                  type: integer
+                currentReplicas:
+                  format: int32
+                  type: integer
+                currentRevision:
+                  type: string
+                observedGeneration:
+                  format: int64
+                  type: integer
+                readyReplicas:
+                  format: int32
+                  type: integer
+                replicas:
+                  format: int32
+                  type: integer
+                updateRevision:
+                  type: string
+                updatedReplicas:
+                  format: int32
+                  type: integer
+              required:
+                - availableReplicas
+                - collisionCount
+                - currentReplicas
+                - currentRevision
+                - observedGeneration
+                - readyReplicas
+                - replicas
+                - updateRevision
+                - updatedReplicas
+              type: object
+          required:
+            - spec
+          title: VStatefulSet
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+

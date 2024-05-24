@@ -1,0 +1,12 @@
+apiVersion: anvil.dev/v1
+kind: VStatefulSet
+metadata:
+  name: vstatefulset
+  namespace: default
+spec:
+  serviceName: foo
+  replicas: 4
+  podManagementPolicy: dummy
+  revisionHistoryLimit: 4
+  minReadySeconds: 42
+  

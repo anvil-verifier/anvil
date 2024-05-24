@@ -14,7 +14,8 @@ NC='\033[0m'
 app=$1
 registry=$2
 
-if [ "$app" != "zookeeper" ] && [ "$app" != "rabbitmq" ] && [ "$app" != "fluent" ]; then
+if [ "$app" != "zookeeper" ] && [ "$app" != "rabbitmq" ] && [ "$app" != "fluent" ]\
+   && [ "$app" != "vstatefulset" ]; then
     echo -e "${RED}The first argument has to be one of: zookeeper, rabbitmq, fluent.${NC}"
     exit 1    
 fi
