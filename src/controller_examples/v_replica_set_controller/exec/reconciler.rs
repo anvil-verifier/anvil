@@ -200,7 +200,7 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
         if finalizers.is_some() {
             metadata.set_finalizers(finalizers.unwrap());
         }
-        metadata.set_generate_name(v_replica_set.metadata().name().unwrap());
+        metadata.set_generate_name(v_replica_set.metadata().name().unwrap().concat(new_strlit("-")));
         metadata.set_owner_references(make_owner_references(v_replica_set));
         metadata
     });
