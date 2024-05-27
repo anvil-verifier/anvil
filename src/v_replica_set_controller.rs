@@ -17,7 +17,7 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::external_api::exec::*;
-// use crate::v_replica_set_controller::exec::reconciler::VReplicaSetReconciler;
+use crate::v_replica_set_controller::exec::reconciler::VReplicaSetReconciler;
 use crate::v_replica_set_controller::trusted::exec_types::{
     VReplicaSet, VReplicaSetReconcileState,
 };
@@ -36,20 +36,20 @@ async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let cmd = args[1].clone();
 
-    // if cmd == String::from("export") {
-    //     println!("exporting custom resource definition");
-    //     println!("{}", serde_yaml::to_string(&deps_hack::VReplicaSet::crd())?);
-    // } else if cmd == String::from("run") {
-    //     println!("running v-replica-set-controller");
-    //     run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler>(false).await?;
-    //     println!("controller terminated");
-    // } else if cmd == String::from("crash") {
-    //     println!("running v-replica-set-controller in crash-testing mode");
-    //     run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler>(true).await?;
-    //     println!("controller terminated");
-    // } else {
-    //     println!("wrong command; please use \"export\", \"run\" or \"crash\"");
-    // }
+    if cmd == String::from("export") {
+        println!("exporting custom resource definition");
+        println!("{}", serde_yaml::to_string(&deps_hack::VReplicaSet::crd())?);
+    } else if cmd == String::from("run") {
+        println!("running v-replica-set-controller");
+        run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler>(false).await?;
+        println!("controller terminated");
+    } else if cmd == String::from("crash") {
+        println!("running v-replica-set-controller in crash-testing mode");
+        run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler>(true).await?;
+        println!("controller terminated");
+    } else {
+        println!("wrong command; please use \"export\", \"run\" or \"crash\"");
+    }
     Ok(())
 }
 }
