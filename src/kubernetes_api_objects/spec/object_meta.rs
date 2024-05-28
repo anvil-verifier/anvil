@@ -41,6 +41,13 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn owner_references_contains(self, owner_ref: OwnerReferenceView) -> bool {
+        match self.owner_references {
+            Some(owner_refs) => owner_refs.contains(owner_ref),
+            None => false,
+        }
+    }
+
     pub open spec fn owner_references_only_contains(self, owner_ref: OwnerReferenceView) -> bool {
         match self.owner_references {
             Some(owner_refs) => owner_refs == seq![owner_ref],

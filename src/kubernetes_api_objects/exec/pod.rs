@@ -114,6 +114,16 @@ impl Pod {
     }
 }
 
+impl std::clone::Clone for Pod {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Pod)
+        ensures result == self
+    {
+        Pod { inner: self.inner.clone() }
+    }
+}
+
 #[verifier(external_body)]
 pub struct PodSpec {
     inner: deps_hack::k8s_openapi::api::core::v1::PodSpec,

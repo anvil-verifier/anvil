@@ -52,7 +52,7 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
-    pub fn get<'a>(&'a self, key: String) -> (v: Option<StrSlice<'a>>)
+    pub fn get_uncloned<'a>(&'a self, key: &String) -> (v: Option<StrSlice<'a>>)
         ensures
             self@.contains_key(key@) == v.is_Some(),
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
@@ -64,10 +64,29 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
+    pub fn get(&self, key: &String) -> (v: Option<String>)
+        ensures
+            self@.contains_key(key@) == v.is_Some(),
+            v.is_Some() ==> v.get_Some_0()@ == self@[key@],
+    {
+        match self.inner.get(key.as_rust_string_ref()) {
+            Some(v) => Some(String::from_rust_string(v.to_string())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn extend(&mut self, m2: StringMap)
         ensures self@ == old(self)@.union_prefer_right(m2@),
     {
         self.inner.extend(m2.into_rust_map())
+    }
+
+    #[verifier(external_body)]
+    pub fn keys(&self) -> (keys: Vec<String>)
+        ensures keys@.map_values(|k: String| k@) == self@.dom().to_seq(),
+    {
+        self.inner.keys().cloned().map(|key| String::from_rust_string(key)).collect()
     }
 
     #[verifier(external)]
