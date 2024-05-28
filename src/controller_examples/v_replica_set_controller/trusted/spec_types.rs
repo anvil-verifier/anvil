@@ -3,9 +3,7 @@
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    affinity::*, api_resource::*, common::*, dynamic::*, label_selector::*, marshal::*,
-    object_meta::*, owner_reference::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, stateful_set::*, toleration::*,
+    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::v_replica_set_controller::trusted::step::*;
@@ -23,7 +21,8 @@ pub type VRSMessage = Message<EmptyTypeView, EmptyTypeView>;
 pub struct VReplicaSetReconciler {}
 
 pub struct VReplicaSetReconcileState {
-    pub reconcile_step: VReplicaSetReconcileStep,
+    pub reconcile_step: VReplicaSetReconcileStepView,
+    pub filtered_pods: Option<Seq<PodView>>,
 }
 
 pub struct VReplicaSetView {

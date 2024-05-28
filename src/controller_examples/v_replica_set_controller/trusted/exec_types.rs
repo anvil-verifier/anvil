@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{
-    affinity::*, api_resource::*, dynamic::*, label_selector::*, object_meta::*,
-    owner_reference::*, pod_template_spec::*, resource::*, resource_requirements::*,
-    stateful_set::*, toleration::*,
+    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::v_replica_set_controller::trusted::{spec_types, step::*};
@@ -16,29 +14,36 @@ verus! {
 
 /// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct VReplicaSetReconcileState {
-    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
-    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: VReplicaSetReconcileStep,
+    pub filtered_pods: Option<Vec<Pod>>,
 }
 
-impl std::clone::Clone for VReplicaSetReconcileState {
+// impl std::clone::Clone for VReplicaSetReconcileState {
 
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: VReplicaSetReconcileState)
-        ensures result == self
-    {
-        VReplicaSetReconcileState {
-            reconcile_step: self.reconcile_step,
-        }
-    }
-}
+//     #[verifier(external_body)]
+//     fn clone(&self) -> (result: VReplicaSetReconcileState)
+//         ensures result == self
+//     {
+//         VReplicaSetReconcileState {
+//             reconcile_step: self.reconcile_step,
+//             filtered_pods: match self.filtered_pods {
+//                 Some(fp) => Some(fp.clone()),
+//                 None => None,
+//             },
+//         }
+//     }
+// }
 
 impl View for VReplicaSetReconcileState {
     type V = spec_types::VReplicaSetReconcileState;
 
     open spec fn view(&self) -> spec_types::VReplicaSetReconcileState {
         spec_types::VReplicaSetReconcileState {
-            reconcile_step: self.reconcile_step,
+            reconcile_step: self.reconcile_step@,
+            filtered_pods: match self.filtered_pods {
+                Some(fp) => Some(fp@.map_values(|p: Pod| p@)),
+                None => None,
+            },
         }
     }
 }
