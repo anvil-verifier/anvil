@@ -78,7 +78,6 @@ pub fn reconcile_error(state: &VReplicaSetReconcileState) -> (res: bool)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<EmptyType>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<EmptyType>>))
     requires v_replica_set@.well_formed(),
     // ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(v_replica_set@, opt_response_to_view(&resp_o), state@),
@@ -113,15 +112,15 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<Empty
             if replicas < 0 {
                 return (error_state(state), None);
             }
-            let desired_replicas: usize = replicas.try_into().unwrap();
+            let desired_replicas: usize = replicas as usize;
             if filtered_pods.len() == desired_replicas {
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::Done,
                     ..state
                 };
                 return (state_prime, None);
-            } else if filtered_pods.len() > desired_replicas {
-                let diff = filtered_pods.len() - desired_replicas;
+            } else if filtered_pods.len() < desired_replicas {
+                let diff =  desired_replicas - filtered_pods.len();
                 let pod = make_pod(v_replica_set);
                 let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                     api_resource: Pod::api_resource(),
@@ -134,8 +133,8 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<Empty
                 };
                 return (state_prime, Some(Request::KRequest(req)));
             } else {
-                let diff = desired_replicas - filtered_pods.len();
-                let pod_name_or_none = filtered_pods[diff].metadata().name();
+                let diff = filtered_pods.len() - desired_replicas;
+                let pod_name_or_none = filtered_pods[diff - 1].metadata().name();
                 if pod_name_or_none.is_none() {
                     return (error_state(state), None);
                 }
@@ -196,7 +195,10 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<Empty
                 if state.filtered_pods.is_none() {
                     return (error_state(state), None);
                 }
-                let pod_name_or_none = state.filtered_pods.as_ref().unwrap()[diff].metadata().name();
+                if diff > state.filtered_pods.as_ref().unwrap().len() {
+                    return (error_state(state), None);
+                }
+                let pod_name_or_none = state.filtered_pods.as_ref().unwrap()[diff - 1].metadata().name();
                 if pod_name_or_none.is_none() {
                     return (error_state(state), None);
                 }
