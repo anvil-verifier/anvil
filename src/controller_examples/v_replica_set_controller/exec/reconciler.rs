@@ -97,131 +97,132 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<Empty
             return (state_prime, Some(Request::KRequest(req)));
         },
         VReplicaSetReconcileStep::AfterListPods => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok() {
-                let objs = resp_o.unwrap().into_k_response().into_list_response().res.unwrap();
-                let pods_o = objects_to_pods(objs);
-                if pods_o.is_some() {
-                    let pods = pods_o.unwrap();
-                    let filtered_pods = filter_pods(pods, v_replica_set);
-                    let replicas = v_replica_set.spec().replicas().unwrap_or(0);
-                    if replicas >= 0 {
-                        let desired_replicas: usize = replicas.try_into().unwrap();
-                        if filtered_pods.len() == desired_replicas {
-                            let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetReconcileStep::Done,
-                                ..state
-                            };
-                            return (state_prime, None);
-                        } else if filtered_pods.len() > desired_replicas {
-                            let diff = filtered_pods.len() - desired_replicas;
-                            let pod = make_pod(v_replica_set);
-                            let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                                api_resource: Pod::api_resource(),
-                                namespace: namespace,
-                                obj: pod.marshal(),
-                            });
-                            let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetReconcileStep::AfterCreatePod(diff - 1),
-                                ..state
-                            };
-                            return (state_prime, Some(Request::KRequest(req)));
-                        } else {
-                            let diff = desired_replicas - filtered_pods.len();
-                            let pod_name_or_not = filtered_pods[diff].metadata().name();
-                            if pod_name_or_not.is_some() {
-                                let req = KubeAPIRequest::DeleteRequest(KubeDeleteRequest {
-                                    api_resource: Pod::api_resource(),
-                                    name: pod_name_or_not.unwrap(),
-                                    namespace: namespace,
-                                });
-                                let state_prime = VReplicaSetReconcileState {
-                                    reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
-                                    filtered_pods: Some(filtered_pods),
-                                    ..state
-                                };
-                                return (state_prime, Some(Request::KRequest(req)));
-                            }
-                        }
-                    }
-                }
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok()) {
+                return (error_state(state), None);
             }
-            let state_prime = VReplicaSetReconcileState {
-                reconcile_step: VReplicaSetReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, None);
+            let objs = resp_o.unwrap().into_k_response().into_list_response().res.unwrap();
+            let pods_or_none = objects_to_pods(objs);
+            if pods_or_none.is_none() {
+                return (error_state(state), None);
+            }
+            let pods = pods_or_none.unwrap();
+            let filtered_pods = filter_pods(pods, v_replica_set);
+            let replicas = v_replica_set.spec().replicas().unwrap_or(0);
+            if replicas < 0 {
+                return (error_state(state), None);
+            }
+            let desired_replicas: usize = replicas.try_into().unwrap();
+            if filtered_pods.len() == desired_replicas {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                return (state_prime, None);
+            } else if filtered_pods.len() > desired_replicas {
+                let diff = filtered_pods.len() - desired_replicas;
+                let pod = make_pod(v_replica_set);
+                let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                    api_resource: Pod::api_resource(),
+                    namespace: namespace,
+                    obj: pod.marshal(),
+                });
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::AfterCreatePod(diff - 1),
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req)));
+            } else {
+                let diff = desired_replicas - filtered_pods.len();
+                let pod_name_or_none = filtered_pods[diff].metadata().name();
+                if pod_name_or_none.is_none() {
+                    return (error_state(state), None);
+                }
+                let req = KubeAPIRequest::DeleteRequest(KubeDeleteRequest {
+                    api_resource: Pod::api_resource(),
+                    name: pod_name_or_none.unwrap(),
+                    namespace: namespace,
+                });
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
+                    filtered_pods: Some(filtered_pods),
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req)));
+            }
         },
         VReplicaSetReconcileStep::AfterCreatePod(diff) => {
             let diff = *diff;
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
-                if diff == 0 {
-                    let state_prime = VReplicaSetReconcileState {
-                        reconcile_step: VReplicaSetReconcileStep::Done,
-                        ..state
-                    };
-                    return (state_prime, None);
-                } else {
-                    let pod = make_pod(v_replica_set);
-                    let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                        api_resource: Pod::api_resource(),
-                        namespace: namespace,
-                        obj: pod.marshal(),
-                    });
-                    let state_prime = VReplicaSetReconcileState {
-                        reconcile_step: VReplicaSetReconcileStep::AfterCreatePod(diff - 1),
-                        ..state
-                    };
-                    return (state_prime, Some(Request::KRequest(req)));
-                }
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()) {
+                return (error_state(state), None);
             }
-            let state_prime = VReplicaSetReconcileState {
-                reconcile_step: VReplicaSetReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, None);
+            if diff == 0 {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                return (state_prime, None);
+            } else {
+                let pod = make_pod(v_replica_set);
+                let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                    api_resource: Pod::api_resource(),
+                    namespace: namespace,
+                    obj: pod.marshal(),
+                });
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::AfterCreatePod(diff - 1),
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req)));
+            }
         },
         VReplicaSetReconcileStep::AfterDeletePod(diff) => {
             let diff = *diff;
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_delete_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_delete_response_ref().res.is_ok() {
-                if diff == 0 {
-                    let state_prime = VReplicaSetReconcileState {
-                        reconcile_step: VReplicaSetReconcileStep::Done,
-                        ..state
-                    };
-                    return (state_prime, None);
-                } else {
-                    if state.filtered_pods.is_some() {
-                        let pod_name_or_not = state.filtered_pods.as_ref().unwrap()[diff].metadata().name();
-                        if pod_name_or_not.is_some() {
-                            let req = KubeAPIRequest::DeleteRequest(KubeDeleteRequest {
-                                api_resource: Pod::api_resource(),
-                                name: pod_name_or_not.unwrap(),
-                                namespace: namespace,
-                            });
-                            let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
-                                ..state
-                            };
-                            return (state_prime, Some(Request::KRequest(req)));
-                        }
-                    }
-                }
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_delete_response_ref().res.is_ok()) {
+                return (error_state(state), None);
             }
-            let state_prime = VReplicaSetReconcileState {
-                reconcile_step: VReplicaSetReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, None);
+            if diff == 0 {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                return (state_prime, None);
+            } else {
+                if state.filtered_pods.is_none() {
+                    return (error_state(state), None);
+                }
+                let pod_name_or_none = state.filtered_pods.as_ref().unwrap()[diff].metadata().name();
+                if pod_name_or_none.is_none() {
+                    return (error_state(state), None);
+                }
+                let req = KubeAPIRequest::DeleteRequest(KubeDeleteRequest {
+                    api_resource: Pod::api_resource(),
+                    name: pod_name_or_none.unwrap(),
+                    namespace: namespace,
+                });
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req)));
+            }
         },
         _ => {
             return (state, None);
         }
+    }
+}
+
+pub fn error_state(state: VReplicaSetReconcileState) -> (state_prime: VReplicaSetReconcileState)
+{
+    VReplicaSetReconcileState {
+        reconcile_step: VReplicaSetReconcileStep::Error,
+        ..state
     }
 }
 
@@ -242,14 +243,14 @@ pub fn make_owner_references(v_replica_set: &VReplicaSet) -> (owner_references: 
 
 // TODO: This function can be replaced by a map.
 // Revisit it if Verus supports Vec.map.
-fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_o: Option<Vec<Pod>>)
+fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
 {
     let mut pods = Vec::new();
     let mut idx = 0;
     while idx < objs.len() {
-        let pod_or_not = Pod::unmarshal(objs[idx].clone());
-        if pod_or_not.is_ok() {
-            pods.push(pod_or_not.unwrap());
+        let pod_or_error = Pod::unmarshal(objs[idx].clone());
+        if pod_or_error.is_ok() {
+            pods.push(pod_or_error.unwrap());
         } else {
             return None;
         }
