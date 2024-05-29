@@ -25,7 +25,8 @@ if [ "$registry" != "remote" ] && [ "$registry" != "local" ]; then
     exit 2
 fi
 
-if cd deploy/$1 && kubectl apply -f crd.yaml && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
+## use imperative management for CRDs since metadata for PodTemplateSpec is too long.
+if cd deploy/$1 && kubectl create -f crd.yaml && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
     echo ""
     echo -e "${GREEN}The $app controller is deployed in your Kubernetes cluster in namespace \"$app\"."
     echo -e "Run \"kubectl get pod -n $app\" to check the controller pod."
