@@ -277,42 +277,42 @@ pub struct FluentBitConfigSpec {
 pub struct VStatefulSetSpec {
     #[serde(rename = "serviceName")]
     pub service_name: String,
-    // pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
-    // pub template: k8s_openapi::api::core::v1::PodTemplateSpec,
-    pub replicas: i32,
-    // #[serde(rename = "updateStrategy")]
-    // pub update_strategy: Option<k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy>,
+    pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+    pub template: k8s_openapi::api::core::v1::PodTemplateSpec,
+    pub replicas: Option<i32>,
+    #[serde(rename = "updateStrategy")]
+    pub update_strategy: Option<k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy>,
     #[serde(rename = "podManagementPolicy")]
-    pub pod_management_policy: String,
+    pub pod_management_policy: Option<String>,
     #[serde(rename = "revisionHistoryLimit")]
-    pub revision_history_limit: i32,
-    // #[serde(rename = "volumeClaimTemplates")]
-    // pub volume_claim_templates: Option<Vec<k8s_openapi::api::core::v1::PersistentVolumeClaim>>,
+    pub revision_history_limit: Option<i32>,
+    #[serde(rename = "volumeClaimTemplates")]
+    pub volume_claim_templates: Option<Vec<k8s_openapi::api::core::v1::PersistentVolumeClaim>>,
     #[serde(rename = "minReadySeconds")]
-    pub min_ready_seconds: i32,
-    // #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
-    // pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
-    // pub ordinals: Option<k8s_openapi::api::apps::v1::StatefulSetOrdinals>,
+    pub min_ready_seconds: Option<i32>,
+    #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
+    pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
+    pub ordinals: Option<k8s_openapi::api::apps::v1::StatefulSetOrdinals>,
 }
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct VStatefulSetStatus {
     pub replicas: i32,
     #[serde(rename = "readyReplicas")]
-    pub ready_replicas: i32,
+    pub ready_replicas: Option<i32>,
     #[serde(rename = "currentReplicas")]
-    pub current_replicas: i32,
+    pub current_replicas: Option<i32>,
     #[serde(rename = "updatedReplicas")]
-    pub updated_replicas: i32,
+    pub updated_replicas: Option<i32>,
     #[serde(rename = "availableReplicas")]
-    pub available_replicas: i32,
+    pub available_replicas: Option<i32>,
     #[serde(rename = "collisionCount")]
-    pub collision_count: i32,
-    // pub conditions: Option<Vec<k8s_openapi::api::apps::v1::StatefulSetCondition>>,
+    pub collision_count: Option<i32>,
+    pub conditions: Option<Vec<k8s_openapi::api::apps::v1::StatefulSetCondition>>,
     #[serde(rename = "currentRevision")]
-    pub current_revision: String,
+    pub current_revision: Option<String>,
     #[serde(rename = "updateRevision")]
-    pub update_revision: String,
+    pub update_revision: Option<String>,
     #[serde(rename = "observedGeneration")]
-    pub observed_generation: i64,
+    pub observed_generation: Option<i64>,
 }
