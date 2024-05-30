@@ -81,6 +81,29 @@ jobs:
           vargo build --release
       - name: Verify zookeeper controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 50
+  replica-set-verification:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+      - name: Move Verus
+        run: mv verus ../verus
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Build Verus
+        run: |
+          cd ../verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+      - name: Verify replica set controller
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v_replica_set_controller.rs --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
