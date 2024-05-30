@@ -122,14 +122,14 @@ impl FluentBitSpec {
     pub fn fluentbit_config_name(&self) -> (fluentbit_config_name: String)
         ensures fluentbit_config_name@ == self@.fluentbit_config_name,
     {
-        String::from_rust_string(self.inner.fluentbit_config_name.to_string())
+        self.inner.fluentbit_config_name.clone()
     }
 
     #[verifier(external_body)]
     pub fn image(&self) -> (image: String)
         ensures image@ == self@.image,
     {
-        String::from_rust_string(self.inner.image.clone())
+        self.inner.image.clone()
     }
 
     #[verifier(external_body)]
@@ -233,30 +233,21 @@ impl FluentBitSpec {
     pub fn runtime_class_name(&self) -> (runtime_class_name: Option<String>)
         ensures opt_string_to_view(&runtime_class_name) == self@.runtime_class_name,
     {
-        match &self.inner.runtime_class_name {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.runtime_class_name.clone()
     }
 
     #[verifier(external_body)]
     pub fn dns_policy(&self) -> (dns_policy: Option<String>)
         ensures opt_string_to_view(&dns_policy) == self@.dns_policy,
     {
-        match &self.inner.dns_policy {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.dns_policy.clone()
     }
 
     #[verifier(external_body)]
     pub fn priority_class_name(&self) -> (priority_class_name: Option<String>)
         ensures opt_string_to_view(&priority_class_name) == self@.priority_class_name,
     {
-        match &self.inner.priority_class_name {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.priority_class_name.clone()
     }
 
     #[verifier(external_body)]
@@ -287,10 +278,7 @@ impl FluentBitSpec {
     pub fn scheduler_name(&self) -> (scheduler_name: Option<String>)
         ensures opt_string_to_view(&scheduler_name) == self@.scheduler_name,
     {
-        match &self.inner.scheduler_name {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.scheduler_name.clone()
     }
 
     #[verifier(external_body)]
@@ -306,10 +294,7 @@ impl FluentBitSpec {
     pub fn internal_mount_propagation(&self) -> (internal_mount_propagation: Option<String>)
         ensures opt_string_to_view(&internal_mount_propagation) == self@.internal_mount_propagation,
     {
-        match &self.inner.internal_mount_propagation {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.internal_mount_propagation.clone()
     }
 
     #[verifier(external_body)]
@@ -328,10 +313,7 @@ impl FluentBitSpec {
     pub fn container_log_real_path(&self) -> (container_log_real_path: Option<String>)
         ensures opt_string_to_view(&container_log_real_path) == self@.container_log_real_path,
     {
-        match &self.inner.container_log_real_path {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.container_log_real_path.clone()
     }
 
     #[verifier(external_body)]
@@ -371,10 +353,7 @@ impl FluentBitSpec {
             args.is_Some() == self@.args.is_Some(),
             args.is_Some() ==> args.get_Some_0()@.map_values(|s: String| s@) == self@.args.get_Some_0(),
     {
-        match &self.inner.args {
-            Some(arguments) => Some(arguments.clone().into_iter().map(|s: std::string::String| String::from_rust_string(s)).collect()),
-            None => None,
-        }
+        self.inner.args.clone()
     }
 
     #[verifier(external_body)]
@@ -383,10 +362,7 @@ impl FluentBitSpec {
             command.is_Some() == self@.command.is_Some(),
             command.is_Some() ==> command.get_Some_0()@.map_values(|s: String| s@) == self@.command.get_Some_0(),
     {
-        match &self.inner.command {
-            Some(cmd) => Some(cmd.clone().into_iter().map(|s: std::string::String| String::from_rust_string(s)).collect()),
-            None => None,
-        }
+        self.inner.command.clone()
     }
 
     #[verifier(external_body)]
@@ -405,10 +381,7 @@ impl FluentBitSpec {
     pub fn image_pull_policy(&self) -> (image_pull_policy: Option<String>)
         ensures opt_string_to_view(&image_pull_policy) == self@.image_pull_policy,
     {
-        match &self.inner.image_pull_policy {
-            Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
+        self.inner.image_pull_policy.clone()
     }
 
     #[verifier(external_body)]

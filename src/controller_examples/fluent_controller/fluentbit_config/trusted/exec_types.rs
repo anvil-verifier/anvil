@@ -126,14 +126,14 @@ impl FluentBitConfigSpec {
     pub fn fluentbit_config(&self) -> (fluentbit_config: String)
         ensures fluentbit_config@ == self@.fluentbit_config,
     {
-        String::from_rust_string(self.inner.fluentbit_config.to_string())
+        self.inner.fluentbit_config.clone()
     }
 
     #[verifier(external_body)]
     pub fn parsers_config(&self) -> (parsers_config: String)
         ensures parsers_config@ == self@.parsers_config,
     {
-        String::from_rust_string(self.inner.parsers_config.to_string())
+        self.inner.parsers_config.clone()
     }
 }
 

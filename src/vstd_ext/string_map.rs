@@ -45,22 +45,16 @@ impl StringMap {
             old(self)@.contains_key(key@) == old_v.is_Some(),
             old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
     {
-        match self.inner.insert(key.into_rust_string(), value.into_rust_string()) {
-            Some(old_v) => Some(String::from_rust_string(old_v)),
-            None => None,
-        }
+        self.inner.insert(key, value)
     }
 
     #[verifier(external_body)]
-    pub fn get_uncloned<'a>(&'a self, key: &String) -> (v: Option<StrSlice<'a>>)
+    pub fn get_uncloned<'a>(&'a self, key: &String) -> (v: Option<&String>)
         ensures
             self@.contains_key(key@) == v.is_Some(),
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
     {
-        match self.inner.get(key.as_rust_string_ref()) {
-            Some(v) => Some(v),
-            None => None,
-        }
+        self.inner.get(key)
     }
 
     #[verifier(external_body)]
@@ -69,8 +63,8 @@ impl StringMap {
             self@.contains_key(key@) == v.is_Some(),
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
     {
-        match self.inner.get(key.as_rust_string_ref()) {
-            Some(v) => Some(String::from_rust_string(v.to_string())),
+        match self.inner.get(key) {
+            Some(v) => Some(v.to_string()),
             None => None,
         }
     }
@@ -86,7 +80,7 @@ impl StringMap {
     pub fn keys(&self) -> (keys: Vec<String>)
         ensures keys@.map_values(|k: String| k@) == self@.dom().to_seq(),
     {
-        self.inner.keys().cloned().map(|key| String::from_rust_string(key)).collect()
+        self.inner.keys().cloned().collect()
     }
 
     #[verifier(external)]

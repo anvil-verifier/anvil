@@ -38,14 +38,14 @@ impl Container {
     pub fn set_image(&mut self, image: String)
         ensures self@ == old(self)@.set_image(image@),
     {
-        self.inner.image = Some(image.into_rust_string())
+        self.inner.image = Some(image)
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = name.into_rust_string()
+        self.inner.name = name
     }
 
     #[verifier(external_body)]
@@ -108,14 +108,14 @@ impl Container {
     pub fn set_command(&mut self, command: Vec<String>)
         ensures self@ == old(self)@.set_command(command@.map_values(|c: String| c@)),
     {
-        self.inner.command = Some(command.into_iter().map(|c: String| c.into_rust_string()).collect())
+        self.inner.command = Some(command)
     }
 
     #[verifier(external_body)]
     pub fn set_image_pull_policy(&mut self, image_pull_policy: String)
         ensures self@ == old(self)@.set_image_pull_policy(image_pull_policy@),
     {
-        self.inner.image_pull_policy = Some(image_pull_policy.into_rust_string())
+        self.inner.image_pull_policy = Some(image_pull_policy)
     }
 
     #[verifier(external_body)]
@@ -129,7 +129,7 @@ impl Container {
     pub fn set_args(&mut self, args: Vec<String>)
         ensures self@ == old(self)@.set_args(args@.map_values(|s: String| s@)),
     {
-        self.inner.args = Some(args.into_iter().map(|c: String| c.into_rust_string()).collect())
+        self.inner.args = Some(args)
     }
 
     #[verifier(external_body)]
@@ -182,17 +182,14 @@ impl ContainerPort {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = Some(name.into_rust_string());
+        self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures opt_string_to_view(&name) == self@.name,
     {
-        match &self.inner.name {
-            Some(s) => Some(String::from_rust_string(s.clone())),
-            None => None,
-        }
+        self.inner.name.clone()
     }
 
     #[verifier(external_body)]
@@ -206,10 +203,7 @@ impl ContainerPort {
     pub fn protocol(&self) -> (protocol: Option<String>)
         ensures opt_string_to_view(&protocol) == self@.protocol,
     {
-        match &self.inner.protocol {
-            Some(s) => Some(String::from_rust_string(s.clone())),
-            None => None,
-        }
+        self.inner.protocol.clone()
     }
 
     #[verifier(external)]
@@ -248,14 +242,14 @@ impl VolumeMount {
     pub fn set_mount_path(&mut self, mount_path: String)
         ensures self@ == old(self)@.set_mount_path(mount_path@),
     {
-        self.inner.mount_path = mount_path.into_rust_string();
+        self.inner.mount_path = mount_path;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = name.into_rust_string();
+        self.inner.name = name;
     }
 
     #[verifier(external_body)]
@@ -269,17 +263,14 @@ impl VolumeMount {
     pub fn set_sub_path(&mut self, sub_path: String)
         ensures self@ == old(self)@.set_sub_path(sub_path@),
     {
-        self.inner.sub_path = Some(sub_path.into_rust_string());
+        self.inner.sub_path = Some(sub_path);
     }
 
     #[verifier(external_body)]
     pub fn overwrite_mount_propagation(&mut self, mount_propagation: Option<String>)
         ensures self@ == old(self)@.overwrite_mount_propagation(opt_string_to_view(&mount_propagation)),
     {
-        match mount_propagation {
-            Some(n) => self.inner.mount_propagation = Some(n.into_rust_string()),
-            None => self.inner.mount_propagation = None,
-        }
+        self.inner.mount_propagation = mount_propagation
     }
 
     #[verifier(external)]
@@ -395,7 +386,7 @@ impl ExecAction {
     pub fn set_command(&mut self, command: Vec<String>)
         ensures self@ == old(self)@.set_command(command@.map_values(|s: String| s@)),
     {
-        self.inner.command = Some(command.into_iter().map(|s: String| s.into_rust_string()).collect());
+        self.inner.command = Some(command);
     }
 
     #[verifier(external)]
@@ -433,7 +424,7 @@ impl TCPSocketAction {
     pub fn set_host(&mut self, host: String)
         ensures self@ == old(self)@.set_host(host@),
     {
-        self.inner.host = Some(host.into_rust_string());
+        self.inner.host = Some(host);
     }
 
     #[verifier(external_body)]
@@ -565,7 +556,7 @@ impl EnvVar {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = name.into_rust_string();
+        self.inner.name = name;
     }
 
     #[verifier(external_body)]
@@ -574,10 +565,7 @@ impl EnvVar {
             value.is_Some() ==> self@ == old(self)@.overwrite_value(Some(value.get_Some_0()@)),
             value.is_None() ==> self@ == old(self)@.overwrite_value(None),
     {
-        match value {
-            Some(v) => self.inner.value = Some(v.into_rust_string()),
-            None => self.inner.value = None,
-        }
+        self.inner.value = value
     }
 
     #[verifier(external_body)]

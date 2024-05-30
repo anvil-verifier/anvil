@@ -12,7 +12,7 @@ pub type StringView = Seq<char>;
 pub fn i32_to_string(i: i32) -> (s: String)
     ensures s@ == int_to_string_view(i as int),
 {
-    String::from_rust_string(i.to_string())
+    i.to_string()
 }
 
 pub closed spec fn int_to_string_view(i: int) -> StringView;
@@ -26,7 +26,7 @@ pub proof fn int_to_string_view_injectivity()
 pub fn bool_to_string(b: bool) -> (s: String)
     ensures s@ == bool_to_string_view(b),
 {
-    String::from_rust_string(b.to_string())
+    b.to_string()
 }
 
 pub closed spec fn bool_to_string_view(b: bool) -> StringView;

@@ -38,7 +38,7 @@ impl Volume {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = name.into_rust_string();
+        self.inner.name = name;
     }
 
     #[verifier(external_body)]
@@ -149,7 +149,7 @@ impl HostPathVolumeSource {
     pub fn set_path(&mut self, path: String)
         ensures self@ == old(self)@.set_path(path@),
     {
-        self.inner.path = path.into_rust_string();
+        self.inner.path = path;
     }
 
     #[verifier(external)]
@@ -185,7 +185,7 @@ impl ConfigMapVolumeSource {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = Some(name.into_rust_string());
+        self.inner.name = Some(name);
     }
 
     #[verifier(external)]
@@ -223,7 +223,7 @@ impl SecretVolumeSource {
     pub fn set_secret_name(&mut self, secret_name: String)
         ensures self@ == old(self)@.set_secret_name(secret_name@),
     {
-        self.inner.secret_name = Some(secret_name.into_rust_string());
+        self.inner.secret_name = Some(secret_name);
     }
 
     #[verifier(external)]
@@ -331,7 +331,7 @@ impl ConfigMapProjection {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = Some(name.into_rust_string());
+        self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
@@ -374,7 +374,7 @@ impl SecretProjection {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = Some(name.into_rust_string());
+        self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
@@ -410,14 +410,14 @@ impl KeyToPath {
     pub fn set_key(&mut self, key: String)
         ensures self@ == old(self)@.set_key(key@),
     {
-        self.inner.key = key.into_rust_string();
+        self.inner.key = key;
     }
 
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
         ensures self@ == old(self)@.set_path(path@),
     {
-        self.inner.path = path.into_rust_string();
+        self.inner.path = path;
     }
 
     #[verifier(external)]
@@ -489,7 +489,7 @@ impl DownwardAPIVolumeFile {
     pub fn set_path(&mut self, path: String)
         ensures self@ == old(self)@.set_path(path@),
     {
-        self.inner.path = path.into_rust_string();
+        self.inner.path = path;
     }
 
     #[verifier(external)]
@@ -534,14 +534,14 @@ impl ObjectFieldSelector {
     pub fn set_field_path(&mut self, field_path: String)
         ensures self@ == old(self)@.set_field_path(field_path@),
     {
-        self.inner.field_path = field_path.into_rust_string();
+        self.inner.field_path = field_path;
     }
 
     #[verifier(external_body)]
     pub fn set_api_version(&mut self, api_version: String)
         ensures self@ == old(self)@.set_api_version(api_version@),
     {
-        self.inner.api_version = Some(api_version.into_rust_string());
+        self.inner.api_version = Some(api_version);
     }
 
     #[verifier(external)]

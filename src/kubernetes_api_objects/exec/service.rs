@@ -147,7 +147,7 @@ impl ServiceSpec {
     pub fn set_cluster_ip(&mut self, cluster_ip: String)
         ensures self@ == old(self)@.set_cluster_ip(cluster_ip@),
     {
-        self.inner.cluster_ip = Some(cluster_ip.into_rust_string())
+        self.inner.cluster_ip = Some(cluster_ip)
     }
 
     #[verifier(external_body)]
@@ -249,7 +249,7 @@ impl ServicePort {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = Some(name.into_rust_string());
+        self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
@@ -263,14 +263,14 @@ impl ServicePort {
     pub fn set_app_protocol(&mut self, app_protocol: String)
         ensures self@ == old(self)@.set_app_protocol(app_protocol@),
     {
-        self.inner.app_protocol = Some(app_protocol.into_rust_string());
+        self.inner.app_protocol = Some(app_protocol);
     }
 
     #[verifier(external_body)]
     pub fn set_protocol(&mut self, protocol: String)
         ensures self@ == old(self)@.set_protocol(protocol@),
     {
-        self.inner.protocol = Some(protocol.into_rust_string());
+        self.inner.protocol = Some(protocol);
     }
 
     #[verifier(external)]

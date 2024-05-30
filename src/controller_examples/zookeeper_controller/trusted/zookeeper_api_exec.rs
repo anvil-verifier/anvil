@@ -117,7 +117,7 @@ impl Watcher for NoopWatcher {
 
 #[verifier(external)]
 pub fn set_up_zk_client(name: &String, namespace: &String, port: i32) -> ZkResult<ZooKeeper> {
-    let uri = &format!("{}-client.{}.svc.cluster.local:{}", name.as_rust_string_ref(), namespace.as_rust_string_ref(), port);
+    let uri = &format!("{}-client.{}.svc.cluster.local:{}", name, namespace, port);
     println!("Connecting to zk uri {} ...", uri);
     ZooKeeper::connect(uri, Duration::from_secs(10), NoopWatcher)
 }
@@ -141,7 +141,7 @@ pub fn zk_exists(name: String, namespace: String, port: i32, path: Vec<String>) 
 #[verifier(external)]
 pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<String>) -> Result<Option<i32>, ZKAPIError> {
     let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeExistsFailed)?;
-    let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
+    let path_as_string = format!("/{}", path.join("/"));
     println!("Checking existence of {} ...", &path_as_string);
     let exist_result = zk_client.exists(path_as_string.as_str(), false);
     let _ = zk_client.close();
@@ -167,8 +167,8 @@ pub fn zk_create(name: String, namespace: String, port: i32, path: Vec<String>, 
 #[verifier(external)]
 pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String) -> Result<(), ZKAPIError> {
     let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeCreateFailed)?;
-    let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
-    let data_as_string = data.into_rust_string();
+    let path_as_string = format!("/{}", path.join("/"));
+    let data_as_string = data;
     println!("Creating {} {} ...", &path_as_string, &data_as_string);
     let create_result = zk_client.create(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Acl::open_unsafe().to_vec(), CreateMode::Persistent);
     let _ = zk_client.close();
@@ -194,8 +194,8 @@ pub fn zk_set_data(name: String, namespace: String, port: i32, path: Vec<String>
 #[verifier(external)]
 pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String, version: i32) -> Result<(), ZKAPIError> {
     let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|_e| ZKAPIError::ZKNodeSetDataFailed)?;
-    let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
-    let data_as_string = data.into_rust_string();
+    let path_as_string = format!("/{}", path.join("/"));
+    let data_as_string = data;
     println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);
     let set_result = zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version));
     let _ = zk_client.close();

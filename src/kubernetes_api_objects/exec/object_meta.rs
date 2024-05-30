@@ -47,10 +47,7 @@ impl ObjectMeta {
             self@.name.is_Some() == name.is_Some(),
             name.is_Some() ==> name.get_Some_0()@ == self@.name.get_Some_0(),
     {
-        match &self.inner.name {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
+        self.inner.name.clone()
     }
 
     #[verifier(external_body)]
@@ -59,10 +56,7 @@ impl ObjectMeta {
             self@.namespace.is_Some() == namespace.is_Some(),
             namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace.get_Some_0(),
     {
-        match &self.inner.namespace {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
+        self.inner.namespace.clone()
     }
 
     #[verifier(external_body)]
@@ -95,10 +89,7 @@ impl ObjectMeta {
             self@.finalizers.is_Some() == finalizers.is_Some(),
             finalizers.is_Some() ==> finalizers.get_Some_0()@.map_values(|s: String| s@) == self@.finalizers.get_Some_0(),
     {
-        match &self.inner.finalizers {
-            Some(o) => Some(o.into_iter().map(|item| String::from_rust_string(item.clone())).collect()),
-            None => None,
-        }
+        self.inner.finalizers.clone()
     }
 
     #[verifier(external_body)]
@@ -139,10 +130,7 @@ impl ObjectMeta {
             self@.resource_version.is_Some() == version.is_Some(),
             version.is_Some() ==> version.get_Some_0()@ == int_to_string_view(self@.resource_version.get_Some_0()),
     {
-        match &self.inner.resource_version {
-            Some(rv) => Some(String::from_rust_string(rv.to_string())),
-            None => None,
-        }
+        self.inner.resource_version.clone()
     }
 
     #[verifier(external_body)]
@@ -194,21 +182,21 @@ impl ObjectMeta {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = Some(name.into_rust_string());
+        self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_generate_name(&mut self, generate_name: String)
         ensures self@ == old(self)@.set_generate_name(generate_name@),
     {
-        self.inner.generate_name = Some(generate_name.into_rust_string());
+        self.inner.generate_name = Some(generate_name);
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
         ensures self@ == old(self)@.set_namespace(namespace@),
     {
-        self.inner.namespace = Some(namespace.into_rust_string());
+        self.inner.namespace = Some(namespace);
     }
 
     #[verifier(external_body)]
@@ -231,10 +219,10 @@ impl ObjectMeta {
     {
         if self.inner.annotations.is_none() {
             let mut annotations = std::collections::BTreeMap::new();
-            annotations.insert(key.into_rust_string(), value.into_rust_string());
+            annotations.insert(key, value);
             self.inner.annotations = Some(annotations);
         } else {
-            self.inner.annotations.as_mut().unwrap().insert(key.into_rust_string(), value.into_rust_string());
+            self.inner.annotations.as_mut().unwrap().insert(key, value);
         };
     }
 
@@ -249,7 +237,7 @@ impl ObjectMeta {
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
         ensures self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
     {
-        self.inner.finalizers = Some(finalizers.into_iter().map(|s: String| s.into_rust_string()).collect());
+        self.inner.finalizers = Some(finalizers);
     }
 
     #[verifier(external_body)]

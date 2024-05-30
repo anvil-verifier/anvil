@@ -30,10 +30,7 @@ pub fn test_set_api_groups() {
     };
     policy_rule.set_api_groups(api_groups_gen());
     assert_eq!(
-        api_groups_gen()
-            .into_iter()
-            .map(|s: String| s.into_rust_string())
-            .collect::<Vec<_>>(),
+        api_groups_gen(),
         policy_rule.into_kube().api_groups.unwrap()
     );
 }
@@ -52,10 +49,7 @@ pub fn test_set_resources() {
     };
     policy_rule.set_resources(resources_gen());
     assert_eq!(
-        resources_gen()
-            .into_iter()
-            .map(|s: String| s.into_rust_string())
-            .collect::<Vec<_>>(),
+        resources_gen(),
         policy_rule.into_kube().resources.unwrap()
     );
 }
@@ -74,10 +68,7 @@ pub fn test_set_verbs() {
     };
     policy_rule.set_verbs(verbs_gen());
     assert_eq!(
-        verbs_gen()
-            .into_iter()
-            .map(|s: String| s.into_rust_string())
-            .collect::<Vec<_>>(),
+        verbs_gen(),
         policy_rule.into_kube().verbs
     );
 }

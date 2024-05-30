@@ -128,8 +128,8 @@ proptest! {
                 GeneratedRequest::Get{kind, name} => {
                     let get_request = KubeGetRequest {
                         api_resource: kind.to_api_resource(),
-                        namespace: String::from_rust_string(namespace.to_string()),
-                        name: String::from_rust_string(name.to_string()),
+                        namespace: namespace.clone(),
+                        name: name.clone(),
                     };
                     let model_resp = SimpleExecutableApiServerModel::handle_get_request(&get_request, &api_server_state);
 
@@ -148,12 +148,12 @@ proptest! {
                 GeneratedRequest::Create{kind, name} => {
                     let obj = {
                         let mut obj = kind.to_default_dynamic_object();
-                        obj.set_name(String::from_rust_string(name));
+                        obj.set_name(name);
                         obj
                     };
                     let create_request = KubeCreateRequest {
                         api_resource: kind.to_api_resource(),
-                        namespace: String::from_rust_string(namespace.to_string()),
+                        namespace: namespace.clone(),
                         obj: obj.clone(),
                     };
                     let model_resp = SimpleExecutableApiServerModel::handle_create_request(&create_request, &mut api_server_state);

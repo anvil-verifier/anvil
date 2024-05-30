@@ -154,14 +154,14 @@ impl RoleRef {
     pub fn api_group(&self) -> (api_group: String)
         ensures api_group@ == self@.api_group
     {
-        String::from_rust_string(self.inner.api_group.to_string())
+        self.inner.api_group.clone()
     }
 
     #[verifier(external_body)]
     pub fn kind(&self) -> (kind: String)
         ensures kind@ == self@.kind
     {
-        String::from_rust_string(self.inner.kind.to_string())
+        self.inner.kind.clone()
     }
 
 
@@ -169,21 +169,21 @@ impl RoleRef {
     pub fn set_api_group(&mut self, api_group: String)
         ensures self@ == old(self)@.set_api_group(api_group@),
     {
-        self.inner.api_group = api_group.into_rust_string();
+        self.inner.api_group = api_group;
     }
 
     #[verifier(external_body)]
     pub fn set_kind(&mut self, kind: String)
         ensures self@ == old(self)@.set_kind(kind@),
     {
-        self.inner.kind = kind.into_rust_string();
+        self.inner.kind = kind;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = name.into_rust_string();
+        self.inner.name = name;
     }
 
     #[verifier(external)]
@@ -214,21 +214,21 @@ impl Subject {
     pub fn set_kind(&mut self, kind: String)
         ensures self@ == old(self)@.set_kind(kind@),
     {
-        self.inner.kind = kind.into_rust_string();
+        self.inner.kind = kind;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = name.into_rust_string();
+        self.inner.name = name;
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
         ensures self@ == old(self)@.set_namespace(namespace@),
     {
-        self.inner.namespace = Some(namespace.into_rust_string());
+        self.inner.namespace = Some(namespace);
     }
 
     #[verifier(external)]

@@ -146,10 +146,10 @@ where
                     match req {
                         KubeAPIRequest::GetRequest(get_req) => {
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
+                                client.clone(), &get_req.namespace, get_req.api_resource.as_kube_ref()
                             );
                             let key = get_req.key();
-                            match api.get(get_req.name.as_rust_string_ref()).await {
+                            match api.get(&get_req.name).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
                                         res: Err(kube_error_to_ghost(&err)),
@@ -166,7 +166,7 @@ where
                         },
                         KubeAPIRequest::ListRequest(list_req) => {
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), list_req.namespace.as_rust_string_ref(), list_req.api_resource.as_kube_ref()
+                                client.clone(), &list_req.namespace, list_req.api_resource.as_kube_ref()
                             );
                             let key = list_req.key();
                             let lp = ListParams::default();
@@ -188,7 +188,7 @@ where
                         KubeAPIRequest::CreateRequest(create_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
+                                client.clone(), &create_req.namespace, create_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
                             let key = create_req.key();
@@ -211,11 +211,11 @@ where
                         KubeAPIRequest::DeleteRequest(delete_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), delete_req.namespace.as_rust_string_ref(), delete_req.api_resource.as_kube_ref()
+                                client.clone(), &delete_req.namespace, delete_req.api_resource.as_kube_ref()
                             );
                             let dp = DeleteParams::default();
                             let key = delete_req.key();
-                            match api.delete(delete_req.name.as_rust_string_ref(), &dp).await {
+                            match api.delete(&delete_req.name, &dp).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
                                         res: Err(kube_error_to_ghost(&err)),
@@ -233,12 +233,12 @@ where
                         KubeAPIRequest::UpdateRequest(update_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
+                                client.clone(), &update_req.namespace, update_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
                             let key = update_req.key();
                             let obj_to_update = update_req.obj.into_kube();
-                            match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
+                            match api.replace(&update_req.name, &pp, &obj_to_update).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
                                         res: Err(kube_error_to_ghost(&err)),
@@ -256,13 +256,13 @@ where
                         KubeAPIRequest::UpdateStatusRequest(update_status_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), update_status_req.namespace.as_rust_string_ref(), update_status_req.api_resource.as_kube_ref()
+                                client.clone(), &update_status_req.namespace, update_status_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
                             let key = update_status_req.key();
                             let obj_to_update = update_status_req.obj.into_kube();
                             // Here we assume serde_json always succeed
-                            match api.replace_status(update_status_req.name.as_rust_string_ref(), &pp, deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap()).await {
+                            match api.replace_status(&update_status_req.name, &pp, deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap()).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::UpdateStatusResponse(KubeUpdateStatusResponse{
                                         res: Err(kube_error_to_ghost(&err)),

@@ -145,7 +145,7 @@ impl RabbitmqClusterSpec {
     pub fn image(&self) -> (image: String)
         ensures image@ == self@.image,
     {
-        String::from_rust_string(self.inner.image.clone())
+        self.inner.image.clone()
     }
 
     #[verifier(external_body)]
@@ -221,7 +221,7 @@ impl RabbitmqClusterSpec {
     pub fn pod_management_policy(&self) -> (policy: String)
         ensures policy@ == self@.pod_management_policy,
     {
-        String::from_rust_string(self.inner.pod_management_policy.clone())
+        self.inner.pod_management_policy.clone()
     }
 
     #[verifier(external_body)]
@@ -251,10 +251,7 @@ impl RabbitmqConfig {
             self@.additional_config.is_Some() == additional_config.is_Some(),
             additional_config.is_Some() ==> additional_config.get_Some_0()@ == self@.additional_config.get_Some_0(),
     {
-        match &self.inner.additional_config {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
+        self.inner.additional_config.clone()
     }
 
     #[verifier(external_body)]
@@ -263,10 +260,7 @@ impl RabbitmqConfig {
             self@.advanced_config.is_Some() == advanced_config.is_Some(),
             advanced_config.is_Some() ==> advanced_config.get_Some_0()@ == self@.advanced_config.get_Some_0(),
     {
-        match &self.inner.advanced_config {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
+        self.inner.advanced_config.clone()
     }
 
     #[verifier(external_body)]
@@ -275,10 +269,7 @@ impl RabbitmqConfig {
             self@.env_config.is_Some() == env_config.is_Some(),
             env_config.is_Some() ==> env_config.get_Some_0()@ == self@.env_config.get_Some_0(),
     {
-        match &self.inner.env_config {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
-            None => None,
-        }
+        self.inner.env_config.clone()
     }
 }
 
@@ -294,14 +285,14 @@ impl RabbitmqClusterPersistenceSpec {
     pub fn storage(&self) -> (storage: String)
         ensures storage@ == self@.storage,
     {
-        String::from_rust_string(self.inner.storage.clone().0)
+        self.inner.storage.clone().0
     }
 
     #[verifier(external_body)]
     pub fn storage_class_name(&self) -> (storage_class_name: String)
         ensures storage_class_name@ == self@.storage_class_name,
     {
-        String::from_rust_string(self.inner.storage_class_name.clone())
+        self.inner.storage_class_name.clone()
     }
 }
 
@@ -311,7 +302,7 @@ pub fn random_encoded_string(data_len: usize) -> (cookie: String)
         cookie@ == spec_types::random_encoded_string(data_len),
 {
     let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| deps_hack::rand::random::<std::primitive::u8>()).collect();
-    String::from_rust_string(deps_hack::base64::encode(random_bytes))
+    deps_hack::base64::encode(random_bytes)
 }
 
 }

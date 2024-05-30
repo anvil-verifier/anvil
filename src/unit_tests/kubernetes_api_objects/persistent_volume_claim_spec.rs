@@ -34,10 +34,7 @@ pub fn test_set_access_modes() {
     };
     persistent_volume_claim_spec.set_access_modes(access_modes_gen());
     assert_eq!(
-        access_modes_gen()
-        .into_iter()
-        .map(|a: String| a.into_rust_string())
-        .collect::<Vec<_>>(),
+        access_modes_gen(),
         persistent_volume_claim_spec.into_kube().access_modes.unwrap()
     );
 }
