@@ -369,6 +369,36 @@ impl KubeAPIResponse {
         }
     }
 
+    pub fn is_list_response(&self) -> (res: bool)
+        ensures
+            res == self.is_ListResponse(),
+    {
+        match self {
+            KubeAPIResponse::ListResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_list_response_ref(&self) -> (resp: &KubeListResponse)
+        requires self.is_ListResponse(),
+        ensures resp == self.get_ListResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::ListResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_list_response(self) -> (resp: KubeListResponse)
+        requires self.is_ListResponse(),
+        ensures resp == self.get_ListResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::ListResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
     pub fn is_create_response(&self) -> (res: bool)
         ensures
             res == self.is_CreateResponse(),
@@ -454,6 +484,36 @@ impl KubeAPIResponse {
     {
         match self {
             KubeAPIResponse::UpdateStatusResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_delete_response(&self) -> (res: bool)
+        ensures
+            res == self.is_DeleteResponse(),
+    {
+        match self {
+            KubeAPIResponse::DeleteResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_delete_response_ref(&self) -> (resp: &KubeDeleteResponse)
+        requires self.is_DeleteResponse(),
+        ensures resp == self.get_DeleteResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::DeleteResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_delete_response(self) -> (resp: KubeDeleteResponse)
+        requires self.is_DeleteResponse(),
+        ensures resp == self.get_DeleteResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::DeleteResponse(resp) => resp,
             _ => unreached(),
         }
     }

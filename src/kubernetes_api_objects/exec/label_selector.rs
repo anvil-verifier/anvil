@@ -49,10 +49,47 @@ impl LabelSelector {
     }
 
     #[verifier(external_body)]
+    pub fn match_labels(&self) -> (match_labels: Option<StringMap>)
+        ensures
+            self@.match_labels.is_Some() == match_labels.is_Some(),
+            match_labels.is_Some() ==> match_labels.get_Some_0()@ == self@.match_labels.get_Some_0(),
+    {
+        match &self.inner.match_labels {
+            Some(ml) => Some(StringMap::from_rust_map(ml.clone())),
+            None => None
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_match_labels(&mut self, match_labels: StringMap)
         ensures self@ == old(self)@.set_match_labels(match_labels@),
     {
         self.inner.match_labels = Some(match_labels.into_rust_map());
+    }
+
+    // TODO: prove it and maybe move to a different lib
+    #[verifier(external_body)]
+    pub fn matches(&self, labels: StringMap) -> (res: bool)
+        ensures res == self@.matches(labels@)
+    {
+        if self.match_labels().is_none() {
+            true
+        } else {
+            let match_labels = self.match_labels().unwrap();
+            let keys = match_labels.keys();
+            let mut idx = 0;
+            while idx < match_labels.len()
+            {
+                let key = &keys[idx];
+                let val = match_labels.get(key).unwrap();
+                let val_or_not = labels.get(key);
+                if !(val_or_not.is_some() && val_or_not.unwrap().eq(&val)) {
+                    return false;
+                }
+                idx = idx + 1;
+            }
+            true
+        }
     }
 }
 

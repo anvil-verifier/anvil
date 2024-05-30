@@ -114,6 +114,16 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn owner_references_contains(&self, owner_ref: OwnerReference) -> (res: bool)
+        ensures res == self@.owner_references_contains(owner_ref@),
+    {
+        match &self.inner.owner_references {
+            Some(owner_refs) => owner_refs.contains(&owner_ref.into_kube()),
+            None => false,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
         ensures res == self@.owner_references_only_contains(owner_ref@),
     {
@@ -185,6 +195,13 @@ impl ObjectMeta {
         ensures self@ == old(self)@.set_name(name@),
     {
         self.inner.name = Some(name.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_generate_name(&mut self, generate_name: String)
+        ensures self@ == old(self)@.set_generate_name(generate_name@),
+    {
+        self.inner.generate_name = Some(generate_name.into_rust_string());
     }
 
     #[verifier(external_body)]
