@@ -58,7 +58,7 @@ impl StringMap {
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
     {
         match self.inner.get(key.as_rust_string_ref()) {
-            Some(v) => Some(StrSlice::from_rust_str(v)),
+            Some(v) => Some(v),
             None => None,
         }
     }
