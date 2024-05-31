@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vstatefulset-controller
+  namespace: vstatefulset
+  labels:
+    app.kubernetes.io/name: vstatefulset-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vstatefulset-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vstatefulset-controller
+    spec:
+      containers:
+        - image: local/v_stateful_set-controller:v0.1.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+      serviceAccountName: vstatefulset-controller
