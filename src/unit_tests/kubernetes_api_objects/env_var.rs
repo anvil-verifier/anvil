@@ -21,8 +21,8 @@ pub fn test_default(){
 #[verifier(external)]
 pub fn test_clone(){
     let mut env = EnvVar::default();
-    env.set_name(new_strlit("name").to_string());
-    env.overwrite_value(Some(new_strlit("value").to_string()));
+    env.set_name("name".to_string());
+    env.overwrite_value(Some("value".to_string()));
     let env_clone = env.clone();
     assert_eq!(env.into_kube(), env_clone.into_kube());
 }
@@ -31,7 +31,7 @@ pub fn test_clone(){
 #[verifier(external)]
 pub fn test_set_name(){
     let mut env_var = EnvVar::default();
-    env_var.set_name(new_strlit("name").to_string());
+    env_var.set_name("name".to_string());
     assert_eq!("name".to_string(), env_var.into_kube().name);
 }
 
@@ -39,7 +39,7 @@ pub fn test_set_name(){
 #[verifier(external)]
 pub fn test_overwrite_value(){
     let mut env_var = EnvVar::default();
-    env_var.overwrite_value(Some(new_strlit("value").to_string()));
+    env_var.overwrite_value(Some("value".to_string()));
     assert_eq!("value".to_string(), env_var.into_kube().value.unwrap());
 }
 
@@ -49,7 +49,7 @@ pub fn test_overwrite_value_from(){
     let mut env_var = EnvVar::default();
     let mut env_var_source = EnvVarSource::default();
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_field_path(new_strlit("field_path").to_string());
+    object_field_selector.set_field_path("field_path".to_string());
     env_var_source.set_field_ref(object_field_selector);
     env_var.overwrite_value_from(Some(env_var_source.clone()));
     assert_eq!(env_var_source.into_kube(), env_var.into_kube().value_from.unwrap());

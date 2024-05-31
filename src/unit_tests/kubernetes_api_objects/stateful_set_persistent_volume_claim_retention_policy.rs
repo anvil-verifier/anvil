@@ -24,7 +24,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_when_deleted() {
     let mut stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    stateful_set_pvc_retention_policy.set_when_deleted(new_strlit("Retain").to_string());
+    stateful_set_pvc_retention_policy.set_when_deleted("Retain".to_string());
     assert_eq!(
         "Retain".to_string(),
         stateful_set_pvc_retention_policy.into_kube().when_deleted.unwrap()
@@ -35,7 +35,7 @@ pub fn test_set_when_deleted() {
 #[verifier(external)]
 pub fn test_set_when_scaled() {
     let mut stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    stateful_set_pvc_retention_policy.set_when_scaled(new_strlit("Delete").to_string());
+    stateful_set_pvc_retention_policy.set_when_scaled("Delete".to_string());
     assert_eq!(
         "Delete".to_string(),
         stateful_set_pvc_retention_policy.into_kube().when_scaled.unwrap()
@@ -46,8 +46,8 @@ pub fn test_set_when_scaled() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut stateful_set_pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    stateful_set_pvc_retention_policy.set_when_deleted(new_strlit("Retain").to_string());
-    stateful_set_pvc_retention_policy.set_when_scaled(new_strlit("Delete").to_string());
+    stateful_set_pvc_retention_policy.set_when_deleted("Retain".to_string());
+    stateful_set_pvc_retention_policy.set_when_scaled("Delete".to_string());
     let cloned_stateful_set_pvc_retention_policy = stateful_set_pvc_retention_policy.clone();
     assert_eq!(
         stateful_set_pvc_retention_policy.into_kube(),

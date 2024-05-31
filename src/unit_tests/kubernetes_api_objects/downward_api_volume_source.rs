@@ -26,8 +26,8 @@ pub fn test_set_items() {
         let mut downward_api_volume_file_1 = DownwardAPIVolumeFile::default();
         let mut downward_api_volume_file_2 = DownwardAPIVolumeFile::default();
         let mut downward_api_volume_files = Vec::new();
-        downward_api_volume_file_1.set_path(new_strlit("path1").to_string());
-        downward_api_volume_file_2.set_path(new_strlit("path2").to_string());
+        downward_api_volume_file_1.set_path("path1".to_string());
+        downward_api_volume_file_2.set_path("path2".to_string());
         downward_api_volume_files.push(downward_api_volume_file_1);
         downward_api_volume_files.push(downward_api_volume_file_2);
         downward_api_volume_files
@@ -50,8 +50,8 @@ pub fn test_clone(){
         let mut downward_api_volume_file_1 = DownwardAPIVolumeFile::default();
         let mut downward_api_volume_file_2 = DownwardAPIVolumeFile::default();
         let mut downward_api_volume_files = Vec::new();
-        downward_api_volume_file_1.set_path(new_strlit("path1").to_string());
-        downward_api_volume_file_2.set_path(new_strlit("path2").to_string());
+        downward_api_volume_file_1.set_path("path1".to_string());
+        downward_api_volume_file_2.set_path("path2".to_string());
         downward_api_volume_files.push(downward_api_volume_file_1);
         downward_api_volume_files.push(downward_api_volume_file_2);
         downward_api_volume_files

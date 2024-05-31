@@ -21,7 +21,7 @@ pub fn test_default() {
 pub fn test_set_metadata() {
     let mut service = Service::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
+    metadata.set_name("name".to_string());
     service.set_metadata(metadata.clone());
     assert_eq!(metadata.into_kube(), service.into_kube().metadata);
 }
@@ -31,7 +31,7 @@ pub fn test_set_metadata() {
 pub fn test_metadata() {
     let mut service = Service::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
+    metadata.set_name("name".to_string());
     service.set_metadata(metadata.clone());
     assert_eq!(metadata.into_kube(), service.metadata().into_kube());
 }
@@ -41,7 +41,7 @@ pub fn test_metadata() {
 pub fn test_set_spec() {
     let mut service = Service::default();
     let mut spec = ServiceSpec::default();
-    spec.set_cluster_ip(new_strlit("ip").to_string());
+    spec.set_cluster_ip("ip".to_string());
     service.set_spec(spec.clone());
     assert_eq!(spec.into_kube(), service.into_kube().spec.unwrap());
 }
@@ -53,7 +53,7 @@ pub fn test_spec() {
     let mut spec = ServiceSpec::default();
     // @TODO: How to test None
     // assert_eq!(None, service.spec());
-    spec.set_cluster_ip(new_strlit("ip").to_string());
+    spec.set_cluster_ip("ip".to_string());
     service.set_spec(spec.clone());
     assert_eq!(spec.into_kube(), service.spec().unwrap().into_kube());
 }
@@ -70,10 +70,10 @@ pub fn test_api_resource() {
 pub fn test_clone() {
     let mut service = Service::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
+    metadata.set_name("name".to_string());
     service.set_metadata(metadata.clone());
     let mut spec = ServiceSpec::default();
-    spec.set_cluster_ip(new_strlit("ip").to_string());
+    spec.set_cluster_ip("ip".to_string());
     service.set_spec(spec.clone());
     let service_clone = service.clone();
     assert_eq!(service.into_kube(), service_clone.into_kube());

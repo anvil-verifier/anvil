@@ -15,7 +15,7 @@ pub fn test_set_pre_stop() {
     let mut lifecycle = Lifecycle::default();
     let mut handler = LifecycleHandler::default();
     let mut exec_action = ExecAction::default();
-    exec_action.set_command(vec![new_strlit("command").to_string()]);
+    exec_action.set_command(vec!["command".to_string()]);
     handler.set_exec(exec_action);
 
     lifecycle.set_pre_stop(handler.clone());
@@ -37,7 +37,7 @@ pub fn test_default(){
 pub fn test_clone(){
     let mut handler = LifecycleHandler::default();
     let mut exec_action = ExecAction::default();
-    exec_action.set_command(vec![new_strlit("command").to_string()]);
+    exec_action.set_command(vec!["command".to_string()]);
     handler.set_exec(exec_action.clone());
     let handler_clone = handler.clone();
     assert_eq!(handler.into_kube(), handler_clone.into_kube());

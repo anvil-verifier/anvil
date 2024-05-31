@@ -21,7 +21,7 @@ pub fn test_default() {
 pub fn test_set_metadata() {
     let mut service_account = ServiceAccount::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
+    metadata.set_name("name".to_string());
     service_account.set_metadata(metadata.clone());
     assert_eq!(metadata.into_kube(), service_account.into_kube().metadata);
 }
@@ -31,7 +31,7 @@ pub fn test_set_metadata() {
 pub fn test_metadata() {
     let mut service_account = ServiceAccount::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
+    metadata.set_name("name".to_string());
     service_account.set_metadata(metadata.clone());
     assert_eq!(metadata.into_kube(), service_account.metadata().into_kube());
 }
@@ -48,7 +48,7 @@ pub fn test_api_resource() {
 pub fn test_clone() {
     let mut service_account = ServiceAccount::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
+    metadata.set_name("name".to_string());
     service_account.set_metadata(metadata.clone());
     let service_account_clone = service_account.clone();
     assert_eq!(service_account.into_kube(), service_account_clone.into_kube());

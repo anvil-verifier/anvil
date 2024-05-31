@@ -21,7 +21,7 @@ pub fn test_default() {
 pub fn test_set_metadata() {
     let mut role = Role::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     role.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), role.into_kube().metadata);
 }
@@ -31,7 +31,7 @@ pub fn test_set_metadata() {
 pub fn test_metadata() {
     let mut role = Role::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     role.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), role.metadata().into_kube());
 }
@@ -45,24 +45,24 @@ pub fn test_set_rules() {
         let mut policy_rule_2 = PolicyRule::default();
         let mut policy_rules = Vec::new();
         let api_groups_gen = |suffix: &str| {
-            let api_groups_1 = new_strlit(&format!("api_groups_{}_1", suffix)).to_string();
-            let api_groups_2 = new_strlit(&format!("api_groups_{}_2", suffix)).to_string();
+            let api_groups_1 = format!("api_groups_{}_1", suffix);
+            let api_groups_2 = format!("api_groups_{}_2", suffix);
             let mut api_groups = Vec::new();
             api_groups.push(api_groups_1);
             api_groups.push(api_groups_2);
             api_groups
         };
         let resources_gen = |suffix: &str| {
-            let resources_1 = new_strlit(&format!("resources_{}_1", suffix)).to_string();
-            let resources_2 = new_strlit(&format!("resources_{}_2", suffix)).to_string();
+            let resources_1 = format!("resources_{}_1", suffix);
+            let resources_2 = format!("resources_{}_2", suffix);
             let mut resources = Vec::new();
             resources.push(resources_1);
             resources.push(resources_2);
             resources
         };
         let verbs_gen = |suffix: &str| {
-            let verbs_1 = new_strlit(&format!("verbs_{}_1", suffix)).to_string();
-            let verbs_2 = new_strlit(&format!("verbs_{}_2", suffix)).to_string();
+            let verbs_1 = format!("verbs_{}_1", suffix);
+            let verbs_2 = format!("verbs_{}_2", suffix);
             let mut verbs = Vec::new();
             verbs.push(verbs_1);
             verbs.push(verbs_2);
@@ -98,24 +98,24 @@ pub fn test_clone() {
         let mut policy_rule_2 = PolicyRule::default();
         let mut policy_rules = Vec::new();
         let api_groups_gen = |suffix: &str| {
-            let api_groups_1 = new_strlit(&format!("api_groups_{}_1", suffix)).to_string();
-            let api_groups_2 = new_strlit(&format!("api_groups_{}_2", suffix)).to_string();
+            let api_groups_1 = format!("api_groups_{}_1", suffix);
+            let api_groups_2 = format!("api_groups_{}_2", suffix);
             let mut api_groups = Vec::new();
             api_groups.push(api_groups_1);
             api_groups.push(api_groups_2);
             api_groups
         };
         let resources_gen = |suffix: &str| {
-            let resources_1 = new_strlit(&format!("resources_{}_1", suffix)).to_string();
-            let resources_2 = new_strlit(&format!("resources_{}_2", suffix)).to_string();
+            let resources_1 = format!("resources_{}_1", suffix);
+            let resources_2 = format!("resources_{}_2", suffix);
             let mut resources = Vec::new();
             resources.push(resources_1);
             resources.push(resources_2);
             resources
         };
         let verbs_gen = |suffix: &str| {
-            let verbs_1 = new_strlit(&format!("verbs_{}_1", suffix)).to_string();
-            let verbs_2 = new_strlit(&format!("verbs_{}_2", suffix)).to_string();
+            let verbs_1 = format!("verbs_{}_1", suffix);
+            let verbs_2 = format!("verbs_{}_2", suffix);
             let mut verbs = Vec::new();
             verbs.push(verbs_1);
             verbs.push(verbs_2);
@@ -131,8 +131,8 @@ pub fn test_clone() {
         policy_rules.push(policy_rule_2);
         policy_rules
     };
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     role.set_metadata(object_meta.clone());
     role.set_rules(policy_rule_gen());
     let role_clone = role.clone();

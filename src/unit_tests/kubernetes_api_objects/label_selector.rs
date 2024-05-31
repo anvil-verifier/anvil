@@ -24,8 +24,8 @@ pub fn test_default() {
 pub fn test_set_match_labels() {
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
-    match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
-    match_labels.insert(new_strlit("key_2").to_string(), new_strlit("value_2").to_string());
+    match_labels.insert("key".to_string(), "value".to_string());
+    match_labels.insert("key_2".to_string(), "value_2".to_string());
     label_selector.set_match_labels(match_labels.clone());
     assert_eq!(
         match_labels.into_rust_map(),
@@ -38,8 +38,8 @@ pub fn test_set_match_labels() {
 pub fn test_clone() {
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
-    match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
-    match_labels.insert(new_strlit("key_2").to_string(), new_strlit("value_2").to_string());
+    match_labels.insert("key".to_string(), "value".to_string());
+    match_labels.insert("key_2".to_string(), "value_2".to_string());
     label_selector.set_match_labels(match_labels.clone());
     let label_selector_clone = label_selector.clone();
     assert_eq!(

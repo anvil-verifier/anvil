@@ -28,8 +28,8 @@ pub fn test_set_access_modes() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     let access_modes_gen = || {
         let mut access_modes = Vec::new();
-        access_modes.push(new_strlit("ReadWriteOnce").to_string());
-        access_modes.push(new_strlit("ReadOnlyMany").to_string());
+        access_modes.push("ReadWriteOnce".to_string());
+        access_modes.push("ReadOnlyMany".to_string());
         access_modes
     };
     persistent_volume_claim_spec.set_access_modes(access_modes_gen());
@@ -45,7 +45,7 @@ pub fn test_set_resources() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     let mut resources = ResourceRequirements::default();
     let mut requests = StringMap::new();
-    requests.insert(new_strlit("storage").to_string(), new_strlit("1Gi").to_string());
+    requests.insert("storage".to_string(), "1Gi".to_string());
     resources.set_requests(requests);
     persistent_volume_claim_spec.set_resources(resources.clone());
     assert_eq!(
@@ -59,7 +59,7 @@ pub fn test_clone(){
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     let mut resources = ResourceRequirements::default();
     let mut requests = StringMap::new();
-    requests.insert(new_strlit("storage").to_string(), new_strlit("1Gi").to_string());
+    requests.insert("storage".to_string(), "1Gi".to_string());
     resources.set_requests(requests);
     persistent_volume_claim_spec.set_resources(resources.clone());
     let persistent_volume_claim_spec_clone = persistent_volume_claim_spec.clone();
@@ -73,7 +73,7 @@ pub fn test_clone(){
 #[verifier(external)]
 pub fn test_set_storage_class_name() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
-    persistent_volume_claim_spec.set_storage_class_name(new_strlit("storage_class_name").to_string());
+    persistent_volume_claim_spec.set_storage_class_name("storage_class_name".to_string());
     assert_eq!(
         "storage_class_name".to_string(),
         persistent_volume_claim_spec.into_kube().storage_class_name.unwrap()

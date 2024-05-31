@@ -22,7 +22,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_metadata(){
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     let mut daemon_set = DaemonSet::default();
     daemon_set.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), daemon_set.into_kube().metadata);
@@ -32,7 +32,7 @@ pub fn test_set_metadata(){
 #[verifier(external)]
 pub fn test_metadata(){
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     let mut daemon_set = DaemonSet::default();
     daemon_set.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), daemon_set.metadata().into_kube());
@@ -45,7 +45,7 @@ pub fn test_set_sepc() {
     let mut daemon_set_spec = DaemonSetSpec::default();
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
-    match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    match_labels.insert("key".to_string(), "value".to_string());
     label_selector.set_match_labels(match_labels.clone());
     daemon_set_spec.set_selector(label_selector.clone());
     daemon_set.set_spec(daemon_set_spec.clone());
@@ -63,7 +63,7 @@ pub fn test_spec() {
     let mut daemon_set_spec = DaemonSetSpec::default();
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
-    match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    match_labels.insert("key".to_string(), "value".to_string());
     label_selector.set_match_labels(match_labels.clone());
     daemon_set_spec.set_selector(label_selector.clone());
     daemon_set.set_spec(daemon_set_spec.clone());
@@ -84,7 +84,7 @@ pub fn test_clone() {
     let mut daemon_set_spec = DaemonSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     pod_template_spec.set_metadata(object_meta.clone());
     daemon_set_spec.set_template(pod_template_spec.clone());
     daemon_set.set_spec(daemon_set_spec.clone());

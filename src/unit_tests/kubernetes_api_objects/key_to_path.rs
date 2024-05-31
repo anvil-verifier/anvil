@@ -22,7 +22,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_key() {
     let mut key_to_path = KeyToPath::default();
-    key_to_path.set_key(new_strlit("key").to_string());
+    key_to_path.set_key("key".to_string());
     assert_eq!("key".to_string(), key_to_path.into_kube().key);
 }
 
@@ -30,7 +30,7 @@ pub fn test_set_key() {
 #[verifier(external)]
 pub fn test_set_path() {
     let mut key_to_path = KeyToPath::default();
-    key_to_path.set_path(new_strlit("path").to_string());
+    key_to_path.set_path("path".to_string());
     assert_eq!("path".to_string(), key_to_path.into_kube().path);
 }
 

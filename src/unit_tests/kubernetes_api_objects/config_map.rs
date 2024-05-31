@@ -14,7 +14,7 @@ verus! {
 #[verifier(external)]
 pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
 
     let mut config_map = ConfigMap::default();
     config_map.set_metadata(object_meta.clone());
@@ -26,7 +26,7 @@ pub fn test_set_metadata() {
 pub fn test_set_data(){
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
-    data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    data.insert("key".to_string(), "value".to_string());
     config_map.set_data(data.clone());
     assert_eq!(data.into_rust_map(), config_map.into_kube().data.unwrap());
 }
@@ -43,7 +43,7 @@ pub fn test_default(){
 pub fn test_clone(){
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
-    data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    data.insert("key".to_string(), "value".to_string());
     config_map.set_data(data.clone());
     let config_map_clone = config_map.clone();
     assert_eq!(config_map.into_kube(), config_map_clone.into_kube());
@@ -53,7 +53,7 @@ pub fn test_clone(){
 #[verifier(external)]
 pub fn test_metadata(){
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
 
     let mut config_map = ConfigMap::default();
     config_map.set_metadata(object_meta.clone());
@@ -65,7 +65,7 @@ pub fn test_metadata(){
 pub fn test_data(){
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
-    data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    data.insert("key".to_string(), "value".to_string());
     config_map.set_data(data.clone());
     assert_eq!(data.into_rust_map(), config_map.data().unwrap().into_rust_map());
 }

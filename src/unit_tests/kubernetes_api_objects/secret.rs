@@ -21,8 +21,8 @@ pub fn test_default() {
 pub fn test_set_metadata() {
     let mut secret = Secret::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
-    metadata.set_namespace(new_strlit("namespace").to_string());
+    metadata.set_name("name".to_string());
+    metadata.set_namespace("namespace".to_string());
     secret.set_metadata(metadata.clone());
     assert_eq!(metadata.into_kube(), secret.into_kube().metadata);
 }
@@ -32,8 +32,8 @@ pub fn test_set_metadata() {
 pub fn test_metadata() {
     let mut secret = Secret::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
-    metadata.set_namespace(new_strlit("namespace").to_string());
+    metadata.set_name("name".to_string());
+    metadata.set_namespace("namespace".to_string());
     secret.set_metadata(metadata.clone());
     assert_eq!(metadata.into_kube(), secret.metadata().into_kube());
 }
@@ -43,7 +43,7 @@ pub fn test_metadata() {
 pub fn test_set_data() {
     let mut secret = Secret::default();
     let mut data = StringMap::new();
-    data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    data.insert("key".to_string(), "value".to_string());
     secret.set_data(data.clone());
     let mut binary_map = std::collections::BTreeMap::new();
     for (key, value) in data.into_rust_map() {
@@ -61,7 +61,7 @@ pub fn test_data() {
         panic!("data should be None");
     }
     let mut data = StringMap::new();
-    data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    data.insert("key".to_string(), "value".to_string());
     secret.set_data(data.clone());
     assert_eq!(data.into_rust_map(), secret.data().unwrap().into_rust_map());
 }
@@ -71,11 +71,11 @@ pub fn test_data() {
 pub fn test_clone() {
     let mut secret = Secret::default();
     let mut metadata = ObjectMeta::default();
-    metadata.set_name(new_strlit("name").to_string());
-    metadata.set_namespace(new_strlit("namespace").to_string());
+    metadata.set_name("name".to_string());
+    metadata.set_namespace("namespace".to_string());
     secret.set_metadata(metadata.clone());
     let mut data = StringMap::new();
-    data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    data.insert("key".to_string(), "value".to_string());
     secret.set_data(data.clone());
     let secret_clone = secret.clone();
     assert_eq!(secret.into_kube(), secret_clone.into_kube());

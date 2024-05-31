@@ -10,12 +10,12 @@ verus! {
 #[verifier(external)]
 pub fn test_extend() {
     let mut m = StringMap::empty();
-    m.insert(new_strlit("key1").to_string(), new_strlit("val1").to_string());
-    m.insert(new_strlit("key2").to_string(), new_strlit("val2").to_string());
+    m.insert("key1".to_string(), "val1".to_string());
+    m.insert("key2".to_string(), "val2".to_string());
 
     let mut m2 = StringMap::empty();
-    m2.insert(new_strlit("key1").to_string(), new_strlit("new_val1").to_string());
-    m2.insert(new_strlit("key3").to_string(), new_strlit("val3").to_string());
+    m2.insert("key1".to_string(), "new_val1".to_string());
+    m2.insert("key3".to_string(), "val3".to_string());
 
     m.extend(m2);
 

@@ -20,7 +20,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_api_group() {
     let mut role_ref = RoleRef::default();
-    role_ref.set_api_group(new_strlit("api_group").to_string());
+    role_ref.set_api_group("api_group".to_string());
     assert_eq!("api_group".to_string(), role_ref.into_kube().api_group);
 }
 
@@ -28,7 +28,7 @@ pub fn test_set_api_group() {
 #[verifier(external)]
 pub fn test_set_kind() {
     let mut role_ref = RoleRef::default();
-    role_ref.set_kind(new_strlit("kind").to_string());
+    role_ref.set_kind("kind".to_string());
     assert_eq!("kind".to_string(), role_ref.into_kube().kind);
 }
 
@@ -36,7 +36,7 @@ pub fn test_set_kind() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut role_ref = RoleRef::default();
-    role_ref.set_name(new_strlit("name").to_string());
+    role_ref.set_name("name".to_string());
     assert_eq!("name".to_string(), role_ref.into_kube().name);
 }
 
@@ -44,9 +44,9 @@ pub fn test_set_name() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut role_ref = RoleRef::default();
-    role_ref.set_api_group(new_strlit("api_group_2").to_string());
-    role_ref.set_kind(new_strlit("kind_2").to_string());
-    role_ref.set_name(new_strlit("name_2").to_string());
+    role_ref.set_api_group("api_group_2".to_string());
+    role_ref.set_kind("kind_2".to_string());
+    role_ref.set_name("name_2".to_string());
     let role_ref_clone = role_ref.clone();
     assert_eq!(role_ref.into_kube(), role_ref_clone.into_kube());
 }

@@ -21,8 +21,8 @@ pub fn test_default() {
 pub fn test_set_metadata() {
     let mut role_binding = RoleBinding::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     role_binding.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), role_binding.into_kube().metadata);
 }
@@ -32,8 +32,8 @@ pub fn test_set_metadata() {
 pub fn test_metadata() {
     let mut role_binding = RoleBinding::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     role_binding.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), role_binding.metadata().into_kube());
 }
@@ -43,9 +43,9 @@ pub fn test_metadata() {
 pub fn test_set_role_ref() {
     let mut role_binding = RoleBinding::default();
     let mut role_ref = RoleRef::default();
-    role_ref.set_api_group(new_strlit("api_group").to_string());
-    role_ref.set_kind(new_strlit("kind").to_string());
-    role_ref.set_name(new_strlit("name").to_string());
+    role_ref.set_api_group("api_group".to_string());
+    role_ref.set_kind("kind".to_string());
+    role_ref.set_name("name".to_string());
     role_binding.set_role_ref(role_ref.clone());
     assert_eq!(role_ref.into_kube(), role_binding.into_kube().role_ref);
 }
@@ -58,12 +58,12 @@ pub fn test_set_subjects() {
         let mut subject_1 = Subject::default();
         let mut subject_2 = Subject::default();
         let mut subjects = Vec::new();
-        subject_1.set_kind(new_strlit("kind1").to_string());
-        subject_1.set_name(new_strlit("name1").to_string());
-        subject_1.set_namespace(new_strlit("namespace1").to_string());
-        subject_2.set_kind(new_strlit("kind2").to_string());
-        subject_2.set_name(new_strlit("name2").to_string());
-        subject_2.set_namespace(new_strlit("namespace2").to_string());
+        subject_1.set_kind("kind1".to_string());
+        subject_1.set_name("name1".to_string());
+        subject_1.set_namespace("namespace1".to_string());
+        subject_2.set_kind("kind2".to_string());
+        subject_2.set_name("name2".to_string());
+        subject_2.set_namespace("namespace2".to_string());
         subjects.push(subject_1);
         subjects.push(subject_2);
         subjects
@@ -88,21 +88,21 @@ pub fn test_clone() {
         let mut subject_1 = Subject::default();
         let mut subject_2 = Subject::default();
         let mut subjects = Vec::new();
-        subject_1.set_kind(new_strlit("kind1").to_string());
-        subject_1.set_name(new_strlit("name1").to_string());
-        subject_1.set_namespace(new_strlit("namespace1").to_string());
-        subject_2.set_kind(new_strlit("kind2").to_string());
-        subject_2.set_name(new_strlit("name2").to_string());
-        subject_2.set_namespace(new_strlit("namespace2").to_string());
+        subject_1.set_kind("kind1".to_string());
+        subject_1.set_name("name1".to_string());
+        subject_1.set_namespace("namespace1".to_string());
+        subject_2.set_kind("kind2".to_string());
+        subject_2.set_name("name2".to_string());
+        subject_2.set_namespace("namespace2".to_string());
         subjects.push(subject_1);
         subjects.push(subject_2);
         subjects
     };
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
-    role_ref.set_api_group(new_strlit("api_group").to_string());
-    role_ref.set_kind(new_strlit("kind").to_string());
-    role_ref.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
+    role_ref.set_api_group("api_group".to_string());
+    role_ref.set_kind("kind".to_string());
+    role_ref.set_name("name".to_string());
     role_binding.set_metadata(object_meta.clone());
     role_binding.set_role_ref(role_ref.clone());
     role_binding.set_subjects(subject_gen());

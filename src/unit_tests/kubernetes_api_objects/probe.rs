@@ -15,7 +15,7 @@ verus! {
 pub fn test_set_exec(){
     let mut probe = Probe::default();
     let mut exec_action = ExecAction::default();
-    exec_action.set_command(vec![new_strlit("command").to_string()]);
+    exec_action.set_command(vec!["command".to_string()]);
     probe.set_exec(exec_action.clone());
     assert_eq!(exec_action.into_kube(), probe.into_kube().exec.unwrap());
 }
@@ -57,7 +57,7 @@ pub fn test_set_success_threshold() {
 pub fn test_set_tcp_socket() {
     let mut probe = Probe::default();
     let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_host(new_strlit("host").to_string());
+    tcp_socket_action.set_host("host".to_string());
     tcp_socket_action.set_port(8080);
 
     probe.set_tcp_socket(tcp_socket_action.clone());

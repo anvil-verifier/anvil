@@ -23,7 +23,7 @@ pub fn test_default() {
 pub fn test_set_field_ref() {
     let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_field_path(new_strlit("field_path").to_string());
+    object_field_selector.set_field_path("field_path".to_string());
     downward_api_volume_file.set_field_ref(object_field_selector.clone());
     assert_eq!(
         object_field_selector.into_kube(),
@@ -35,7 +35,7 @@ pub fn test_set_field_ref() {
 #[verifier(external)]
 pub fn test_set_path() {
     let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
-    downward_api_volume_file.set_path(new_strlit("path").to_string());
+    downward_api_volume_file.set_path("path".to_string());
     assert_eq!("path".to_string(), downward_api_volume_file.into_kube().path);
 }
 
