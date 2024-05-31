@@ -141,14 +141,13 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
 pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView {
     let name = rabbitmq.metadata.name.get_Some_0();
 
-    new_strlit(
-        "queue_master_locator = min-masters\n\
-        disk_free_limit.absolute = 2GB\n\
-        cluster_partition_handling = pause_minority\n\
-        cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
-        cluster_formation.k8s.host = kubernetes.default\n\
-        cluster_formation.k8s.address_type = hostname\n"
-    )@ + "cluster_formation.target_cluster_size_hint = "@ + int_to_string_view(rabbitmq.spec.replicas) + "\n"@
+    "queue_master_locator = min-masters\n\
+    disk_free_limit.absolute = 2GB\n\
+    cluster_partition_handling = pause_minority\n\
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
+    cluster_formation.k8s.host = kubernetes.default\n\
+    cluster_formation.k8s.address_type = hostname\n"@
+    + "cluster_formation.target_cluster_size_hint = "@ + int_to_string_view(rabbitmq.spec.replicas) + "\n"@
     + "cluster_name = "@ + name + "\n"@
 }
 

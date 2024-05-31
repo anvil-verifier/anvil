@@ -151,14 +151,12 @@ pub fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
     requires rabbitmq@.well_formed(),
     ensures s@ == model_resource::default_rbmq_config(rabbitmq@),
 {
-    new_strlit(
-        "queue_master_locator = min-masters\n\
-        disk_free_limit.absolute = 2GB\n\
-        cluster_partition_handling = pause_minority\n\
-        cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
-        cluster_formation.k8s.host = kubernetes.default\n\
-        cluster_formation.k8s.address_type = hostname\n"
-    ).to_string()
+    "queue_master_locator = min-masters\n\
+    disk_free_limit.absolute = 2GB\n\
+    cluster_partition_handling = pause_minority\n\
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
+    cluster_formation.k8s.host = kubernetes.default\n\
+    cluster_formation.k8s.address_type = hostname\n".to_string()
     .concat("cluster_formation.target_cluster_size_hint = ")
     .concat(i32_to_string(rabbitmq.spec().replicas()).as_str())
     .concat("\n")

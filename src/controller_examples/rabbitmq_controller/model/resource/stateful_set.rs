@@ -270,11 +270,11 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                     .set_pre_stop(LifecycleHandlerView::default()
                         .set_exec(
                             ExecActionView::default()
-                                .set_command(seq![new_strlit("/bin/bash")@, new_strlit("-c")@,
-                                    new_strlit("if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
+                                .set_command(seq!["/bin/bash"@, "-c"@,
+                                    "if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
                                     rabbitmq-upgrade await_online_quorum_plus_one -t 604800; \
                                     rabbitmq-upgrade await_online_synchronized_mirror -t 604800; \
-                                    rabbitmq-upgrade drain -t 604800")@
+                                    rabbitmq-upgrade drain -t 604800"@
                                 ])
                         )
                     )
@@ -417,13 +417,13 @@ pub open spec fn make_env_vars(rabbitmq: RabbitmqClusterView) -> Seq<EnvVarView>
             ..EnvVarView::default()
         },
         EnvVarView {
-            name: new_strlit("RABBITMQ_NODENAME")@,
-            value: Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)")@),
+            name: "RABBITMQ_NODENAME"@,
+            value: Some("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)"@),
             ..EnvVarView::default()
         },
         EnvVarView {
-            name: new_strlit("K8S_HOSTNAME_SUFFIX")@,
-            value: Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)")@),
+            name: "K8S_HOSTNAME_SUFFIX"@,
+            value: Some(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)"@),
             ..EnvVarView::default()
         },
     ]
