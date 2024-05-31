@@ -154,7 +154,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
         // Set the replica number
         stateful_set_spec.set_replicas(zk.spec().replicas());
         // Set the headless service to assign DNS entry to each zookeeper server
-        stateful_set_spec.set_service_name(zk.metadata().name().unwrap().concat(new_strlit("-headless")));
+        stateful_set_spec.set_service_name(zk.metadata().name().unwrap().concat("-headless"));
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
@@ -163,8 +163,8 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
         });
         stateful_set_spec.set_pvc_retention_policy({
             let mut policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-            policy.set_when_deleted(new_strlit("Delete").to_string());
-            policy.set_when_scaled(new_strlit("Delete").to_string());
+            policy.set_when_deleted("Delete".to_string());
+            policy.set_when_scaled("Delete".to_string());
             policy
         });
         // Set the template used for creating pods
@@ -175,7 +175,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                 metadata.set_labels(make_labels(zk));
                 metadata.set_annotations({
                     let mut annotations = zk.spec().annotations();
-                    annotations.insert(new_strlit("anvil.dev/lastRestartAt").to_string(), rv.clone());
+                    annotations.insert("anvil.dev/lastRestartAt".to_string(), rv.clone());
                     annotations
                 });
                 metadata
@@ -191,7 +191,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                     let mut pvc = PersistentVolumeClaim::default();
                     pvc.set_metadata({
                         let mut metadata = ObjectMeta::default();
-                        metadata.set_name(new_strlit("data").to_string());
+                        metadata.set_name("data".to_string());
                         metadata.set_labels(make_base_labels(zk));
                         metadata
                     });
@@ -199,7 +199,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                         let mut pvc_spec = PersistentVolumeClaimSpec::default();
                         pvc_spec.set_access_modes({
                             let mut access_modes = Vec::new();
-                            access_modes.push(new_strlit("ReadWriteOnce").to_string());
+                            access_modes.push("ReadWriteOnce".to_string());
                             proof {
                                 assert_seqs_equal!(
                                     access_modes@.map_values(|mode: String| mode@),
@@ -214,7 +214,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                             let mut resources = ResourceRequirements::default();
                             resources.set_requests({
                                 let mut requests = StringMap::empty();
-                                requests.insert(new_strlit("storage").to_string(), zk.spec().persistence().storage_size());
+                                requests.insert("storage".to_string(), zk.spec().persistence().storage_size());
                                 requests
                             });
                             resources
@@ -258,13 +258,13 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         let mut containers = Vec::new();
         containers.push({
             let mut zk_container = Container::default();
-            zk_container.set_name(new_strlit("zookeeper").to_string());
+            zk_container.set_name("zookeeper".to_string());
             zk_container.set_image(zk.spec().image());
             zk_container.set_command({
                 let mut command = Vec::new();
-                command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
+                command.push("/usr/local/bin/zookeeperStart.sh".to_string());
                 proof {
-                    let spec_cmd = seq![new_strlit("/usr/local/bin/zookeeperStart.sh")@];
+                    let spec_cmd = seq!["/usr/local/bin/zookeeperStart.sh"@];
                     assert_seqs_equal!(command@.map_values(|s: String| s@), spec_cmd);
                 }
                 command
@@ -277,7 +277,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                         let mut exec = ExecAction::default();
                         exec.set_command({
                             let mut command = Vec::new();
-                            command.push(new_strlit("zookeeperTeardown.sh").to_string());
+                            command.push("zookeeperTeardown.sh".to_string());
 
                             proof {
                                 assert_seqs_equal!(
@@ -294,20 +294,20 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 });
                 lifecycle
             });
-            zk_container.set_image_pull_policy(new_strlit("Always").to_string());
+            zk_container.set_image_pull_policy("Always".to_string());
             zk_container.overwrite_resources(zk.spec().resources());
             zk_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut data_volume_mount = VolumeMount::default();
-                    data_volume_mount.set_name(new_strlit("data").to_string());
-                    data_volume_mount.set_mount_path(new_strlit("/data").to_string());
+                    data_volume_mount.set_name("data".to_string());
+                    data_volume_mount.set_mount_path("/data".to_string());
                     data_volume_mount
                 });
                 volume_mounts.push({
                     let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("conf").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/conf").to_string());
+                    conf_volume_mount.set_name("conf".to_string());
+                    conf_volume_mount.set_mount_path("/conf".to_string());
                     conf_volume_mount
                 });
 
@@ -322,11 +322,11 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             zk_container.set_ports({
                 let mut ports = Vec::new();
-                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), zk.spec().ports().client()));
-                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), zk.spec().ports().quorum()));
-                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), zk.spec().ports().leader_election()));
-                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), zk.spec().ports().metrics()));
-                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), zk.spec().ports().admin_server()));
+                ports.push(ContainerPort::new_with("client".to_string(), zk.spec().ports().client()));
+                ports.push(ContainerPort::new_with("quorum".to_string(), zk.spec().ports().quorum()));
+                ports.push(ContainerPort::new_with("leader-election".to_string(), zk.spec().ports().leader_election()));
+                ports.push(ContainerPort::new_with("metrics".to_string(), zk.spec().ports().metrics()));
+                ports.push(ContainerPort::new_with("admin-server".to_string(), zk.spec().ports().admin_server()));
 
                 proof {
                     assert_seqs_equal!(
@@ -343,7 +343,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                     let mut exec = ExecAction::default();
                     exec.set_command({
                         let mut command = Vec::new();
-                        command.push(new_strlit("zookeeperReady.sh").to_string());
+                        command.push("zookeeperReady.sh".to_string());
 
                         proof {
                             assert_seqs_equal!(
@@ -369,7 +369,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                     let mut exec = ExecAction::default();
                     exec.set_command({
                         let mut command = Vec::new();
-                        command.push(new_strlit("zookeeperLive.sh").to_string());
+                        command.push("zookeeperLive.sh".to_string());
 
                         proof {
                             assert_seqs_equal!(
@@ -405,10 +405,10 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         let mut volumes = Vec::new();
         volumes.push({
             let mut volume = Volume::default();
-            volume.set_name(new_strlit("conf").to_string());
+            volume.set_name("conf".to_string());
             volume.set_config_map({
                 let mut config_map = ConfigMapVolumeSource::default();
-                config_map.set_name(zk.metadata().name().unwrap().concat(new_strlit("-configmap")));
+                config_map.set_name(zk.metadata().name().unwrap().concat("-configmap"));
                 config_map
             });
             volume
@@ -416,7 +416,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         if !zk.spec().persistence().enabled() {
             volumes.push({
                 let mut volume = Volume::default();
-                volume.set_name(new_strlit("data").to_string());
+                volume.set_name("data".to_string());
                 volume.set_empty_dir(EmptyDirVolumeSource::default());
                 volume
             });

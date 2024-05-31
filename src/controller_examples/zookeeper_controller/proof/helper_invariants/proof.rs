@@ -1156,10 +1156,10 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                 match sub_resource {
                     SubResource::HeadlessService => {
                         assert_by(
-                            key.name + new_strlit("-headless")@ != cr_key.name + new_strlit("-client")@,
+                            key.name + "-headless"@ != cr_key.name + "-client"@,
                             {
-                                let str1 = key.name + new_strlit("-headless")@;
-                                let str2 = cr_key.name + new_strlit("-client")@;
+                                let str1 = key.name + "-headless"@;
+                                let str2 = cr_key.name + "-client"@;
                                 reveal_strlit("-headless");
                                 reveal_strlit("-client");
                                 if str1.len() == str2.len() {
@@ -1169,10 +1169,10 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                             }
                         );
                         assert_by(
-                            key.name + new_strlit("-headless")@ != cr_key.name + new_strlit("-admin-server")@,
+                            key.name + "-headless"@ != cr_key.name + "-admin-server"@,
                             {
-                                let str1 = key.name + new_strlit("-headless")@;
-                                let str2 = cr_key.name + new_strlit("-admin-server")@;
+                                let str1 = key.name + "-headless"@;
+                                let str2 = cr_key.name + "-admin-server"@;
                                 reveal_strlit("-headless");
                                 reveal_strlit("-admin-server");
                                 if str1.len() == str2.len() {
@@ -1181,14 +1181,14 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                                 }
                             }
                         );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-headless")@);
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-headless"@);
                     },
                     SubResource::ClientService => {
                         assert_by(
-                            key.name + new_strlit("-client")@ != cr_key.name + new_strlit("-headless")@,
+                            key.name + "-client"@ != cr_key.name + "-headless"@,
                             {
-                                let str1 = key.name + new_strlit("-client")@;
-                                let str2 = cr_key.name + new_strlit("-headless")@;
+                                let str1 = key.name + "-client"@;
+                                let str2 = cr_key.name + "-headless"@;
                                 reveal_strlit("-client");
                                 reveal_strlit("-headless");
                                 if str1.len() == str2.len() {
@@ -1198,10 +1198,10 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                             }
                         );
                         assert_by(
-                            key.name + new_strlit("-client")@ != cr_key.name + new_strlit("-admin-server")@,
+                            key.name + "-client"@ != cr_key.name + "-admin-server"@,
                             {
-                                let str1 = key.name + new_strlit("-client")@;
-                                let str2 = cr_key.name + new_strlit("-admin-server")@;
+                                let str1 = key.name + "-client"@;
+                                let str2 = cr_key.name + "-admin-server"@;
                                 reveal_strlit("-client");
                                 reveal_strlit("-admin-server");
                                 if str1.len() == str2.len() {
@@ -1210,14 +1210,14 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                                 }
                             }
                         );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-client"@);
                     },
                     SubResource::AdminServerService => {
                         assert_by(
-                            key.name + new_strlit("-admin-server")@ != cr_key.name + new_strlit("-headless")@,
+                            key.name + "-admin-server"@ != cr_key.name + "-headless"@,
                             {
-                                let str1 = key.name + new_strlit("-admin-server")@;
-                                let str2 = cr_key.name + new_strlit("-headless")@;
+                                let str1 = key.name + "-admin-server"@;
+                                let str2 = cr_key.name + "-headless"@;
                                 reveal_strlit("-admin-server");
                                 reveal_strlit("-headless");
                                 if str1.len() == str2.len() {
@@ -1227,10 +1227,10 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                             }
                         );
                         assert_by(
-                            key.name + new_strlit("-admin-server")@ != cr_key.name + new_strlit("-client")@,
+                            key.name + "-admin-server"@ != cr_key.name + "-client"@,
                             {
-                                let str1 = key.name + new_strlit("-admin-server")@;
-                                let str2 = cr_key.name + new_strlit("-client")@;
+                                let str1 = key.name + "-admin-server"@;
+                                let str2 = cr_key.name + "-client"@;
                                 reveal_strlit("-admin-server");
                                 reveal_strlit("-client");
                                 if str1.len() == str2.len() {
@@ -1239,11 +1239,11 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                                 }
                             }
                         );
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-admin-server")@);
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-admin-server"@);
                     },
                     SubResource::ConfigMap => {
                         // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-configmap")@);
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-configmap"@);
                     },
                     _ => {},
                 }

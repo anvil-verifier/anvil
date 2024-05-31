@@ -163,7 +163,7 @@ pub fn reconcile_core(
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     } else {
                         let node_path = zk_parent_node_path(zk);
-                        let data = new_strlit("").to_string();
+                        let data = "".to_string();
                         let ext_req = ZKAPIInput::CreateRequest(
                             zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data
                         );
@@ -389,7 +389,7 @@ fn zk_node_path(zk: &ZookeeperCluster) -> (path: Vec<String>)
     ensures path@.map_values(|s: String| s@) == model_reconciler::zk_node_path(zk@),
 {
     let mut path = Vec::new();
-    path.push(new_strlit("zookeeper-operator").to_string());
+    path.push("zookeeper-operator".to_string());
     path.push(zk.metadata().name().unwrap());
     proof { assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_node_path(zk@)); }
     path
@@ -400,7 +400,7 @@ fn zk_parent_node_path(zk: &ZookeeperCluster) -> (path: Vec<String>)
     ensures path@.map_values(|s: String| s@) == model_reconciler::zk_parent_node_path(zk@),
 {
     let mut path = Vec::new();
-    path.push(new_strlit("zookeeper-operator").to_string());
+    path.push("zookeeper-operator".to_string());
     proof { assert_seqs_equal!(path@.map_values(|s: String| s@), model_reconciler::zk_parent_node_path(zk@)); }
     path
 }
@@ -409,7 +409,7 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     requires zk@.well_formed(),
     ensures data@ == model_reconciler::zk_node_data(zk@),
 {
-    new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
+    "CLUSTER_SIZE=".to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }
 
 impl ZKAPIOutput {

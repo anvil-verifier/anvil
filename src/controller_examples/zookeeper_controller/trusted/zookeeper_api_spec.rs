@@ -119,8 +119,8 @@ impl ExternalAPI for ZKAPI {
 }
 
 pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> bool {
-    let zk_config = data[new_strlit("zoo.cfg")@];
-    &&& data.contains_key(new_strlit("zoo.cfg")@)
+    let zk_config = data["zoo.cfg"@];
+    &&& data.contains_key("zoo.cfg"@)
     &&& exists |zk: ZookeeperClusterView| zk.state_validation() && (#[trigger] make_zk_config(zk)) == zk_config
 }
 
@@ -134,7 +134,7 @@ pub open spec fn validate_config_map(name: StringView, namespace: StringView, re
     let cm_key = ObjectRef {
         kind: Kind::ConfigMapKind,
         namespace: namespace,
-        name: name + new_strlit("-configmap")@,
+        name: name + "-configmap"@,
     };
     &&& resources.contains_key(cm_key)
     &&& validate_config_map_object(resources[cm_key])

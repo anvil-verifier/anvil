@@ -23,7 +23,7 @@ pub fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     ensures labels@ == model_resource::make_base_labels(zk@),
 {
     let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
+    labels.insert("app".to_string(), zk.metadata().name().unwrap());
     labels
 }
 
@@ -68,7 +68,7 @@ pub fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>
     service.set_spec({
         let mut service_spec = ServiceSpec::default();
         if !cluster_ip {
-            service_spec.set_cluster_ip(new_strlit("None").to_string());
+            service_spec.set_cluster_ip("None".to_string());
         }
         service_spec.set_ports(ports);
         service_spec.set_selector(make_base_labels(zk));

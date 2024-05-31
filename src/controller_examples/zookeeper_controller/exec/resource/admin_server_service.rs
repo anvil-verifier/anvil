@@ -80,7 +80,7 @@ pub fn make_admin_server_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires zk@.well_formed(),
     ensures name@ == model_resource::make_admin_server_service_name(zk@),
 {
-    zk.metadata().name().unwrap().concat(new_strlit("-admin-server"))
+    zk.metadata().name().unwrap().concat("-admin-server")
 }
 
 pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service: &Service) -> (admin_server_service: Service)
@@ -116,7 +116,7 @@ pub fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().ports().admin_server()));
+    ports.push(ServicePort::new_with("tcp-admin-server".to_string(), zk.spec().ports().admin_server()));
 
     proof {
         assert_seqs_equal!(

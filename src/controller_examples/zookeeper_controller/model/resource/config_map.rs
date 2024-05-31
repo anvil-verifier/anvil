@@ -76,7 +76,7 @@ pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef {
     }
 }
 
-pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + new_strlit("-configmap")@ }
+pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-configmap"@ }
 
 pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView {
     ConfigMapView {
@@ -88,10 +88,10 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView {
             ..ConfigMapView::default().metadata
         },
         data: Some(Map::empty()
-            .insert(new_strlit("zoo.cfg")@, make_zk_config(zk))
-            .insert(new_strlit("log4j.properties")@, make_log4j_config())
-            .insert(new_strlit("log4j-quiet.properties")@, make_log4j_quiet_config())
-            .insert(new_strlit("env.sh")@, make_env_config(zk))
+            .insert("zoo.cfg"@, make_zk_config(zk))
+            .insert("log4j.properties"@, make_log4j_config())
+            .insert("log4j-quiet.properties"@, make_log4j_quiet_config())
+            .insert("env.sh"@, make_env_config(zk))
         ),
         ..ConfigMapView::default()
     }
@@ -112,25 +112,21 @@ pub open spec fn update_config_map(zk: ZookeeperClusterView, found_config_map: C
 }
 
 pub open spec fn make_log4j_config() -> StringView {
-    new_strlit(
-        "zookeeper.root.logger=CONSOLE\n\
-        zookeeper.console.threshold=INFO\n\
-        log4j.rootLogger=${zookeeper.root.logger}\n\
-        log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender\n\
-        log4j.appender.CONSOLE.Threshold=${zookeeper.console.threshold}\n\
-        log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout\n\
-        log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n\n"
-    )@
+    "zookeeper.root.logger=CONSOLE\n\
+    zookeeper.console.threshold=INFO\n\
+    log4j.rootLogger=${zookeeper.root.logger}\n\
+    log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender\n\
+    log4j.appender.CONSOLE.Threshold=${zookeeper.console.threshold}\n\
+    log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout\n\
+    log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n\n"@
 }
 
 pub open spec fn make_log4j_quiet_config() -> StringView {
-    new_strlit(
-        "log4j.rootLogger=ERROR, CONSOLE\n\
-        log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender\n\
-        log4j.appender.CONSOLE.Threshold=ERROR\n\
-        log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout\n\
-        log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n\n"
-    )@
+    "log4j.rootLogger=ERROR, CONSOLE\n\
+    log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender\n\
+    log4j.appender.CONSOLE.Threshold=ERROR\n\
+    log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout\n\
+    log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n\n"@
 }
 
 pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView {
@@ -141,16 +137,15 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView {
     let leader_election_port = int_to_string_view(zk.spec.ports.leader_election);
     let admin_server_port = int_to_string_view(zk.spec.ports.admin_server);
 
-    new_strlit(
-        "#!/usr/bin/env bash\n\n\
-        DOMAIN=")@ + name + new_strlit("-headless.")@ + namespace + new_strlit(".svc.cluster.local\n\
-        QUORUM_PORT=")@ + quorum_port + new_strlit("\n\
-        LEADER_PORT=")@ + leader_election_port + new_strlit("\n\
-        CLIENT_HOST=")@ + name + new_strlit("-client\n\
-        CLIENT_PORT=")@ + client_port + new_strlit("\n\
-        ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
-        ADMIN_SERVER_PORT=")@ + admin_server_port + new_strlit("\n\
-        CLUSTER_NAME=")@ + name + new_strlit("\n")@
+    "#!/usr/bin/env bash\n\n\
+    DOMAIN="@ + name + "-headless."@ + namespace + ".svc.cluster.local\n\
+    QUORUM_PORT="@ + quorum_port + "\n\
+    LEADER_PORT="@ + leader_election_port + "\n\
+    CLIENT_HOST="@ + name + "-client\n\
+    CLIENT_PORT="@ + client_port + "\n\
+    ADMIN_SERVER_HOST="@ + name + "-admin-server\n\
+    ADMIN_SERVER_PORT="@ + admin_server_port + "\n\
+    CLUSTER_NAME="@ + name + "\n"@
 }
 
 }

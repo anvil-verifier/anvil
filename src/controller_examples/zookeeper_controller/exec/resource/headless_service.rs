@@ -82,7 +82,7 @@ pub fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires zk@.well_formed(),
     ensures name@ == model_resource::make_headless_service_name(zk@),
 {
-    zk.metadata().name().unwrap().concat(new_strlit("-headless"))
+    zk.metadata().name().unwrap().concat("-headless")
 }
 
 pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Service) -> (headless_service: Service)
@@ -118,11 +118,11 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().ports().client()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), zk.spec().ports().quorum()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), zk.spec().ports().leader_election()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), zk.spec().ports().metrics()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().ports().admin_server()));
+    ports.push(ServicePort::new_with("tcp-client".to_string(), zk.spec().ports().client()));
+    ports.push(ServicePort::new_with("tcp-quorum".to_string(), zk.spec().ports().quorum()));
+    ports.push(ServicePort::new_with("tcp-leader-election".to_string(), zk.spec().ports().leader_election()));
+    ports.push(ServicePort::new_with("tcp-metrics".to_string(), zk.spec().ports().metrics()));
+    ports.push(ServicePort::new_with("tcp-admin-server".to_string(), zk.spec().ports().admin_server()));
 
     proof {
         assert_seqs_equal!(
