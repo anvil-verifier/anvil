@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, label_selector::*, object_meta::*, persistent_volume_claim::*,
-    resource::*, resource_requirements::*,
+    resource::*, volume_resource_requirements::*,
 };
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
@@ -43,7 +43,7 @@ pub fn test_set_access_modes() {
 #[verifier(external)]
 pub fn test_set_resources() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
-    let mut resources = ResourceRequirements::default();
+    let mut resources = VolumeResourceRequirements::default();
     let mut requests = StringMap::new();
     requests.insert("storage".to_string(), "1Gi".to_string());
     resources.set_requests(requests);
@@ -57,7 +57,7 @@ pub fn test_set_resources() {
 #[verifier(external)]
 pub fn test_clone(){
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
-    let mut resources = ResourceRequirements::default();
+    let mut resources = VolumeResourceRequirements::default();
     let mut requests = StringMap::new();
     requests.insert("storage".to_string(), "1Gi".to_string());
     resources.set_requests(requests);
@@ -94,7 +94,7 @@ pub fn test_kube() {
                 .collect(),
             ),
             resources: Some(
-                deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+                deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
                     requests: Some(
                         BTreeMap::from([
                             (

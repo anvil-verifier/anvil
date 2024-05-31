@@ -109,7 +109,7 @@ pub fn test_kube() {
                         .collect(),
                     ),
                     resources: Some(
-                        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+                        deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
                             requests: Some(
                                 BTreeMap::from([
                                     (
@@ -157,7 +157,7 @@ pub fn test_marshal() {
                         .collect(),
                     ),
                     resources: Some(
-                        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+                        deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
                             requests: Some(
                                 BTreeMap::from([
                                     (

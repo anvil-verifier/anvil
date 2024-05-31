@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
-    volume::*,
+    volume::*, volume_resource_requirements::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
@@ -150,7 +150,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                     )
                     .set_spec(PersistentVolumeClaimSpecView::default()
                         .set_access_modes(seq!["ReadWriteOnce"@])
-                        .set_resources(ResourceRequirementsView::default()
+                        .set_resources(VolumeResourceRequirementsView::default()
                             .set_requests(Map::empty()
                                 .insert("storage"@, zk.spec.persistence.storage_size)
                             )

@@ -26,3 +26,4 @@ pub mod service_account;
 pub mod stateful_set;
 pub mod toleration;
 pub mod volume;
+pub mod volume_resource_requirements;
