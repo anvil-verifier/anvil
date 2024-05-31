@@ -190,7 +190,7 @@ impl PodSpec {
     pub fn set_service_account_name(&mut self, service_account: String)
         ensures self@ == old(self)@.set_service_account_name(service_account@),
     {
-        self.inner.service_account_name = Some(service_account.into_rust_string())
+        self.inner.service_account_name = Some(service_account)
     }
 
     #[verifier(external_body)]
@@ -223,42 +223,28 @@ impl PodSpec {
     pub fn overwrite_runtime_class_name(&mut self, runtime_class_name: Option<String>)
         ensures self@ == old(self)@.overwrite_runtime_class_name(opt_string_to_view(&runtime_class_name)),
     {
-        match runtime_class_name {
-            Some(n) => self.inner.runtime_class_name = Some(n.into_rust_string()),
-            None => self.inner.runtime_class_name = None,
-        }
-
+        self.inner.runtime_class_name = runtime_class_name
     }
 
     #[verifier(external_body)]
     pub fn overwrite_dns_policy(&mut self, dns_policy: Option<String>)
         ensures self@ == old(self)@.overwrite_dns_policy(opt_string_to_view(&dns_policy)),
     {
-        match dns_policy {
-            Some(n) => self.inner.dns_policy = Some(n.into_rust_string()),
-            None => self.inner.dns_policy = None,
-        }
-
+        self.inner.dns_policy = dns_policy
     }
 
     #[verifier(external_body)]
     pub fn overwrite_scheduler_name(&mut self, scheduler_name: Option<String>)
         ensures self@ == old(self)@.overwrite_scheduler_name(opt_string_to_view(&scheduler_name)),
     {
-        match scheduler_name {
-            Some(n) => self.inner.scheduler_name = Some(n.into_rust_string()),
-            None => self.inner.scheduler_name = None,
-        }
+        self.inner.scheduler_name = scheduler_name
     }
 
     #[verifier(external_body)]
     pub fn overwrite_priority_class_name(&mut self, priority_class_name: Option<String>)
         ensures self@ == old(self)@.overwrite_priority_class_name(opt_string_to_view(&priority_class_name)),
     {
-        match priority_class_name {
-            Some(n) => self.inner.priority_class_name = Some(n.into_rust_string()),
-            None => self.inner.priority_class_name = None,
-        }
+        self.inner.priority_class_name = priority_class_name
     }
 
     #[verifier(external_body)]

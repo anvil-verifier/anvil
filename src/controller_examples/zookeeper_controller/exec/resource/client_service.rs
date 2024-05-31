@@ -82,7 +82,7 @@ pub fn make_client_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires zk@.well_formed(),
     ensures name@ == model_resource::make_client_service_name(zk@),
 {
-    zk.metadata().name().unwrap().concat(new_strlit("-client"))
+    zk.metadata().name().unwrap().concat("-client")
 }
 
 pub fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) -> (client_service: Service)
@@ -118,7 +118,7 @@ pub fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().ports().client()));
+    ports.push(ServicePort::new_with("tcp-client".to_string(), zk.spec().ports().client()));
 
     proof {
         assert_seqs_equal!(

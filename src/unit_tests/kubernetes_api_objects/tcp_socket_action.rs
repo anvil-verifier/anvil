@@ -13,7 +13,7 @@ verus! {
 #[verifier(external)]
 pub fn test_set_host() {
     let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_host(new_strlit("host").to_string());
+    tcp_socket_action.set_host("host".to_string());
     assert_eq!("host".to_string(), tcp_socket_action.into_kube().host.unwrap());
 }
 
@@ -37,7 +37,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_host(new_strlit("host").to_string());
+    tcp_socket_action.set_host("host".to_string());
     tcp_socket_action.set_port(8080);
     let tcp_socket_action_clone = tcp_socket_action.clone();
     assert_eq!(tcp_socket_action.into_kube(), tcp_socket_action_clone.into_kube());

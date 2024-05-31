@@ -143,7 +143,7 @@ impl PersistentVolumeClaimSpec {
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
         ensures self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
     {
-        self.inner.access_modes = Some(access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect());
+        self.inner.access_modes = Some(access_modes);
     }
 
     #[verifier(external_body)]
@@ -157,7 +157,7 @@ impl PersistentVolumeClaimSpec {
     pub fn set_storage_class_name(&mut self, storage_class_name: String)
         ensures self@ == old(self)@.set_storage_class_name(storage_class_name@),
     {
-        self.inner.storage_class_name = Some(storage_class_name.into_rust_string());
+        self.inner.storage_class_name = Some(storage_class_name);
     }
 }
 

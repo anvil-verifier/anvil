@@ -98,7 +98,7 @@ pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_role_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-peer-discovery"))
+    rabbitmq.metadata().name().unwrap().concat("-peer-discovery")
 }
 
 pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
@@ -110,7 +110,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         let mut rule = PolicyRule::default();
         rule.set_api_groups({
             let mut api_groups = Vec::new();
-            api_groups.push(new_strlit("").to_string());
+            api_groups.push("".to_string());
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
@@ -121,7 +121,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         });
         rule.set_resources({
             let mut resources = Vec::new();
-            resources.push(new_strlit("endpoints").to_string());
+            resources.push("endpoints".to_string());
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
@@ -132,7 +132,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         });
         rule.set_verbs({
             let mut verbs = Vec::new();
-            verbs.push(new_strlit("get").to_string());
+            verbs.push("get".to_string());
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),
@@ -147,7 +147,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         let mut rule = PolicyRule::default();
         rule.set_api_groups({
             let mut api_groups = Vec::new();
-            api_groups.push(new_strlit("").to_string());
+            api_groups.push("".to_string());
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
@@ -158,7 +158,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         });
         rule.set_resources({
             let mut resources = Vec::new();
-            resources.push(new_strlit("events").to_string());
+            resources.push("events".to_string());
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
@@ -169,7 +169,7 @@ pub fn make_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
         });
         rule.set_verbs({
             let mut verbs = Vec::new();
-            verbs.push(new_strlit("create").to_string());
+            verbs.push("create".to_string());
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),

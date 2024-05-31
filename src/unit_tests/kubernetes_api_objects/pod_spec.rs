@@ -25,7 +25,7 @@ pub fn test_default() {
 pub fn test_clone() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
-    container.set_name(new_strlit("name").to_string());
+    container.set_name("name".to_string());
     pod_spec.set_containers(vec![container.clone()]);
     let pod_spec_clone = pod_spec.clone();
     assert_eq!(pod_spec.into_kube(), pod_spec_clone.into_kube());
@@ -57,8 +57,8 @@ pub fn test_set_containers() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
     let mut container2 = Container::default();
-    container.set_name(new_strlit("name").to_string());
-    container2.set_name(new_strlit("name2").to_string());
+    container.set_name("name".to_string());
+    container2.set_name("name2".to_string());
     pod_spec.set_containers(vec![container.clone(), container2.clone()]);
     assert_eq!(vec![container.into_kube(), container2.into_kube()], pod_spec.into_kube().containers);
 }
@@ -69,8 +69,8 @@ pub fn test_set_volumes() {
     let mut pod_spec = PodSpec::default();
     let mut volume = Volume::default();
     let mut volume2 = Volume::default();
-    volume.set_name(new_strlit("name").to_string());
-    volume2.set_name(new_strlit("name2").to_string());
+    volume.set_name("name".to_string());
+    volume2.set_name("name2".to_string());
     pod_spec.set_volumes(vec![volume.clone(), volume2.clone()]);
     assert_eq!(vec![volume.into_kube(), volume2.into_kube()], pod_spec.into_kube().volumes.unwrap());
 }
@@ -81,8 +81,8 @@ pub fn test_set_init_containers() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
     let mut container2 = Container::default();
-    container.set_name(new_strlit("name").to_string());
-    container2.set_name(new_strlit("name2").to_string());
+    container.set_name("name".to_string());
+    container2.set_name("name2".to_string());
     pod_spec.set_init_containers(vec![container.clone(), container2.clone()]);
     assert_eq!(vec![container.into_kube(), container2.into_kube()], pod_spec.into_kube().init_containers.unwrap());
 }
@@ -91,7 +91,7 @@ pub fn test_set_init_containers() {
 #[verifier(external)]
 pub fn test_set_service_account_name() {
     let mut pod_spec = PodSpec::default();
-    pod_spec.set_service_account_name(new_strlit("name").to_string());
+    pod_spec.set_service_account_name("name".to_string());
     assert_eq!("name".to_string(), pod_spec.into_kube().service_account_name.unwrap());
 }
 
@@ -120,7 +120,7 @@ pub fn test_overwrite_tolerations() {
 pub fn test_set_node_selector() {
     let mut pod_spec = PodSpec::default();
     let mut node_selector = StringMap::new();
-    node_selector.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    node_selector.insert("key".to_string(), "value".to_string());
     pod_spec.set_node_selector(node_selector.clone());
     assert_eq!(node_selector.into_rust_map(), pod_spec.into_kube().node_selector.unwrap());
 }
@@ -132,7 +132,7 @@ pub fn test_overwrite_runtime_class_name() {
     if pod_spec.clone().into_kube().runtime_class_name.is_some() {
         panic!("runtime_class_name should be None");
     };
-    pod_spec.overwrite_runtime_class_name(Some(new_strlit("name").to_string()));
+    pod_spec.overwrite_runtime_class_name(Some("name".to_string()));
     assert_eq!("name".to_string(), pod_spec.clone().into_kube().runtime_class_name.unwrap());
 }
 
@@ -143,7 +143,7 @@ pub fn test_overwrite_dns_policy() {
     if pod_spec.clone().into_kube().dns_policy.is_some() {
         panic!("dns_policy should be None");
     };
-    pod_spec.overwrite_dns_policy(Some(new_strlit("name").to_string()));
+    pod_spec.overwrite_dns_policy(Some("name".to_string()));
     assert_eq!("name".to_string(), pod_spec.clone().into_kube().dns_policy.unwrap());
 }
 
@@ -154,7 +154,7 @@ pub fn test_overwrite_scheduler_name() {
     if pod_spec.clone().into_kube().scheduler_name.is_some() {
         panic!("scheduler_name should be None");
     };
-    pod_spec.overwrite_scheduler_name(Some(new_strlit("name").to_string()));
+    pod_spec.overwrite_scheduler_name(Some("name".to_string()));
     assert_eq!("name".to_string(), pod_spec.clone().into_kube().scheduler_name.unwrap());
 }
 
@@ -165,7 +165,7 @@ pub fn test_overwrite_priority_class_name() {
     if pod_spec.clone().into_kube().priority_class_name.is_some() {
         panic!("priority_class_name should be None");
     };
-    pod_spec.overwrite_priority_class_name(Some(new_strlit("name").to_string()));
+    pod_spec.overwrite_priority_class_name(Some("name".to_string()));
     assert_eq!("name".to_string(), pod_spec.clone().into_kube().priority_class_name.unwrap());
 }
 

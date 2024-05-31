@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
     }
 }
 
-pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@ }
+pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-peer-discovery"@ }
 
 pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
@@ -104,8 +104,8 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView {
             .set_annotations(rabbitmq.spec.annotations)
         ).set_rules(
             seq![
-                PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("endpoints")@]).set_verbs(seq![new_strlit("get")@]),
-                PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("events")@]).set_verbs(seq![new_strlit("create")@]),
+                PolicyRuleView::default().set_api_groups(seq![""@]).set_resources(seq!["endpoints"@]).set_verbs(seq!["get"@]),
+                PolicyRuleView::default().set_api_groups(seq![""@]).set_resources(seq!["events"@]).set_verbs(seq!["create"@]),
             ]
         )
 }

@@ -184,7 +184,7 @@ impl StatefulSetSpec {
     pub fn set_service_name(&mut self, service_name: String)
         ensures self@ == old(self)@.set_service_name(service_name@),
     {
-        self.inner.service_name = service_name.into_rust_string()
+        self.inner.service_name = service_name
     }
 
     #[verifier(external_body)]
@@ -207,7 +207,7 @@ impl StatefulSetSpec {
     pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
         ensures self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
     {
-        self.inner.pod_management_policy = Some(pod_management_policy.into_rust_string())
+        self.inner.pod_management_policy = Some(pod_management_policy)
     }
 
     #[verifier(external_body)]
@@ -253,7 +253,7 @@ impl StatefulSetSpec {
     pub fn service_name(&self) -> (service_name: String)
         ensures service_name@ == self@.service_name,
     {
-        String::from_rust_string(self.inner.service_name.to_string())
+        self.inner.service_name.clone()
     }
 
     #[verifier(external_body)]
@@ -262,10 +262,7 @@ impl StatefulSetSpec {
             self@.pod_management_policy.is_Some() == pod_management_policy.is_Some(),
             pod_management_policy.is_Some() ==> pod_management_policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
     {
-        match &self.inner.pod_management_policy {
-            Some(p) => Some(String::from_rust_string(p.to_string())),
-            None => None,
-        }
+        self.inner.pod_management_policy.clone()
     }
 
     #[verifier(external_body)]
@@ -337,14 +334,14 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     pub fn set_when_deleted(&mut self, when_deleted: String)
         ensures self@ == old(self)@.set_when_deleted(when_deleted@),
     {
-        self.inner.when_deleted = Some(when_deleted.into_rust_string())
+        self.inner.when_deleted = Some(when_deleted)
     }
 
     #[verifier(external_body)]
     pub fn set_when_scaled(&mut self, when_scaled: String)
         ensures self@ == old(self)@.set_when_scaled(when_scaled@),
     {
-        self.inner.when_scaled = Some(when_scaled.into_rust_string())
+        self.inner.when_scaled = Some(when_scaled)
     }
 }
 

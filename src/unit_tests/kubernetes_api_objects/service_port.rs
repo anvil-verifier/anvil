@@ -20,7 +20,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut service_port = ServicePort::default();
-    service_port.set_name(new_strlit("name").to_string());
+    service_port.set_name("name".to_string());
     assert_eq!("name".to_string(), service_port.into_kube().name.unwrap());
 }
 
@@ -39,7 +39,7 @@ pub fn test_set_port() {
 #[verifier(external)]
 pub fn test_set_app_protocol() {
     let mut service_port = ServicePort::default();
-    service_port.set_app_protocol(new_strlit("protocol").to_string());
+    service_port.set_app_protocol("protocol".to_string());
     assert_eq!("protocol".to_string(), service_port.into_kube().app_protocol.unwrap());
 }
 
@@ -47,7 +47,7 @@ pub fn test_set_app_protocol() {
 #[verifier(external)]
 pub fn test_set_protocaol() {
     let mut service_port = ServicePort::default();
-    service_port.set_protocol(new_strlit("protocol").to_string());
+    service_port.set_protocol("protocol".to_string());
     assert_eq!("protocol".to_string(), service_port.into_kube().protocol.unwrap());
 }
 

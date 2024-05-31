@@ -20,7 +20,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_cluster_ip() {
     let mut service_spec = ServiceSpec::default();
-    service_spec.set_cluster_ip(new_strlit("ip").to_string());
+    service_spec.set_cluster_ip("ip".to_string());
     assert_eq!("ip".to_string(), service_spec.into_kube().cluster_ip.unwrap());
 }
 
@@ -33,9 +33,9 @@ pub fn test_set_ports() {
         let mut port = ServicePort::default();
         let mut port_2 = ServicePort::default();
         port.set_port(1);
-        port.set_app_protocol(new_strlit("http").to_string());
+        port.set_app_protocol("http".to_string());
         port_2.set_port(2048);
-        port_2.set_app_protocol(new_strlit("tcp").to_string());
+        port_2.set_app_protocol("tcp".to_string());
         ports.push(port);
         ports
     };
@@ -56,9 +56,9 @@ pub fn test_ports() {
         let mut port = ServicePort::default();
         let mut port_2 = ServicePort::default();
         port.set_port(1);
-        port.set_app_protocol(new_strlit("http").to_string());
+        port.set_app_protocol("http".to_string());
         port_2.set_port(2048);
-        port_2.set_app_protocol(new_strlit("tcp").to_string());
+        port_2.set_app_protocol("tcp".to_string());
         ports.push(port);
         ports
     };
@@ -79,7 +79,7 @@ pub fn test_ports() {
 pub fn test_set_selector() {
     let mut service_spec = ServiceSpec::default();
     let mut selector = StringMap::new();
-    selector.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    selector.insert("key".to_string(), "value".to_string());
     service_spec.set_selector(selector.clone());
     assert_eq!(selector.into_rust_map(), service_spec.into_kube().selector.unwrap());
 }
@@ -89,7 +89,7 @@ pub fn test_set_selector() {
 pub fn test_selector() {
     let mut service_spec = ServiceSpec::default();
     let mut selector = StringMap::new();
-    selector.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    selector.insert("key".to_string(), "value".to_string());
     service_spec.set_selector(selector.clone());
     assert_eq!(selector.into_rust_map(), service_spec.selector().unwrap().into_rust_map());
 }
@@ -133,21 +133,21 @@ pub fn test_publish_not_ready_addresses() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut service_spec = ServiceSpec::default();
-    service_spec.set_cluster_ip(new_strlit("ip").to_string());
+    service_spec.set_cluster_ip("ip".to_string());
     let ports_gen = || {
         let mut ports = Vec::new();
         let mut port = ServicePort::default();
         let mut port_2 = ServicePort::default();
         port.set_port(1);
-        port.set_app_protocol(new_strlit("http").to_string());
+        port.set_app_protocol("http".to_string());
         port_2.set_port(2048);
-        port_2.set_app_protocol(new_strlit("tcp").to_string());
+        port_2.set_app_protocol("tcp".to_string());
         ports.push(port);
         ports
     };
     service_spec.set_ports(ports_gen());
     let mut selector = StringMap::new();
-    selector.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    selector.insert("key".to_string(), "value".to_string());
     service_spec.set_selector(selector.clone());
     service_spec.set_publish_not_ready_addresses(true);
     let cloned_service_spec = service_spec.clone();

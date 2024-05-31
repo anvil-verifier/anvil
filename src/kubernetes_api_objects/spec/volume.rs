@@ -24,7 +24,7 @@ pub struct VolumeView {
 impl VolumeView {
     pub open spec fn default() -> VolumeView {
         VolumeView {
-            name: new_strlit("")@,
+            name: ""@,
             config_map: None,
             host_path: None,
             projected: None,
@@ -105,7 +105,7 @@ pub struct HostPathVolumeSourceView {
 impl HostPathVolumeSourceView {
     pub open spec fn default() -> HostPathVolumeSourceView {
         HostPathVolumeSourceView {
-            path: new_strlit("")@,
+            path: ""@,
         }
     }
 
@@ -266,8 +266,8 @@ pub struct KeyToPathView {
 impl KeyToPathView {
     pub open spec fn default() -> KeyToPathView {
         KeyToPathView {
-            key: new_strlit("")@,
-            path: new_strlit("")@,
+            key: ""@,
+            path: ""@,
         }
     }
 
@@ -314,7 +314,7 @@ impl DownwardAPIVolumeFileView {
     pub open spec fn default() -> DownwardAPIVolumeFileView {
         DownwardAPIVolumeFileView {
             field_ref: None,
-            path: new_strlit("")@,
+            path: ""@,
         }
     }
 
@@ -341,7 +341,7 @@ pub struct ObjectFieldSelectorView {
 impl ObjectFieldSelectorView {
     pub open spec fn default() -> ObjectFieldSelectorView {
         ObjectFieldSelectorView {
-            field_path: new_strlit("")@,
+            field_path: ""@,
             api_version: None,
         }
     }

@@ -223,15 +223,15 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
 }
 
 pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView> {
-    seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()]
+    seq!["zookeeper-operator"@, zk.metadata.name.get_Some_0()]
 }
 
 pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView> {
-    seq![new_strlit("zookeeper-operator")@]
+    seq!["zookeeper-operator"@]
 }
 
 pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView {
-    new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
+    "CLUSTER_SIZE="@ + int_to_string_view(zk.spec.replicas)
 }
 
 pub open spec fn zk_exists_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
@@ -256,7 +256,7 @@ pub open spec fn zk_create_parent_node_request(zk: ZookeeperClusterView) -> ZKAP
     let zk_namespace = zk.metadata.namespace.get_Some_0();
     let client_port = zk.spec.ports.client;
     let node_path = zk_parent_node_path(zk);
-    let data = new_strlit("")@;
+    let data = ""@;
     ZKAPIInputView::CreateRequest(zk_name, zk_namespace, client_port, node_path, data)
 }
 

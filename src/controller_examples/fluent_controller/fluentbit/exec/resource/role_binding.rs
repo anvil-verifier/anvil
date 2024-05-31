@@ -103,7 +103,7 @@ pub fn make_role_binding_name(fb: &FluentBit) -> (name: String)
     requires fb@.well_formed(),
     ensures name@ == model_resource::make_role_binding_name(fb@),
 {
-    fb.metadata().name().unwrap().concat(new_strlit("-role-binding"))
+    fb.metadata().name().unwrap().concat("-role-binding")
 }
 
 pub fn make_role_ref(fb: &FluentBit) -> (role_ref: RoleRef)
@@ -111,8 +111,8 @@ pub fn make_role_ref(fb: &FluentBit) -> (role_ref: RoleRef)
     ensures role_ref@ == model_resource::make_role_binding(fb@).role_ref
 {
     let mut role_ref = RoleRef::default();
-    role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
-    role_ref.set_kind(new_strlit("Role").to_string());
+    role_ref.set_api_group("rbac.authorization.k8s.io".to_string());
+    role_ref.set_kind("Role".to_string());
     role_ref.set_name(make_role_name(fb));
     role_ref
 }
@@ -124,7 +124,7 @@ pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
     let mut subjects = Vec::new();
     subjects.push({
         let mut subject = Subject::default();
-        subject.set_kind(new_strlit("ServiceAccount").to_string());
+        subject.set_kind("ServiceAccount".to_string());
         subject.set_name(make_service_account_name(fb));
         subject.set_namespace(fb.metadata().namespace().unwrap());
         subject

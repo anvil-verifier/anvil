@@ -76,7 +76,7 @@ pub open spec fn make_headless_service_key(zk: ZookeeperClusterView) -> ObjectRe
     }
 }
 
-pub open spec fn make_headless_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + new_strlit("-headless")@ }
+pub open spec fn make_headless_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-headless"@ }
 
 pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headless_service: ServiceView) -> ServiceView {
     ServiceView {
@@ -99,11 +99,11 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView {
     let ports = seq![
-        ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.ports.client),
-        ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(zk.spec.ports.quorum),
-        ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(zk.spec.ports.leader_election),
-        ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(zk.spec.ports.metrics),
-        ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(zk.spec.ports.admin_server)
+        ServicePortView::default().set_name("tcp-client"@).set_port(zk.spec.ports.client),
+        ServicePortView::default().set_name("tcp-quorum"@).set_port(zk.spec.ports.quorum),
+        ServicePortView::default().set_name("tcp-leader-election"@).set_port(zk.spec.ports.leader_election),
+        ServicePortView::default().set_name("tcp-metrics"@).set_port(zk.spec.ports.metrics),
+        ServicePortView::default().set_name("tcp-admin-server"@).set_port(zk.spec.ports.admin_server)
     ];
 
     make_service(zk, make_headless_service_name(zk), ports, false)

@@ -20,7 +20,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_kind() {
     let mut subject = Subject::default();
-    subject.set_kind(new_strlit("kind").to_string());
+    subject.set_kind("kind".to_string());
     assert_eq!("kind".to_string(), subject.into_kube().kind);
 }
 
@@ -28,7 +28,7 @@ pub fn test_set_kind() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut subject = Subject::default();
-    subject.set_name(new_strlit("name").to_string());
+    subject.set_name("name".to_string());
     assert_eq!("name".to_string(), subject.into_kube().name);
 }
 
@@ -36,7 +36,7 @@ pub fn test_set_name() {
 #[verifier(external)]
 pub fn test_set_namespace() {
     let mut subject = Subject::default();
-    subject.set_namespace(new_strlit("namespace").to_string());
+    subject.set_namespace("namespace".to_string());
     assert_eq!("namespace".to_string(), subject.into_kube().namespace.unwrap());
 }
 

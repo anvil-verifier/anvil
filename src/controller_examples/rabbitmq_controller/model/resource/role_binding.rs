@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
     }
 }
 
-pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@ }
+pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server"@ }
 
 pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
@@ -103,12 +103,12 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         ).set_role_ref(RoleRefView::default()
-            .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
-            .set_kind(new_strlit("Role")@)
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
+            .set_api_group("rbac.authorization.k8s.io"@)
+            .set_kind("Role"@)
+            .set_name(rabbitmq.metadata.name.get_Some_0() + "-peer-discovery"@)
         ).set_subjects(seq![SubjectView::default()
-            .set_kind(new_strlit("ServiceAccount")@)
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_kind("ServiceAccount"@)
+            .set_name(rabbitmq.metadata.name.get_Some_0() + "-server"@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
         ])
 }

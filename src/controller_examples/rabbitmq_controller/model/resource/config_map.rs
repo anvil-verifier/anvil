@@ -85,7 +85,7 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     }
 }
 
-pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@ }
+pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server-conf"@ }
 
 pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
@@ -107,29 +107,29 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
         },
         data: Some({
             let data = Map::empty()
-                        .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
-                        .insert(new_strlit("userDefinedConfiguration.conf")@,
+                        .insert("operatorDefaults.conf"@, default_rbmq_config(rabbitmq))
+                        .insert("userDefinedConfiguration.conf"@,
                         {
                             if rabbitmq.spec.rabbitmq_config.is_Some()
                             && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
                             {   // check if there are rabbitmq-related customized configurations
-                                new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                                "total_memory_available_override_value = 1717986919\n"@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
                             } else {
-                                new_strlit("total_memory_available_override_value = 1717986919\n")@
+                                "total_memory_available_override_value = 1717986919\n"@
                             }
                         });
             if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != ""@
             && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
-                data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
-                    .insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != ""@ {
+                data.insert("advanced.config"@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
+                    .insert("rabbitmq-env.conf"@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
             } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@ {
-                data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != ""@ {
+                data.insert("advanced.config"@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
             } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
-                data.insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != ""@ {
+                data.insert("rabbitmq-env.conf"@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
             } else {
                 data
             }
@@ -141,15 +141,14 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
 pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView {
     let name = rabbitmq.metadata.name.get_Some_0();
 
-    new_strlit(
-        "queue_master_locator = min-masters\n\
-        disk_free_limit.absolute = 2GB\n\
-        cluster_partition_handling = pause_minority\n\
-        cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
-        cluster_formation.k8s.host = kubernetes.default\n\
-        cluster_formation.k8s.address_type = hostname\n"
-    )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replicas) + new_strlit("\n")@
-    + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
+    "queue_master_locator = min-masters\n\
+    disk_free_limit.absolute = 2GB\n\
+    cluster_partition_handling = pause_minority\n\
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
+    cluster_formation.k8s.host = kubernetes.default\n\
+    cluster_formation.k8s.address_type = hostname\n"@
+    + "cluster_formation.target_cluster_size_hint = "@ + int_to_string_view(rabbitmq.spec.replicas) + "\n"@
+    + "cluster_name = "@ + name + "\n"@
 }
 
 }

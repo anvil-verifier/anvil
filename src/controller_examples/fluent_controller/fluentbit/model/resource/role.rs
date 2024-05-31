@@ -66,7 +66,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBuilder {
     }
 }
 
-pub open spec fn make_role_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() + new_strlit("-role")@ }
+pub open spec fn make_role_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() + "-role"@ }
 
 pub open spec fn make_role_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
@@ -102,9 +102,9 @@ pub open spec fn make_role(fb: FluentBitView) -> RoleView {
         },
         policy_rules: Some(seq![
             PolicyRuleView {
-                api_groups: Some(seq![new_strlit("")@]),
-                resources: Some(seq![new_strlit("pods")@]),
-                verbs: seq![new_strlit("get")@],
+                api_groups: Some(seq![""@]),
+                resources: Some(seq!["pods"@]),
+                verbs: seq!["get"@],
             }
         ]),
         ..RoleView::default()

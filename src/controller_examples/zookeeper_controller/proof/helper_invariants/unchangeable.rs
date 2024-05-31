@@ -251,10 +251,10 @@ proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterVi
     reveal_strlit("log4j.properties");
     reveal_strlit("log4j-quiet.properties");
     reveal_strlit("env.sh");
-    assert(new_strlit("zoo.cfg")@.len() == 7);
-    assert(data.contains_key(new_strlit("zoo.cfg")@));
+    assert("zoo.cfg"@.len() == 7);
+    assert(data.contains_key("zoo.cfg"@));
     let zk_config = make_zk_config(zookeeper);
-    assert(data[new_strlit("zoo.cfg")@] == zk_config);
+    assert(data["zoo.cfg"@] == zk_config);
 }
 
 }

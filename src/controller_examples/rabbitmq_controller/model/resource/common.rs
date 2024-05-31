@@ -17,7 +17,7 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> { rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()) }
+pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> { rabbitmq.spec.labels.insert("app"@, rabbitmq.metadata.name.get_Some_0()) }
 
 pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<OwnerReferenceView> { seq![rabbitmq.controller_owner_ref()] }
 
@@ -44,10 +44,10 @@ pub open spec fn make_service(rabbitmq: RabbitmqClusterView, name: StringView, p
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
                 .set_selector(Map::empty()
-                    .insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
+                    .insert("app"@, rabbitmq.metadata.name.get_Some_0())
                 ).set_publish_not_ready_addresses(true);
             if !cluster_ip {
-                spec.set_cluster_ip(new_strlit("None")@)
+                spec.set_cluster_ip("None"@)
             } else {
                 spec
             }

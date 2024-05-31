@@ -777,10 +777,10 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
                 // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
                 match sub_resource {
                     SubResource::RoleBinding => {
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-role-binding")@);
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-role-binding"@);
                     },
                     SubResource::Role => {
-                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-role")@);
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-role"@);
                     },
                     _ => {}
                 }

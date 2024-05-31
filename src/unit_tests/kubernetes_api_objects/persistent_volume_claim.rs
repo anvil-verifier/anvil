@@ -25,8 +25,8 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     let mut persistent_volume_claim = PersistentVolumeClaim::default();
     persistent_volume_claim.set_metadata(object_meta.clone());
     assert_eq!(
@@ -39,8 +39,8 @@ pub fn test_set_metadata() {
 #[verifier(external)]
 pub fn test_metadata() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     let mut persistent_volume_claim = PersistentVolumeClaim::default();
     persistent_volume_claim.set_metadata(object_meta.clone());
     assert_eq!(
@@ -53,7 +53,7 @@ pub fn test_metadata() {
 #[verifier(external)]
 pub fn test_set_spec() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
-    persistent_volume_claim_spec.set_access_modes(vec![new_strlit("ReadWriteOnce").to_string()]);
+    persistent_volume_claim_spec.set_access_modes(vec!["ReadWriteOnce".to_string()]);
 
     let mut persistent_volume_claim = PersistentVolumeClaim::default();
     persistent_volume_claim.set_spec(persistent_volume_claim_spec.clone());
@@ -67,7 +67,7 @@ pub fn test_set_spec() {
 #[verifier(external)]
 pub fn test_spec() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
-    persistent_volume_claim_spec.set_access_modes(vec![new_strlit("ReadWriteOnce").to_string()]);
+    persistent_volume_claim_spec.set_access_modes(vec!["ReadWriteOnce".to_string()]);
     let mut persistent_volume_claim = PersistentVolumeClaim::default();
     let temp = persistent_volume_claim.spec();
     if !temp.is_none() {

@@ -74,7 +74,7 @@ pub open spec fn make_admin_server_service_key(zk: ZookeeperClusterView) -> Obje
     }
 }
 
-pub open spec fn make_admin_server_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + new_strlit("-admin-server")@ }
+pub open spec fn make_admin_server_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-admin-server"@ }
 
 pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_admin_server_service: ServiceView) -> ServiceView {
     ServiceView {
@@ -96,7 +96,7 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView {
-    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(zk.spec.ports.admin_server)];
+    let ports = seq![ServicePortView::default().set_name("tcp-admin-server"@).set_port(zk.spec.ports.admin_server)];
 
     make_service(zk, make_admin_server_service_name(zk), ports, true)
 }

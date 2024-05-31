@@ -76,7 +76,7 @@ pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef 
     }
 }
 
-pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + new_strlit("-client")@ }
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-client"@ }
 
 pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_service: ServiceView) -> ServiceView {
     ServiceView {
@@ -98,7 +98,7 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
 }
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView {
-    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.ports.client)];
+    let ports = seq![ServicePortView::default().set_name("tcp-client"@).set_port(zk.spec.ports.client)];
 
     make_service(zk, make_client_service_name(zk), ports, true)
 }

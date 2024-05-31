@@ -24,16 +24,8 @@ impl KubeObjectRef {
     pub fn into_external_object_ref(self) -> ExternalObjectRef {
         ExternalObjectRef {
             kind: self.kind.clone(),
-            name: self.name.into_rust_string(),
-            namespace: self.namespace.into_rust_string(),
-        }
-    }
-
-    pub fn from_external_object_ref(key: ExternalObjectRef) -> KubeObjectRef {
-        KubeObjectRef {
-            kind: key.kind.clone(),
-            name: String::from_rust_string(key.name),
-            namespace: String::from_rust_string(key.namespace),
+            name: self.name,
+            namespace: self.namespace,
         }
     }
 }
@@ -204,14 +196,14 @@ impl DynamicObject {
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.set_name(name@),
     {
-        self.as_kube_mut_ref().metadata.name = Some(name.into_rust_string());
+        self.as_kube_mut_ref().metadata.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
         ensures self@ == old(self)@.set_namespace(namespace@),
     {
-        self.as_kube_mut_ref().metadata.namespace = Some(namespace.into_rust_string());
+        self.as_kube_mut_ref().metadata.namespace = Some(namespace);
     }
 
     #[verifier(external_body)]
@@ -400,9 +392,9 @@ impl RoleBinding {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     {
-        self.role_ref().api_group().eq(&new_strlit("rbac.authorization.k8s.io").to_string())
-        && (self.role_ref().kind().eq(&new_strlit("Role").to_string())
-            || self.role_ref().kind().eq(&new_strlit("ClusterRole").to_string()))
+        self.role_ref().api_group().eq(&"rbac.authorization.k8s.io".to_string())
+        && (self.role_ref().kind().eq(&"Role".to_string())
+            || self.role_ref().kind().eq(&"ClusterRole".to_string()))
     }
 
     pub fn transition_validation(&self, old_obj: &RoleBinding) -> (ret: bool)
@@ -667,7 +659,7 @@ pub fn filter_controller_references(owner_references: Vec<OwnerReference>) -> (r
 pub fn string_vec_to_string_set(s: Vec<String>) -> (ret: StringSet)
     ensures ret@ == s@.map_values(|s: String| s@).to_set()
 {
-    StringSet::from_rust_set(s.into_iter().map(|s: String| s.into_rust_string()).collect())
+    StringSet::from_rust_set(s.into_iter().collect())
 }
 
 }

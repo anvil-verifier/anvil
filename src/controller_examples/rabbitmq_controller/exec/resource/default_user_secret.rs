@@ -99,7 +99,7 @@ pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: Strin
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_default_user_secret_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-default-user"))
+    rabbitmq.metadata().name().unwrap().concat("-default-user")
 }
 
 pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: StringMap)
@@ -107,16 +107,16 @@ pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: Strin
     ensures data@ == model_resource::make_default_user_secret_data(rabbitmq@),
 {
     let mut data = StringMap::empty();
-    data.insert(new_strlit("username").to_string(), new_strlit("user").to_string());
-    data.insert(new_strlit("password").to_string(), new_strlit("changeme").to_string());
-    data.insert(new_strlit("type").to_string(), new_strlit("rabbitmq").to_string());
-    data.insert(new_strlit("host").to_string(),
-            rabbitmq.metadata().name().unwrap().concat(new_strlit(".")).concat(rabbitmq.metadata().namespace().unwrap().as_str()).concat(new_strlit(".svc"))
+    data.insert("username".to_string(), "user".to_string());
+    data.insert("password".to_string(), "changeme".to_string());
+    data.insert("type".to_string(), "rabbitmq".to_string());
+    data.insert("host".to_string(),
+            rabbitmq.metadata().name().unwrap().concat(".").concat(rabbitmq.metadata().namespace().unwrap().as_str()).concat(".svc")
     );
-    data.insert(new_strlit("provider").to_string(), new_strlit("rabbitmq").to_string());
+    data.insert("provider".to_string(), "rabbitmq".to_string());
     // TODO: check \n
-    data.insert(new_strlit("default_user.conf").to_string(), new_strlit("default_user = user\ndefault_pass = changeme").to_string());
-    data.insert(new_strlit("port").to_string(), new_strlit("5672").to_string());
+    data.insert("default_user.conf".to_string(), "default_user = user\ndefault_pass = changeme".to_string());
+    data.insert("port".to_string(), "5672".to_string());
     data
 }
 

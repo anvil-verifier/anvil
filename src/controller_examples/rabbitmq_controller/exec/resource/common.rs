@@ -22,7 +22,7 @@ pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
     ensures labels@ == model_resource::make_labels(rabbitmq@),
 {
     let mut labels = rabbitmq.spec().labels();
-    labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
+    labels.insert("app".to_string(), rabbitmq.metadata().name().unwrap());
     labels
 }
 
@@ -76,12 +76,12 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
     service.set_spec({
         let mut service_spec = ServiceSpec::default();
         if !cluster_ip {
-            service_spec.set_cluster_ip(new_strlit("None").to_string());
+            service_spec.set_cluster_ip("None".to_string());
         }
         service_spec.set_ports(ports);
         service_spec.set_selector({
             let mut selector = StringMap::empty();
-            selector.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
+            selector.insert("app".to_string(), rabbitmq.metadata().name().unwrap());
             selector
         });
         service_spec.set_publish_not_ready_addresses(true);

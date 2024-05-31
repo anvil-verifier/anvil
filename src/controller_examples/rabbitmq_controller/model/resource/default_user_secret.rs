@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
     }
 }
 
-pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@ }
+pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-default-user"@ }
 
 pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
@@ -96,15 +96,15 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
 
 pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
     Map::empty()
-        .insert(new_strlit("username")@, new_strlit("user")@)
-        .insert(new_strlit("password")@, new_strlit("changeme")@)
-        .insert(new_strlit("type")@, new_strlit("rabbitmq")@)
-        .insert(new_strlit("host")@,
-            rabbitmq.metadata.name.get_Some_0() + new_strlit(".")@ + rabbitmq.metadata.namespace.get_Some_0() + new_strlit(".svc")@,
+        .insert("username"@, "user"@)
+        .insert("password"@, "changeme"@)
+        .insert("type"@, "rabbitmq"@)
+        .insert("host"@,
+            rabbitmq.metadata.name.get_Some_0() + "."@ + rabbitmq.metadata.namespace.get_Some_0() + ".svc"@,
         )
-        .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
-        .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
-        .insert(new_strlit("port")@, new_strlit("5672")@)
+        .insert("provider"@, "rabbitmq"@)
+        .insert("default_user.conf"@, "default_user = user\ndefault_pass = changeme"@)
+        .insert("port"@, "5672"@)
 }
 
 pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView {

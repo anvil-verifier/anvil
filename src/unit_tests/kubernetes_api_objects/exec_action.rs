@@ -13,7 +13,7 @@ verus! {
 #[verifier(external)]
 pub fn test_set_command() {
     let mut exec_action = ExecAction::default();
-    exec_action.set_command(vec![new_strlit("command").to_string()]);
+    exec_action.set_command(vec!["command".to_string()]);
     assert_eq!(
         vec!["command".to_string()],
         exec_action.into_kube().command.unwrap()
@@ -34,7 +34,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut exec_action = ExecAction::default();
-    exec_action.set_command(vec![new_strlit("command").to_string()]);
+    exec_action.set_command(vec!["command".to_string()]);
     let exec_action_clone = exec_action.clone();
     assert_eq!(exec_action.into_kube(), exec_action_clone.into_kube());
 }

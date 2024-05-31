@@ -131,8 +131,8 @@ impl ResourceView for StatefulSetView {
         &&& self.spec.is_Some()
         &&& new_spec.replicas.is_Some() ==> new_spec.replicas.get_Some_0() >= 0
         // &&& new_spec.pod_management_policy.is_Some()
-        //     ==> (new_spec.pod_management_policy.get_Some_0() == new_strlit("OrderedReady")@
-        //         || new_spec.pod_management_policy.get_Some_0() == new_strlit("Parallel")@)
+        //     ==> (new_spec.pod_management_policy.get_Some_0() == "OrderedReady"@
+        //         || new_spec.pod_management_policy.get_Some_0() == "Parallel"@)
         // &&& new_spec.persistent_volume_claim_retention_policy.is_Some()
         //     ==> new_spec.persistent_volume_claim_retention_policy.get_Some_0().state_validation()
     }
@@ -166,7 +166,7 @@ impl StatefulSetSpecView {
         StatefulSetSpecView {
             replicas: None,
             selector: LabelSelectorView::default(),
-            service_name: new_strlit("")@,
+            service_name: ""@,
             template: PodTemplateSpecView::default(),
             volume_claim_templates: None,
             pod_management_policy: None,
@@ -245,8 +245,8 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
     }
 
     pub open spec fn state_validation(self) -> bool {
-        &&& self.when_deleted.is_Some() ==> (self.when_deleted.get_Some_0() == new_strlit("Retain")@ || self.when_deleted.get_Some_0() == new_strlit("Delete")@)
-        &&& self.when_scaled.is_Some() ==> (self.when_scaled.get_Some_0() == new_strlit("Retain")@ || self.when_scaled.get_Some_0() == new_strlit("Delete")@)
+        &&& self.when_deleted.is_Some() ==> (self.when_deleted.get_Some_0() == "Retain"@ || self.when_deleted.get_Some_0() == "Delete"@)
+        &&& self.when_scaled.is_Some() ==> (self.when_scaled.get_Some_0() == "Retain"@ || self.when_scaled.get_Some_0() == "Delete"@)
     }
 
     pub open spec fn set_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {

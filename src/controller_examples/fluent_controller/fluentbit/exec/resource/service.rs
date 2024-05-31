@@ -143,7 +143,7 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
                     Vec::new()
                 };
             let mut port = ServicePort::default();
-            port.set_name(new_strlit("metrics").to_string());
+            port.set_name("metrics".to_string());
             if fb.spec().metrics_port().is_some() {
                 port.set_port(fb.spec().metrics_port().unwrap());
             } else {

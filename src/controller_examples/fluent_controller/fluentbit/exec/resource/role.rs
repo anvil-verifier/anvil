@@ -101,7 +101,7 @@ pub fn make_role_name(fb: &FluentBit) -> (name: String)
     requires fb@.well_formed(),
     ensures name@ == model_resource::make_role_name(fb@),
 {
-    fb.metadata().name().unwrap().concat(new_strlit("-role"))
+    fb.metadata().name().unwrap().concat("-role")
 }
 
 pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
@@ -113,7 +113,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
         let mut rule = PolicyRule::default();
         rule.set_api_groups({
             let mut api_groups = Vec::new();
-            api_groups.push(new_strlit("").to_string());
+            api_groups.push("".to_string());
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
@@ -124,7 +124,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
         });
         rule.set_resources({
             let mut resources = Vec::new();
-            resources.push(new_strlit("pods").to_string());
+            resources.push("pods".to_string());
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
@@ -135,7 +135,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
         });
         rule.set_verbs({
             let mut verbs = Vec::new();
-            verbs.push(new_strlit("get").to_string());
+            verbs.push("get".to_string());
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),

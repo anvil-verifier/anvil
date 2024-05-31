@@ -30,7 +30,7 @@ pub fn test_set_container_port() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut container_port = ContainerPort::default();
-    container_port.set_name(new_strlit("name").to_string());
+    container_port.set_name("name".to_string());
     assert_eq!("name".to_string(), container_port.into_kube().name.unwrap());
 }
 
@@ -42,8 +42,8 @@ pub fn test_name() {
     if !temp.is_none() {
         panic!("name should be none");
     }
-    container_port.set_name(new_strlit("name").to_string());
-    assert_eq!("name".to_string(), container_port.name().unwrap().into_rust_string());
+    container_port.set_name("name".to_string());
+    assert_eq!("name".to_string(), container_port.name().unwrap());
 }
 
 #[test]
@@ -70,7 +70,7 @@ pub fn test_protocol() {
         protocol: Some("protocol".to_string()),
         ..Default::default()
     });
-    assert_eq!("protocol".to_string(), container_port.protocol().unwrap().into_rust_string());
+    assert_eq!("protocol".to_string(), container_port.protocol().unwrap());
 }
 
 #[test]

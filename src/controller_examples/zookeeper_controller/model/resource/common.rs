@@ -16,7 +16,7 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { map![new_strlit("app")@ => zk.metadata.name.get_Some_0()] }
+pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { map!["app"@ => zk.metadata.name.get_Some_0()] }
 
 pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> { zk.spec.labels.union_prefer_right(make_base_labels(zk)) }
 
@@ -34,7 +34,7 @@ pub open spec fn make_service(zk: ZookeeperClusterView, name: StringView, ports:
         spec: Some(ServiceSpecView {
             ports: Some(ports),
             selector: Some(make_base_labels(zk)),
-            cluster_ip: if !cluster_ip { Some(new_strlit("None")@) } else { None },
+            cluster_ip: if !cluster_ip { Some("None"@) } else { None },
             ..ServiceSpecView::default()
         }),
         ..ServiceView::default()

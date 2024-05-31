@@ -26,8 +26,8 @@ pub fn test_getrequest_key() {
                 plural: "plural".to_string(),
             },
         ),
-        name: new_strlit("name").to_string(),
-        namespace: new_strlit("namespace").to_string(),
+        name: "name".to_string(),
+        namespace: "namespace".to_string(),
     };
     assert_eq!(
         api_method.key(),
@@ -48,7 +48,7 @@ pub fn test_listrequest_key() {
                 plural: "plural".to_string(),
             },
         ),
-        namespace: new_strlit("namespace").to_string(),
+        namespace: "namespace".to_string(),
     };
     assert_eq!(
         api_method.key(),
@@ -69,7 +69,7 @@ pub fn test_createquest_key() {
                 plural: "plural".to_string(),
             },
         ),
-        namespace: new_strlit("namespace").to_string(),
+        namespace: "namespace".to_string(),
         obj:  DynamicObject::from_kube(
                 deps_hack::kube::api::DynamicObject {
                 metadata: deps_hack::kube::api::ObjectMeta {
@@ -106,8 +106,8 @@ pub fn test_deleterequest_key() {
                 plural: "plural".to_string(),
             },
         ),
-        name: new_strlit("name").to_string(),
-        namespace: new_strlit("namespace").to_string(),
+        name: "name".to_string(),
+        namespace: "namespace".to_string(),
     };
     assert_eq!(
         api_method.key(),
@@ -128,8 +128,8 @@ pub fn test_updaterequest_key() {
                 plural: "plural".to_string(),
             },
         ),
-        name: new_strlit("name").to_string(),
-        namespace: new_strlit("namespace").to_string(),
+        name: "name".to_string(),
+        namespace: "namespace".to_string(),
         obj:  DynamicObject::from_kube(
                 deps_hack::kube::api::DynamicObject {
                 metadata: deps_hack::kube::api::ObjectMeta {
@@ -166,8 +166,8 @@ pub fn test_updatestatusrequest_key() {
                 plural: "plural".to_string(),
             },
         ),
-        name: new_strlit("name").to_string(),
-        namespace: new_strlit("namespace").to_string(),
+        name: "name".to_string(),
+        namespace: "namespace".to_string(),
         obj:  DynamicObject::from_kube(
                 deps_hack::kube::api::DynamicObject {
                 metadata: deps_hack::kube::api::ObjectMeta {

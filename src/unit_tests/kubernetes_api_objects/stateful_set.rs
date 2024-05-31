@@ -24,8 +24,8 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), stateful_set.into_kube().metadata);
@@ -35,8 +35,8 @@ pub fn test_set_metadata() {
 #[verifier(external)]
 pub fn test_metadata() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata(object_meta.clone());
     assert_eq!(object_meta.into_kube(), stateful_set.metadata().into_kube());
@@ -77,8 +77,8 @@ pub fn test_api_resource() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata(object_meta.clone());
     let mut stateful_set_spec = StatefulSetSpec::default();

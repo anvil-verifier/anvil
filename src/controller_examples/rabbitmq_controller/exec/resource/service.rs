@@ -113,7 +113,7 @@ pub fn make_main_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_main_service_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-client"))
+    rabbitmq.metadata().name().unwrap().concat("-client")
 }
 
 pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
@@ -123,18 +123,18 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     let mut ports = Vec::new();
     // TODO: check whether the protocols are set to TCP
     ports.push({
-        let mut port = ServicePort::new_with(new_strlit("amqp").to_string(), 5672);
-        port.set_app_protocol(new_strlit("amqp").to_string());
+        let mut port = ServicePort::new_with("amqp".to_string(), 5672);
+        port.set_app_protocol("amqp".to_string());
         port
     });
     ports.push({
-        let mut port = ServicePort::new_with(new_strlit("management").to_string(), 15672);
-        port.set_app_protocol(new_strlit("http").to_string());
+        let mut port = ServicePort::new_with("management".to_string(), 15672);
+        port.set_app_protocol("http".to_string());
         port
     });
     ports.push({
-        let mut port = ServicePort::new_with(new_strlit("prometheus").to_string(), 15692);
-        port.set_app_protocol(new_strlit("prometheus.io/metrics").to_string());
+        let mut port = ServicePort::new_with("prometheus".to_string(), 15692);
+        port.set_app_protocol("prometheus.io/metrics".to_string());
         port
     });
     proof {

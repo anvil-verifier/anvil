@@ -13,7 +13,7 @@ verus! {
 #[verifier(external)]
 pub fn test_set_mount_path() {
     let mut volume_mount = VolumeMount::default();
-    volume_mount.set_mount_path(new_strlit("mount_path").to_string());
+    volume_mount.set_mount_path("mount_path".to_string());
     assert_eq!("mount_path".to_string(), volume_mount.into_kube().mount_path);
 }
 
@@ -21,7 +21,7 @@ pub fn test_set_mount_path() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut volume_mount = VolumeMount::default();
-    volume_mount.set_name(new_strlit("name").to_string());
+    volume_mount.set_name("name".to_string());
     assert_eq!("name".to_string(), volume_mount.into_kube().name);
 }
 
@@ -37,7 +37,7 @@ pub fn test_set_read_only() {
 #[verifier(external)]
 pub fn test_set_sub_path() {
     let mut volume_mount = VolumeMount::default();
-    volume_mount.set_sub_path(new_strlit("sub_path").to_string());
+    volume_mount.set_sub_path("sub_path".to_string());
     assert_eq!("sub_path".to_string(), volume_mount.into_kube().sub_path.unwrap());
 }
 
@@ -52,8 +52,8 @@ pub fn test_default(){
 #[verifier(external)]
 pub fn test_new_with(){
     let volume_mount = VolumeMount::new_with(
-        new_strlit("mount_path").to_string(),
-        new_strlit("name").to_string(),
+        "mount_path".to_string(),
+        "name".to_string(),
     );
     assert_eq!(volume_mount.into_kube(), deps_hack::k8s_openapi::api::core::v1::VolumeMount{
         mount_path: "mount_path".to_string(),

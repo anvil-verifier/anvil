@@ -22,7 +22,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
 
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(object_meta.clone());
@@ -34,7 +34,7 @@ pub fn test_set_metadata() {
 pub fn test_set_spec() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
-    container.set_name(new_strlit("name").to_string());
+    container.set_name("name".to_string());
     pod_spec.set_containers(vec![container.clone()]);
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_spec(pod_spec.clone());
@@ -47,7 +47,7 @@ pub fn test_clone() {
     let mut pod_template_spec = PodTemplateSpec::default();
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
-    container.set_name(new_strlit("name").to_string());
+    container.set_name("name".to_string());
     pod_spec.set_containers(vec![container.clone()]);
     pod_template_spec.set_spec(pod_spec.clone());
     let pod_template_spec_clone = pod_template_spec.clone();

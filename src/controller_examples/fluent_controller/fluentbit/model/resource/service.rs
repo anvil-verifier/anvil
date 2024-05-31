@@ -107,7 +107,7 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
         spec: Some(ServiceSpecView {
             ports: {
                 let metrics_port = ServicePortView {
-                    name: Some(new_strlit("metrics")@),
+                    name: Some("metrics"@),
                     port: if fb.spec.metrics_port.is_Some() {
                         fb.spec.metrics_port.get_Some_0()
                     } else {

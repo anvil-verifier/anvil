@@ -24,7 +24,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     assert_eq!("name".to_string(), object_meta.into_kube().name.unwrap());
 }
 
@@ -32,15 +32,15 @@ pub fn test_set_name() {
 #[verifier(external)]
 pub fn test_name() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    assert_eq!("name".to_string(), object_meta.name().unwrap().into_rust_string());
+    object_meta.set_name("name".to_string());
+    assert_eq!("name".to_string(), object_meta.name().unwrap());
 }
 
 #[test]
 #[verifier(external)]
 pub fn test_set_namespace() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_namespace("namespace".to_string());
     assert_eq!("namespace".to_string(), object_meta.into_kube().namespace.unwrap());
 }
 
@@ -48,8 +48,8 @@ pub fn test_set_namespace() {
 #[verifier(external)]
 pub fn test_namespace() {
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_namespace(new_strlit("namespace").to_string());
-    assert_eq!("namespace".to_string(), object_meta.namespace().unwrap().into_rust_string());
+    object_meta.set_namespace("namespace".to_string());
+    assert_eq!("namespace".to_string(), object_meta.namespace().unwrap());
 }
 
 #[test]
@@ -57,7 +57,7 @@ pub fn test_namespace() {
 pub fn test_set_labels() {
     let mut object_meta = ObjectMeta::default();
     let mut labels = StringMap::new();
-    labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    labels.insert("key".to_string(), "value".to_string());
     object_meta.set_labels(labels.clone());
     assert_eq!(labels.into_rust_map(), object_meta.into_kube().labels.unwrap());
 }
@@ -71,7 +71,7 @@ pub fn test_labels() {
         panic!("Expected None")
     }
     let mut labels = StringMap::new();
-    labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    labels.insert("key".to_string(), "value".to_string());
     object_meta.set_labels(labels.clone());
     assert_eq!(labels.into_rust_map(), object_meta.labels().unwrap().into_rust_map());
 }
@@ -103,7 +103,7 @@ pub fn test_resource_version() {
         resource_version: Some("resource_version".to_string()),
         ..Default::default()
     });
-    assert_eq!("resource_version".to_string(), object_meta.resource_version().unwrap().into_rust_string());
+    assert_eq!("resource_version".to_string(), object_meta.resource_version().unwrap());
 }
 
 #[test]
@@ -124,7 +124,7 @@ pub fn test_has_deletion_timestamp() {
 pub fn test_set_annotations() {
     let mut object_meta = ObjectMeta::default();
     let mut annotations = StringMap::new();
-    annotations.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    annotations.insert("key".to_string(), "value".to_string());
     object_meta.set_annotations(annotations.clone());
     assert_eq!(annotations.into_rust_map(), object_meta.into_kube().annotations.unwrap());
 }
@@ -134,9 +134,9 @@ pub fn test_set_annotations() {
 pub fn test_add_annotation() {
     let mut object_meta = ObjectMeta::default();
     let mut annotations = StringMap::new();
-    annotations.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
-    let key = new_strlit("key").to_string();
-    let value = new_strlit("value").to_string();
+    annotations.insert("key".to_string(), "value".to_string());
+    let key = "key".to_string();
+    let value = "value".to_string();
     object_meta.add_annotation(key, value);
     assert_eq!(annotations.into_rust_map(), object_meta.into_kube().annotations.unwrap());
 }
@@ -150,7 +150,7 @@ pub fn test_annotations() {
         panic!("Expected None")
     }
     let mut annotations = StringMap::new();
-    annotations.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    annotations.insert("key".to_string(), "value".to_string());
     object_meta.set_annotations(annotations.clone());
     assert_eq!(annotations.into_rust_map(), object_meta.annotations().unwrap().into_rust_map());
 }
@@ -163,11 +163,11 @@ pub fn test_set_finalizers() {
     // because we cannot use clone() of it.
     let finalizers_gen = || {
         let mut finalizers = Vec::new();
-        finalizers.push(new_strlit("finalizer").to_string());
+        finalizers.push("finalizer".to_string());
         finalizers
     };
     object_meta.set_finalizers(finalizers_gen());
-    assert_eq!(finalizers_gen().into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>(), object_meta.into_kube().finalizers.unwrap());
+    assert_eq!(finalizers_gen(), object_meta.into_kube().finalizers.unwrap());
 }
 
 #[test]
@@ -178,7 +178,7 @@ pub fn test_unset_finalizers() {
     // because we cannot use clone() of it.
     let finalizers_gen = || {
         let mut finalizers = Vec::new();
-        finalizers.push(new_strlit("finalizer").to_string());
+        finalizers.push("finalizer".to_string());
         finalizers
     };
     object_meta.set_finalizers(finalizers_gen());
@@ -190,8 +190,8 @@ pub fn test_unset_finalizers() {
 #[verifier(external)]
 pub fn test_clone(){
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
-    object_meta.set_namespace(new_strlit("namespace").to_string());
+    object_meta.set_name("name".to_string());
+    object_meta.set_namespace("namespace".to_string());
     object_meta.set_labels(StringMap::new());
     let object_meta_clone = object_meta.clone();
     assert_eq!(

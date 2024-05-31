@@ -124,7 +124,7 @@ pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: State
 pub fn sts_restart_annotation() -> (anno: String)
     ensures anno@ == model_resource::sts_restart_annotation(),
 {
-    new_strlit("anvil.dev/lastRestartAt").to_string()
+    "anvil.dev/lastRestartAt".to_string()
 }
 
 pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
@@ -133,7 +133,7 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.namespace.is_Some(),
     ensures name@ == model_resource::make_stateful_set_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
+    rabbitmq.metadata().name().unwrap().concat("-server")
 }
 
 pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (stateful_set: StatefulSet)
@@ -157,20 +157,20 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
         // Set the replicas number
         stateful_set_spec.set_replicas(rabbitmq.spec().replicas());
         // Set the headless service to assign DNS entry to each Rabbitmq server
-        stateful_set_spec.set_service_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-nodes")));
+        stateful_set_spec.set_service_name(rabbitmq.metadata().name().unwrap().concat("-nodes"));
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
             selector.set_match_labels({
                 let mut match_labels = StringMap::empty();
-                match_labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
+                match_labels.insert("app".to_string(), rabbitmq.metadata().name().unwrap());
                 match_labels
             });
             selector
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
-            if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
+            if rabbitmq.spec().persistence().storage().eq(&"0Gi".to_string()) {
                 let empty_pvc = Vec::<PersistentVolumeClaim>::new();
                 proof {
                     assert_seqs_equal!(
@@ -185,11 +185,11 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                     let mut pvc = PersistentVolumeClaim::default();
                     pvc.set_metadata({
                         let mut metadata = ObjectMeta::default();
-                        metadata.set_name(new_strlit("persistence").to_string());
+                        metadata.set_name("persistence".to_string());
                         metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
                         metadata.set_labels({
                             let mut labels = StringMap::empty();
-                            labels.insert(new_strlit("app").to_string(), rabbitmq.metadata().name().unwrap());
+                            labels.insert("app".to_string(), rabbitmq.metadata().name().unwrap());
                             labels
                         });
                         metadata
@@ -198,7 +198,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                         let mut pvc_spec = PersistentVolumeClaimSpec::default();
                         pvc_spec.set_access_modes({
                             let mut access_modes = Vec::new();
-                            access_modes.push(new_strlit("ReadWriteOnce").to_string());
+                            access_modes.push("ReadWriteOnce".to_string());
                             proof {
                                 assert_seqs_equal!(
                                     access_modes@.map_values(|mode: String| mode@),
@@ -214,7 +214,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                             let mut resources = ResourceRequirements::default();
                             resources.set_requests({
                                 let mut requests = StringMap::empty();
-                                requests.insert(new_strlit("storage").to_string(), rabbitmq.spec().persistence().storage());
+                                requests.insert("storage".to_string(), rabbitmq.spec().persistence().storage());
                                 requests
                             });
                             resources
@@ -269,17 +269,17 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     let mut volumes = Vec::new();
     volumes.push({
         let mut volume = Volume::default();
-        volume.set_name(new_strlit("plugins-conf").to_string());
+        volume.set_name("plugins-conf".to_string());
         volume.set_config_map({
             let mut config_map = ConfigMapVolumeSource::default();
-            config_map.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-plugins-conf")));
+            config_map.set_name(rabbitmq.metadata().name().unwrap().concat("-plugins-conf"));
             config_map
         });
         volume
     });
     volumes.push({
         let mut volume = Volume::default();
-        volume.set_name(new_strlit("rabbitmq-confd").to_string());
+        volume.set_name("rabbitmq-confd".to_string());
         volume.set_projected({
             let mut projected = ProjectedVolumeSource::default();
             projected.set_sources({
@@ -288,19 +288,19 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     let mut volume_projection = VolumeProjection::default();
                     volume_projection.set_config_map({
                         let mut config_map = ConfigMapProjection::default();
-                        config_map.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-server-conf")));
+                        config_map.set_name(rabbitmq.metadata().name().unwrap().concat("-server-conf"));
                         config_map.set_items({
                             let mut items = Vec::new();
                             items.push({
                                 let mut key_to_path = KeyToPath::default();
-                                key_to_path.set_key(new_strlit("operatorDefaults.conf").to_string());
-                                key_to_path.set_path(new_strlit("operatorDefaults.conf").to_string());
+                                key_to_path.set_key("operatorDefaults.conf".to_string());
+                                key_to_path.set_path("operatorDefaults.conf".to_string());
                                 key_to_path
                             });
                             items.push({
                                 let mut key_to_path = KeyToPath::default();
-                                key_to_path.set_key(new_strlit("userDefinedConfiguration.conf").to_string());
-                                key_to_path.set_path(new_strlit("userDefinedConfiguration.conf").to_string());
+                                key_to_path.set_key("userDefinedConfiguration.conf".to_string());
+                                key_to_path.set_path("userDefinedConfiguration.conf".to_string());
                                 key_to_path
                             });
                             proof {
@@ -320,13 +320,13 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     let mut volume_projection = VolumeProjection::default();
                     volume_projection.set_secret({
                         let mut secret = SecretProjection::default();
-                        secret.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-default-user")));
+                        secret.set_name(rabbitmq.metadata().name().unwrap().concat("-default-user"));
                         secret.set_items({
                             let mut items = Vec::new();
                             items.push({
                                 let mut key_to_path = KeyToPath::default();
-                                key_to_path.set_key(new_strlit("default_user.conf").to_string());
-                                key_to_path.set_path(new_strlit("default_user.conf").to_string());
+                                key_to_path.set_key("default_user.conf".to_string());
+                                key_to_path.set_path("default_user.conf".to_string());
                                 key_to_path
                             });
                             proof {
@@ -357,39 +357,39 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     });
     volumes.push({
         let mut volume = Volume::default();
-        volume.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
+        volume.set_name("rabbitmq-erlang-cookie".to_string());
         volume.set_empty_dir(EmptyDirVolumeSource::default());
         volume
     });
     volumes.push({
         let mut volume = Volume::default();
-        volume.set_name(new_strlit("erlang-cookie-secret").to_string());
+        volume.set_name("erlang-cookie-secret".to_string());
         volume.set_secret({
             let mut secret = SecretVolumeSource::default();
-            secret.set_secret_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-erlang-cookie")));
+            secret.set_secret_name(rabbitmq.metadata().name().unwrap().concat("-erlang-cookie"));
             secret
         });
         volume
     });
     volumes.push({
         let mut volume = Volume::default();
-        volume.set_name(new_strlit("rabbitmq-plugins").to_string());
+        volume.set_name("rabbitmq-plugins".to_string());
         volume.set_empty_dir(EmptyDirVolumeSource::default());
         volume
     });
     volumes.push({
         let mut volume = Volume::default();
-        volume.set_name(new_strlit("pod-info").to_string());
+        volume.set_name("pod-info".to_string());
         volume.set_downward_api({
             let mut downward_api = DownwardAPIVolumeSource::default();
             downward_api.set_items({
                 let mut items = Vec::new();
                 items.push({
                     let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
-                    downward_api_volume_file.set_path(new_strlit("skipPreStopChecks").to_string());
+                    downward_api_volume_file.set_path("skipPreStopChecks".to_string());
                     downward_api_volume_file.set_field_ref({
                         let mut object_field_selector = ObjectFieldSelector::default();
-                        object_field_selector.set_field_path(new_strlit("metadata.labels['skipPreStopChecks']").to_string());
+                        object_field_selector.set_field_path("metadata.labels['skipPreStopChecks']".to_string());
                         object_field_selector
                     });
                     downward_api_volume_file
@@ -406,10 +406,10 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         volume
     });
-    if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
+    if rabbitmq.spec().persistence().storage().eq(&"0Gi".to_string()) {
         volumes.push({
             let mut volume = Volume::default();
-            volume.set_name(new_strlit("persistence").to_string());
+            volume.set_name("persistence".to_string());
             volume.set_empty_dir(EmptyDirVolumeSource::default());
             volume
         });
@@ -421,24 +421,24 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         );
     }
     let mut pod_spec = PodSpec::default();
-    pod_spec.set_service_account_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-server")));
+    pod_spec.set_service_account_name(rabbitmq.metadata().name().unwrap().concat("-server"));
     pod_spec.set_init_containers({
         let mut containers = Vec::new();
         containers.push({
             let mut rabbitmq_container = Container::default();
-            rabbitmq_container.set_name(new_strlit("setup-container").to_string());
+            rabbitmq_container.set_name("setup-container".to_string());
             rabbitmq_container.set_image(rabbitmq.spec().image());
             rabbitmq_container.set_command({
                 let mut command = Vec::new();
-                command.push(new_strlit("sh").to_string());
-                command.push(new_strlit("-c").to_string());
-                command.push(new_strlit("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30").to_string());
+                command.push("sh".to_string());
+                command.push("-c".to_string());
+                command.push("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30".to_string());
 
                 proof{
                     let spec_cmd = seq![
-                        new_strlit("sh")@,
-                        new_strlit("-c")@,
-                        new_strlit("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30")@
+                        "sh"@,
+                        "-c"@,
+                        "cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30"@
                     ];
                     assert_seqs_equal!(command@.map_values(|s: String| s@), spec_cmd);
                 }
@@ -449,14 +449,14 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 let mut resources = ResourceRequirements::default();
                 resources.set_limits({
                     let mut limits = StringMap::empty();
-                    limits.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
-                    limits.insert(new_strlit("memory").to_string(), new_strlit("500Mi").to_string());
+                    limits.insert("cpu".to_string(), "100m".to_string());
+                    limits.insert("memory".to_string(), "500Mi".to_string());
                     limits
                 });
                 resources.set_requests({
                     let mut requests = StringMap::empty();
-                    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
-                    requests.insert(new_strlit("memory").to_string(), new_strlit("500Mi").to_string());
+                    requests.insert("cpu".to_string(), "100m".to_string());
+                    requests.insert("memory".to_string(), "500Mi".to_string());
                     requests
                 });
                 resources
@@ -465,39 +465,39 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("plugins-conf").to_string());
-                    volume_mount.set_mount_path(new_strlit("/tmp/rabbitmq-plugins/").to_string());
+                    volume_mount.set_name("plugins-conf".to_string());
+                    volume_mount.set_mount_path("/tmp/rabbitmq-plugins/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
-                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/").to_string());
+                    volume_mount.set_name("rabbitmq-erlang-cookie".to_string());
+                    volume_mount.set_mount_path("/var/lib/rabbitmq/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("erlang-cookie-secret").to_string());
-                    volume_mount.set_mount_path(new_strlit("/tmp/erlang-cookie-secret/").to_string());
+                    volume_mount.set_name("erlang-cookie-secret".to_string());
+                    volume_mount.set_mount_path("/tmp/erlang-cookie-secret/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-plugins").to_string());
-                    volume_mount.set_mount_path(new_strlit("/operator").to_string());
+                    volume_mount.set_name("rabbitmq-plugins".to_string());
+                    volume_mount.set_mount_path("/operator".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("persistence").to_string());
-                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/").to_string());
+                    volume_mount.set_name("persistence".to_string());
+                    volume_mount.set_mount_path("/var/lib/rabbitmq/mnesia/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    volume_mount.set_mount_path(new_strlit("/tmp/default_user.conf").to_string());
-                    volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
+                    volume_mount.set_name("rabbitmq-confd".to_string());
+                    volume_mount.set_mount_path("/tmp/default_user.conf".to_string());
+                    volume_mount.set_sub_path("default_user.conf".to_string());
                     volume_mount
                 });
 
@@ -524,7 +524,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         containers.push({
             let mut rabbitmq_container = Container::default();
             rabbitmq_container.overwrite_resources(rabbitmq.spec().resources());
-            rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
+            rabbitmq_container.set_name("rabbitmq".to_string());
             rabbitmq_container.set_image(rabbitmq.spec().image());
             rabbitmq_container.set_lifecycle({
                 let mut lifecycle = Lifecycle::default();
@@ -534,13 +534,13 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                         let mut exec = ExecAction::default();
                         exec.set_command({
                             let mut command = Vec::new();
-                            command.push(new_strlit("/bin/bash").to_string());
-                            command.push(new_strlit("-c").to_string());
-                            command.push(new_strlit("if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
+                            command.push("/bin/bash".to_string());
+                            command.push("-c".to_string());
+                            command.push("if [ ! -z \"$(cat /etc/pod-info/skipPreStopChecks)\" ]; then exit 0; fi; \
                                 rabbitmq-upgrade await_online_quorum_plus_one -t 604800; \
                                 rabbitmq-upgrade await_online_synchronized_mirror -t 604800; \
-                                rabbitmq-upgrade drain -t 604800"
-                            ).to_string());
+                                rabbitmq-upgrade drain -t 604800".to_string()
+                            );
 
                             proof {
                                 assert_seqs_equal!(
@@ -562,68 +562,68 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
-                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/").to_string());
+                    volume_mount.set_name("rabbitmq-erlang-cookie".to_string());
+                    volume_mount.set_mount_path("/var/lib/rabbitmq/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("persistence").to_string());
-                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/").to_string());
+                    volume_mount.set_name("persistence".to_string());
+                    volume_mount.set_mount_path("/var/lib/rabbitmq/mnesia/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-plugins").to_string());
-                    volume_mount.set_mount_path(new_strlit("/operator").to_string());
+                    volume_mount.set_name("rabbitmq-plugins".to_string());
+                    volume_mount.set_mount_path("/operator".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf").to_string());
-                    volume_mount.set_sub_path(new_strlit("operatorDefaults.conf").to_string());
+                    volume_mount.set_name("rabbitmq-confd".to_string());
+                    volume_mount.set_mount_path("/etc/rabbitmq/conf.d/10-operatorDefaults.conf".to_string());
+                    volume_mount.set_sub_path("operatorDefaults.conf".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf").to_string());
-                    volume_mount.set_sub_path(new_strlit("userDefinedConfiguration.conf").to_string());
+                    volume_mount.set_name("rabbitmq-confd".to_string());
+                    volume_mount.set_mount_path("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf".to_string());
+                    volume_mount.set_sub_path("userDefinedConfiguration.conf".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("pod-info").to_string());
-                    volume_mount.set_mount_path(new_strlit("/etc/pod-info/").to_string());
+                    volume_mount.set_name("pod-info".to_string());
+                    volume_mount.set_mount_path("/etc/pod-info/".to_string());
                     volume_mount
                 });
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf").to_string());
-                    volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
+                    volume_mount.set_name("rabbitmq-confd".to_string());
+                    volume_mount.set_mount_path("/etc/rabbitmq/conf.d/11-default_user.conf".to_string());
+                    volume_mount.set_sub_path("default_user.conf".to_string());
                     volume_mount
                 });
 
                 if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some()
-                && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
+                && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&"".to_string()) {
                     volume_mounts.push({
                         let mut volume_mount = VolumeMount::default();
-                        volume_mount.set_name(new_strlit("server-conf").to_string());
-                        volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/rabbitmq-env.conf").to_string());
-                        volume_mount.set_sub_path(new_strlit("rabbitmq-env.conf").to_string());
+                        volume_mount.set_name("server-conf".to_string());
+                        volume_mount.set_mount_path("/etc/rabbitmq/rabbitmq-env.conf".to_string());
+                        volume_mount.set_sub_path("rabbitmq-env.conf".to_string());
                         volume_mount
                     });
                 }
 
                 if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some()
-                && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
+                && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&"".to_string()) {
                     volume_mounts.push({
                         let mut volume_mount = VolumeMount::default();
-                        volume_mount.set_name(new_strlit("server-conf").to_string());
-                        volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/advanced.config").to_string());
-                        volume_mount.set_sub_path(new_strlit("advanced.config").to_string());
+                        volume_mount.set_name("server-conf".to_string());
+                        volume_mount.set_mount_path("/etc/rabbitmq/advanced.config".to_string());
+                        volume_mount.set_sub_path("advanced.config".to_string());
                         volume_mount
                     });
                 }
@@ -638,9 +638,9 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             });
             rabbitmq_container.set_ports({
                 let mut ports = Vec::new();
-                ports.push(ContainerPort::new_with(new_strlit("epmd").to_string(), 4369));
-                ports.push(ContainerPort::new_with(new_strlit("amqp").to_string(), 5672));
-                ports.push(ContainerPort::new_with(new_strlit("management").to_string(), 15672));
+                ports.push(ContainerPort::new_with("epmd".to_string(), 4369));
+                ports.push(ContainerPort::new_with("amqp".to_string(), 5672));
+                ports.push(ContainerPort::new_with("management".to_string(), 15672));
 
                 proof {
                     assert_seqs_equal!(
@@ -688,29 +688,29 @@ pub fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
-        new_strlit("MY_POD_NAME").to_string(), None, Some(EnvVarSource::new_with_field_ref(
-            ObjectFieldSelector::new_with(new_strlit("v1").to_string(), new_strlit("metadata.name").to_string())
+        "MY_POD_NAME".to_string(), None, Some(EnvVarSource::new_with_field_ref(
+            ObjectFieldSelector::new_with("v1".to_string(), "metadata.name".to_string())
         ))
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("MY_POD_NAMESPACE").to_string(), None, Some(EnvVarSource::new_with_field_ref(
-            ObjectFieldSelector::new_with(new_strlit("v1").to_string(), new_strlit("metadata.namespace").to_string())
+        "MY_POD_NAMESPACE".to_string(), None, Some(EnvVarSource::new_with_field_ref(
+            ObjectFieldSelector::new_with("v1".to_string(), "metadata.namespace".to_string())
         ))
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("K8S_SERVICE_NAME").to_string(), Some(rabbitmq.metadata().name().unwrap().concat(new_strlit("-nodes"))), None
+        "K8S_SERVICE_NAME".to_string(), Some(rabbitmq.metadata().name().unwrap().concat("-nodes")), None
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string(), Some(new_strlit("/operator/enabled_plugins").to_string()), None
+        "RABBITMQ_ENABLED_PLUGINS_FILE".to_string(), Some("/operator/enabled_plugins".to_string()), None
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("RABBITMQ_USE_LONGNAME").to_string(), Some(new_strlit("true").to_string()), None
+        "RABBITMQ_USE_LONGNAME".to_string(), Some("true".to_string()), None
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("RABBITMQ_NODENAME").to_string(), Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string()), None
+        "RABBITMQ_NODENAME".to_string(), Some("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)".to_string()), None
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("K8S_HOSTNAME_SUFFIX").to_string(), Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string()), None
+        "K8S_HOSTNAME_SUFFIX".to_string(), Some(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)".to_string()), None
     ));
     proof {
         assert_seqs_equal!(

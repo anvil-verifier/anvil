@@ -15,9 +15,9 @@ verus! {
 pub fn test_set_field_ref() {
     let mut env_var_source = EnvVarSource::default();
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_field_path(new_strlit("field_path").to_string());
+    object_field_selector.set_field_path("field_path".to_string());
     let mut object_field_selector_2 = ObjectFieldSelector::default();
-    object_field_selector_2.set_field_path(new_strlit("field_path").to_string());
+    object_field_selector_2.set_field_path("field_path".to_string());
     env_var_source.set_field_ref(object_field_selector);
     assert_eq!(object_field_selector_2.into_kube(), env_var_source.into_kube().field_ref.unwrap());
 }
@@ -34,7 +34,7 @@ pub fn test_default(){
 pub fn test_clone(){
     let mut env_var_source = EnvVarSource::default();
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_field_path(new_strlit("field_path").to_string());
+    object_field_selector.set_field_path("field_path".to_string());
     env_var_source.set_field_ref(object_field_selector);
     let env_var_source_clone = env_var_source.clone();
     assert_eq!(env_var_source.into_kube(), env_var_source_clone.into_kube());

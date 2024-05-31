@@ -160,7 +160,7 @@ impl ZookeeperClusterSpec {
     pub fn image(&self) -> (image: String)
         ensures image@ == self@.image,
     {
-        String::from_rust_string(self.inner.image.to_string())
+        self.inner.image.clone()
     }
 
     #[verifier(external_body)]
@@ -419,14 +419,14 @@ impl ZookeeperPersistence {
     pub fn storage_size(&self) -> (storage_size: String)
         ensures storage_size@ == self@.storage_size,
     {
-        String::from_rust_string(self.inner.storage_size.clone().0)
+        self.inner.storage_size.clone().0
     }
 
     #[verifier(external_body)]
     pub fn storage_class_name(&self) -> (storage_class_name: String)
         ensures self@.storage_class_name == storage_class_name@,
     {
-        String::from_rust_string(self.inner.storage_class_name.clone())
+        self.inner.storage_class_name.clone()
     }
 }
 

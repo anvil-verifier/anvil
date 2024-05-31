@@ -34,7 +34,7 @@ pub fn test_set_selector() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
-    match_labels.insert(new_strlit("key").to_string(), new_strlit("value").to_string());
+    match_labels.insert("key".to_string(), "value".to_string());
     label_selector.set_match_labels(match_labels);
     stateful_set_spec.set_selector(label_selector.clone());
     assert_eq!(
@@ -47,7 +47,7 @@ pub fn test_set_selector() {
 #[verifier(external)]
 pub fn test_set_service_name() {
     let mut stateful_set_spec = StatefulSetSpec::default();
-    stateful_set_spec.set_service_name(new_strlit("name").to_string());
+    stateful_set_spec.set_service_name("name".to_string());
     assert_eq!(
         "name".to_string(),
         stateful_set_spec.into_kube().service_name
@@ -60,7 +60,7 @@ pub fn test_set_template() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     pod_template_spec.set_metadata(object_meta);
     stateful_set_spec.set_template(pod_template_spec.clone());
     assert_eq!(
@@ -77,7 +77,7 @@ pub fn test_set_volume_claim_templates() {
         let mut volume_claim_templates = Vec::new();
         let mut persistent_volume_claim = PersistentVolumeClaim::default();
         let mut object_meta = ObjectMeta::default();
-        object_meta.set_name(new_strlit("name").to_string());
+        object_meta.set_name("name".to_string());
         persistent_volume_claim.set_metadata(object_meta);
         volume_claim_templates.push(persistent_volume_claim);
         volume_claim_templates
@@ -99,7 +99,7 @@ pub fn test_set_volume_claim_templates() {
 #[verifier(external)]
 pub fn test_set_pod_management_policy() {
     let mut stateful_set_spec = StatefulSetSpec::default();
-    stateful_set_spec.set_pod_management_policy(new_strlit("policy").to_string());
+    stateful_set_spec.set_pod_management_policy("policy".to_string());
     assert_eq!(
         "policy".to_string(),
         stateful_set_spec.into_kube().pod_management_policy.unwrap()
@@ -111,8 +111,8 @@ pub fn test_set_pod_management_policy() {
 pub fn test_set_pvc_retention_policy() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    pvc_retention_policy.set_when_deleted(new_strlit("Delete").to_string());
-    pvc_retention_policy.set_when_scaled(new_strlit("Retain").to_string());
+    pvc_retention_policy.set_when_deleted("Delete".to_string());
+    pvc_retention_policy.set_when_scaled("Retain".to_string());
     stateful_set_spec.set_pvc_retention_policy(pvc_retention_policy.clone());
     assert_eq!(
         pvc_retention_policy.into_kube(),
@@ -125,8 +125,8 @@ pub fn test_set_pvc_retention_policy() {
 pub fn test_overwrite_pvc_retention_policy() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    pvc_retention_policy.set_when_deleted(new_strlit("Delete").to_string());
-    pvc_retention_policy.set_when_scaled(new_strlit("Retain").to_string());
+    pvc_retention_policy.set_when_deleted("Delete".to_string());
+    pvc_retention_policy.set_when_scaled("Retain".to_string());
     stateful_set_spec.overwrite_pvc_retention_policy(Some(pvc_retention_policy.clone()));
     assert_eq!(
         pvc_retention_policy.into_kube(),
@@ -159,7 +159,7 @@ pub fn test_template() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     pod_template_spec.set_metadata(object_meta);
     stateful_set_spec.set_template(pod_template_spec.clone());
     assert_eq!(
@@ -177,8 +177,8 @@ pub fn test_persistent_volume_claim_retention_policy() {
         panic!("StatefulSet persistent_volume_claim_retention_policy should be None, but it's not.");
     }
     let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    pvc_retention_policy.set_when_deleted(new_strlit("Delete").to_string());
-    pvc_retention_policy.set_when_scaled(new_strlit("Retain").to_string());
+    pvc_retention_policy.set_when_deleted("Delete".to_string());
+    pvc_retention_policy.set_when_scaled("Retain".to_string());
     stateful_set_spec.set_pvc_retention_policy(pvc_retention_policy.clone());
     assert_eq!(
         pvc_retention_policy.into_kube(),
@@ -192,12 +192,12 @@ pub fn test_clone() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
     let mut object_meta = ObjectMeta::default();
-    object_meta.set_name(new_strlit("name").to_string());
+    object_meta.set_name("name".to_string());
     pod_template_spec.set_metadata(object_meta);
     stateful_set_spec.set_template(pod_template_spec.clone());
     let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    pvc_retention_policy.set_when_deleted(new_strlit("Delete").to_string());
-    pvc_retention_policy.set_when_scaled(new_strlit("Retain").to_string());
+    pvc_retention_policy.set_when_deleted("Delete".to_string());
+    pvc_retention_policy.set_when_scaled("Retain".to_string());
     stateful_set_spec.set_pvc_retention_policy(pvc_retention_policy.clone());
     let stateful_set_spec_clone = stateful_set_spec.clone();
     assert_eq!(

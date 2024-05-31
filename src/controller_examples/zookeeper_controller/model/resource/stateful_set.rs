@@ -127,32 +127,32 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)
-        .set_service_name(name + new_strlit("-headless")@)
+        .set_service_name(name + "-headless"@)
         .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(zk)))
         .set_template(PodTemplateSpecView::default()
             .set_metadata(ObjectMetaView::default()
                 .set_labels(make_labels(zk))
-                .set_annotations(zk.spec.annotations.insert(new_strlit("anvil.dev/lastRestartAt")@, rv))
+                .set_annotations(zk.spec.annotations.insert("anvil.dev/lastRestartAt"@, rv))
             )
             .set_spec(make_zk_pod_spec(zk))
         )
         .set_pvc_retention_policy(StatefulSetPersistentVolumeClaimRetentionPolicyView::default()
-            .set_when_deleted(new_strlit("Delete")@)
-            .set_when_scaled(new_strlit("Delete")@)
+            .set_when_deleted("Delete"@)
+            .set_when_scaled("Delete"@)
         )
         .set_volume_claim_templates({
             if zk.spec.persistence.enabled {
                 seq![
                     PersistentVolumeClaimView::default()
                     .set_metadata(ObjectMetaView::default()
-                        .set_name(new_strlit("data")@)
+                        .set_name("data"@)
                         .set_labels(make_base_labels(zk))
                     )
                     .set_spec(PersistentVolumeClaimSpecView::default()
-                        .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                        .set_access_modes(seq!["ReadWriteOnce"@])
                         .set_resources(ResourceRequirementsView::default()
                             .set_requests(Map::empty()
-                                .insert(new_strlit("storage")@, zk.spec.persistence.storage_size)
+                                .insert("storage"@, zk.spec.persistence.storage_size)
                             )
                         )
                         .set_storage_class_name(zk.spec.persistence.storage_class_name)
@@ -171,38 +171,38 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
         affinity: zk.spec.affinity,
         containers: seq![
             ContainerView {
-                name: new_strlit("zookeeper")@,
+                name: "zookeeper"@,
                 image: Some(zk.spec.image),
-                command: Some(seq![new_strlit("/usr/local/bin/zookeeperStart.sh")@]),
+                command: Some(seq!["/usr/local/bin/zookeeperStart.sh"@]),
                 lifecycle: Some(LifecycleView::default()
                     .set_pre_stop(LifecycleHandlerView::default()
                         .set_exec(
                             ExecActionView::default()
-                                .set_command(seq![new_strlit("zookeeperTeardown.sh")@])
+                                .set_command(seq!["zookeeperTeardown.sh"@])
                         )
                     )
                 ),
-                image_pull_policy: Some(new_strlit("Always")@),
+                image_pull_policy: Some("Always"@),
                 resources: zk.spec.resources,
                 volume_mounts: Some(seq![
                     VolumeMountView::default()
-                        .set_name(new_strlit("data")@)
-                        .set_mount_path(new_strlit("/data")@),
+                        .set_name("data"@)
+                        .set_mount_path("/data"@),
                     VolumeMountView::default()
-                        .set_name(new_strlit("conf")@)
-                        .set_mount_path(new_strlit("/conf")@),
+                        .set_name("conf"@)
+                        .set_mount_path("/conf"@),
                 ]),
                 ports: Some(seq![
-                    ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(zk.spec.ports.client),
-                    ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(zk.spec.ports.quorum),
-                    ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(zk.spec.ports.leader_election),
-                    ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(zk.spec.ports.metrics),
-                    ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(zk.spec.ports.admin_server)
+                    ContainerPortView::default().set_name("client"@).set_container_port(zk.spec.ports.client),
+                    ContainerPortView::default().set_name("quorum"@).set_container_port(zk.spec.ports.quorum),
+                    ContainerPortView::default().set_name("leader-election"@).set_container_port(zk.spec.ports.leader_election),
+                    ContainerPortView::default().set_name("metrics"@).set_container_port(zk.spec.ports.metrics),
+                    ContainerPortView::default().set_name("admin-server"@).set_container_port(zk.spec.ports.admin_server)
                 ]),
                 readiness_probe: Some(ProbeView::default()
                     .set_exec(
                         ExecActionView::default()
-                            .set_command(seq![new_strlit("zookeeperReady.sh")@])
+                            .set_command(seq!["zookeeperReady.sh"@])
                     )
                     .set_failure_threshold(3)
                     .set_initial_delay_seconds(10)
@@ -213,7 +213,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
                 liveness_probe: Some(ProbeView::default()
                     .set_exec(
                         ExecActionView::default()
-                            .set_command(seq![new_strlit("zookeeperLive.sh")@])
+                            .set_command(seq!["zookeeperLive.sh"@])
                     )
                     .set_failure_threshold(3)
                     .set_initial_delay_seconds(10)
@@ -226,14 +226,14 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
         ],
         volumes: Some({
             let volumes = seq![
-                VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
-                    ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
+                VolumeView::default().set_name("conf"@).set_config_map(
+                    ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + "-configmap"@)
                 )
             ];
             if zk.spec.persistence.enabled {
                 volumes
             } else {
-                volumes.push(VolumeView::default().set_name(new_strlit("data")@).set_empty_dir(EmptyDirVolumeSourceView::default()))
+                volumes.push(VolumeView::default().set_name("data"@).set_empty_dir(EmptyDirVolumeSourceView::default()))
             }
         }),
         tolerations: zk.spec.tolerations,

@@ -138,10 +138,7 @@ impl PolicyRule {
             self@.api_groups.is_Some() == api_groups.is_Some(),
             api_groups.is_Some() ==> api_groups.get_Some_0()@.map_values(|api_group: String| api_group@) == self@.api_groups.get_Some_0()
     {
-        match &self.inner.api_groups {
-            Some(a) => Some(a.into_iter().map(|item| String::from_rust_string(item.clone())).collect()),
-            None => None,
-        }
+        self.inner.api_groups.clone()
     }
 
     #[verifier(external_body)]
@@ -150,10 +147,7 @@ impl PolicyRule {
             self@.resources.is_Some() == resources.is_Some(),
             resources.is_Some() ==> resources.get_Some_0()@.map_values(|resource: String| resource@) == self@.resources.get_Some_0()
     {
-        match &self.inner.resources {
-            Some(a) => Some(a.into_iter().map(|item| String::from_rust_string(item.clone())).collect()),
-            None => None,
-        }
+        self.inner.resources.clone()
     }
 
     #[verifier(external_body)]
@@ -161,28 +155,28 @@ impl PolicyRule {
         ensures
             verbs@.map_values(|verb: String| verb@) == self@.verbs
     {
-        self.inner.verbs.clone().into_iter().map(|item| String::from_rust_string(item)).collect()
+        self.inner.verbs.clone()
     }
 
     #[verifier(external_body)]
     pub fn set_api_groups(&mut self, api_groups: Vec<String>)
         ensures self@ == old(self)@.set_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
     {
-        self.inner.api_groups = Some(api_groups.into_iter().map(|a: String| a.into_rust_string()).collect())
+        self.inner.api_groups = Some(api_groups)
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: Vec<String>)
         ensures self@ == old(self)@.set_resources(resources@.map_values(|resource: String| resource@)),
     {
-        self.inner.resources = Some(resources.into_iter().map(|r: String| r.into_rust_string()).collect())
+        self.inner.resources = Some(resources)
     }
 
     #[verifier(external_body)]
     pub fn set_verbs(&mut self, verbs: Vec<String>)
         ensures self@ == old(self)@.set_verbs(verbs@.map_values(|verb: String| verb@)),
     {
-        self.inner.verbs = verbs.into_iter().map(|v: String| v.into_rust_string()).collect()
+        self.inner.verbs = verbs
     }
 
 

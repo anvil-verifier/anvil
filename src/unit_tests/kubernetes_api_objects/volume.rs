@@ -22,11 +22,11 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut volume = Volume::default();
-    volume.set_name(new_strlit("name").to_string());
+    volume.set_name("name".to_string());
     assert_eq!("name".to_string(), volume.into_kube().name);
 
     let mut volume = Volume::default();
-    volume.set_name(new_strlit("").to_string());
+    volume.set_name("".to_string());
     assert_eq!("".to_string(), volume.into_kube().name);
 }
 
@@ -35,7 +35,7 @@ pub fn test_set_name() {
 pub fn test_set_host_path() {
     let mut volume = Volume::default();
     let mut host_path_volume_source = HostPathVolumeSource::default();
-    host_path_volume_source.set_path(new_strlit("path").to_string());
+    host_path_volume_source.set_path("path".to_string());
     volume.set_host_path(host_path_volume_source.clone());
     assert_eq!(host_path_volume_source.into_kube(), volume.into_kube().host_path.unwrap());
 }
@@ -45,7 +45,7 @@ pub fn test_set_host_path() {
 pub fn test_set_config_map() {
     let mut volume = Volume::default();
     let mut config_map_volume_source = ConfigMapVolumeSource::default();
-    config_map_volume_source.set_name(new_strlit("name").to_string());
+    config_map_volume_source.set_name("name".to_string());
     volume.set_config_map(config_map_volume_source.clone());
     assert_eq!(config_map_volume_source.into_kube(), volume.into_kube().config_map.unwrap());
 }
@@ -66,7 +66,7 @@ pub fn test_set_projected() {
 pub fn test_set_secret() {
     let mut volume = Volume::default();
     let mut secret_volume_source = SecretVolumeSource::default();
-    secret_volume_source.set_secret_name(new_strlit("name").to_string());
+    secret_volume_source.set_secret_name("name".to_string());
     volume.set_secret(secret_volume_source.clone());
     assert_eq!(secret_volume_source.into_kube(), volume.into_kube().secret.unwrap());
 }
@@ -135,7 +135,7 @@ pub fn test_kube() {
 pub fn test_clone(){
     let mut volume = Volume::default();
     let mut host_path_volume_source = HostPathVolumeSource::default();
-    host_path_volume_source.set_path(new_strlit("path").to_string());
+    host_path_volume_source.set_path("path".to_string());
     volume.set_host_path(host_path_volume_source.clone());
     let volume_clone = volume.clone();
     assert_eq!(volume.into_kube(), volume_clone.into_kube());

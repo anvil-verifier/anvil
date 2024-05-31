@@ -13,7 +13,7 @@ verus! {
 #[verifier(external)]
 pub fn test_set_field_path() {
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_field_path(new_strlit("field_path").to_string());
+    object_field_selector.set_field_path("field_path".to_string());
     assert_eq!("field_path".to_string(), object_field_selector.into_kube().field_path);
 }
 
@@ -21,7 +21,7 @@ pub fn test_set_field_path() {
 #[verifier(external)]
 pub fn test_set_api_version() {
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_api_version(new_strlit("api_version").to_string());
+    object_field_selector.set_api_version("api_version".to_string());
     assert_eq!("api_version".to_string(), object_field_selector.into_kube().api_version.unwrap());
 }
 
@@ -36,8 +36,8 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_clone() {
     let mut object_field_selector = ObjectFieldSelector::default();
-    object_field_selector.set_field_path(new_strlit("field_path").to_string());
-    object_field_selector.set_api_version(new_strlit("api_version").to_string());
+    object_field_selector.set_field_path("field_path".to_string());
+    object_field_selector.set_api_version("api_version".to_string());
     let object_field_selector_clone = object_field_selector.clone();
     assert_eq!(object_field_selector.into_kube(), object_field_selector_clone.into_kube());
 }

@@ -22,7 +22,7 @@ pub fn test_default() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut secret_projection = SecretProjection::default();
-    secret_projection.set_name(new_strlit("name").to_string());
+    secret_projection.set_name("name".to_string());
     assert_eq!("name".to_string(), secret_projection.into_kube().name.unwrap());
 }
 
@@ -34,10 +34,10 @@ pub fn test_set_items() {
         let mut key_to_path_1 = KeyToPath::default();
         let mut key_to_path_2 = KeyToPath::default();
         let mut key_to_paths = Vec::new();
-        key_to_path_1.set_key(new_strlit("key1").to_string());
-        key_to_path_1.set_path(new_strlit("path1").to_string());
-        key_to_path_2.set_key(new_strlit("key2").to_string());
-        key_to_path_2.set_path(new_strlit("path2").to_string());
+        key_to_path_1.set_key("key1".to_string());
+        key_to_path_1.set_path("path1".to_string());
+        key_to_path_2.set_key("key2".to_string());
+        key_to_path_2.set_path("path2".to_string());
         key_to_paths.push(key_to_path_1);
         key_to_paths.push(key_to_path_2);
         key_to_paths
@@ -88,10 +88,10 @@ pub fn test_clone() {
         let mut key_to_path_1 = KeyToPath::default();
         let mut key_to_path_2 = KeyToPath::default();
         let mut key_to_paths = Vec::new();
-        key_to_path_1.set_key(new_strlit("key1").to_string());
-        key_to_path_1.set_path(new_strlit("path1").to_string());
-        key_to_path_2.set_key(new_strlit("key2").to_string());
-        key_to_path_2.set_path(new_strlit("path2").to_string());
+        key_to_path_1.set_key("key1".to_string());
+        key_to_path_1.set_path("path1".to_string());
+        key_to_path_2.set_key("key2".to_string());
+        key_to_path_2.set_path("path2".to_string());
         key_to_paths.push(key_to_path_1);
         key_to_paths.push(key_to_path_2);
         key_to_paths

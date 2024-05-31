@@ -44,7 +44,7 @@ pub struct KubeGetRequest {
 impl KubeGetRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
     }
 }
 
@@ -71,7 +71,7 @@ pub struct KubeListRequest {
 impl KubeListRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref())
+        format!("{}/{}", self.api_resource.as_kube_ref().kind, self.namespace)
     }
 }
 
@@ -96,7 +96,7 @@ pub struct KubeCreateRequest {
 impl KubeCreateRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.obj.kube_metadata_ref().name.as_ref().unwrap_or(&"".to_string()))
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.obj.kube_metadata_ref().name.as_ref().unwrap_or(&"".to_string()))
     }
 }
 
@@ -121,7 +121,7 @@ pub struct KubeDeleteRequest {
 impl KubeDeleteRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
     }
 }
 
@@ -150,7 +150,7 @@ pub struct KubeUpdateRequest {
 impl KubeUpdateRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
     }
 }
 
@@ -177,7 +177,7 @@ pub struct KubeUpdateStatusRequest {
 impl KubeUpdateStatusRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
     }
 }
 

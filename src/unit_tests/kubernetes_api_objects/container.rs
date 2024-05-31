@@ -13,7 +13,7 @@ verus! {
 #[verifier(external)]
 pub fn test_set_image() {
     let mut container = Container::default();
-    container.set_image(new_strlit("image").to_string());
+    container.set_image("image".to_string());
     assert_eq!("image".to_string(), container.into_kube().image.unwrap());
 }
 
@@ -21,7 +21,7 @@ pub fn test_set_image() {
 #[verifier(external)]
 pub fn test_set_name() {
     let mut container = Container::default();
-    container.set_name(new_strlit("name").to_string());
+    container.set_name("name".to_string());
     assert_eq!("name".to_string(), container.into_kube().name);
 }
 
@@ -32,9 +32,9 @@ pub fn test_set_volume_mounts() {
     let mut container = Container::default();
     let volume_mounts = || {
         let mut volume_mount = VolumeMount::default();
-        volume_mount.set_mount_path(new_strlit("mount_path").to_string());
+        volume_mount.set_mount_path("mount_path".to_string());
         volume_mount.set_read_only(true);
-        volume_mount.set_sub_path(new_strlit("sub_path").to_string());
+        volume_mount.set_sub_path("sub_path".to_string());
         let mut volume_mounts = Vec::new();
         volume_mounts.push(volume_mount);
         volume_mounts
@@ -51,7 +51,7 @@ pub fn test_set_ports() {
     let ports = || {
         let mut container_port = ContainerPort::default();
         container_port.set_container_port(8080);
-        container_port.set_name(new_strlit("name").to_string());
+        container_port.set_name("name".to_string());
         let mut ports = Vec::new();
         ports.push(container_port);
         ports
@@ -71,7 +71,7 @@ pub fn test_set_lifecycle() {
     let mut lifecycle = Lifecycle::default();
     let mut handler = LifecycleHandler::default();
     let mut exec_action = ExecAction::default();
-    exec_action.set_command(vec![new_strlit("command").to_string()]);
+    exec_action.set_command(vec!["command".to_string()]);
     handler.set_exec(exec_action);
     lifecycle.set_pre_stop(handler);
 
@@ -86,7 +86,7 @@ pub fn test_set_resources() {
 
     let mut resources = ResourceRequirements::default();
     let mut requests = StringMap::new();
-    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
+    requests.insert("cpu".to_string(), "100m".to_string());
     resources.set_requests(requests);
 
     container.set_resources(resources.clone());
@@ -99,7 +99,7 @@ pub fn test_overwrite_resources(){
     let mut container = Container::default();
     let mut resources = ResourceRequirements::default();
     let mut requests = StringMap::new();
-    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
+    requests.insert("cpu".to_string(), "100m".to_string());
     resources.set_requests(requests);
     container. overwrite_resources(Some(resources.clone()));
     assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
@@ -115,7 +115,7 @@ pub fn test_set_liveness_probe() {
     let mut container = Container::default();
     let mut probe = Probe::default();
     let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_host(new_strlit("liveness").to_string());
+    tcp_socket_action.set_host("liveness".to_string());
     tcp_socket_action.set_port(2196);
     probe.set_tcp_socket(tcp_socket_action);
 
@@ -129,7 +129,7 @@ pub fn test_set_readiness_probe() {
     let mut container = Container::default();
     let mut probe = Probe::default();
     let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_host(new_strlit("readiness").to_string());
+    tcp_socket_action.set_host("readiness".to_string());
     tcp_socket_action.set_port(2196);
     probe.set_tcp_socket(tcp_socket_action);
 
@@ -141,7 +141,7 @@ pub fn test_set_readiness_probe() {
 #[verifier(external)]
 pub fn test_set_command() {
     let mut container = Container::default();
-    container.set_command(vec![new_strlit("command").to_string()]);
+    container.set_command(vec!["command".to_string()]);
     assert_eq!(vec!["command".to_string()], container.into_kube().command.unwrap());
 }
 
@@ -149,7 +149,7 @@ pub fn test_set_command() {
 #[verifier(external)]
 pub fn test_set_image_pull_policy() {
     let mut container = Container::default();
-    container.set_image_pull_policy(new_strlit("image_pull_policy").to_string());
+    container.set_image_pull_policy("image_pull_policy".to_string());
     assert_eq!("image_pull_policy".to_string(), container.into_kube().image_pull_policy.unwrap());
 }
 
@@ -173,7 +173,7 @@ pub fn test_default(){
 #[verifier(external)]
 pub fn test_set_args(){
     let mut container = Container::default();
-    container.set_args(vec![new_strlit("args").to_string()]);
+    container.set_args(vec!["args".to_string()]);
     assert_eq!(vec!["args".to_string()], container.into_kube().args.unwrap());
 }
 
@@ -197,7 +197,7 @@ pub fn test_set_security_context(){
 #[verifier(external)]
 pub fn test_clone(){
     let mut container = Container::default();
-    container.set_image(new_strlit("image").to_string());
+    container.set_image("image".to_string());
     let container_clone = container.clone();
     assert_eq!(container.into_kube(), container_clone.into_kube());
 }

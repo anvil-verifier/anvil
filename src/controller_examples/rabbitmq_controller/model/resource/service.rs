@@ -71,7 +71,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 }
 
 pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView {
-    rabbitmq.metadata.name.get_Some_0() + new_strlit("-client")@
+    rabbitmq.metadata.name.get_Some_0() + "-client"@
 }
 
 pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
@@ -104,9 +104,9 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
 
 pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
     let ports = seq![
-        ServicePortView::default().set_name(new_strlit("amqp")@).set_port(5672).set_app_protocol(new_strlit("amqp")@),
-        ServicePortView::default().set_name(new_strlit("management")@).set_port(15672).set_app_protocol(new_strlit("http")@),
-        ServicePortView::default().set_name(new_strlit("prometheus")@).set_port(15692).set_app_protocol(new_strlit("prometheus.io/metrics")@),
+        ServicePortView::default().set_name("amqp"@).set_port(5672).set_app_protocol("amqp"@),
+        ServicePortView::default().set_name("management"@).set_port(15672).set_app_protocol("http"@),
+        ServicePortView::default().set_name("prometheus"@).set_port(15692).set_app_protocol("prometheus.io/metrics"@),
     ];
     make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)
 }
