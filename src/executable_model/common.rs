@@ -392,9 +392,9 @@ impl RoleBinding {
     pub fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation()
     {
-        self.role_ref().api_group().eq(&new_strlit("rbac.authorization.k8s.io").to_string())
-        && (self.role_ref().kind().eq(&new_strlit("Role").to_string())
-            || self.role_ref().kind().eq(&new_strlit("ClusterRole").to_string()))
+        self.role_ref().api_group().eq(&"rbac.authorization.k8s.io".to_string())
+        && (self.role_ref().kind().eq(&"Role".to_string())
+            || self.role_ref().kind().eq(&"ClusterRole".to_string()))
     }
 
     pub fn transition_validation(&self, old_obj: &RoleBinding) -> (ret: bool)
