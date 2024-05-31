@@ -36,7 +36,7 @@ verus! {
 /// We don't need this for other subresources because they don't have such fields: (1) those fields are determined by the rabbitmq
 /// object (except the key of rabbitmq); and (2) these fields won't be updated during update.
 pub open spec fn certain_fields_of_stateful_set_stay_unchanged(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-    let made_spec = make_stateful_set(rabbitmq, new_strlit("")@).spec.get_Some_0();
+    let made_spec = make_stateful_set(rabbitmq, ""@).spec.get_Some_0();
     let sts = StatefulSetView::unmarshal(obj).get_Ok_0();
 
     obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) ==> made_spec == StatefulSetSpecView {

@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
     }
 }
 
-pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@ }
+pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server"@ }
 
 pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {

@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsCon
     }
 }
 
-pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@ }
+pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-plugins-conf"@ }
 
 pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
@@ -104,7 +104,7 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
             .set_annotations(rabbitmq.spec.annotations)
         )
         .set_data(Map::empty()
-            .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
+            .insert("enabled_plugins"@, "[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management]."@)
         )
 }
 

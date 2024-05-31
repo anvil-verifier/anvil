@@ -135,8 +135,8 @@ impl ResourceView for RabbitmqClusterView {
     open spec fn state_validation(self) -> bool {
         &&& self.spec.replicas >= 0
         // &&& self.spec.pod_management_policy.is_Some() ==>
-        //     (self.spec.pod_management_policy.get_Some_0() == new_strlit("OrderedReady")@
-        //         || self.spec.pod_management_policy.get_Some_0() == new_strlit("Parallel")@)
+        //     (self.spec.pod_management_policy.get_Some_0() == "OrderedReady"@
+        //         || self.spec.pod_management_policy.get_Some_0() == "Parallel"@)
         // &&& self.spec.persistent_volume_claim_retention_policy.is_Some() ==>
         //     self.spec.persistent_volume_claim_retention_policy.get_Some_0().state_validation()
     }

@@ -69,7 +69,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ErlangCook
     }
 }
 
-pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@ }
+pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-erlang-cookie"@ }
 
 pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
@@ -96,7 +96,7 @@ pub open spec fn update_erlang_secret(rabbitmq: RabbitmqClusterView, found_erlan
 pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView {
     let cookie = random_encoded_string(24);
     let data = Map::empty()
-        .insert(new_strlit(".erlang.cookie")@, cookie);
+        .insert(".erlang.cookie"@, cookie);
     make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }
 

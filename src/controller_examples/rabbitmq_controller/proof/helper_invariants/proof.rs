@@ -1259,83 +1259,83 @@ pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(s
             // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
             // such a post state.
             assert_by(
-                cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
+                cr_key.name + "-plugins-conf"@ != key.name + "-server-conf"@,
                 {
-                    let str1 = cr_key.name + new_strlit("-plugins-conf")@;
+                    let str1 = cr_key.name + "-plugins-conf"@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
                     assert(str1[str1.len() - 6] == 's');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-server-conf"@);
         },
         SubResource::PluginsConfigMap => {
             assert_by(
-                key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
+                key.name + "-plugins-conf"@ != cr_key.name + "-server-conf"@,
                 {
-                    let str1 = key.name + new_strlit("-plugins-conf")@;
+                    let str1 = key.name + "-plugins-conf"@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
                     assert(str1[str1.len() - 6] == 's');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-plugins-conf"@);
         },
         SubResource::ErlangCookieSecret => {
             assert_by(
-                cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
+                cr_key.name + "-default-user"@ != key.name + "-erlang-cookie"@,
                 {
-                    let str1 = cr_key.name + new_strlit("-default-user")@;
+                    let str1 = cr_key.name + "-default-user"@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
                     assert(str1[str1.len() - 1] == 'r');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-erlang-cookie"@);
         },
         SubResource::DefaultUserSecret => {
             assert_by(
-                key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
+                key.name + "-default-user"@ != cr_key.name + "-erlang-cookie"@,
                 {
-                    let str1 = key.name + new_strlit("-default-user")@;
+                    let str1 = key.name + "-default-user"@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
                     assert(str1[str1.len() - 1] == 'r');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-default-user"@);
         },
         SubResource::HeadlessService => {
             assert_by(
-                key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
+                key.name + "-nodes"@ != cr_key.name + "-client"@,
                 {
-                    let str1 = key.name + new_strlit("-nodes")@;
+                    let str1 = key.name + "-nodes"@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
                     assert(str1[str1.len() - 1] == 's');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-nodes"@);
         },
         SubResource::Service => {
             assert_by(
-                cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
+                cr_key.name + "-nodes"@ != key.name + "-client"@,
                 {
-                    let str1 = cr_key.name + new_strlit("-nodes")@;
+                    let str1 = cr_key.name + "-nodes"@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
                     assert(str1[str1.len() - 1] == 's');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-client"@);
         },
         SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-server"@);
         },
         SubResource::Role => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-peer-discovery"@);
         },
     }
 }
@@ -1386,83 +1386,83 @@ pub proof fn lemma_resource_create_request_msg_implies_key_in_reconcile_equals(s
             // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
             // such a post state.
             assert_by(
-                cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
+                cr_key.name + "-plugins-conf"@ != key.name + "-server-conf"@,
                 {
-                    let str1 = cr_key.name + new_strlit("-plugins-conf")@;
+                    let str1 = cr_key.name + "-plugins-conf"@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
                     assert(str1[str1.len() - 6] == 's');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-server-conf"@);
         },
         SubResource::PluginsConfigMap => {
             assert_by(
-                key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
+                key.name + "-plugins-conf"@ != cr_key.name + "-server-conf"@,
                 {
-                    let str1 = key.name + new_strlit("-plugins-conf")@;
+                    let str1 = key.name + "-plugins-conf"@;
                     reveal_strlit("-server-conf");
                     reveal_strlit("-plugins-conf");
                     assert(str1[str1.len() - 6] == 's');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-plugins-conf"@);
         },
         SubResource::ErlangCookieSecret => {
             assert_by(
-                cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
+                cr_key.name + "-default-user"@ != key.name + "-erlang-cookie"@,
                 {
-                    let str1 = cr_key.name + new_strlit("-default-user")@;
+                    let str1 = cr_key.name + "-default-user"@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
                     assert(str1[str1.len() - 1] == 'r');
                 }
             );
             // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-erlang-cookie"@);
         },
         SubResource::DefaultUserSecret => {
             assert_by(
-                key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
+                key.name + "-default-user"@ != cr_key.name + "-erlang-cookie"@,
                 {
-                    let str1 = key.name + new_strlit("-default-user")@;
+                    let str1 = key.name + "-default-user"@;
                     reveal_strlit("-erlang-cookie");
                     reveal_strlit("-default-user");
                     assert(str1[str1.len() - 1] == 'r');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-default-user"@);
         },
         SubResource::HeadlessService => {
             assert_by(
-                key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
+                key.name + "-nodes"@ != cr_key.name + "-client"@,
                 {
-                    let str1 = key.name + new_strlit("-nodes")@;
+                    let str1 = key.name + "-nodes"@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
                     assert(str1[str1.len() - 1] == 's');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-nodes"@);
         },
         SubResource::Service => {
             assert_by(
-                cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
+                cr_key.name + "-nodes"@ != key.name + "-client"@,
                 {
-                    let str1 = cr_key.name + new_strlit("-nodes")@;
+                    let str1 = cr_key.name + "-nodes"@;
                     reveal_strlit("-client");
                     reveal_strlit("-nodes");
                     assert(str1[str1.len() - 1] == 's');
                 }
             );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-client"@);
         },
         SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-server"@);
         },
         SubResource::Role => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
+            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, "-peer-discovery"@);
         },
     }
 }

@@ -104,7 +104,7 @@ pub fn make_server_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_server_config_map_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server-conf"))
+    rabbitmq.metadata().name().unwrap().concat("-server-conf")
 }
 
 pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -122,10 +122,10 @@ pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Config
         metadata
     });
     let mut data = StringMap::empty();
-    data.insert(new_strlit("operatorDefaults.conf").to_string(),
+    data.insert("operatorDefaults.conf".to_string(),
                 default_rbmq_config(rabbitmq));
-    data.insert(new_strlit("userDefinedConfiguration.conf").to_string(), {
-        let mut rmq_conf_buff = new_strlit("total_memory_available_override_value = 1717986919\n").to_string(); // default value
+    data.insert("userDefinedConfiguration.conf".to_string(), {
+        let mut rmq_conf_buff = "total_memory_available_override_value = 1717986919\n".to_string(); // default value
         if rabbitmq.spec().rabbitmq_config().is_some() {
             // check if there are rabbitmq-related customized configurations
             let rabbitmq_config = rabbitmq.spec().rabbitmq_config().unwrap();
@@ -136,12 +136,12 @@ pub fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Config
         rmq_conf_buff
     });
     if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some()
-    && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
-        data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
+    && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&"".to_string()) {
+        data.insert("advanced.config".to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
     }
     if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some()
-    && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
-        data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
+    && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&"".to_string()) {
+        data.insert("rabbitmq-env.conf".to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
     }
     config_map.set_data(data);
     config_map
@@ -159,12 +159,12 @@ pub fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
         cluster_formation.k8s.host = kubernetes.default\n\
         cluster_formation.k8s.address_type = hostname\n"
     ).to_string()
-    .concat(new_strlit("cluster_formation.target_cluster_size_hint = "))
+    .concat("cluster_formation.target_cluster_size_hint = ")
     .concat(i32_to_string(rabbitmq.spec().replicas()).as_str())
-    .concat(new_strlit("\n"))
-    .concat(new_strlit("cluster_name = "))
+    .concat("\n")
+    .concat("cluster_name = ")
     .concat(rabbitmq.metadata().name().unwrap().as_str())
-    .concat(new_strlit("\n"))
+    .concat("\n")
 }
 
 }

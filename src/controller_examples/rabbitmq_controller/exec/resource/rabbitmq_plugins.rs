@@ -98,7 +98,7 @@ pub fn make_plugins_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_plugins_config_map_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-plugins-conf"))
+    rabbitmq.metadata().name().unwrap().concat("-plugins-conf")
 }
 
 pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -116,8 +116,8 @@ pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Confi
         metadata
     });
     let mut data = StringMap::empty();
-    data.insert(new_strlit("enabled_plugins").to_string(),
-                new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].").to_string());
+    data.insert("enabled_plugins".to_string(),
+                "[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].".to_string());
     config_map.set_data(data);
     config_map
 }

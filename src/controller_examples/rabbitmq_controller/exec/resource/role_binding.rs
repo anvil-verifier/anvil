@@ -98,7 +98,7 @@ pub fn make_role_binding_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires rabbitmq@.well_formed(),
     ensures name@ == model_resource::make_role_binding_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-server"))
+    rabbitmq.metadata().name().unwrap().concat("-server")
 }
 
 pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
@@ -106,9 +106,9 @@ pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
     ensures role_ref@ == model_resource::make_role_binding(rabbitmq@).role_ref
 {
     let mut role_ref = RoleRef::default();
-    role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
-    role_ref.set_kind(new_strlit("Role").to_string());
-    role_ref.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-peer-discovery")));
+    role_ref.set_api_group("rbac.authorization.k8s.io".to_string());
+    role_ref.set_kind("Role".to_string());
+    role_ref.set_name(rabbitmq.metadata().name().unwrap().concat("-peer-discovery"));
     role_ref
 }
 
@@ -119,8 +119,8 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     let mut subjects = Vec::new();
     subjects.push({
         let mut subject = Subject::default();
-        subject.set_kind(new_strlit("ServiceAccount").to_string());
-        subject.set_name(rabbitmq.metadata().name().unwrap().concat(new_strlit("-server")));
+        subject.set_kind("ServiceAccount".to_string());
+        subject.set_name(rabbitmq.metadata().name().unwrap().concat("-server"));
         subject.set_namespace(rabbitmq.metadata().namespace().unwrap());
         subject
     });

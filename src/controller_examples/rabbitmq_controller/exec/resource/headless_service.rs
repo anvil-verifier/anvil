@@ -114,7 +114,7 @@ pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == model_resource::make_headless_service_name(rabbitmq@),
 {
-    rabbitmq.metadata().name().unwrap().concat(new_strlit("-nodes"))
+    rabbitmq.metadata().name().unwrap().concat("-nodes")
 }
 
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
@@ -122,8 +122,8 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     ensures service@ == model_resource::make_headless_service(rabbitmq@),
 {
     let mut ports = Vec::new();
-    ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));
-    ports.push(ServicePort::new_with(new_strlit("cluster-rpc").to_string(), 25672));
+    ports.push(ServicePort::new_with("epmd".to_string(), 4369));
+    ports.push(ServicePort::new_with("cluster-rpc".to_string(), 25672));
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
