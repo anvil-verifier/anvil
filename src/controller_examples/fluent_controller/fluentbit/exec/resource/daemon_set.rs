@@ -169,7 +169,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         let mut containers = Vec::new();
         containers.push({
             let mut fb_container = Container::default();
-            fb_container.set_name(new_strlit("fluent-bit").to_string());
+            fb_container.set_name("fluent-bit".to_string());
             fb_container.set_image(fb.spec().image());
             if fb.spec().image_pull_policy().is_some() {
                 fb_container.set_image_pull_policy(fb.spec().image_pull_policy().unwrap());
@@ -201,37 +201,37 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                     };
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
-                    volume_mount.set_name(new_strlit("config").to_string());
+                    volume_mount.set_name("config".to_string());
                     volume_mount.set_read_only(true);
-                    volume_mount.set_mount_path(new_strlit("/fluent-bit/config").to_string());
+                    volume_mount.set_mount_path("/fluent-bit/config".to_string());
                     volume_mount
                 });
                 if !fb.spec().disable_log_volumes() {
                     volume_mounts.push({
                         let mut volume_mount = VolumeMount::default();
-                        volume_mount.set_name(new_strlit("varlibcontainers").to_string());
+                        volume_mount.set_name("varlibcontainers".to_string());
                         volume_mount.set_read_only(true);
                         if fb.spec().container_log_real_path().is_some() {
                             volume_mount.set_mount_path(fb.spec().container_log_real_path().unwrap());
                         } else {
-                            volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                            volume_mount.set_mount_path("/containers".to_string());
                         }
                         volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                         volume_mount
                     });
                     volume_mounts.push({
                         let mut volume_mount = VolumeMount::default();
-                        volume_mount.set_name(new_strlit("varlogs").to_string());
+                        volume_mount.set_name("varlogs".to_string());
                         volume_mount.set_read_only(true);
-                        volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
+                        volume_mount.set_mount_path("/var/log/".to_string());
                         volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                         volume_mount
                     });
                     volume_mounts.push({
                         let mut volume_mount = VolumeMount::default();
-                        volume_mount.set_name(new_strlit("systemd").to_string());
+                        volume_mount.set_name("systemd".to_string());
                         volume_mount.set_read_only(true);
-                        volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
+                        volume_mount.set_mount_path("/var/log/journal".to_string());
                         volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
                         volume_mount
                     });
@@ -239,8 +239,8 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 if fb.spec().position_db().is_some() {
                     volume_mounts.push({
                         let mut volume_mount = VolumeMount::default();
-                        volume_mount.set_name(new_strlit("positions").to_string());
-                        volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
+                        volume_mount.set_name("positions".to_string());
+                        volume_mount.set_mount_path("/fluent-bit/tail".to_string());
                         volume_mount
                     });
                 }
@@ -263,7 +263,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 } else {
                     2020
                 };
-                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), metrics_port));
+                ports.push(ContainerPort::new_with("metrics".to_string(), metrics_port));
                 proof {
                     assert_seqs_equal!(
                         ports@.map_values(|port: ContainerPort| port@),
@@ -300,7 +300,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             };
         volumes.push({
             let mut volume = Volume::default();
-            volume.set_name(new_strlit("config").to_string());
+            volume.set_name("config".to_string());
             volume.set_secret({
                 let mut secret = SecretVolumeSource::default();
                 secret.set_secret_name(fb.spec().fluentbit_config_name());
@@ -311,13 +311,13 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         if !fb.spec().disable_log_volumes() {
             volumes.push({
                 let mut volume = Volume::default();
-                volume.set_name(new_strlit("varlibcontainers").to_string());
+                volume.set_name("varlibcontainers".to_string());
                 volume.set_host_path({
                     let mut host_path = HostPathVolumeSource::default();
                     if fb.spec().container_log_real_path().is_some() {
                         host_path.set_path(fb.spec().container_log_real_path().unwrap());
                     } else {
-                        host_path.set_path(new_strlit("/containers").to_string());
+                        host_path.set_path("/containers".to_string());
                     }
                     host_path
                 });
@@ -325,20 +325,20 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
             });
             volumes.push({
                 let mut volume = Volume::default();
-                volume.set_name(new_strlit("varlogs").to_string());
+                volume.set_name("varlogs".to_string());
                 volume.set_host_path({
                     let mut host_path = HostPathVolumeSource::default();
-                    host_path.set_path(new_strlit("/var/log").to_string());
+                    host_path.set_path("/var/log".to_string());
                     host_path
                 });
                 volume
             });
             volumes.push({
                 let mut volume = Volume::default();
-                volume.set_name(new_strlit("systemd").to_string());
+                volume.set_name("systemd".to_string());
                 volume.set_host_path({
                     let mut host_path = HostPathVolumeSource::default();
-                    host_path.set_path(new_strlit("/var/log/journal").to_string());
+                    host_path.set_path("/var/log/journal".to_string());
                     host_path
                 });
                 volume
@@ -347,7 +347,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         if fb.spec().position_db().is_some() {
             volumes.push({
                 let mut volume = Volume::default();
-                volume.set_name(new_strlit("positions").to_string());
+                volume.set_name("positions".to_string());
                 volume.set_host_path(fb.spec().position_db().unwrap());
                 volume
             });
@@ -382,16 +382,16 @@ fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
-        new_strlit("NODE_NAME").to_string(), None, Some(EnvVarSource::new_with_field_ref({
+        "NODE_NAME".to_string(), None, Some(EnvVarSource::new_with_field_ref({
             let mut selector = ObjectFieldSelector::default();
-            selector.set_field_path(new_strlit("spec.nodeName").to_string());
+            selector.set_field_path("spec.nodeName".to_string());
             selector
         }))
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("HOST_IP").to_string(), None, Some(EnvVarSource::new_with_field_ref({
+        "HOST_IP".to_string(), None, Some(EnvVarSource::new_with_field_ref({
             let mut selector = ObjectFieldSelector::default();
-            selector.set_field_path(new_strlit("status.hostIP").to_string());
+            selector.set_field_path("status.hostIP".to_string());
             selector
         }))
     ));

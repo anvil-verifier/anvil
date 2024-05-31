@@ -125,20 +125,20 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 PodSpecView::default().init_containers
             },
         volumes: Some({
-            let config_volume = VolumeView::default().set_name(new_strlit("config")@)
+            let config_volume = VolumeView::default().set_name("config"@)
                     .set_secret(SecretVolumeSourceView::default().set_secret_name(fb.spec.fluentbit_config_name));
-            let varlibcontainers_volume = VolumeView::default().set_name(new_strlit("varlibcontainers")@)
+            let varlibcontainers_volume = VolumeView::default().set_name("varlibcontainers"@)
                     .set_host_path(HostPathVolumeSourceView::default().set_path({
                         if fb.spec.container_log_real_path.is_Some() {
                             fb.spec.container_log_real_path.get_Some_0()
-                        } else { new_strlit("/containers")@ }
+                        } else { "/containers"@ }
                     }));
-            let varlogs_volume = VolumeView::default().set_name(new_strlit("varlogs")@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/var/log")@));
-            let systemd_volume = VolumeView::default().set_name(new_strlit("systemd")@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path(new_strlit("/var/log/journal")@));
+            let varlogs_volume = VolumeView::default().set_name("varlogs"@)
+                    .set_host_path(HostPathVolumeSourceView::default().set_path("/var/log"@));
+            let systemd_volume = VolumeView::default().set_name("systemd"@)
+                    .set_host_path(HostPathVolumeSourceView::default().set_path("/var/log/journal"@));
             if fb.spec.position_db.is_Some() {
-                let positions_volume = VolumeView::default().set_name(new_strlit("positions")@)
+                let positions_volume = VolumeView::default().set_name("positions"@)
                     .set_host_path(fb.spec.position_db.get_Some_0());
                 if !fb.spec.disable_log_volumes && fb.spec.volumes.is_Some() {
                     fb.spec.volumes.get_Some_0().push(config_volume).push(varlibcontainers_volume).push(varlogs_volume)
@@ -164,7 +164,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
         }),
         containers: seq![
             ContainerView {
-                name: new_strlit("fluent-bit")@,
+                name: "fluent-bit"@,
                 image: Some(fb.spec.image),
                 image_pull_policy: if fb.spec.image_pull_policy.is_Some() {
                         fb.spec.image_pull_policy
@@ -188,36 +188,36 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                     },
                 volume_mounts: Some({
                     let config_vm = VolumeMountView {
-                        name: new_strlit("config")@,
+                        name: "config"@,
                         read_only: Some(true),
-                        mount_path: new_strlit("/fluent-bit/config")@,
+                        mount_path: "/fluent-bit/config"@,
                         ..VolumeMountView::default()
                     };
                     let varlibcontainers_vm = VolumeMountView {
-                        name: new_strlit("varlibcontainers")@,
+                        name: "varlibcontainers"@,
                         read_only: Some(true),
-                        mount_path: if fb.spec.container_log_real_path.is_Some() { fb.spec.container_log_real_path.get_Some_0() } else { new_strlit("/containers")@ },
+                        mount_path: if fb.spec.container_log_real_path.is_Some() { fb.spec.container_log_real_path.get_Some_0() } else { "/containers"@ },
                         mount_propagation: fb.spec.internal_mount_propagation,
                         ..VolumeMountView::default()
                     };
                     let varlogs_vm = VolumeMountView {
-                        name: new_strlit("varlogs")@,
+                        name: "varlogs"@,
                         read_only: Some(true),
-                        mount_path: new_strlit("/var/log/")@,
+                        mount_path: "/var/log/"@,
                         mount_propagation: fb.spec.internal_mount_propagation,
                         ..VolumeMountView::default()
                     };
                     let systemd_vm = VolumeMountView {
-                        name: new_strlit("systemd")@,
+                        name: "systemd"@,
                         read_only: Some(true),
-                        mount_path: new_strlit("/var/log/journal")@,
+                        mount_path: "/var/log/journal"@,
                         mount_propagation: fb.spec.internal_mount_propagation,
                         ..VolumeMountView::default()
                     };
                     if fb.spec.position_db.is_Some() {
                         let positions_vm = VolumeMountView {
-                            name: new_strlit("positions")@,
-                            mount_path: new_strlit("/fluent-bit/tail")@,
+                            name: "positions"@,
+                            mount_path: "/fluent-bit/tail"@,
                             ..VolumeMountView::default()
                         };
                         if !fb.spec.disable_log_volumes && fb.spec.volume_mounts.is_Some() {
@@ -244,7 +244,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 }),
                 ports: {
                     let metrics_port = ContainerPortView::default()
-                        .set_name(new_strlit("metrics")@)
+                        .set_name("metrics"@)
                         .set_container_port({
                             let port = if fb.spec.metrics_port.is_Some() { fb.spec.metrics_port.get_Some_0() } else { 2020 };
                             port
@@ -290,10 +290,10 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
 pub open spec fn make_env(fluentbit: FluentBitView) -> Seq<EnvVarView> {
     seq![
         EnvVarView {
-            name: new_strlit("NODE_NAME")@,
+            name: "NODE_NAME"@,
             value_from: Some(EnvVarSourceView {
                 field_ref: Some(ObjectFieldSelectorView {
-                    field_path: new_strlit("spec.nodeName")@,
+                    field_path: "spec.nodeName"@,
                     ..ObjectFieldSelectorView::default()
                 }),
                 ..EnvVarSourceView::default()
@@ -301,10 +301,10 @@ pub open spec fn make_env(fluentbit: FluentBitView) -> Seq<EnvVarView> {
             ..EnvVarView::default()
         },
         EnvVarView {
-            name: new_strlit("HOST_IP")@,
+            name: "HOST_IP"@,
             value_from: Some(EnvVarSourceView {
                 field_ref: Some(ObjectFieldSelectorView {
-                    field_path: new_strlit("status.hostIP")@,
+                    field_path: "status.hostIP"@,
                     ..ObjectFieldSelectorView::default()
                 }),
                 ..EnvVarSourceView::default()

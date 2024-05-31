@@ -23,7 +23,7 @@ pub fn make_base_labels(fb: &FluentBit) -> (labels: StringMap)
     ensures labels@ == model_resource::make_base_labels(fb@),
 {
     let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), fb.metadata().name().unwrap());
+    labels.insert("app".to_string(), fb.metadata().name().unwrap());
     labels
 }
 

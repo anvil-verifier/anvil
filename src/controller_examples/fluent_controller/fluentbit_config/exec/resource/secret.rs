@@ -110,8 +110,8 @@ pub fn make_secret(fbc: &FluentBitConfig) -> (secret: Secret)
     });
     secret.set_data({
         let mut data = StringMap::empty();
-        data.insert(new_strlit("fluent-bit.conf").to_string(), fbc.spec().fluentbit_config());
-        data.insert(new_strlit("parsers.conf").to_string(), fbc.spec().parsers_config());
+        data.insert("fluent-bit.conf".to_string(), fbc.spec().fluentbit_config());
+        data.insert("parsers.conf".to_string(), fbc.spec().parsers_config());
         data
     });
     secret
