@@ -49,7 +49,7 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
-    pub fn get_uncloned<'a>(&'a self, key: &String) -> (v: Option<&String>)
+    pub fn get_uncloned(&self, key: &String) -> (v: Option<&String>)
         ensures
             self@.contains_key(key@) == v.is_Some(),
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
