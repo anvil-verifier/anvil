@@ -135,8 +135,8 @@ impl ResourceView for RoleBindingView {
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
-        &&& self.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
-        &&& (self.role_ref.kind == new_strlit("Role")@ || self.role_ref.kind == new_strlit("ClusterRole")@)
+        &&& self.role_ref.api_group == "rbac.authorization.k8s.io"@
+        &&& (self.role_ref.kind == "Role"@ || self.role_ref.kind == "ClusterRole"@)
         // &&& self.role_ref.name.len() > 0
         // &&& self.subjects.is_Some()
         //     ==> forall |i| 0 <= i < self.subjects.get_Some_0().len() ==> #[trigger] self.subjects.get_Some_0()[i].state_validation(true)
@@ -156,9 +156,9 @@ pub struct RoleRefView {
 impl RoleRefView {
     pub open spec fn default() -> RoleRefView {
         RoleRefView {
-            api_group: new_strlit("")@,
-            kind: new_strlit("")@,
-            name: new_strlit("")@,
+            api_group: ""@,
+            kind: ""@,
+            name: ""@,
         }
     }
 
@@ -193,14 +193,14 @@ pub struct SubjectView {
 impl SubjectView {
     pub open spec fn default() -> SubjectView {
         SubjectView {
-            kind: new_strlit("")@,
-            name: new_strlit("")@,
+            kind: ""@,
+            name: ""@,
             namespace: None,
         }
     }
 
     pub open spec fn state_validation(self, is_namespaced: bool) -> bool {
-        &&& self.kind == new_strlit("ServiceAccount")@ // TODO: support User and Group as kind here
+        &&& self.kind == "ServiceAccount"@ // TODO: support User and Group as kind here
         &&& is_namespaced ==> self.namespace.is_Some() && self.namespace.get_Some_0().len() > 0
     }
 

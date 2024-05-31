@@ -29,7 +29,7 @@ impl ContainerView {
         ContainerView {
             env: None,
             image: None,
-            name: new_strlit("")@,
+            name: ""@,
             ports: None,
             volume_mounts: None,
             lifecycle: None,
@@ -228,8 +228,8 @@ pub struct VolumeMountView {
 impl VolumeMountView {
     pub open spec fn default() -> VolumeMountView {
         VolumeMountView {
-            mount_path: new_strlit("")@,
-            name: new_strlit("")@,
+            mount_path: ""@,
+            name: ""@,
             read_only: Some(false),
             sub_path: None,
             mount_propagation: None,
@@ -401,7 +401,7 @@ pub struct EnvVarView {
 impl EnvVarView {
     pub open spec fn default() -> EnvVarView {
         EnvVarView {
-            name: new_strlit("")@,
+            name: ""@,
             value: None,
             value_from: None,
         }
