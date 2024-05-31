@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: vstatefulset-controller
     spec:
       containers:
-        - image: local/vstatefulset-controller:v0.1.0
+        - image: local/v_stateful_set-controller:v0.1.0
           imagePullPolicy: IfNotPresent
           name: controller
       serviceAccountName: vstatefulset-controller
