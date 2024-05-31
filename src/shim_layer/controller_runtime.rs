@@ -60,7 +60,7 @@ where
 
     println!("starting controller");
     // TODO: the controller should also listen to the owned resources
-    Controller::new(crs, ListParams::default()) // The controller's reconcile is triggered when a CR is created/updated
+    Controller::new(crs, watcher::Config::default()) // The controller's reconcile is triggered when a CR is created/updated
         .shutdown_on_signal()
         .run(reconcile, error_policy, Arc::new(Data { client })) // The reconcile function is registered
         .for_each(|res| async move {

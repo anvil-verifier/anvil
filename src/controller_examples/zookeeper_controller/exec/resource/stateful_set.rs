@@ -4,7 +4,7 @@
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
-    volume::*,
+    volume::*, volume_resource_requirements::*,
 };
 use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
@@ -211,7 +211,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                             access_modes
                         });
                         pvc_spec.set_resources({
-                            let mut resources = ResourceRequirements::default();
+                            let mut resources = VolumeResourceRequirements::default();
                             resources.set_requests({
                                 let mut requests = StringMap::empty();
                                 requests.insert("storage".to_string(), zk.spec().persistence().storage_size());

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*, resource_requirements::*,
+    common::*, dynamic::*, marshal::*, object_meta::*, resource::*, volume_resource_requirements::*,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -137,7 +137,7 @@ impl ResourceView for PersistentVolumeClaimView {
 pub struct PersistentVolumeClaimSpecView {
     pub storage_class_name: Option<StringView>,
     pub access_modes: Option<Seq<StringView>>,
-    pub resources: Option<ResourceRequirementsView>,
+    pub resources: Option<VolumeResourceRequirementsView>,
 }
 
 impl PersistentVolumeClaimSpecView {
@@ -156,7 +156,7 @@ impl PersistentVolumeClaimSpecView {
         }
     }
 
-    pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> PersistentVolumeClaimSpecView {
+    pub open spec fn set_resources(self, resources: VolumeResourceRequirementsView) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             resources: Some(resources),
             ..self

@@ -5,7 +5,7 @@ use super::common::*;
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
-    volume::*,
+    volume::*, volume_resource_requirements::*,
 };
 use crate::rabbitmq_controller::model::resource as model_resource;
 use crate::rabbitmq_controller::trusted::exec_types::*;
@@ -211,7 +211,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
                             access_modes
                         });
                         pvc_spec.set_resources({
-                            let mut resources = ResourceRequirements::default();
+                            let mut resources = VolumeResourceRequirements::default();
                             resources.set_requests({
                                 let mut requests = StringMap::empty();
                                 requests.insert("storage".to_string(), rabbitmq.spec().persistence().storage());

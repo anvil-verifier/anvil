@@ -5,7 +5,7 @@ use super::common::*;
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
-    volume::*,
+    volume::*, volume_resource_requirements::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::model::resource::config_map::make_server_config_map_key;
@@ -144,7 +144,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                         )
                         .set_spec(PersistentVolumeClaimSpecView::default()
                             .set_access_modes(seq!["ReadWriteOnce"@])
-                            .set_resources(ResourceRequirementsView::default()
+                            .set_resources(VolumeResourceRequirementsView::default()
                                 .set_requests(Map::empty()
                                     .insert("storage"@, rabbitmq.spec.persistence.storage)
                                 )
