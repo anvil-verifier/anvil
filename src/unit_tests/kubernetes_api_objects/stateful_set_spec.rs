@@ -122,27 +122,6 @@ pub fn test_set_pvc_retention_policy() {
 
 #[test]
 #[verifier(external)]
-pub fn test_overwrite_pvc_retention_policy() {
-    let mut stateful_set_spec = StatefulSetSpec::default();
-    let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
-    pvc_retention_policy.set_when_deleted("Delete".to_string());
-    pvc_retention_policy.set_when_scaled("Retain".to_string());
-    stateful_set_spec.overwrite_pvc_retention_policy(Some(pvc_retention_policy.clone()));
-    assert_eq!(
-        pvc_retention_policy.into_kube(),
-        stateful_set_spec.into_kube().persistent_volume_claim_retention_policy.unwrap()
-    );
-    let mut stateful_set_spec_2 = StatefulSetSpec::default();
-    let pvc_retention_policy_2 = None;
-    stateful_set_spec_2.overwrite_pvc_retention_policy(pvc_retention_policy_2);
-    assert_eq!(
-        None,
-        stateful_set_spec_2.into_kube().persistent_volume_claim_retention_policy
-    );
-}
-
-#[test]
-#[verifier(external)]
 pub fn test_replicas() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let temp = stateful_set_spec.replicas();

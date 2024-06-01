@@ -79,18 +79,6 @@ impl Container {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_resources(&mut self, resources: Option<ResourceRequirements>)
-        ensures
-            resources.is_None() ==> self@ == old(self)@.unset_resources(),
-            resources.is_Some() ==> self@ == old(self)@.set_resources(resources.get_Some_0()@),
-    {
-        match resources {
-            Some(r) => self.inner.resources = Some(r.into_kube()),
-            None => self.inner.resources = None,
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
         ensures self@ == old(self)@.set_liveness_probe(liveness_probe@),
     {
@@ -267,10 +255,10 @@ impl VolumeMount {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_mount_propagation(&mut self, mount_propagation: Option<String>)
-        ensures self@ == old(self)@.overwrite_mount_propagation(opt_string_to_view(&mount_propagation)),
+    pub fn set_mount_propagation(&mut self, mount_propagation: String)
+        ensures self@ == old(self)@.set_mount_propagation(mount_propagation@),
     {
-        self.inner.mount_propagation = mount_propagation
+        self.inner.mount_propagation = Some(mount_propagation)
     }
 
     #[verifier(external)]
@@ -539,16 +527,26 @@ impl EnvVar {
 
     pub fn new_with(name: String, value: Option<String>, value_from: Option<EnvVarSource>) -> (env_var: EnvVar)
         ensures
-            env_var@ == EnvVarView::default().set_name(name@).overwrite_value({
-                if value.is_Some() { Some(value.get_Some_0()@) } else { None }
-            }).overwrite_value_from({
-                if value_from.is_Some() { Some(value_from.get_Some_0()@) } else { None }
+            env_var@ == (EnvVarView {
+                name: name@,
+                value: match value {
+                    Some(v) => Some(v@),
+                    None => None,
+                },
+                value_from: match value_from {
+                    Some(vf) => Some(vf@),
+                    None => None,
+                }
             }),
     {
         let mut env_var = EnvVar::default();
         env_var.set_name(name);
-        env_var.overwrite_value(value);
-        env_var.overwrite_value_from(value_from);
+        if value.is_some() {
+            env_var.set_value(value.unwrap());
+        }
+        if value_from.is_some() {
+            env_var.set_value_from(value_from.unwrap());
+        }
         env_var
     }
 
@@ -560,25 +558,17 @@ impl EnvVar {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_value(&mut self, value: Option<String>)
-        ensures
-            value.is_Some() ==> self@ == old(self)@.overwrite_value(Some(value.get_Some_0()@)),
-            value.is_None() ==> self@ == old(self)@.overwrite_value(None),
+    pub fn set_value(&mut self, value: String)
+        ensures self@ == old(self)@.set_value(value@),
     {
-        self.inner.value = value
+        self.inner.value = Some(value)
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_value_from(&mut self, value_from: Option<EnvVarSource>)
-        ensures
-            value_from.is_Some() ==> self@ == old(self)@.overwrite_value_from(Some(value_from.get_Some_0()@)),
-            value_from.is_None() ==> self@ == old(self)@.overwrite_value_from(None),
+    pub fn set_value_from(&mut self, value_from: EnvVarSource)
+        ensures self@ == old(self)@.set_value_from(value_from@),
     {
-        match value_from {
-            Some(v) => self.inner.value_from = Some(v.into_kube()),
-            None => self.inner.value_from = None,
-        }
-
+        self.inner.value_from = Some(value_from.into_kube())
     }
 
     #[verifier(external)]
