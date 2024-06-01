@@ -238,30 +238,30 @@ impl PodSpecView {
         }
     }
 
-    pub open spec fn overwrite_runtime_class_name(self, runtime_class_name: Option<StringView>) -> PodSpecView {
+    pub open spec fn set_runtime_class_name(self, runtime_class_name: StringView) -> PodSpecView {
         PodSpecView {
-            runtime_class_name: runtime_class_name,
+            runtime_class_name: Some(runtime_class_name),
             ..self
         }
     }
 
-    pub open spec fn overwrite_dns_policy(self, dns_policy: Option<StringView>) -> PodSpecView {
+    pub open spec fn set_dns_policy(self, dns_policy: StringView) -> PodSpecView {
         PodSpecView {
-            dns_policy: dns_policy,
+            dns_policy: Some(dns_policy),
             ..self
         }
     }
 
-    pub open spec fn overwrite_scheduler_name(self, scheduler_name: Option<StringView>) -> PodSpecView {
+    pub open spec fn set_scheduler_name(self, scheduler_name: StringView) -> PodSpecView {
         PodSpecView {
-            scheduler_name: scheduler_name,
+            scheduler_name: Some(scheduler_name),
             ..self
         }
     }
 
-    pub open spec fn overwrite_priority_class_name(self, priority_class_name: Option<StringView>) -> PodSpecView {
+    pub open spec fn set_priority_class_name(self, priority_class_name: StringView) -> PodSpecView {
         PodSpecView {
-            priority_class_name: priority_class_name,
+            priority_class_name: Some(priority_class_name),
             ..self
         }
     }

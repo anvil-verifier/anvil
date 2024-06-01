@@ -95,22 +95,6 @@ pub fn test_set_resources() {
 
 #[test]
 #[verifier(external)]
-pub fn test_overwrite_resources(){
-    let mut container = Container::default();
-    let mut resources = ResourceRequirements::default();
-    let mut requests = StringMap::new();
-    requests.insert("cpu".to_string(), "100m".to_string());
-    resources.set_requests(requests);
-    container. overwrite_resources(Some(resources.clone()));
-    assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
-    let mut container_2 = Container::default();
-    let resources_2 = None;
-    container_2.overwrite_resources(resources_2);
-    assert_eq!(None, container_2.into_kube().resources);
-}
-
-#[test]
-#[verifier(external)]
 pub fn test_set_liveness_probe() {
     let mut container = Container::default();
     let mut probe = Probe::default();

@@ -264,9 +264,9 @@ impl VolumeMountView {
         }
     }
 
-    pub open spec fn overwrite_mount_propagation(self, mount_propagation: Option<StringView>) -> VolumeMountView {
+    pub open spec fn set_mount_propagation(self, mount_propagation: StringView) -> VolumeMountView {
         VolumeMountView {
-            mount_propagation: mount_propagation,
+            mount_propagation: Some(mount_propagation),
             ..self
         }
     }
@@ -414,16 +414,16 @@ impl EnvVarView {
         }
     }
 
-    pub open spec fn overwrite_value(self, value: Option<StringView>) -> EnvVarView {
+    pub open spec fn set_value(self, value: StringView) -> EnvVarView {
         EnvVarView {
-            value: value,
+            value: Some(value),
             ..self
         }
     }
 
-    pub open spec fn overwrite_value_from(self, value_from: Option<EnvVarSourceView>) -> EnvVarView {
+    pub open spec fn set_value_from(self, value_from: EnvVarSourceView) -> EnvVarView {
         EnvVarView {
-            value_from: value_from,
+            value_from: Some(value_from),
             ..self
         }
     }

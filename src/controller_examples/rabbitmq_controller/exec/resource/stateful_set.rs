@@ -102,7 +102,12 @@ pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: State
         let made_spec = made_sts.spec().unwrap();
         sts_spec.set_replicas(made_spec.replicas().unwrap());
         sts_spec.set_template(made_spec.template());
-        sts_spec.overwrite_pvc_retention_policy(made_spec.persistent_volume_claim_retention_policy());
+        let pvc_retention_policy = made_spec.persistent_volume_claim_retention_policy();
+        if pvc_retention_policy.is_some() {
+            sts_spec.set_pvc_retention_policy(pvc_retention_policy.unwrap());
+        } else {
+            sts_spec.unset_pvc_retention_policy();
+        }
         sts_spec
     });
     stateful_set.set_metadata({
@@ -523,7 +528,10 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         let mut containers = Vec::new();
         containers.push({
             let mut rabbitmq_container = Container::default();
-            rabbitmq_container.overwrite_resources(rabbitmq.spec().resources());
+            let rabbitmq_resources = rabbitmq.spec().resources();
+            if rabbitmq_resources.is_some() {
+                rabbitmq_container.set_resources(rabbitmq_resources.unwrap());
+            }
             rabbitmq_container.set_name("rabbitmq".to_string());
             rabbitmq_container.set_image(rabbitmq.spec().image());
             rabbitmq_container.set_lifecycle({
@@ -676,8 +684,14 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes(volumes);
-    pod_spec.overwrite_affinity(rabbitmq.spec().affinity());
-    pod_spec.overwrite_tolerations(rabbitmq.spec().tolerations());
+    let rabbitmq_affinity = rabbitmq.spec().affinity();
+    if rabbitmq_affinity.is_some() {
+        pod_spec.set_affinity(rabbitmq_affinity.unwrap());
+    }
+    let rabbitmq_tolerations = rabbitmq.spec().tolerations();
+    if rabbitmq_tolerations.is_some() {
+        pod_spec.set_tolerations(rabbitmq_tolerations.unwrap());
+    }
     pod_spec.set_termination_grace_period_seconds(604800);
     pod_spec
 }

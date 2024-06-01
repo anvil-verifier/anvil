@@ -253,7 +253,10 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 {
     let mut pod_spec = PodSpec::default();
 
-    pod_spec.overwrite_affinity(zk.spec().affinity());
+    let zk_affinity = zk.spec().affinity();
+    if zk_affinity.is_some() {
+        pod_spec.set_affinity(zk_affinity.unwrap());
+    }
     pod_spec.set_containers({
         let mut containers = Vec::new();
         containers.push({
@@ -295,7 +298,10 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 lifecycle
             });
             zk_container.set_image_pull_policy("Always".to_string());
-            zk_container.overwrite_resources(zk.spec().resources());
+            let zk_resources = zk.spec().resources();
+            if zk_resources.is_some() {
+                zk_container.set_resources(zk_resources.unwrap());
+            }
             zk_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
@@ -431,7 +437,10 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 
         volumes
     });
-    pod_spec.overwrite_tolerations(zk.spec().tolerations());
+    let zk_tolerations = zk.spec().tolerations();
+    if zk_tolerations.is_some() {
+        pod_spec.set_tolerations(zk_tolerations.unwrap());
+    }
     pod_spec.set_node_selector(zk.spec().node_selector());
 
     pod_spec

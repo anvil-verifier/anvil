@@ -154,18 +154,6 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_affinity(&mut self, affinity: Option<Affinity>)
-        ensures
-            affinity.is_None() ==> self@ == old(self)@.unset_affinity(),
-            affinity.is_Some() ==> self@ == old(self)@.set_affinity(affinity.get_Some_0()@),
-    {
-        match affinity {
-            Some(a) => self.inner.affinity = Some(a.into_kube()),
-            None => self.inner.affinity = None,
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn set_containers(&mut self, containers: Vec<Container>)
         ensures self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
     {
@@ -201,18 +189,6 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_tolerations(&mut self, tolerations: Option<Vec<Toleration>>)
-        ensures
-            tolerations.is_None() ==> self@ == old(self)@.unset_tolerations(),
-            tolerations.is_Some() ==> self@ == old(self)@.set_tolerations(tolerations.get_Some_0()@.map_values(|toleration: Toleration| toleration@)),
-    {
-        match tolerations {
-            Some(t) => self.inner.tolerations = Some(t.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect()),
-            None => self.inner.tolerations = None,
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn set_node_selector(&mut self, node_selector: StringMap)
         ensures self@ == old(self)@.set_node_selector(node_selector@),
     {
@@ -220,31 +196,31 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_runtime_class_name(&mut self, runtime_class_name: Option<String>)
-        ensures self@ == old(self)@.overwrite_runtime_class_name(opt_string_to_view(&runtime_class_name)),
+    pub fn set_runtime_class_name(&mut self, runtime_class_name: String)
+        ensures self@ == old(self)@.set_runtime_class_name(runtime_class_name@),
     {
-        self.inner.runtime_class_name = runtime_class_name
+        self.inner.runtime_class_name = Some(runtime_class_name)
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_dns_policy(&mut self, dns_policy: Option<String>)
-        ensures self@ == old(self)@.overwrite_dns_policy(opt_string_to_view(&dns_policy)),
+    pub fn set_dns_policy(&mut self, dns_policy: String)
+        ensures self@ == old(self)@.set_dns_policy(dns_policy@),
     {
-        self.inner.dns_policy = dns_policy
+        self.inner.dns_policy = Some(dns_policy)
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_scheduler_name(&mut self, scheduler_name: Option<String>)
-        ensures self@ == old(self)@.overwrite_scheduler_name(opt_string_to_view(&scheduler_name)),
+    pub fn set_scheduler_name(&mut self, scheduler_name: String)
+        ensures self@ == old(self)@.set_scheduler_name(scheduler_name@),
     {
-        self.inner.scheduler_name = scheduler_name
+        self.inner.scheduler_name = Some(scheduler_name)
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_priority_class_name(&mut self, priority_class_name: Option<String>)
-        ensures self@ == old(self)@.overwrite_priority_class_name(opt_string_to_view(&priority_class_name)),
+    pub fn set_priority_class_name(&mut self, priority_class_name: String)
+        ensures self@ == old(self)@.set_priority_class_name(priority_class_name@),
     {
-        self.inner.priority_class_name = priority_class_name
+        self.inner.priority_class_name = Some(priority_class_name)
     }
 
     #[verifier(external_body)]

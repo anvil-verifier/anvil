@@ -216,7 +216,10 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                         } else {
                             volume_mount.set_mount_path("/containers".to_string());
                         }
-                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        let fb_internal_mount_propagation = fb.spec().internal_mount_propagation();
+                        if fb_internal_mount_propagation.is_some() {
+                            volume_mount.set_mount_propagation(fb_internal_mount_propagation.unwrap());
+                        }
                         volume_mount
                     });
                     volume_mounts.push({
@@ -224,7 +227,10 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                         volume_mount.set_name("varlogs".to_string());
                         volume_mount.set_read_only(true);
                         volume_mount.set_mount_path("/var/log/".to_string());
-                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        let fb_internal_mount_propagation = fb.spec().internal_mount_propagation();
+                        if fb_internal_mount_propagation.is_some() {
+                            volume_mount.set_mount_propagation(fb_internal_mount_propagation.unwrap());
+                        }
                         volume_mount
                     });
                     volume_mounts.push({
@@ -232,7 +238,10 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                         volume_mount.set_name("systemd".to_string());
                         volume_mount.set_read_only(true);
                         volume_mount.set_mount_path("/var/log/journal".to_string());
-                        volume_mount.overwrite_mount_propagation(fb.spec().internal_mount_propagation());
+                        let fb_internal_mount_propagation = fb.spec().internal_mount_propagation();
+                        if fb_internal_mount_propagation.is_some() {
+                            volume_mount.set_mount_propagation(fb_internal_mount_propagation.unwrap());
+                        }
                         volume_mount
                     });
                 }
@@ -272,7 +281,9 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
                 }
                 ports
             });
-            fb_container.overwrite_resources(fb.spec().resources());
+            if fb.spec().resources().is_some() {
+                fb_container.set_resources(fb.spec().resources().unwrap());
+            }
             if fb.spec().args().is_some() {
                 fb_container.set_args(fb.spec().args().unwrap());
             }
@@ -361,13 +372,31 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
         }
         volumes
     });
-    pod_spec.overwrite_tolerations(fb.spec().tolerations());
-    pod_spec.overwrite_affinity(fb.spec().affinity());
+    let fb_tolerations = fb.spec().tolerations();
+    if fb_tolerations.is_some() {
+        pod_spec.set_tolerations(fb_tolerations.unwrap());
+    }
+    let fb_affinity = fb.spec().affinity();
+    if fb_affinity.is_some() {
+        pod_spec.set_affinity(fb_affinity.unwrap());
+    }
     pod_spec.set_node_selector(fb.spec().node_selector());
-    pod_spec.overwrite_runtime_class_name(fb.spec().runtime_class_name());
-    pod_spec.overwrite_dns_policy(fb.spec().dns_policy());
-    pod_spec.overwrite_priority_class_name(fb.spec().priority_class_name());
-    pod_spec.overwrite_scheduler_name(fb.spec().scheduler_name());
+    let fb_runtime_class_name = fb.spec().runtime_class_name();
+    if fb_runtime_class_name.is_some() {
+        pod_spec.set_runtime_class_name(fb_runtime_class_name.unwrap());
+    }
+    let fb_dns_policy = fb.spec().dns_policy();
+    if fb_dns_policy.is_some() {
+        pod_spec.set_dns_policy(fb_dns_policy.unwrap());
+    }
+    let fb_priority_class_name = fb.spec().priority_class_name();
+    if fb_priority_class_name.is_some() {
+        pod_spec.set_priority_class_name(fb_priority_class_name.unwrap());
+    }
+    let fb_scheduler_name = fb.spec().scheduler_name();
+    if fb_scheduler_name.is_some() {
+        pod_spec.set_scheduler_name(fb_scheduler_name.unwrap());
+    }
     if fb.spec().security_context().is_some() {
         pod_spec.set_security_context(fb.spec().security_context().unwrap());
     }

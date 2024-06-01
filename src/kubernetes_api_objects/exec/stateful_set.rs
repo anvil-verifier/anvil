@@ -218,19 +218,10 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_pvc_retention_policy(&mut self, pvc_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
-        ensures
-            pvc_retention_policy.is_None() ==> self@ == old(self)@.unset_pvc_retention_policy(),
-            pvc_retention_policy.is_Some() ==> self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy.get_Some_0()@),
+    pub fn unset_pvc_retention_policy(&mut self)
+        ensures self@ == old(self)@.unset_pvc_retention_policy(),
     {
-        match pvc_retention_policy {
-            Some(pvc) => {
-                self.inner.persistent_volume_claim_retention_policy = Some(pvc.into_kube());
-            },
-            None => {
-                self.inner.persistent_volume_claim_retention_policy = None;
-            },
-        }
+        self.inner.persistent_volume_claim_retention_policy = None
     }
 
     #[verifier(external_body)]
