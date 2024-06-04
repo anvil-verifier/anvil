@@ -13,41 +13,35 @@ pub mod vstd_ext;
 #[path = "controller_examples/zookeeper_controller/mod.rs"]
 pub mod zookeeper_controller;
 
-use builtin::*;
-use builtin_macros::*;
-
 use crate::zookeeper_controller::exec::reconciler::ZookeeperReconciler;
-use crate::zookeeper_controller::trusted::exec_types::{ZookeeperCluster, ZookeeperReconcileState};
-use crate::zookeeper_controller::trusted::zookeeper_api_exec::*;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
+use deps_hack::tracing::{error, info};
+use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
 
-verus! {
-
-#[verifier(external)]
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let args: Vec<String> = env::args().collect();
     let cmd = args[1].clone();
 
     if cmd == String::from("export") {
-        println!("exporting custom resource definition");
-        println!("{}", serde_yaml::to_string(&deps_hack::ZookeeperCluster::crd())?);
+        println!(
+            "{}",
+            serde_yaml::to_string(&deps_hack::ZookeeperCluster::crd())?
+        );
     } else if cmd == String::from("run") {
-        println!("running zookeeper-controller");
+        info!("running zookeeper-controller");
         run_controller::<deps_hack::ZookeeperCluster, ZookeeperReconciler>(false).await?;
-        println!("controller terminated");
     } else if cmd == String::from("crash") {
-        println!("running zookeeper-controller in crash-testing mode");
+        info!("running zookeeper-controller in crash-testing mode");
         run_controller::<deps_hack::ZookeeperCluster, ZookeeperReconciler>(true).await?;
-        println!("controller terminated");
     } else {
-        println!("wrong command; please use \"export\", \"run\" or \"crash\"");
+        error!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
     Ok(())
-}
 }

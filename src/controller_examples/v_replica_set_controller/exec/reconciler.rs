@@ -1,6 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::exec::{
@@ -14,7 +13,6 @@ use crate::v_replica_set_controller::trusted::exec_types::*;
 use crate::v_replica_set_controller::trusted::spec_types;
 use crate::v_replica_set_controller::trusted::step::*;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
-use std::convert::TryInto;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

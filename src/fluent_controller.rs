@@ -13,55 +13,48 @@ pub mod state_machine;
 pub mod temporal_logic;
 pub mod vstd_ext;
 
-use builtin::*;
-use builtin_macros::*;
-
-use crate::external_api::exec::*;
 use crate::fluent_controller::{
-    fluentbit::{
-        exec::reconciler::FluentBitReconciler,
-        trusted::exec_types::{FluentBit, FluentBitReconcileState},
-    },
-    fluentbit_config::{
-        exec::reconciler::FluentBitConfigReconciler,
-        trusted::exec_types::{FluentBitConfig, FluentBitConfigReconcileState},
-    },
+    fluentbit::exec::reconciler::FluentBitReconciler,
+    fluentbit_config::exec::reconciler::FluentBitConfigReconciler,
 };
 use deps_hack::anyhow::Result;
 use deps_hack::futures;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
+use deps_hack::tracing::{error, info};
+use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
 
-verus! {
-
-#[verifier(external)]
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let args: Vec<String> = env::args().collect();
     let cmd = args[1].clone();
 
     if cmd == String::from("export") {
-        println!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&deps_hack::FluentBit::crd())?);
-        println!("{}", serde_yaml::to_string(&deps_hack::FluentBitConfig::crd())?);
+        println!(
+            "{}",
+            serde_yaml::to_string(&deps_hack::FluentBitConfig::crd())?
+        );
     } else if cmd == String::from("run") {
-        println!("running fluent-controller");
-        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBitReconciler>(false);
-        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfigReconciler>(false);
+        info!("running fluent-controller");
+        let fluentbit_controller_fut =
+            run_controller::<deps_hack::FluentBit, FluentBitReconciler>(false);
+        let fluentbit_config_controller_fut =
+            run_controller::<deps_hack::FluentBitConfig, FluentBitConfigReconciler>(false);
         futures::try_join!(fluentbit_controller_fut, fluentbit_config_controller_fut)?;
-        println!("controller terminated");
     } else if cmd == String::from("crash") {
-        println!("running fluent-controller in crash-testing mode");
-        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBitReconciler>(true);
-        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfigReconciler>(true);
+        info!("running fluent-controller in crash-testing mode");
+        let fluentbit_controller_fut =
+            run_controller::<deps_hack::FluentBit, FluentBitReconciler>(true);
+        let fluentbit_config_controller_fut =
+            run_controller::<deps_hack::FluentBitConfig, FluentBitConfigReconciler>(true);
         futures::try_join!(fluentbit_controller_fut, fluentbit_config_controller_fut)?;
-        println!("controller terminated");
     } else {
-        println!("wrong command; please use \"export\", \"run\" or \"crash\"");
+        error!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
     Ok(())
-}
 }

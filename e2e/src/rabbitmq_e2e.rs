@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
+use tracing::*;
 
 use crate::common::*;
 
@@ -69,6 +70,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on desired state test");
             return Err(Error::Timeout);
         }
         // Check config map
@@ -76,7 +78,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
         let cm = cm_api.get(&rabbitmq_cm_name).await;
         match cm {
             Err(e) => {
-                println!("Get config map failed with {}, continue to wait.", e);
+                info!("Get config map failed with {}, continue to wait.", e);
                 continue;
             }
             Ok(cm) => {
@@ -85,12 +87,12 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                 if !user_config.contains("default_user = new_user")
                     || !user_config.contains("default_pass = new_pass")
                 {
-                    println!(
+                    error!(
                         "Config map is not consistent with rabbitmq cluster spec. E2e test failed."
                     );
                     return Err(Error::RabbitmqConfigMapFailed);
                 }
-                println!("Config map is found as expected.");
+                info!("Config map is found as expected.");
             }
         };
         // Check stateful set
@@ -98,17 +100,17 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with {}, continue to wait.", e);
+                info!("Get stateful set failed with {}, continue to wait.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.as_ref().unwrap().replicas != Some(3) {
-                    println!("Stateful set spec is not consistent with rabbitmq cluster spec. E2e test failed.");
+                    error!("Stateful set spec is not consistent with rabbitmq cluster spec. E2e test failed.");
                     return Err(Error::RabbitmqStsFailed);
                 }
-                println!("Stateful set is found as expected.");
+                info!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -119,10 +121,10 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -136,10 +138,9 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
             }
         };
     }
-    println!("Desired state test passed.");
+    info!("Desired state test passed.");
     Ok(())
 }
-
 
 pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
@@ -164,6 +165,7 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on relabel test");
             return Err(Error::Timeout);
         }
 
@@ -171,7 +173,7 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
@@ -188,12 +190,12 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                     .unwrap()
                     .contains_key("key")
                 {
-                    println!("Label for pod is not updated yet");
+                    info!("Label for pod is not updated yet");
                     continue;
                 }
 
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    println!("No stateful set pod is updated yet.");
+                    info!("No stateful set pod is updated yet.");
                     continue;
                 } else if *sts
                     .status
@@ -204,9 +206,9 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                     .unwrap()
                     == 3
                 {
-                    println!("Relabel is done.");
+                    info!("Relabel is done.");
                 } else {
-                    println!(
+                    info!(
                         "Relabel is in progress. {} pods are updated now.",
                         sts.status
                             .as_ref()
@@ -219,7 +221,7 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -230,10 +232,10 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -248,7 +250,7 @@ pub async fn relabel_test(client: Client, rabbitmq_name: String) -> Result<(), E
         };
     }
 
-    println!("Relabel test passed.");
+    info!("Relabel test passed.");
     Ok(())
 }
 
@@ -275,6 +277,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on reconfiguration test");
             return Err(Error::Timeout);
         }
 
@@ -282,12 +285,12 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    println!("No stateful set pod is updated yet.");
+                    info!("No stateful set pod is updated yet.");
                     continue;
                 } else if *sts
                     .status
@@ -298,9 +301,9 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                     .unwrap()
                     == 3
                 {
-                    println!("Reconfiguration is done.");
+                    info!("Reconfiguration is done.");
                 } else {
-                    println!(
+                    info!(
                         "Reconfiguration is in progress. {} pods are updated now.",
                         sts.status
                             .as_ref()
@@ -313,7 +316,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -324,10 +327,10 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -348,25 +351,29 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
     let attached = pod_api
         .exec(
             pod_name.as_str(),
-            vec!["cat", "/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf"],
+            vec![
+                "cat",
+                "/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf",
+            ],
             &AttachParams::default().stderr(true),
         )
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("Reconfiguration test failed with {}.", err);
+        error!("Reconfiguration test failed with {}.", err);
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
-        println!("{}", out);
-        if !out.contains("log.console = true") || !out.contains("log.console.level = debug")
-        || !out.contains("log.console.formatter = json") {
-            println!("Test failed because of unexpected zoo.cfg data.");
-            println!("The config file is {}", out);
+        info!("The config file is: {}", out);
+        if !out.contains("log.console = true")
+            || !out.contains("log.console.level = debug")
+            || !out.contains("log.console.formatter = json")
+        {
+            error!("Test failed because of unexpected zoo.cfg data.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }
 
-    println!("Reconfiguration test passed.");
+    info!("Reconfiguration test passed.");
     Ok(())
 }
 
@@ -392,25 +399,24 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on scaling test");
             return Err(Error::Timeout);
         }
 
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(4) {
-                    println!(
-                        "Stateful set spec is not consistent with rabbitmq cluster spec yet."
-                    );
+                    info!("Stateful set spec is not consistent with rabbitmq cluster spec yet.");
                     continue;
                 }
-                println!("Stateful set is found as expected.");
+                info!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -421,10 +427,10 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                     .unwrap()
                     == 4
                 {
-                    println!("Scale up is done with 4 replicas ready.");
+                    info!("Scale up is done with 4 replicas ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Scale up is in progress. {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -438,7 +444,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
             }
         };
     }
-    println!("Scaling test passed.");
+    info!("Scaling test passed.");
     Ok(())
 }
 
@@ -465,6 +471,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on upgrading test");
             return Err(Error::Timeout);
         }
 
@@ -472,12 +479,12 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    println!("No stateful set pod is updated yet.");
+                    info!("No stateful set pod is updated yet.");
                     continue;
                 } else if *sts
                     .status
@@ -488,9 +495,9 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
                     .unwrap()
                     == 3
                 {
-                    println!("Upgrading is done.");
+                    info!("Upgrading is done.");
                 } else {
-                    println!(
+                    info!(
                         "Upgrading is in progress. {} pods are updated now.",
                         sts.status
                             .as_ref()
@@ -503,7 +510,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -514,10 +521,10 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -532,7 +539,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
         };
     }
 
-    println!("Upgrading test passed.");
+    info!("Upgrading test passed.");
     Ok(())
 }
 
@@ -548,12 +555,12 @@ pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Re
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("User and password test failed with {}.", err);
+        error!("User and password test failed with {}.", err);
         return Err(Error::RabbitmqUserPassFailed);
     } else {
-        println!("{}", out);
+        info!("{}", out);
     }
-    println!("Authenticate user test passed.");
+    info!("Authenticate user test passed.");
     Ok(())
 }
 
@@ -573,36 +580,37 @@ pub async fn rabbitmq_workload_test(client: Client, rabbitmq_name: String) -> Re
     let pod_name = "perf-test";
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let timeout = Duration::from_secs(600);
-    let pert_test_duration = Duration::from_secs(20);
+    let perf_test_duration = Duration::from_secs(20);
     let start = Instant::now();
     let mut perf_test_start: Option<Instant> = None;
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on perf test");
             return Err(Error::Timeout);
         }
         match pod_api.get(pod_name).await {
             Err(e) => {
-                println!("Get pod failed with {}, continue to wait.", e);
+                info!("Get pod failed with {}, continue to wait.", e);
                 continue;
             }
             Ok(pod) => {
                 if pod.status.is_none() {
-                    println!("Pod status is not available yet.");
+                    info!("Pod status is not available yet.");
                     continue;
                 } else if pod.status.unwrap().phase != Some("Running".to_string()) {
-                    println!("Perf test pod is not running yet.");
+                    info!("Perf test pod is not running yet.");
                     continue;
                 } else {
                     if perf_test_start.is_none() {
-                        println!("Perf test starts running.");
+                        info!("Perf test starts running.");
                         perf_test_start = Some(Instant::now());
                         continue;
                     } else {
-                        if perf_test_start.unwrap().elapsed() > pert_test_duration {
+                        if perf_test_start.unwrap().elapsed() > perf_test_duration {
                             break;
                         } else {
-                            println!("Keep running perf test.");
+                            info!("Keep running perf test.");
                             continue;
                         }
                     }
@@ -611,7 +619,7 @@ pub async fn rabbitmq_workload_test(client: Client, rabbitmq_name: String) -> Re
         };
     }
     // Shall we delete the perf test pod here?
-    println!("Rabbitmq workload test passed.");
+    info!("Rabbitmq workload test passed.");
     Ok(())
 }
 
@@ -622,11 +630,11 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     let rabbitmq_crd = crd_api.get("rabbitmqclusters.anvil.dev").await;
     match rabbitmq_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -641,7 +649,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     upgrading_test(client.clone(), rabbitmq_name.clone()).await?;
     rabbitmq_workload_test(client.clone(), rabbitmq_name.clone()).await?;
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }
 
@@ -652,11 +660,11 @@ pub async fn rabbitmq_scaling_e2e_test() -> Result<(), Error> {
     let rabbitmq_crd = crd_api.get("rabbitmqclusters.anvil.dev").await;
     match rabbitmq_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -668,7 +676,7 @@ pub async fn rabbitmq_scaling_e2e_test() -> Result<(), Error> {
     scaling_test(client.clone(), rabbitmq_name.clone()).await?;
     rabbitmq_workload_test(client.clone(), rabbitmq_name.clone()).await?;
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }
 
@@ -679,11 +687,11 @@ pub async fn rabbitmq_ephemeral_e2e_test() -> Result<(), Error> {
     let rabbitmq_crd = crd_api.get("rabbitmqclusters.anvil.dev").await;
     match rabbitmq_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -695,6 +703,6 @@ pub async fn rabbitmq_ephemeral_e2e_test() -> Result<(), Error> {
     scaling_test(client.clone(), rabbitmq_name.clone()).await?;
     rabbitmq_workload_test(client.clone(), rabbitmq_name.clone()).await?;
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }
