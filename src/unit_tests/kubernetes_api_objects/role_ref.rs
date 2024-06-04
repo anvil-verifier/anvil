@@ -7,17 +7,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for role ref
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let role_ref = RoleRef::default();
-    assert_eq!(role_ref.into_kube(), deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default());
+    assert_eq!(
+        role_ref.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_api_group() {
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group("api_group".to_string());
@@ -25,7 +24,6 @@ pub fn test_set_api_group() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_kind() {
     let mut role_ref = RoleRef::default();
     role_ref.set_kind("kind".to_string());
@@ -33,7 +31,6 @@ pub fn test_set_kind() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_name() {
     let mut role_ref = RoleRef::default();
     role_ref.set_name("name".to_string());
@@ -41,7 +38,6 @@ pub fn test_set_name() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group("api_group_2".to_string());
@@ -52,9 +48,8 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_role_ref = deps_hack::k8s_openapi::api::rbac::v1::RoleRef{
+    let kube_role_ref = deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
         api_group: "api_group".to_string(),
         kind: "kind".to_string(),
         name: "name".to_string(),
@@ -62,7 +57,5 @@ pub fn test_kube() {
 
     let role_ref = RoleRef::from_kube(kube_role_ref.clone());
 
-    assert_eq!(role_ref.into_kube(),
-                kube_role_ref);
-}
+    assert_eq!(role_ref.into_kube(), kube_role_ref);
 }

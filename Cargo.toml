@@ -10,6 +10,3 @@ vstd = { path = "../verus/source/vstd" }
 deps_hack = { path = "src/deps_hack" }
 tungstenite = "0.20.1"
 rand = "0.8"
-
-[dev-dependencies]
-proptest = "1.4.0"

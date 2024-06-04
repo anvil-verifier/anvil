@@ -8,10 +8,7 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-
 #[test]
-#[verifier(external)]
 pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name("name".to_string());
@@ -22,8 +19,7 @@ pub fn test_set_metadata() {
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_set_data(){
+pub fn test_set_data() {
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
     data.insert("key".to_string(), "value".to_string());
@@ -32,15 +28,16 @@ pub fn test_set_data(){
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_default(){
+pub fn test_default() {
     let config_map = ConfigMap::default();
-    assert_eq!(config_map.into_kube(), deps_hack::k8s_openapi::api::core::v1::ConfigMap::default());
+    assert_eq!(
+        config_map.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ConfigMap::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_clone(){
+pub fn test_clone() {
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
     data.insert("key".to_string(), "value".to_string());
@@ -50,8 +47,7 @@ pub fn test_clone(){
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_metadata(){
+pub fn test_metadata() {
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name("name".to_string());
 
@@ -61,77 +57,63 @@ pub fn test_metadata(){
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_data(){
+pub fn test_data() {
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
     data.insert("key".to_string(), "value".to_string());
     config_map.set_data(data.clone());
-    assert_eq!(data.into_rust_map(), config_map.data().unwrap().into_rust_map());
+    assert_eq!(
+        data.into_rust_map(),
+        config_map.data().unwrap().into_rust_map()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_api_resource(){
+pub fn test_api_resource() {
     let api_resource = ConfigMap::api_resource();
     assert_eq!(api_resource.into_kube().kind, "ConfigMap");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_config_map = deps_hack::k8s_openapi::api::core::v1::ConfigMap {
-        metadata:
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                ..Default::default()
-            },
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
         data: Some(
-            vec![(
-                "key".to_string(),
-                "value".to_string(),
-            )]
-            .into_iter()
-            .collect(),
+            vec![("key".to_string(), "value".to_string())]
+                .into_iter()
+                .collect(),
         ),
         ..Default::default()
     };
-    let config_map = ConfigMap::from_kube(
-        kube_config_map.clone(),
-    );
+    let config_map = ConfigMap::from_kube(kube_config_map.clone());
 
-    assert_eq!(config_map.into_kube(),
-                kube_config_map);
+    assert_eq!(config_map.into_kube(), kube_config_map);
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_marshal() {
     let kube_config_map = deps_hack::k8s_openapi::api::core::v1::ConfigMap {
-        metadata:
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                ..Default::default()
-            },
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
         data: Some(
-            vec![(
-                "key".to_string(),
-                "value".to_string(),
-            )]
-            .into_iter()
-            .collect(),
+            vec![("key".to_string(), "value".to_string())]
+                .into_iter()
+                .collect(),
         ),
         ..Default::default()
     };
 
-    let config_map = ConfigMap::from_kube(
-        kube_config_map.clone(),
-    );
+    let config_map = ConfigMap::from_kube(kube_config_map.clone());
 
     assert_eq!(
         kube_config_map,
-        ConfigMap::unmarshal(config_map.marshal()).unwrap().into_kube()
+        ConfigMap::unmarshal(config_map.marshal())
+            .unwrap()
+            .into_kube()
     );
-}
-
 }

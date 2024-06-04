@@ -7,12 +7,8 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for Probe
-
 #[test]
-#[verifier(external)]
-pub fn test_set_exec(){
+pub fn test_set_exec() {
     let mut probe = Probe::default();
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec!["command".to_string()]);
@@ -21,7 +17,6 @@ pub fn test_set_exec(){
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_failure_threshold() {
     let mut probe = Probe::default();
     probe.set_failure_threshold(3);
@@ -29,7 +24,6 @@ pub fn test_set_failure_threshold() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_initial_delay_seconds() {
     let mut probe = Probe::default();
     probe.set_initial_delay_seconds(3);
@@ -37,7 +31,6 @@ pub fn test_set_initial_delay_seconds() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_period_seconds() {
     let mut probe = Probe::default();
     probe.set_period_seconds(3);
@@ -45,7 +38,6 @@ pub fn test_set_period_seconds() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_success_threshold() {
     let mut probe = Probe::default();
     probe.set_success_threshold(3);
@@ -53,7 +45,6 @@ pub fn test_set_success_threshold() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_tcp_socket() {
     let mut probe = Probe::default();
     let mut tcp_socket_action = TCPSocketAction::default();
@@ -61,11 +52,13 @@ pub fn test_set_tcp_socket() {
     tcp_socket_action.set_port(8080);
 
     probe.set_tcp_socket(tcp_socket_action.clone());
-    assert_eq!(tcp_socket_action.into_kube(), probe.into_kube().tcp_socket.unwrap());
+    assert_eq!(
+        tcp_socket_action.into_kube(),
+        probe.into_kube().tcp_socket.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_timeout_seconds() {
     let mut probe = Probe::default();
     probe.set_timeout_seconds(3);
@@ -73,14 +66,15 @@ pub fn test_set_timeout_seconds() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let probe = Probe::default();
-    assert_eq!(probe.into_kube(), deps_hack::k8s_openapi::api::core::v1::Probe::default());
+    assert_eq!(
+        probe.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::Probe::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut probe = Probe::default();
     probe.set_timeout_seconds(3);
@@ -89,7 +83,6 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_probe = deps_hack::k8s_openapi::api::core::v1::Probe {
         failure_threshold: Some(3),
@@ -106,6 +99,4 @@ pub fn test_kube() {
     let probe = Probe::from_kube(kube_probe.clone());
 
     assert_eq!(probe.into_kube(), kube_probe);
-}
-
 }

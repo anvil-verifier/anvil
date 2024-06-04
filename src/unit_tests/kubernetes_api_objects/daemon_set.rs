@@ -9,18 +9,17 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for daemon set
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let daemon_set = DaemonSet::default();
-    assert_eq!(daemon_set.into_kube(), deps_hack::k8s_openapi::api::apps::v1::DaemonSet::default());
+    assert_eq!(
+        daemon_set.into_kube(),
+        deps_hack::k8s_openapi::api::apps::v1::DaemonSet::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_set_metadata(){
+pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name("name".to_string());
     let mut daemon_set = DaemonSet::default();
@@ -29,8 +28,7 @@ pub fn test_set_metadata(){
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_metadata(){
+pub fn test_metadata() {
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name("name".to_string());
     let mut daemon_set = DaemonSet::default();
@@ -39,7 +37,6 @@ pub fn test_metadata(){
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_sepc() {
     let mut daemon_set = DaemonSet::default();
     let mut daemon_set_spec = DaemonSetSpec::default();
@@ -49,11 +46,13 @@ pub fn test_set_sepc() {
     label_selector.set_match_labels(match_labels.clone());
     daemon_set_spec.set_selector(label_selector.clone());
     daemon_set.set_spec(daemon_set_spec.clone());
-    assert_eq!(daemon_set_spec.into_kube(), daemon_set.into_kube().spec.unwrap());
+    assert_eq!(
+        daemon_set_spec.into_kube(),
+        daemon_set.into_kube().spec.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_spec() {
     let mut daemon_set = DaemonSet::default();
     let temp = daemon_set.spec();
@@ -67,18 +66,19 @@ pub fn test_spec() {
     label_selector.set_match_labels(match_labels.clone());
     daemon_set_spec.set_selector(label_selector.clone());
     daemon_set.set_spec(daemon_set_spec.clone());
-    assert_eq!(daemon_set_spec.into_kube(), daemon_set.spec().unwrap().into_kube());
+    assert_eq!(
+        daemon_set_spec.into_kube(),
+        daemon_set.spec().unwrap().into_kube()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_api_resource() {
     let api_resource = DaemonSet::api_resource();
     assert_eq!(api_resource.into_kube().kind, "DaemonSet");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut daemon_set = DaemonSet::default();
     let mut daemon_set_spec = DaemonSetSpec::default();
@@ -93,37 +93,31 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_daemon_set =
-        deps_hack::k8s_openapi::api::apps::v1::DaemonSet {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
+    let kube_daemon_set = deps_hack::k8s_openapi::api::apps::v1::DaemonSet {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            ..Default::default()
+        },
+        spec: Some(deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
+            selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+                match_labels: Some(
+                    vec![("key".to_string(), "value".to_string())]
+                        .into_iter()
+                        .collect(),
+                ),
                 ..Default::default()
             },
-            spec: Some(deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec {
-                selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
-                    match_labels: Some(
-                        vec![("key".to_string(), "value".to_string())]
-                            .into_iter()
-                            .collect(),
-                    ),
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
             ..Default::default()
-        };
+        }),
+        ..Default::default()
+    };
 
     let daemon_set = DaemonSet::from_kube(kube_daemon_set.clone());
-    assert_eq!(
-        daemon_set.into_kube(),
-        kube_daemon_set
-    );
+    assert_eq!(daemon_set.into_kube(), kube_daemon_set);
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_marshal() {
     let kube_daemon_set = deps_hack::k8s_openapi::api::apps::v1::DaemonSet {
         metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
@@ -146,7 +140,8 @@ pub fn test_marshal() {
     let daemon_set = DaemonSet::from_kube(kube_daemon_set.clone());
     assert_eq!(
         kube_daemon_set,
-        DaemonSet::unmarshal(daemon_set.marshal()).unwrap().into_kube()
+        DaemonSet::unmarshal(daemon_set.marshal())
+            .unwrap()
+            .into_kube()
     );
-}
 }

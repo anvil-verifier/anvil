@@ -10,10 +10,7 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for persistent volume claim spec
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     assert_eq!(
@@ -23,7 +20,6 @@ pub fn test_default() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_access_modes() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     let access_modes_gen = || {
@@ -35,12 +31,14 @@ pub fn test_set_access_modes() {
     persistent_volume_claim_spec.set_access_modes(access_modes_gen());
     assert_eq!(
         access_modes_gen(),
-        persistent_volume_claim_spec.into_kube().access_modes.unwrap()
+        persistent_volume_claim_spec
+            .into_kube()
+            .access_modes
+            .unwrap()
     );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_resources() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     let mut resources = VolumeResourceRequirements::default();
@@ -54,8 +52,7 @@ pub fn test_set_resources() {
     );
 }
 #[test]
-#[verifier(external)]
-pub fn test_clone(){
+pub fn test_clone() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     let mut resources = VolumeResourceRequirements::default();
     let mut requests = StringMap::new();
@@ -65,43 +62,43 @@ pub fn test_clone(){
     let persistent_volume_claim_spec_clone = persistent_volume_claim_spec.clone();
     assert_eq!(
         resources.into_kube(),
-        persistent_volume_claim_spec_clone.into_kube().resources.unwrap()
+        persistent_volume_claim_spec_clone
+            .into_kube()
+            .resources
+            .unwrap()
     );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_storage_class_name() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     persistent_volume_claim_spec.set_storage_class_name("storage_class_name".to_string());
     assert_eq!(
         "storage_class_name".to_string(),
-        persistent_volume_claim_spec.into_kube().storage_class_name.unwrap()
+        persistent_volume_claim_spec
+            .into_kube()
+            .storage_class_name
+            .unwrap()
     );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_persistent_volume_claim_spec =
         deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
             access_modes: Some(
-                vec![
-                    "ReadWriteOnce".to_string(),
-                    "ReadOnlyMany".to_string(),
-                ]
-                .into_iter()
-                .collect(),
+                vec!["ReadWriteOnce".to_string(), "ReadOnlyMany".to_string()]
+                    .into_iter()
+                    .collect(),
             ),
             resources: Some(
                 deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
-                    requests: Some(
-                        BTreeMap::from([
-                            (
-                                "storage".to_string(), deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("1Gi".to_string())
-                            ),
-                        ])
-                    ),
+                    requests: Some(BTreeMap::from([(
+                        "storage".to_string(),
+                        deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(
+                            "1Gi".to_string(),
+                        ),
+                    )])),
                     ..Default::default()
                 },
             ),
@@ -109,11 +106,10 @@ pub fn test_kube() {
             ..Default::default()
         };
 
-    let persistent_volume_claim_spec = PersistentVolumeClaimSpec::from_kube(kube_persistent_volume_claim_spec.clone());
+    let persistent_volume_claim_spec =
+        PersistentVolumeClaimSpec::from_kube(kube_persistent_volume_claim_spec.clone());
     assert_eq!(
         persistent_volume_claim_spec.into_kube(),
         kube_persistent_volume_claim_spec
     );
-}
-
 }

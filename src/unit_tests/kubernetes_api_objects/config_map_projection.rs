@@ -9,25 +9,26 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for configmap projecion
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let config_map_projection = ConfigMapProjection::default();
-    assert_eq!(config_map_projection.into_kube(), deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default());
+    assert_eq!(
+        config_map_projection.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_name() {
     let mut config_map_projection = ConfigMapProjection::default();
     config_map_projection.set_name("name".to_string());
-    assert_eq!("name".to_string(), config_map_projection.into_kube().name.unwrap());
+    assert_eq!(
+        "name".to_string(),
+        config_map_projection.into_kube().name.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_items() {
     let mut config_map_projection = ConfigMapProjection::default();
     let key_to_paths_gen = || {
@@ -53,7 +54,6 @@ pub fn test_set_items() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut config_map_projection = ConfigMapProjection::default();
     config_map_projection.set_name("name".to_string());
@@ -68,32 +68,34 @@ pub fn test_clone() {
     key_to_paths.push(key_to_path_2);
     config_map_projection.set_items(key_to_paths);
     let config_map_projection_clone = config_map_projection.clone();
-    assert_eq!(config_map_projection.into_kube(), config_map_projection_clone.into_kube());
+    assert_eq!(
+        config_map_projection.into_kube(),
+        config_map_projection_clone.into_kube()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_kube(){
-    let kube_config_map_projection =
-        deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
-            name: Some("name".to_string()),
-            items: Some(vec![
-                deps_hack::k8s_openapi::api::core::v1::KeyToPath {
-                    key: "key1".to_string(),
-                    path: "path1".to_string(),
-                    mode: None,
-                },
-                deps_hack::k8s_openapi::api::core::v1::KeyToPath {
-                    key: "key2".to_string(),
-                    path: "path2".to_string(),
-                    mode: None,
-                },
-            ]),
-            optional: None,
-        };
+pub fn test_kube() {
+    let kube_config_map_projection = deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection {
+        name: Some("name".to_string()),
+        items: Some(vec![
+            deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+                key: "key1".to_string(),
+                path: "path1".to_string(),
+                mode: None,
+            },
+            deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+                key: "key2".to_string(),
+                path: "path2".to_string(),
+                mode: None,
+            },
+        ]),
+        optional: None,
+    };
 
     let config_map_projection = ConfigMapProjection::from_kube(kube_config_map_projection.clone());
-    assert_eq!(config_map_projection.into_kube(),
-                kube_config_map_projection);
-}
+    assert_eq!(
+        config_map_projection.into_kube(),
+        kube_config_map_projection
+    );
 }

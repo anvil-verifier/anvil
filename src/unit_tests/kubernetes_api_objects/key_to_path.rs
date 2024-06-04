@@ -9,17 +9,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for key to path
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let key_to_path = KeyToPath::default();
-    assert_eq!(key_to_path.into_kube(), deps_hack::k8s_openapi::api::core::v1::KeyToPath::default());
+    assert_eq!(
+        key_to_path.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::KeyToPath::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_key() {
     let mut key_to_path = KeyToPath::default();
     key_to_path.set_key("key".to_string());
@@ -27,7 +26,6 @@ pub fn test_set_key() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_path() {
     let mut key_to_path = KeyToPath::default();
     key_to_path.set_path("path".to_string());
@@ -35,16 +33,13 @@ pub fn test_set_path() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_key_to_path = deps_hack::k8s_openapi::api::core::v1::KeyToPath{
+    let kube_key_to_path = deps_hack::k8s_openapi::api::core::v1::KeyToPath {
         key: "key".to_string(),
         path: "path".to_string(),
         ..Default::default()
     };
 
     let key_to_path = KeyToPath::from_kube(kube_key_to_path.clone());
-    assert_eq!(key_to_path.into_kube(),
-        kube_key_to_path);
-}
+    assert_eq!(key_to_path.into_kube(), kube_key_to_path);
 }

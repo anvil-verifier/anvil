@@ -7,6 +7,7 @@ pub use kube;
 pub use kube_client;
 pub use kube_core;
 pub use kube_derive;
+pub use proptest;
 pub use rand;
 pub use schemars;
 pub use serde;

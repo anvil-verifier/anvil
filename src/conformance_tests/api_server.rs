@@ -8,8 +8,8 @@ use deps_hack::kube::{
     api::{Api, DeleteParams, ListParams, ObjectMeta, PostParams},
     Client,
 };
+use deps_hack::proptest::prelude::*;
 use deps_hack::tokio::runtime::Runtime;
-use proptest::prelude::*;
 use rand::Rng;
 use std::process::Command;
 use vstd::prelude::*;
@@ -98,12 +98,14 @@ fn create_new_testing_namespace(len: usize) -> Option<std::string::String> {
             ..Default::default()
         };
 
-        namespace_api.create(&PostParams::default(), &namespace_obj).await
+        namespace_api
+            .create(&PostParams::default(), &namespace_obj)
+            .await
     });
 
     match resp {
         Ok(_) => Some(namespace_name),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 

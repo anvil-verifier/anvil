@@ -9,10 +9,7 @@ use std::collections::BTreeMap;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for persistent volume claim
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let persistent_volume_claim = PersistentVolumeClaim::default();
     assert_eq!(
@@ -22,7 +19,6 @@ pub fn test_default() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_metadata() {
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name("name".to_string());
@@ -36,7 +32,6 @@ pub fn test_set_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_metadata() {
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name("name".to_string());
@@ -50,7 +45,6 @@ pub fn test_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_spec() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     persistent_volume_claim_spec.set_access_modes(vec!["ReadWriteOnce".to_string()]);
@@ -64,7 +58,6 @@ pub fn test_set_spec() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_spec() {
     let mut persistent_volume_claim_spec = PersistentVolumeClaimSpec::default();
     persistent_volume_claim_spec.set_access_modes(vec!["ReadWriteOnce".to_string()]);
@@ -81,42 +74,35 @@ pub fn test_spec() {
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_api_resource(){
+pub fn test_api_resource() {
     let api_resource = PersistentVolumeClaim::api_resource();
     assert_eq!(api_resource.into_kube().kind, "PersistentVolumeClaim");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_persistent_volume_claim =
         deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
-            metadata:
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                    name: Some("name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
+            },
             spec: Some(
                 deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
                     access_modes: Some(
-                        vec![
-                            "ReadWriteOnce".to_string(),
-                            "ReadOnlyMany".to_string(),
-                        ]
-                        .into_iter()
-                        .collect(),
+                        vec!["ReadWriteOnce".to_string(), "ReadOnlyMany".to_string()]
+                            .into_iter()
+                            .collect(),
                     ),
                     resources: Some(
                         deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
-                            requests: Some(
-                                BTreeMap::from([
-                                    (
-                                        "storage".to_string(), deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("1Gi".to_string())
-                                    ),
-                                ])
-                            ),
+                            requests: Some(BTreeMap::from([(
+                                "storage".to_string(),
+                                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(
+                                    "1Gi".to_string(),
+                                ),
+                            )])),
                             ..Default::default()
                         },
                     ),
@@ -127,7 +113,8 @@ pub fn test_kube() {
             ..Default::default()
         };
 
-    let persistent_volume_claim = PersistentVolumeClaim::from_kube(kube_persistent_volume_claim.clone());
+    let persistent_volume_claim =
+        PersistentVolumeClaim::from_kube(kube_persistent_volume_claim.clone());
 
     assert_eq!(
         persistent_volume_claim.into_kube(),
@@ -136,35 +123,29 @@ pub fn test_kube() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_marshal() {
     let kube_persistent_volume_claim =
         deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
-            metadata:
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                    name: Some("name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
+            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
+            },
             spec: Some(
                 deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
                     access_modes: Some(
-                        vec![
-                            "ReadWriteOnce".to_string(),
-                            "ReadOnlyMany".to_string(),
-                        ]
-                        .into_iter()
-                        .collect(),
+                        vec!["ReadWriteOnce".to_string(), "ReadOnlyMany".to_string()]
+                            .into_iter()
+                            .collect(),
                     ),
                     resources: Some(
                         deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
-                            requests: Some(
-                                BTreeMap::from([
-                                    (
-                                        "storage".to_string(), deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("1Gi".to_string())
-                                    ),
-                                ])
-                            ),
+                            requests: Some(BTreeMap::from([(
+                                "storage".to_string(),
+                                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(
+                                    "1Gi".to_string(),
+                                ),
+                            )])),
                             ..Default::default()
                         },
                     ),
@@ -175,11 +156,13 @@ pub fn test_marshal() {
             ..Default::default()
         };
 
-    let persistent_volume_claim = PersistentVolumeClaim::from_kube(kube_persistent_volume_claim.clone());
+    let persistent_volume_claim =
+        PersistentVolumeClaim::from_kube(kube_persistent_volume_claim.clone());
 
     assert_eq!(
         kube_persistent_volume_claim,
-        PersistentVolumeClaim::unmarshal(persistent_volume_claim.marshal()).unwrap().into_kube()
+        PersistentVolumeClaim::unmarshal(persistent_volume_claim.marshal())
+            .unwrap()
+            .into_kube()
     );
-}
 }

@@ -7,10 +7,7 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for label selector
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let label_selector = LabelSelector::default();
     assert_eq!(
@@ -20,7 +17,6 @@ pub fn test_default() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_match_labels() {
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
@@ -34,7 +30,6 @@ pub fn test_set_match_labels() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut label_selector = LabelSelector::default();
     let mut match_labels = StringMap::new();
@@ -49,20 +44,13 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_label_selector =
         deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
             match_labels: Some(
                 vec![
-                    (
-                        "key".to_string(),
-                        "value".to_string(),
-                    ),
-                    (
-                        "key_2".to_string(),
-                        "value_2".to_string(),
-                    ),
+                    ("key".to_string(), "value".to_string()),
+                    ("key_2".to_string(), "value_2".to_string()),
                 ]
                 .into_iter()
                 .collect(),
@@ -72,9 +60,5 @@ pub fn test_kube() {
 
     let label_selector = LabelSelector::from_kube(kube_label_selector.clone());
 
-    assert_eq!(
-        label_selector.into_kube(),
-        kube_label_selector
-    );
-}
+    assert_eq!(label_selector.into_kube(), kube_label_selector);
 }

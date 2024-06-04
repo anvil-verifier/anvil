@@ -7,17 +7,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for role binding
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let role_binding = RoleBinding::default();
-    assert_eq!(role_binding.into_kube(), deps_hack::k8s_openapi::api::rbac::v1::RoleBinding::default());
+    assert_eq!(
+        role_binding.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::RoleBinding::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_metadata() {
     let mut role_binding = RoleBinding::default();
     let mut object_meta = ObjectMeta::default();
@@ -28,7 +27,6 @@ pub fn test_set_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_metadata() {
     let mut role_binding = RoleBinding::default();
     let mut object_meta = ObjectMeta::default();
@@ -39,7 +37,6 @@ pub fn test_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_role_ref() {
     let mut role_binding = RoleBinding::default();
     let mut role_ref = RoleRef::default();
@@ -51,7 +48,6 @@ pub fn test_set_role_ref() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_subjects() {
     let mut role_binding = RoleBinding::default();
     let subject_gen = || {
@@ -79,7 +75,6 @@ pub fn test_set_subjects() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut role_binding = RoleBinding::default();
     let mut object_meta = ObjectMeta::default();
@@ -111,95 +106,84 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_api_resource(){
+pub fn test_api_resource() {
     let api_resource = RoleBinding::api_resource();
     assert_eq!(api_resource.into_kube().kind, "RoleBinding");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_role_binding =
-        deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
-            metadata:
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                    name: Some("name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
-            role_ref:
-                deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
-                    api_group: "api_group".to_string(),
-                    kind: "kind".to_string(),
-                    name: "name".to_string(),
-                    ..Default::default()
-                },
-            subjects: Some(vec![
-                deps_hack::k8s_openapi::api::rbac::v1::Subject {
-                    kind: "kind1".to_string(),
-                    name: "name1".to_string(),
-                    namespace: Some("namespace1".to_string()),
-                    ..Default::default()
-                },
-                deps_hack::k8s_openapi::api::rbac::v1::Subject {
-                    kind: "kind2".to_string(),
-                    name: "name2".to_string(),
-                    namespace: Some("namespace2".to_string()),
-                    ..Default::default()
-                },
-            ]),
+    let kube_role_binding = deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
             ..Default::default()
-        };
+        },
+        role_ref: deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
+            api_group: "api_group".to_string(),
+            kind: "kind".to_string(),
+            name: "name".to_string(),
+            ..Default::default()
+        },
+        subjects: Some(vec![
+            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+                kind: "kind1".to_string(),
+                name: "name1".to_string(),
+                namespace: Some("namespace1".to_string()),
+                ..Default::default()
+            },
+            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+                kind: "kind2".to_string(),
+                name: "name2".to_string(),
+                namespace: Some("namespace2".to_string()),
+                ..Default::default()
+            },
+        ]),
+        ..Default::default()
+    };
 
     let role_binding = RoleBinding::from_kube(kube_role_binding.clone());
 
-    assert_eq!(
-        role_binding.into_kube(),
-        kube_role_binding
-    );
+    assert_eq!(role_binding.into_kube(), kube_role_binding);
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_marshal() {
-    let kube_role_binding =
-        deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
-            metadata:
-                deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                    name: Some("name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
-            role_ref:
-                deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
-                    api_group: "api_group".to_string(),
-                    kind: "kind".to_string(),
-                    name: "name".to_string(),
-                    ..Default::default()
-                },
-            subjects: Some(vec![
-                deps_hack::k8s_openapi::api::rbac::v1::Subject {
-                    kind: "kind1".to_string(),
-                    name: "name1".to_string(),
-                    namespace: Some("namespace1".to_string()),
-                    ..Default::default()
-                },
-                deps_hack::k8s_openapi::api::rbac::v1::Subject {
-                    kind: "kind2".to_string(),
-                    name: "name2".to_string(),
-                    namespace: Some("namespace2".to_string()),
-                    ..Default::default()
-                },
-            ]),
+    let kube_role_binding = deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
             ..Default::default()
-        };
+        },
+        role_ref: deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
+            api_group: "api_group".to_string(),
+            kind: "kind".to_string(),
+            name: "name".to_string(),
+            ..Default::default()
+        },
+        subjects: Some(vec![
+            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+                kind: "kind1".to_string(),
+                name: "name1".to_string(),
+                namespace: Some("namespace1".to_string()),
+                ..Default::default()
+            },
+            deps_hack::k8s_openapi::api::rbac::v1::Subject {
+                kind: "kind2".to_string(),
+                name: "name2".to_string(),
+                namespace: Some("namespace2".to_string()),
+                ..Default::default()
+            },
+        ]),
+        ..Default::default()
+    };
 
     let role_binding = RoleBinding::from_kube(kube_role_binding.clone());
 
     assert_eq!(
         kube_role_binding,
-        RoleBinding::unmarshal(role_binding.marshal()).unwrap().into_kube()
+        RoleBinding::unmarshal(role_binding.marshal())
+            .unwrap()
+            .into_kube()
     );
-}
 }
