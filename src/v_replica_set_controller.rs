@@ -18,27 +18,27 @@ use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
+use deps_hack::tracing::{error, info};
+use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let args: Vec<String> = env::args().collect();
     let cmd = args[1].clone();
 
     if cmd == String::from("export") {
-        println!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&deps_hack::VReplicaSet::crd())?);
     } else if cmd == String::from("run") {
-        println!("running v-replica-set-controller");
+        info!("running v-replica-set-controller");
         run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler>(false).await?;
-        println!("controller terminated");
     } else if cmd == String::from("crash") {
-        println!("running v-replica-set-controller in crash-testing mode");
+        info!("running v-replica-set-controller in crash-testing mode");
         run_controller::<deps_hack::VReplicaSet, VReplicaSetReconciler>(true).await?;
-        println!("controller terminated");
     } else {
-        println!("wrong command; please use \"export\", \"run\" or \"crash\"");
+        error!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
     Ok(())
 }

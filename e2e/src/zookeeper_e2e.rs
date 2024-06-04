@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
+use tracing::*;
 
 use crate::common::*;
 
@@ -111,13 +112,14 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on desired state test");
             return Err(Error::Timeout);
         }
 
         let svc = svc_api.get(&(zk_name.clone() + "-headless")).await;
         match svc {
             Err(e) => {
-                println!("Get headless service failed with error {}.", e);
+                info!("Get headless service failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -126,7 +128,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
         let svc = svc_api.get(&(zk_name.clone() + "-client")).await;
         match svc {
             Err(e) => {
-                println!("Get client service failed with error {}.", e);
+                info!("Get client service failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -135,7 +137,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
         let svc = svc_api.get(&(zk_name.clone() + "-admin-server")).await;
         match svc {
             Err(e) => {
-                println!("Get admin server service failed with error {}.", e);
+                info!("Get admin server service failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -144,7 +146,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
         let cm = cm_api.get(&(zk_name.clone() + "-configmap")).await;
         match cm {
             Err(e) => {
-                println!("Get config map failed with error {}.", e);
+                info!("Get config map failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -154,17 +156,17 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Stateful set spec is not consistent with zookeeper cluster spec. E2e test failed.");
+                    error!("Stateful set spec is not consistent with zookeeper cluster spec. E2e test failed.");
                     return Err(Error::ZookeeperStsFailed);
                 }
-                println!("Stateful set is found as expected.");
+                info!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -175,10 +177,10 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -192,7 +194,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
             }
         };
     }
-    println!("Desired state test passed.");
+    info!("Desired state test passed.");
     Ok(())
 }
 
@@ -203,6 +205,7 @@ pub async fn status_test(client: Client, zk_name: String) -> Result<(), Error> {
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on status test");
             return Err(Error::Timeout);
         }
         if run_command(
@@ -213,11 +216,11 @@ pub async fn status_test(client: Client, zk_name: String) -> Result<(), Error> {
         .0
         .contains("ready_replicas: 3")
         {
-            println!("Status gets updated to 3 ready replicas now.");
+            info!("Status gets updated to 3 ready replicas now.");
             break;
         }
     }
-    println!("Status test passed.");
+    info!("Status test passed.");
     Ok(())
 }
 
@@ -243,6 +246,7 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on scaling test");
             return Err(Error::Timeout);
         }
 
@@ -250,19 +254,17 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(5) {
-                    println!(
-                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
-                    );
+                    info!("Stateful set spec is not consistent with zookeeper cluster spec yet.");
                     continue;
                 }
-                println!("Stateful set is found as expected.");
+                info!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                 } else if *sts
                     .status
                     .as_ref()
@@ -272,10 +274,10 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
                     .unwrap()
                     == 5
                 {
-                    println!("Scale up is done with 5 replicas ready.");
+                    info!("Scale up is done with 5 replicas ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Scale up is in progress. {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -307,6 +309,7 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on scaling test");
             return Err(Error::Timeout);
         }
 
@@ -314,19 +317,17 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!(
-                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
-                    );
+                    info!("Stateful set spec is not consistent with zookeeper cluster spec yet.");
                     continue;
                 }
-                println!("Stateful set is found as expected.");
+                info!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                 } else if *sts
                     .status
                     .as_ref()
@@ -337,21 +338,21 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
                     == 3
                 {
                     if !persistent {
-                        println!("Scale down is done with 3 pods ready.");
+                        info!("Scale down is done with 3 pods ready.");
                         break;
                     } else {
                         let pvcs = pvc_api.list(&ListParams::default()).await;
                         let pvc_num = pvcs.unwrap().items.len();
                         if pvc_num == 3 {
-                            println!("Scale down is done with 3 pods ready and 3 pvcs.");
+                            info!("Scale down is done with 3 pods ready and 3 pvcs.");
                             break;
                         } else {
-                            println!("Scale down is in progress. {} pvcs exist", pvc_num);
+                            info!("Scale down is in progress. {} pvcs exist", pvc_num);
                             continue;
                         }
                     }
                 } else {
-                    println!(
+                    info!(
                         "Scale down is in progress. {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -383,25 +384,24 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on scaling test");
             return Err(Error::Timeout);
         }
 
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(5) {
-                    println!(
-                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
-                    );
+                    info!("Stateful set spec is not consistent with zookeeper cluster spec yet.");
                     continue;
                 }
-                println!("Stateful set is found as expected.");
+                info!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                 } else if *sts
                     .status
                     .as_ref()
@@ -411,10 +411,10 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
                     .unwrap()
                     == 5
                 {
-                    println!("Scale up is done with 5 replicas ready.");
+                    info!("Scale up is done with 5 replicas ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Scale up is in progress. {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -429,7 +429,7 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
         };
     }
 
-    println!("Scaling test passed.");
+    info!("Scaling test passed.");
     Ok(())
 }
 
@@ -455,6 +455,7 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on relabel test");
             return Err(Error::Timeout);
         }
 
@@ -462,7 +463,7 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
@@ -479,12 +480,12 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
                     .unwrap()
                     .contains_key("key")
                 {
-                    println!("Label for pod is not updated yet");
+                    info!("Label for pod is not updated yet");
                     continue;
                 }
 
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    println!("No stateful set pod is updated yet.");
+                    info!("No stateful set pod is updated yet.");
                     continue;
                 } else if *sts
                     .status
@@ -495,9 +496,9 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
                     .unwrap()
                     == 3
                 {
-                    println!("Relabel is done.");
+                    info!("Relabel is done.");
                 } else {
-                    println!(
+                    info!(
                         "Relabel is in progress. {} pods are updated now.",
                         sts.status
                             .as_ref()
@@ -510,7 +511,7 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -521,10 +522,10 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -539,7 +540,7 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
         };
     }
 
-    println!("Relabel test passed.");
+    info!("Relabel test passed.");
     Ok(())
 }
 
@@ -565,6 +566,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on upgrading test");
             return Err(Error::Timeout);
         }
 
@@ -572,12 +574,12 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    println!("No stateful set pod is updated yet.");
+                    info!("No stateful set pod is updated yet.");
                     continue;
                 } else if *sts
                     .status
@@ -588,9 +590,9 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
                     .unwrap()
                     == 3
                 {
-                    println!("Upgrading is done.");
+                    info!("Upgrading is done.");
                 } else {
-                    println!(
+                    info!(
                         "Upgrading is in progress. {} pods are updated now.",
                         sts.status
                             .as_ref()
@@ -603,7 +605,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -614,10 +616,10 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -632,7 +634,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
         };
     }
 
-    println!("Upgrading test passed.");
+    info!("Upgrading test passed.");
     Ok(())
 }
 
@@ -658,6 +660,7 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on reconfiguration test");
             return Err(Error::Timeout);
         }
 
@@ -665,12 +668,12 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get stateful set failed with error {}.", e);
+                info!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
-                    println!("No stateful set pod is updated yet.");
+                    info!("No stateful set pod is updated yet.");
                     continue;
                 } else if *sts
                     .status
@@ -681,9 +684,9 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
                     .unwrap()
                     == 3
                 {
-                    println!("Reconfiguration is done.");
+                    info!("Reconfiguration is done.");
                 } else {
-                    println!(
+                    info!(
                         "Reconfiguration is in progress. {} pods are updated now.",
                         sts.status
                             .as_ref()
@@ -696,7 +699,7 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
-                    println!("No stateful set pod is ready.");
+                    info!("No stateful set pod is ready.");
                     continue;
                 } else if *sts
                     .status
@@ -707,10 +710,10 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
                     .unwrap()
                     == 3
                 {
-                    println!("All stateful set pods are ready.");
+                    info!("All stateful set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         sts.status
                             .as_ref()
@@ -737,17 +740,17 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("Reconfiguration test failed with {}.", err);
+        error!("Reconfiguration test failed with {}.", err);
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
-        println!("{}", out);
+        info!("{}", out);
         if !out.contains("initLimit=15") {
-            println!("Test failed because of unexpected zoo.cfg data.");
+            error!("Test failed because of unexpected zoo.cfg data.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }
 
-    println!("Reconfiguration test passed.");
+    info!("Reconfiguration test passed.");
     Ok(())
 }
 
@@ -777,12 +780,12 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("ZK workload test failed with {}.", err);
+        error!("ZK workload test failed with {}.", err);
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
-        println!("{}", out);
+        info!("{}", out);
         if !out.contains("test-data") {
-            println!("Test failed because of unexpected get output.");
+            error!("Test failed because of unexpected get output.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }
@@ -805,12 +808,12 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("ZK workload test failed with {}.", err);
+        error!("ZK workload test failed with {}.", err);
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
-        println!("{}", out);
+        info!("{}", out);
         if !out.contains("test-data-2") {
-            println!("Test failed because of unexpected get output.");
+            error!("Test failed because of unexpected get output.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }
@@ -825,17 +828,17 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("ZK workload test failed with {}.", err);
+        error!("ZK workload test failed with {}.", err);
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
-        println!("{}", out);
+        info!("{}", out);
         if !out.contains("test-data-2") {
-            println!("Test failed because of unexpected get output.");
+            error!("Test failed because of unexpected get output.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }
 
-    println!("Zookeeper workload test passed.");
+    info!("Zookeeper workload test passed.");
     Ok(())
 }
 
@@ -855,17 +858,17 @@ pub async fn zk_workload_test2(client: Client, zk_name: String) -> Result<(), Er
         .await?;
     let (out, err) = get_output_and_err(attached).await;
     if err != "" {
-        println!("ZK workload test failed with {}.", err);
+        error!("ZK workload test failed with {}.", err);
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
-        println!("{}", out);
+        info!("{}", out);
         if !out.contains("test-data-2") {
-            println!("Test failed because of unexpected get output.");
+            error!("Test failed because of unexpected get output.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }
 
-    println!("Zookeeper workload test2 passed.");
+    info!("Zookeeper workload test2 passed.");
     Ok(())
 }
 
@@ -876,11 +879,11 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let zk_crd = crd_api.get("zookeeperclusters.anvil.dev").await;
     match zk_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -896,7 +899,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     upgrading_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test2(client.clone(), zk_name.clone()).await?; // Test if the data is still there after upgrading
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }
 
@@ -907,11 +910,11 @@ pub async fn zookeeper_scaling_e2e_test() -> Result<(), Error> {
     let zk_crd = crd_api.get("zookeeperclusters.anvil.dev").await;
     match zk_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -924,7 +927,7 @@ pub async fn zookeeper_scaling_e2e_test() -> Result<(), Error> {
     scaling_test(client.clone(), zk_name.clone(), true).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }
 
@@ -935,11 +938,11 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
     let zk_crd = crd_api.get("zookeeperclusters.anvil.dev").await;
     match zk_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -952,6 +955,6 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
     scaling_test(client.clone(), zk_name.clone(), false).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }

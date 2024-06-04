@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::core::v1::{Pod, ServiceAccount, Service};
+use k8s_openapi::api::core::v1::{Pod, Service, ServiceAccount};
 use k8s_openapi::api::rbac::v1::RoleBinding;
 use k8s_openapi::api::{apps::v1::DaemonSet, rbac::v1::Role};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
+use tracing::*;
 
 use crate::common::*;
 
@@ -115,6 +116,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on desired state test");
             return Err(Error::Timeout);
         }
         // Check daemon set
@@ -127,7 +129,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         let role = role_api.get(&(fb_name.clone() + "-role")).await;
         match role {
             Err(e) => {
-                println!("Get role failed with error {}.", e);
+                info!("Get role failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -136,7 +138,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         let sa = sa_api.get(&fb_name.clone()).await;
         match sa {
             Err(e) => {
-                println!("Get service account failed with error {}.", e);
+                info!("Get service account failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -145,7 +147,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         let rb = rb_api.get(&(fb_name.clone() + "-role-binding")).await;
         match rb {
             Err(e) => {
-                println!("Get role binding failed with error {}.", e);
+                info!("Get role binding failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -154,7 +156,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         let svc = svc_api.get(&fb_name).await;
         match svc {
             Err(e) => {
-                println!("Get service failed with error {}.", e);
+                info!("Get service failed with error {}.", e);
                 continue;
             }
             _ => {}
@@ -163,16 +165,16 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
         let ds = ds_api.get(&fb_name).await;
         match ds {
             Err(e) => {
-                println!("Get daemon set failed with error {}.", e);
+                info!("Get daemon set failed with error {}.", e);
                 continue;
             }
             Ok(ds) => {
                 if ds.status.as_ref().unwrap().number_ready == node_number() {
                     // this number depends on the number of nodes
-                    println!("All daemons are ready now.");
+                    info!("All daemons are ready now.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} daemons are ready now.",
                         ds.status.as_ref().unwrap().number_ready
                     );
@@ -180,7 +182,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
             }
         };
     }
-    println!("Desired state test passed.");
+    info!("Desired state test passed.");
     Ok(())
 }
 
@@ -206,6 +208,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on relabel test");
             return Err(Error::Timeout);
         }
 
@@ -213,7 +216,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
         let ds = ds_api.get(&fb_name).await;
         match ds {
             Err(e) => {
-                println!("Get daemon set failed with error {}.", e);
+                info!("Get daemon set failed with error {}.", e);
                 continue;
             }
             Ok(ds) => {
@@ -230,7 +233,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
                     .unwrap()
                     .contains_key("key")
                 {
-                    println!("Label for pod is not updated yet");
+                    info!("Label for pod is not updated yet");
                     continue;
                 }
 
@@ -241,7 +244,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
                     .updated_number_scheduled
                     .is_none()
                 {
-                    println!("No daemon set pod is updated yet.");
+                    info!("No daemon set pod is updated yet.");
                     continue;
                 } else if *ds
                     .status
@@ -252,9 +255,9 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
                     .unwrap()
                     == node_number()
                 {
-                    println!("Relabel is done.");
+                    info!("Relabel is done.");
                 } else {
-                    println!(
+                    info!(
                         "Relabel is in progress. {} pods are updated now.",
                         ds.status
                             .as_ref()
@@ -267,10 +270,10 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
                 }
 
                 if ds.status.as_ref().unwrap().number_ready == node_number() {
-                    println!("All daemon set pods are ready.");
+                    info!("All daemon set pods are ready.");
                     break;
                 } else {
-                    println!(
+                    info!(
                         "Only {} pods are ready now.",
                         ds.status.as_ref().unwrap().number_ready
                     );
@@ -280,7 +283,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
         };
     }
 
-    println!("Relabel test passed.");
+    info!("Relabel test passed.");
     Ok(())
 }
 
@@ -306,6 +309,7 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
+            error!("Time out on service selector test");
             return Err(Error::Timeout);
         }
 
@@ -313,7 +317,7 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
         let svc = svc_api.get(&fb_name).await;
         match svc {
             Err(e) => {
-                println!("Get service failed with error {}.", e);
+                info!("Get service failed with error {}.", e);
                 continue;
             }
             Ok(svc) => {
@@ -326,16 +330,16 @@ pub async fn service_selector_test(client: Client, fb_name: String) -> Result<()
                     .unwrap()
                     .contains_key("never-match-anything")
                 {
-                    println!("Selector for service is updated yet");
+                    info!("Selector for service is updated yet");
                     break;
                 } else {
-                    println!("Selector for service is not updated yet");
+                    info!("Selector for service is not updated yet");
                 }
             }
         };
     }
 
-    println!("Service selector test passed.");
+    info!("Service selector test passed.");
     Ok(())
 }
 
@@ -346,11 +350,11 @@ pub async fn fluent_e2e_test() -> Result<(), Error> {
     let fb_crd = crd_api.get("fluentbits.anvil.dev").await;
     match fb_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
+            error!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
+            info!("CRD found, continue to run the e2e test.");
         }
     }
 
@@ -363,6 +367,6 @@ pub async fn fluent_e2e_test() -> Result<(), Error> {
     relabel_test(client.clone(), fb_name.clone()).await?;
     service_selector_test(client.clone(), fb_name.clone()).await?;
 
-    println!("E2e test passed.");
+    info!("E2e test passed.");
     Ok(())
 }

@@ -15,6 +15,7 @@ pub use serde_yaml;
 pub use thiserror;
 pub use tokio;
 pub use tracing;
+pub use tracing_subscriber;
 pub use zookeeper;
 
 #[derive(Debug, thiserror::Error)]
@@ -302,7 +303,8 @@ pub struct VStatefulSetSpec {
     #[serde(rename = "minReadySeconds")]
     pub min_ready_seconds: Option<i32>,
     #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
-    pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
+    pub persistent_volume_claim_retention_policy:
+        Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
     pub ordinals: Option<k8s_openapi::api::apps::v1::StatefulSetOrdinals>,
 }
 

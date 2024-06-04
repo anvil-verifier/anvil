@@ -14,6 +14,7 @@ use kube::{
 };
 use std::process::Command;
 use thiserror::Error;
+use tracing::*;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -72,18 +73,18 @@ pub async fn apply(yaml: String, client: Client, discovery: &Discovery) -> Resul
     let gvk = if let Some(tm) = &obj.types {
         GroupVersionKind::try_from(tm).unwrap()
     } else {
-        println!("cannot apply object without valid TypeMeta {:?}", obj);
+        error!("cannot apply object without valid TypeMeta {:?}", obj);
         return Err(Error::ApplyFailed);
     };
     let name = obj.name_any();
     if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
         let api = dynamic_api(ar, caps, client.clone(), namespace, false);
-        println!("Applying {}: \n{}", gvk.kind, serde_yaml::to_string(&obj)?);
+        info!("Applying {}: \n{}", gvk.kind, serde_yaml::to_string(&obj)?);
         let data: serde_json::Value = serde_json::to_value(&obj)?;
         let _r = api.patch(&name, &ssapply, &Patch::Apply(data)).await?;
-        println!("applied {} {}", gvk.kind, name);
+        info!("applied {} {}", gvk.kind, name);
     } else {
-        println!("Cannot apply document for unknown {:?}", gvk);
+        error!("Cannot apply document for unknown {:?}", gvk);
         return Err(Error::ApplyFailed);
     }
 
@@ -124,10 +125,10 @@ pub async fn get_output_and_err(mut attached: AttachedProcess) -> (String, Strin
 }
 
 pub fn run_command(program: &str, args: Vec<&str>, err_msg: &str) -> (String, String) {
-    println!("{} {}", program, args.join(" "));
+    info!("{} {}", program, args.join(" "));
     let cmd = Command::new(program).args(args).output().expect(err_msg);
-    println!("cmd output: {}", String::from_utf8_lossy(&cmd.stdout));
-    println!("cmd error: {}", String::from_utf8_lossy(&cmd.stderr));
+    info!("cmd output: {}", String::from_utf8_lossy(&cmd.stdout));
+    info!("cmd error: {}", String::from_utf8_lossy(&cmd.stderr));
     (
         String::from_utf8_lossy(&cmd.stdout).to_string(),
         String::from_utf8_lossy(&cmd.stderr).to_string(),

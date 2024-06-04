@@ -22,6 +22,7 @@ use deps_hack::kube::{
 };
 use deps_hack::kube_core::{ErrorResponse, NamespaceResourceScope};
 use deps_hack::serde::{de::DeserializeOwned, Serialize};
+use deps_hack::tracing::{error, info, warn};
 use deps_hack::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -61,19 +62,19 @@ where
         return reconcile_with::<K, ReconcilerType>(cr, ctx, fault_injection).await;
     };
 
-    println!("starting controller");
+    info!("starting controller");
     // TODO: the controller should also listen to the owned resources
     Controller::new(crs, watcher::Config::default()) // The controller's reconcile is triggered when a CR is created/updated
         .shutdown_on_signal()
         .run(reconcile, error_policy, Arc::new(Data { client })) // The reconcile function is registered
         .for_each(|res| async move {
             match res {
-                Ok(o) => println!("reconciled {:?}", o),
-                Err(e) => println!("reconcile failed: {}", e),
+                Ok(o) => info!("reconciled {:?}", o),
+                Err(e) => info!("reconcile failed: {}", e),
             }
         })
         .await;
-    println!("controller terminated");
+    info!("controller terminated");
     Ok(())
 }
 
@@ -121,14 +122,14 @@ where
         Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. }))
             if &reason == "NotFound" =>
         {
-            println!(
+            warn!(
                 "{} Custom resource {} not found, end reconcile",
                 log_header, cr_name
             );
             return Ok(Action::await_change());
         }
         Err(err) => {
-            println!(
+            warn!(
                 "{} Get custom resource {} failed with error: {}, will retry reconcile",
                 log_header, cr_name, err
             );
@@ -138,7 +139,7 @@ where
     }
     // Wrap the custom resource with Verus-friendly wrapper type (which has a ghost version, i.e., view)
     let cr = get_cr_resp.unwrap();
-    println!(
+    info!(
         "{} Get cr {}",
         log_header,
         deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap()
@@ -158,11 +159,11 @@ where
         check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
         if ReconcilerType::reconcile_done(&state) {
-            println!("{} done", log_header);
+            info!("{} done", log_header);
             break;
         }
         if ReconcilerType::reconcile_error(&state) {
-            println!("{} error", log_header);
+            warn!("{} error", log_header);
             return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
@@ -186,16 +187,13 @@ where
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse {
                                         res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!(
-                                        "{} Get {} failed with error: {}",
-                                        log_header, key, err
-                                    );
+                                    info!("{} Get {} failed with error: {}", log_header, key, err);
                                 }
                                 Ok(obj) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse {
                                         res: Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("{} Get {} done", log_header, key);
+                                    info!("{} Get {} done", log_header, key);
                                 }
                             }
                         }
@@ -212,10 +210,7 @@ where
                                     kube_resp = KubeAPIResponse::ListResponse(KubeListResponse {
                                         res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!(
-                                        "{} List {} failed with error: {}",
-                                        log_header, key, err
-                                    );
+                                    info!("{} List {} failed with error: {}", log_header, key, err);
                                 }
                                 Ok(obj_list) => {
                                     kube_resp = KubeAPIResponse::ListResponse(KubeListResponse {
@@ -225,7 +220,7 @@ where
                                             .map(|obj| DynamicObject::from_kube(obj))
                                             .collect()),
                                     });
-                                    println!("{} List {} done", log_header, key);
+                                    info!("{} List {} done", log_header, key);
                                 }
                             }
                         }
@@ -245,7 +240,7 @@ where
                                         KubeAPIResponse::CreateResponse(KubeCreateResponse {
                                             res: Err(kube_error_to_ghost(&err)),
                                         });
-                                    println!(
+                                    info!(
                                         "{} Create {} failed with error: {}",
                                         log_header, key, err
                                     );
@@ -255,7 +250,7 @@ where
                                         KubeAPIResponse::CreateResponse(KubeCreateResponse {
                                             res: Ok(DynamicObject::from_kube(obj)),
                                         });
-                                    println!("{} Create {} done", log_header, key);
+                                    info!("{} Create {} done", log_header, key);
                                 }
                             }
                         }
@@ -274,7 +269,7 @@ where
                                         KubeAPIResponse::DeleteResponse(KubeDeleteResponse {
                                             res: Err(kube_error_to_ghost(&err)),
                                         });
-                                    println!(
+                                    info!(
                                         "{} Delete {} failed with error: {}",
                                         log_header, key, err
                                     );
@@ -284,7 +279,7 @@ where
                                         KubeAPIResponse::DeleteResponse(KubeDeleteResponse {
                                             res: Ok(()),
                                         });
-                                    println!("{} Delete {} done", log_header, key);
+                                    info!("{} Delete {} done", log_header, key);
                                 }
                             }
                         }
@@ -304,7 +299,7 @@ where
                                         KubeAPIResponse::UpdateResponse(KubeUpdateResponse {
                                             res: Err(kube_error_to_ghost(&err)),
                                         });
-                                    println!(
+                                    info!(
                                         "{} Update {} failed with error: {}",
                                         log_header, key, err
                                     );
@@ -314,7 +309,7 @@ where
                                         KubeAPIResponse::UpdateResponse(KubeUpdateResponse {
                                             res: Ok(DynamicObject::from_kube(obj)),
                                         });
-                                    println!("{} Update {} done", log_header, key);
+                                    info!("{} Update {} done", log_header, key);
                                 }
                             }
                         }
@@ -344,7 +339,7 @@ where
                                             res: Err(kube_error_to_ghost(&err)),
                                         },
                                     );
-                                    println!(
+                                    info!(
                                         "{} UpdateStatus {} failed with error: {}",
                                         log_header, key, err
                                     );
@@ -355,7 +350,7 @@ where
                                             res: Ok(DynamicObject::from_kube(obj)),
                                         },
                                     );
-                                    println!("{} UpdateStatus {} done", log_header, key);
+                                    info!("{} UpdateStatus {} done", log_header, key);
                                 }
                             }
                         }
@@ -375,7 +370,7 @@ where
             // and fault injection option is on, then check whether to crash at this point
             let result = crash_or_continue(client, &cr_key, &log_header).await;
             if result.is_err() {
-                println!(
+                error!(
                     "{} crash_or_continue fails due to {}",
                     log_header,
                     result.unwrap_err()
