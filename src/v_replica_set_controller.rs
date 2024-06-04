@@ -13,14 +13,7 @@ pub mod temporal_logic;
 pub mod v_replica_set_controller;
 pub mod vstd_ext;
 
-use builtin::*;
-use builtin_macros::*;
-
-use crate::external_api::exec::*;
 use crate::v_replica_set_controller::exec::reconciler::VReplicaSetReconciler;
-use crate::v_replica_set_controller::trusted::exec_types::{
-    VReplicaSet, VReplicaSetReconcileState,
-};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -28,9 +21,6 @@ use deps_hack::tokio;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
 
-verus! {
-
-#[verifier(external)]
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -51,5 +41,4 @@ async fn main() -> Result<()> {
         println!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
     Ok(())
-}
 }

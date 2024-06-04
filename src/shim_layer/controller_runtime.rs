@@ -27,8 +27,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use vstd::{string::*, view::*};
 
-verus! {
-
 // The shim layer connects the verified reconciler to the trusted kube-rs APIs.
 // The key is to implement the reconcile function (impl FnMut(Arc<K>, Arc<Ctx>) -> ReconcilerFut),
 // which is required by the kube-rs framework to build a controller,
@@ -37,10 +35,17 @@ verus! {
 // run_controller prepares and runs the controller. It requires:
 // K: the custom resource type
 // ReconcilerType: the reconciler type
-#[verifier(external)]
 pub async fn run_controller<K, ReconcilerType>(fault_injection: bool) -> Result<()>
 where
-    K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
+    K: Clone
+        + Resource<Scope = NamespaceResourceScope>
+        + CustomResourceExt
+        + DeserializeOwned
+        + Debug
+        + Send
+        + Serialize
+        + Sync
+        + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ReconcilerType: Reconciler + Send + Sync + Default,
     ReconcilerType::R: ResourceWrapper<K> + Send,
@@ -53,9 +58,7 @@ where
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, ReconcilerType>(
-            cr, ctx, fault_injection
-        ).await;
+        return reconcile_with::<K, ReconcilerType>(cr, ctx, fault_injection).await;
     };
 
     println!("starting controller");
@@ -82,18 +85,30 @@ where
 // For each request from ReconcilerType::reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
 // It ends the loop when the ReconcilerType reports the reconcile is done (ReconcilerType::reconcile_done)
 // or encounters error (ReconcilerType::reconcile_error).
-#[verifier(external)]
-pub async fn reconcile_with<K, ReconcilerType>(cr: Arc<K>, ctx: Arc<Data>, fault_injection: bool) -> Result<Action, Error>
+pub async fn reconcile_with<K, ReconcilerType>(
+    cr: Arc<K>,
+    ctx: Arc<Data>,
+    fault_injection: bool,
+) -> Result<Action, Error>
 where
-    K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
+    K: Clone
+        + Resource<Scope = NamespaceResourceScope>
+        + CustomResourceExt
+        + DeserializeOwned
+        + Debug
+        + Serialize,
     K::DynamicType: Default + Clone + Debug,
     ReconcilerType: Reconciler,
     ReconcilerType::R: ResourceWrapper<K>,
 {
     let client = &ctx.client;
 
-    let cr_name = cr.meta().name.as_ref().ok_or_else(|| Error::ShimLayerError("Custom resource misses \".metadata.name\"".to_string()))?;
-    let cr_namespace = cr.meta().namespace.as_ref().ok_or_else(|| Error::ShimLayerError("Custom resources misses \".metadata.namespace\"".to_string()))?;
+    let cr_name = cr.meta().name.as_ref().ok_or_else(|| {
+        Error::ShimLayerError("Custom resource misses \".metadata.name\"".to_string())
+    })?;
+    let cr_namespace = cr.meta().namespace.as_ref().ok_or_else(|| {
+        Error::ShimLayerError("Custom resources misses \".metadata.namespace\"".to_string())
+    })?;
     let cr_kind = K::kind(&K::DynamicType::default()).to_string();
 
     let cr_key = format!("{}/{}/{}", cr_kind, cr_namespace, cr_name);
@@ -103,23 +118,37 @@ where
     // Get the custom resource by a quorum read to Kubernetes' storage (etcd) to get the most updated custom resource
     let get_cr_resp = cr_api.get(&cr_name).await;
     match get_cr_resp {
-        Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. })) if &reason == "NotFound" => {
-            println!("{} Custom resource {} not found, end reconcile", log_header, cr_name);
+        Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. }))
+            if &reason == "NotFound" =>
+        {
+            println!(
+                "{} Custom resource {} not found, end reconcile",
+                log_header, cr_name
+            );
             return Ok(Action::await_change());
-        },
+        }
         Err(err) => {
-            println!("{} Get custom resource {} failed with error: {}, will retry reconcile", log_header, cr_name, err);
+            println!(
+                "{} Get custom resource {} failed with error: {}, will retry reconcile",
+                log_header, cr_name, err
+            );
             return Ok(Action::requeue(Duration::from_secs(60)));
-        },
-        _ => {},
+        }
+        _ => {}
     }
     // Wrap the custom resource with Verus-friendly wrapper type (which has a ghost version, i.e., view)
     let cr = get_cr_resp.unwrap();
-    println!("{} Get cr {}", log_header, deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
+    println!(
+        "{} Get cr {}",
+        log_header,
+        deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap()
+    );
 
     let cr_wrapper = ReconcilerType::R::from_kube(cr);
     let mut state = ReconcilerType::reconcile_init_state();
-    let mut resp_option: Option<Response<<ReconcilerType::ExternalAPIType as ExternalAPIShimLayer>::Output>> = None;
+    let mut resp_option: Option<
+        Response<<ReconcilerType::ExternalAPIType as ExternalAPIShimLayer>::Output>,
+    > = None;
     // check_fault_timing is only set to true right after the controller issues any create, update or delete request,
     // or external request
     let mut check_fault_timing: bool;
@@ -137,7 +166,8 @@ where
             return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, request_option) = ReconcilerType::reconcile_core(&cr_wrapper, resp_option, state);
+        let (state_prime, request_option) =
+            ReconcilerType::reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match request_option {
             Some(request) => match request {
@@ -146,145 +176,197 @@ where
                     match req {
                         KubeAPIRequest::GetRequest(get_req) => {
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), &get_req.namespace, get_req.api_resource.as_kube_ref()
+                                client.clone(),
+                                &get_req.namespace,
+                                get_req.api_resource.as_kube_ref(),
                             );
                             let key = get_req.key();
                             match api.get(&get_req.name).await {
                                 Err(err) => {
-                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
+                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse {
                                         res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("{} Get {} failed with error: {}", log_header, key, err);
-                                },
+                                    println!(
+                                        "{} Get {} failed with error: {}",
+                                        log_header, key, err
+                                    );
+                                }
                                 Ok(obj) => {
-                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
+                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse {
                                         res: Ok(DynamicObject::from_kube(obj)),
                                     });
                                     println!("{} Get {} done", log_header, key);
-                                },
+                                }
                             }
-                        },
+                        }
                         KubeAPIRequest::ListRequest(list_req) => {
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), &list_req.namespace, list_req.api_resource.as_kube_ref()
+                                client.clone(),
+                                &list_req.namespace,
+                                list_req.api_resource.as_kube_ref(),
                             );
                             let key = list_req.key();
                             let lp = ListParams::default();
                             match api.list(&lp).await {
                                 Err(err) => {
-                                    kube_resp = KubeAPIResponse::ListResponse(KubeListResponse{
+                                    kube_resp = KubeAPIResponse::ListResponse(KubeListResponse {
                                         res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("{} List {} failed with error: {}", log_header, key, err);
-                                },
+                                    println!(
+                                        "{} List {} failed with error: {}",
+                                        log_header, key, err
+                                    );
+                                }
                                 Ok(obj_list) => {
-                                    kube_resp = KubeAPIResponse::ListResponse(KubeListResponse{
-                                        res: Ok(obj_list.items.into_iter().map(|obj| DynamicObject::from_kube(obj)).collect()),
+                                    kube_resp = KubeAPIResponse::ListResponse(KubeListResponse {
+                                        res: Ok(obj_list
+                                            .items
+                                            .into_iter()
+                                            .map(|obj| DynamicObject::from_kube(obj))
+                                            .collect()),
                                     });
                                     println!("{} List {} done", log_header, key);
-                                },
+                                }
                             }
-                        },
+                        }
                         KubeAPIRequest::CreateRequest(create_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), &create_req.namespace, create_req.api_resource.as_kube_ref()
+                                client.clone(),
+                                &create_req.namespace,
+                                create_req.api_resource.as_kube_ref(),
                             );
                             let pp = PostParams::default();
                             let key = create_req.key();
                             let obj_to_create = create_req.obj.into_kube();
                             match api.create(&pp, &obj_to_create).await {
                                 Err(err) => {
-                                    kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
-                                        res: Err(kube_error_to_ghost(&err)),
-                                    });
-                                    println!("{} Create {} failed with error: {}", log_header, key, err);
-                                },
+                                    kube_resp =
+                                        KubeAPIResponse::CreateResponse(KubeCreateResponse {
+                                            res: Err(kube_error_to_ghost(&err)),
+                                        });
+                                    println!(
+                                        "{} Create {} failed with error: {}",
+                                        log_header, key, err
+                                    );
+                                }
                                 Ok(obj) => {
-                                    kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
-                                        res: Ok(DynamicObject::from_kube(obj)),
-                                    });
+                                    kube_resp =
+                                        KubeAPIResponse::CreateResponse(KubeCreateResponse {
+                                            res: Ok(DynamicObject::from_kube(obj)),
+                                        });
                                     println!("{} Create {} done", log_header, key);
-                                },
+                                }
                             }
-                        },
+                        }
                         KubeAPIRequest::DeleteRequest(delete_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), &delete_req.namespace, delete_req.api_resource.as_kube_ref()
+                                client.clone(),
+                                &delete_req.namespace,
+                                delete_req.api_resource.as_kube_ref(),
                             );
                             let dp = DeleteParams::default();
                             let key = delete_req.key();
                             match api.delete(&delete_req.name, &dp).await {
                                 Err(err) => {
-                                    kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
-                                        res: Err(kube_error_to_ghost(&err)),
-                                    });
-                                    println!("{} Delete {} failed with error: {}", log_header, key, err);
-                                },
+                                    kube_resp =
+                                        KubeAPIResponse::DeleteResponse(KubeDeleteResponse {
+                                            res: Err(kube_error_to_ghost(&err)),
+                                        });
+                                    println!(
+                                        "{} Delete {} failed with error: {}",
+                                        log_header, key, err
+                                    );
+                                }
                                 Ok(_) => {
-                                    kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
-                                        res: Ok(()),
-                                    });
+                                    kube_resp =
+                                        KubeAPIResponse::DeleteResponse(KubeDeleteResponse {
+                                            res: Ok(()),
+                                        });
                                     println!("{} Delete {} done", log_header, key);
-                                },
+                                }
                             }
-                        },
+                        }
                         KubeAPIRequest::UpdateRequest(update_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), &update_req.namespace, update_req.api_resource.as_kube_ref()
+                                client.clone(),
+                                &update_req.namespace,
+                                update_req.api_resource.as_kube_ref(),
                             );
                             let pp = PostParams::default();
                             let key = update_req.key();
                             let obj_to_update = update_req.obj.into_kube();
                             match api.replace(&update_req.name, &pp, &obj_to_update).await {
                                 Err(err) => {
-                                    kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
-                                        res: Err(kube_error_to_ghost(&err)),
-                                    });
-                                    println!("{} Update {} failed with error: {}", log_header, key, err);
-                                },
+                                    kube_resp =
+                                        KubeAPIResponse::UpdateResponse(KubeUpdateResponse {
+                                            res: Err(kube_error_to_ghost(&err)),
+                                        });
+                                    println!(
+                                        "{} Update {} failed with error: {}",
+                                        log_header, key, err
+                                    );
+                                }
                                 Ok(obj) => {
-                                    kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
-                                        res: Ok(DynamicObject::from_kube(obj)),
-                                    });
+                                    kube_resp =
+                                        KubeAPIResponse::UpdateResponse(KubeUpdateResponse {
+                                            res: Ok(DynamicObject::from_kube(obj)),
+                                        });
                                     println!("{} Update {} done", log_header, key);
-                                },
+                                }
                             }
-                        },
+                        }
                         KubeAPIRequest::UpdateStatusRequest(update_status_req) => {
                             check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                                client.clone(), &update_status_req.namespace, update_status_req.api_resource.as_kube_ref()
+                                client.clone(),
+                                &update_status_req.namespace,
+                                update_status_req.api_resource.as_kube_ref(),
                             );
                             let pp = PostParams::default();
                             let key = update_status_req.key();
                             let obj_to_update = update_status_req.obj.into_kube();
                             // Here we assume serde_json always succeed
-                            match api.replace_status(&update_status_req.name, &pp, deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap()).await {
+                            match api
+                                .replace_status(
+                                    &update_status_req.name,
+                                    &pp,
+                                    deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update)
+                                        .unwrap(),
+                                )
+                                .await
+                            {
                                 Err(err) => {
-                                    kube_resp = KubeAPIResponse::UpdateStatusResponse(KubeUpdateStatusResponse{
-                                        res: Err(kube_error_to_ghost(&err)),
-                                    });
-                                    println!("{} UpdateStatus {} failed with error: {}", log_header, key, err);
-                                },
+                                    kube_resp = KubeAPIResponse::UpdateStatusResponse(
+                                        KubeUpdateStatusResponse {
+                                            res: Err(kube_error_to_ghost(&err)),
+                                        },
+                                    );
+                                    println!(
+                                        "{} UpdateStatus {} failed with error: {}",
+                                        log_header, key, err
+                                    );
+                                }
                                 Ok(obj) => {
-                                    kube_resp = KubeAPIResponse::UpdateStatusResponse(KubeUpdateStatusResponse{
-                                        res: Ok(DynamicObject::from_kube(obj)),
-                                    });
+                                    kube_resp = KubeAPIResponse::UpdateStatusResponse(
+                                        KubeUpdateStatusResponse {
+                                            res: Ok(DynamicObject::from_kube(obj)),
+                                        },
+                                    );
                                     println!("{} UpdateStatus {} done", log_header, key);
-                                },
+                                }
                             }
-                        },
+                        }
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
-                },
+                }
                 Request::ExternalRequest(req) => {
                     check_fault_timing = true;
                     let external_resp = ReconcilerType::ExternalAPIType::call_external_api(req);
                     resp_option = Some(Response::ExternalResponse(external_resp));
-                },
+                }
             },
             _ => resp_option = None,
         }
@@ -293,7 +375,11 @@ where
             // and fault injection option is on, then check whether to crash at this point
             let result = crash_or_continue(client, &cr_key, &log_header).await;
             if result.is_err() {
-                println!("{} crash_or_continue fails due to {}", log_header, result.unwrap_err());
+                println!(
+                    "{} crash_or_continue fails due to {}",
+                    log_header,
+                    result.unwrap_err()
+                );
             }
         }
         state = state_prime;
@@ -303,7 +389,6 @@ where
 }
 
 // error_policy defines the controller's behavior when the reconcile ends with an error.
-#[verifier(external)]
 pub fn error_policy<K>(_object: Arc<K>, _error: &Error, _ctx: Arc<Data>) -> Action
 where
     K: Clone + Resource + DeserializeOwned + Debug + Send + Sync + 'static,
@@ -314,7 +399,6 @@ where
 
 // Data is passed to reconcile_with.
 // It carries the client that communicates with Kubernetes API.
-#[verifier(external_body)]
 pub struct Data {
     pub client: Client,
 }
@@ -323,7 +407,6 @@ pub struct Data {
 // to the form that can be processed by reconcile_core.
 
 // TODO: match more error types.
-#[verifier(external)]
 pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
     match error {
         deps_hack::kube::Error::Api(error_resp) => {
@@ -346,9 +429,7 @@ pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
             } else {
                 APIError::Other
             }
-        },
+        }
         _ => APIError::Other,
     }
-}
-
 }
