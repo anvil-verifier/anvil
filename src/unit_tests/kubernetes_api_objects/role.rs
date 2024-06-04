@@ -7,17 +7,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for role
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let role = Role::default();
-    assert_eq!(role.into_kube(), deps_hack::k8s_openapi::api::rbac::v1::Role::default());
+    assert_eq!(
+        role.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::Role::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_metadata() {
     let mut role = Role::default();
     let mut object_meta = ObjectMeta::default();
@@ -27,7 +26,6 @@ pub fn test_set_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_metadata() {
     let mut role = Role::default();
     let mut object_meta = ObjectMeta::default();
@@ -37,7 +35,6 @@ pub fn test_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_rules() {
     let mut role = Role::default();
     let policy_rule_gen = || {
@@ -89,7 +86,6 @@ pub fn test_set_rules() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut role = Role::default();
     let mut object_meta = ObjectMeta::default();
@@ -140,77 +136,89 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_api_resource(){
+pub fn test_api_resource() {
     let api_resource = Role::api_resource();
     assert_eq!(api_resource.into_kube().kind, "Role");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_role =
-        deps_hack::k8s_openapi::api::rbac::v1::Role {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                namespace: Some("namespace".to_string()),
+    let kube_role = deps_hack::k8s_openapi::api::rbac::v1::Role {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
+            ..Default::default()
+        },
+        rules: Some(vec![
+            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+                api_groups: Some(vec![
+                    "api_groups_1_1".to_string(),
+                    "api_groups_1_2".to_string(),
+                ]),
+                resources: Some(vec![
+                    "resources_1_1".to_string(),
+                    "resources_1_2".to_string(),
+                ]),
+                verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
                 ..Default::default()
             },
-            rules: Some(
-                vec![
-                    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
-                        api_groups: Some(vec!["api_groups_1_1".to_string(), "api_groups_1_2".to_string()]),
-                        resources: Some(vec!["resources_1_1".to_string(), "resources_1_2".to_string()]),
-                        verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
-                        ..Default::default()
-                    },
-                    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
-                        api_groups: Some(vec!["api_groups_2_1".to_string(), "api_groups_2_2".to_string()]),
-                        resources: Some(vec!["resources_2_1".to_string(), "resources_2_2".to_string()]),
-                        verbs: vec!["verbs_2_1".to_string(), "verbs_2_2".to_string()],
-                        ..Default::default()
-                    }
-                ]
-            ),
-            ..Default::default()
-        };
+            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+                api_groups: Some(vec![
+                    "api_groups_2_1".to_string(),
+                    "api_groups_2_2".to_string(),
+                ]),
+                resources: Some(vec![
+                    "resources_2_1".to_string(),
+                    "resources_2_2".to_string(),
+                ]),
+                verbs: vec!["verbs_2_1".to_string(), "verbs_2_2".to_string()],
+                ..Default::default()
+            },
+        ]),
+        ..Default::default()
+    };
 
     let role = Role::from_kube(kube_role.clone());
 
-    assert_eq!(
-        role.into_kube(),
-        kube_role
-    );
+    assert_eq!(role.into_kube(), kube_role);
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_marshal() {
-    let kube_role =
-        deps_hack::k8s_openapi::api::rbac::v1::Role {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                namespace: Some("namespace".to_string()),
+    let kube_role = deps_hack::k8s_openapi::api::rbac::v1::Role {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
+            ..Default::default()
+        },
+        rules: Some(vec![
+            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+                api_groups: Some(vec![
+                    "api_groups_1_1".to_string(),
+                    "api_groups_1_2".to_string(),
+                ]),
+                resources: Some(vec![
+                    "resources_1_1".to_string(),
+                    "resources_1_2".to_string(),
+                ]),
+                verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
                 ..Default::default()
             },
-            rules: Some(
-                vec![
-                    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
-                        api_groups: Some(vec!["api_groups_1_1".to_string(), "api_groups_1_2".to_string()]),
-                        resources: Some(vec!["resources_1_1".to_string(), "resources_1_2".to_string()]),
-                        verbs: vec!["verbs_1_1".to_string(), "verbs_1_2".to_string()],
-                        ..Default::default()
-                    },
-                    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
-                        api_groups: Some(vec!["api_groups_2_1".to_string(), "api_groups_2_2".to_string()]),
-                        resources: Some(vec!["resources_2_1".to_string(), "resources_2_2".to_string()]),
-                        verbs: vec!["verbs_2_1".to_string(), "verbs_2_2".to_string()],
-                        ..Default::default()
-                    }
-                ]
-            ),
-            ..Default::default()
-        };
+            deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+                api_groups: Some(vec![
+                    "api_groups_2_1".to_string(),
+                    "api_groups_2_2".to_string(),
+                ]),
+                resources: Some(vec![
+                    "resources_2_1".to_string(),
+                    "resources_2_2".to_string(),
+                ]),
+                verbs: vec!["verbs_2_1".to_string(), "verbs_2_2".to_string()],
+                ..Default::default()
+            },
+        ]),
+        ..Default::default()
+    };
 
     let role = Role::from_kube(kube_role.clone());
 
@@ -218,5 +226,4 @@ pub fn test_marshal() {
         kube_role,
         Role::unmarshal(role.marshal()).unwrap().into_kube()
     );
-}
 }

@@ -9,10 +9,7 @@ use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for affinity
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_affinity = deps_hack::k8s_openapi::api::core::v1::Affinity {
         node_affinity: Some(deps_hack::k8s_openapi::api::core::v1::NodeAffinity {
@@ -29,5 +26,4 @@ pub fn test_kube() {
     let affinity = Affinity::from_kube(kube_affinity.clone());
 
     assert_eq!(affinity.into_kube(), kube_affinity);
-}
 }

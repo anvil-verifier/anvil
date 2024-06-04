@@ -9,10 +9,7 @@ use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for owner reference
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_owner_reference =
         deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference {
@@ -23,9 +20,5 @@ pub fn test_kube() {
             ..Default::default()
         };
     let owner_reference = OwnerReference::from_kube(kube_owner_reference.clone());
-    assert_eq!(
-        owner_reference.into_kube(),
-        kube_owner_reference
-    );
-}
+    assert_eq!(owner_reference.into_kube(), kube_owner_reference);
 }

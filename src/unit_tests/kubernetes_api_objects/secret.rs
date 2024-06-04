@@ -7,17 +7,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for secret
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let secret = Secret::default();
-    assert_eq!(secret.into_kube(), deps_hack::k8s_openapi::api::core::v1::Secret::default());
+    assert_eq!(
+        secret.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::Secret::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_metadata() {
     let mut secret = Secret::default();
     let mut metadata = ObjectMeta::default();
@@ -28,7 +27,6 @@ pub fn test_set_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_metadata() {
     let mut secret = Secret::default();
     let mut metadata = ObjectMeta::default();
@@ -39,7 +37,6 @@ pub fn test_metadata() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_data() {
     let mut secret = Secret::default();
     let mut data = StringMap::new();
@@ -53,7 +50,6 @@ pub fn test_set_data() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_data() {
     let mut secret = Secret::default();
     let temp = secret.data();
@@ -67,7 +63,6 @@ pub fn test_data() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut secret = Secret::default();
     let mut metadata = ObjectMeta::default();
@@ -82,65 +77,50 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_api_resource() {
     let api_resource = Secret::api_resource();
     assert_eq!(api_resource.into_kube().kind, "Secret");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_secret =
-        deps_hack::k8s_openapi::api::core::v1::Secret {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                namespace: Some("namespace".to_string()),
-                ..Default::default()
-            },
-            data: Some(
-                std::collections::BTreeMap::from_iter(vec![(
-                    "key".to_string(),
-                    deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
-                )]),
-            ),
+    let kube_secret = deps_hack::k8s_openapi::api::core::v1::Secret {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
             ..Default::default()
-        };
+        },
+        data: Some(std::collections::BTreeMap::from_iter(vec![(
+            "key".to_string(),
+            deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
+        )])),
+        ..Default::default()
+    };
 
     let secret = Secret::from_kube(kube_secret.clone());
 
-    assert_eq!(
-        secret.into_kube(),
-        kube_secret
-    );
+    assert_eq!(secret.into_kube(), kube_secret);
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_marshal() {
-    let kube_secret =
-        deps_hack::k8s_openapi::api::core::v1::Secret {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                name: Some("name".to_string()),
-                namespace: Some("namespace".to_string()),
-                ..Default::default()
-            },
-            data: Some(
-                std::collections::BTreeMap::from_iter(vec![(
-                    "key".to_string(),
-                    deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
-                )]),
-            ),
+    let kube_secret = deps_hack::k8s_openapi::api::core::v1::Secret {
+        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("name".to_string()),
+            namespace: Some("namespace".to_string()),
             ..Default::default()
-        };
+        },
+        data: Some(std::collections::BTreeMap::from_iter(vec![(
+            "key".to_string(),
+            deps_hack::k8s_openapi::ByteString("value".to_string().into_bytes()),
+        )])),
+        ..Default::default()
+    };
 
     let secret = Secret::from_kube(kube_secret.clone());
 
     assert_eq!(
         kube_secret,
-        Secret::unmarshal(secret.marshal())
-            .unwrap()
-            .into_kube()
+        Secret::unmarshal(secret.marshal()).unwrap().into_kube()
     );
-}
 }

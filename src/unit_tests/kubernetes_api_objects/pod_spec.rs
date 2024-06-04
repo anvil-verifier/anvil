@@ -11,17 +11,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for pod spec
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let pod_template_spec = PodSpec::default();
-    assert_eq!(pod_template_spec.into_kube(), deps_hack::k8s_openapi::api::core::v1::PodSpec::default());
+    assert_eq!(
+        pod_template_spec.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::PodSpec::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
@@ -32,16 +31,17 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_affinity() {
     let mut pod_spec = PodSpec::default();
     let affinity = Affinity::from_kube(deps_hack::k8s_openapi::api::core::v1::Affinity::default());
     pod_spec.set_affinity(affinity);
-    assert_eq!(deps_hack::k8s_openapi::api::core::v1::Affinity::default(), pod_spec.into_kube().affinity.unwrap());
+    assert_eq!(
+        deps_hack::k8s_openapi::api::core::v1::Affinity::default(),
+        pod_spec.into_kube().affinity.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_containers() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
@@ -49,11 +49,13 @@ pub fn test_set_containers() {
     container.set_name("name".to_string());
     container2.set_name("name2".to_string());
     pod_spec.set_containers(vec![container.clone(), container2.clone()]);
-    assert_eq!(vec![container.into_kube(), container2.into_kube()], pod_spec.into_kube().containers);
+    assert_eq!(
+        vec![container.into_kube(), container2.into_kube()],
+        pod_spec.into_kube().containers
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_volumes() {
     let mut pod_spec = PodSpec::default();
     let mut volume = Volume::default();
@@ -61,11 +63,13 @@ pub fn test_set_volumes() {
     volume.set_name("name".to_string());
     volume2.set_name("name2".to_string());
     pod_spec.set_volumes(vec![volume.clone(), volume2.clone()]);
-    assert_eq!(vec![volume.into_kube(), volume2.into_kube()], pod_spec.into_kube().volumes.unwrap());
+    assert_eq!(
+        vec![volume.into_kube(), volume2.into_kube()],
+        pod_spec.into_kube().volumes.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_init_containers() {
     let mut pod_spec = PodSpec::default();
     let mut container = Container::default();
@@ -73,121 +77,148 @@ pub fn test_set_init_containers() {
     container.set_name("name".to_string());
     container2.set_name("name2".to_string());
     pod_spec.set_init_containers(vec![container.clone(), container2.clone()]);
-    assert_eq!(vec![container.into_kube(), container2.into_kube()], pod_spec.into_kube().init_containers.unwrap());
+    assert_eq!(
+        vec![container.into_kube(), container2.into_kube()],
+        pod_spec.into_kube().init_containers.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_service_account_name() {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name("name".to_string());
-    assert_eq!("name".to_string(), pod_spec.into_kube().service_account_name.unwrap());
+    assert_eq!(
+        "name".to_string(),
+        pod_spec.into_kube().service_account_name.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_tolerations() {
     let mut pod_spec = PodSpec::default();
-    let toleration = Toleration::from_kube(deps_hack::k8s_openapi::api::core::v1::Toleration::default());
+    let toleration =
+        Toleration::from_kube(deps_hack::k8s_openapi::api::core::v1::Toleration::default());
     pod_spec.set_tolerations(vec![toleration]);
-    assert_eq!(vec![deps_hack::k8s_openapi::api::core::v1::Toleration::default()], pod_spec.into_kube().tolerations.unwrap());
+    assert_eq!(
+        vec![deps_hack::k8s_openapi::api::core::v1::Toleration::default()],
+        pod_spec.into_kube().tolerations.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_node_selector() {
     let mut pod_spec = PodSpec::default();
     let mut node_selector = StringMap::new();
     node_selector.insert("key".to_string(), "value".to_string());
     pod_spec.set_node_selector(node_selector.clone());
-    assert_eq!(node_selector.into_rust_map(), pod_spec.into_kube().node_selector.unwrap());
+    assert_eq!(
+        node_selector.into_rust_map(),
+        pod_spec.into_kube().node_selector.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_runtime_class_name() {
     let mut pod_spec = PodSpec::default();
     if pod_spec.clone().into_kube().runtime_class_name.is_some() {
         panic!("runtime_class_name should be None");
     };
     pod_spec.set_runtime_class_name("name".to_string());
-    assert_eq!("name".to_string(), pod_spec.clone().into_kube().runtime_class_name.unwrap());
+    assert_eq!(
+        "name".to_string(),
+        pod_spec.clone().into_kube().runtime_class_name.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_dns_policy() {
     let mut pod_spec = PodSpec::default();
     if pod_spec.clone().into_kube().dns_policy.is_some() {
         panic!("dns_policy should be None");
     };
     pod_spec.set_dns_policy("name".to_string());
-    assert_eq!("name".to_string(), pod_spec.clone().into_kube().dns_policy.unwrap());
+    assert_eq!(
+        "name".to_string(),
+        pod_spec.clone().into_kube().dns_policy.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_scheduler_name() {
     let mut pod_spec = PodSpec::default();
     if pod_spec.clone().into_kube().scheduler_name.is_some() {
         panic!("scheduler_name should be None");
     };
     pod_spec.set_scheduler_name("name".to_string());
-    assert_eq!("name".to_string(), pod_spec.clone().into_kube().scheduler_name.unwrap());
+    assert_eq!(
+        "name".to_string(),
+        pod_spec.clone().into_kube().scheduler_name.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_priority_class_name() {
     let mut pod_spec = PodSpec::default();
     if pod_spec.clone().into_kube().priority_class_name.is_some() {
         panic!("priority_class_name should be None");
     };
     pod_spec.set_priority_class_name("name".to_string());
-    assert_eq!("name".to_string(), pod_spec.clone().into_kube().priority_class_name.unwrap());
+    assert_eq!(
+        "name".to_string(),
+        pod_spec.clone().into_kube().priority_class_name.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_security_context() {
     let mut pod_spec = PodSpec::default();
-    let security_context = PodSecurityContext::from_kube(deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default());
+    let security_context = PodSecurityContext::from_kube(
+        deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default(),
+    );
     pod_spec.set_security_context(security_context);
-    assert_eq!(deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default(), pod_spec.into_kube().security_context.unwrap());
+    assert_eq!(
+        deps_hack::k8s_openapi::api::core::v1::PodSecurityContext::default(),
+        pod_spec.into_kube().security_context.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_host_network() {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_host_network(true);
     assert_eq!(true, pod_spec.into_kube().host_network.unwrap());
 }
 
-
 #[test]
-#[verifier(external)]
-pub fn test_set_image_pull_secrets(){
+pub fn test_set_image_pull_secrets() {
     let mut pod_spec = PodSpec::default();
     let kube_local_object_reference = deps_hack::k8s_openapi::api::core::v1::LocalObjectReference {
         name: Some("name".to_string()),
     };
-    let local_object_reference = LocalObjectReference::from_kube(kube_local_object_reference.clone());
+    let local_object_reference =
+        LocalObjectReference::from_kube(kube_local_object_reference.clone());
     pod_spec.set_image_pull_secrets(vec![local_object_reference]);
 
-    assert_eq!(vec![kube_local_object_reference], pod_spec.into_kube().image_pull_secrets.unwrap());
+    assert_eq!(
+        vec![kube_local_object_reference],
+        pod_spec.into_kube().image_pull_secrets.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_set_termination_grace_period_seconds(){
+pub fn test_set_termination_grace_period_seconds() {
     let mut pod_spec = PodSpec::default();
     pod_spec.set_termination_grace_period_seconds(1);
-    assert_eq!(1, pod_spec.into_kube().termination_grace_period_seconds.unwrap());
+    assert_eq!(
+        1,
+        pod_spec
+            .into_kube()
+            .termination_grace_period_seconds
+            .unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_pod_spec =
         deps_hack::k8s_openapi::api::core::v1::PodSpec {
@@ -335,9 +366,5 @@ pub fn test_kube() {
         };
 
     let pod_spec = PodSpec::from_kube(kube_pod_spec.clone());
-    assert_eq!(
-        pod_spec.into_kube(),
-        kube_pod_spec
-    );
-}
+    assert_eq!(pod_spec.into_kube(), kube_pod_spec);
 }

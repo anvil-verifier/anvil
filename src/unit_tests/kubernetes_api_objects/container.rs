@@ -7,10 +7,7 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-
 #[test]
-#[verifier(external)]
 pub fn test_set_image() {
     let mut container = Container::default();
     container.set_image("image".to_string());
@@ -18,16 +15,13 @@ pub fn test_set_image() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_name() {
     let mut container = Container::default();
     container.set_name("name".to_string());
     assert_eq!("name".to_string(), container.into_kube().name);
 }
 
-
 #[test]
-#[verifier(external)]
 pub fn test_set_volume_mounts() {
     let mut container = Container::default();
     let volume_mounts = || {
@@ -40,12 +34,16 @@ pub fn test_set_volume_mounts() {
         volume_mounts
     };
     container.set_volume_mounts(volume_mounts());
-    assert_eq!(volume_mounts().into_iter().map(|v: VolumeMount| v.into_kube()).collect::<Vec<_>>(),
-               container.into_kube().volume_mounts.unwrap());
+    assert_eq!(
+        volume_mounts()
+            .into_iter()
+            .map(|v: VolumeMount| v.into_kube())
+            .collect::<Vec<_>>(),
+        container.into_kube().volume_mounts.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_ports() {
     let mut container = Container::default();
     let ports = || {
@@ -57,14 +55,16 @@ pub fn test_set_ports() {
         ports
     };
     container.set_ports(ports());
-    assert_eq!(ports().into_iter().map(|v: ContainerPort| v.into_kube()).collect::<Vec<_>>(),
-               container.into_kube().ports.unwrap());
+    assert_eq!(
+        ports()
+            .into_iter()
+            .map(|v: ContainerPort| v.into_kube())
+            .collect::<Vec<_>>(),
+        container.into_kube().ports.unwrap()
+    );
 }
 
-
-
 #[test]
-#[verifier(external)]
 pub fn test_set_lifecycle() {
     let mut container = Container::default();
 
@@ -76,11 +76,13 @@ pub fn test_set_lifecycle() {
     lifecycle.set_pre_stop(handler);
 
     container.set_lifecycle(lifecycle.clone());
-    assert_eq!(lifecycle.into_kube(), container.into_kube().lifecycle.unwrap());
+    assert_eq!(
+        lifecycle.into_kube(),
+        container.into_kube().lifecycle.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_resources() {
     let mut container = Container::default();
 
@@ -90,11 +92,13 @@ pub fn test_set_resources() {
     resources.set_requests(requests);
 
     container.set_resources(resources.clone());
-    assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
+    assert_eq!(
+        resources.into_kube(),
+        container.into_kube().resources.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_liveness_probe() {
     let mut container = Container::default();
     let mut probe = Probe::default();
@@ -104,11 +108,13 @@ pub fn test_set_liveness_probe() {
     probe.set_tcp_socket(tcp_socket_action);
 
     container.set_liveness_probe(probe.clone());
-    assert_eq!(probe.into_kube(), container.into_kube().liveness_probe.unwrap());
+    assert_eq!(
+        probe.into_kube(),
+        container.into_kube().liveness_probe.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_readiness_probe() {
     let mut container = Container::default();
     let mut probe = Probe::default();
@@ -118,54 +124,66 @@ pub fn test_set_readiness_probe() {
     probe.set_tcp_socket(tcp_socket_action);
 
     container.set_readiness_probe(probe.clone());
-    assert_eq!(probe.into_kube(), container.into_kube().readiness_probe.unwrap());
+    assert_eq!(
+        probe.into_kube(),
+        container.into_kube().readiness_probe.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_command() {
     let mut container = Container::default();
     container.set_command(vec!["command".to_string()]);
-    assert_eq!(vec!["command".to_string()], container.into_kube().command.unwrap());
+    assert_eq!(
+        vec!["command".to_string()],
+        container.into_kube().command.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_image_pull_policy() {
     let mut container = Container::default();
     container.set_image_pull_policy("image_pull_policy".to_string());
-    assert_eq!("image_pull_policy".to_string(), container.into_kube().image_pull_policy.unwrap());
+    assert_eq!(
+        "image_pull_policy".to_string(),
+        container.into_kube().image_pull_policy.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_env() {
     let env_var = EnvVar::from_kube(deps_hack::k8s_openapi::api::core::v1::EnvVar::default());
     let mut container = Container::default();
     container.set_env(vec![env_var.clone()]);
-    assert_eq!(vec![env_var.into_kube()], container.into_kube().env.unwrap());
+    assert_eq!(
+        vec![env_var.into_kube()],
+        container.into_kube().env.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_default(){
+pub fn test_default() {
     let container = Container::default();
-    assert_eq!(container.into_kube(), deps_hack::k8s_openapi::api::core::v1::Container::default());
+    assert_eq!(
+        container.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::Container::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_set_args(){
+pub fn test_set_args() {
     let mut container = Container::default();
     container.set_args(vec!["args".to_string()]);
-    assert_eq!(vec!["args".to_string()], container.into_kube().args.unwrap());
+    assert_eq!(
+        vec!["args".to_string()],
+        container.into_kube().args.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_set_security_context(){
+pub fn test_set_security_context() {
     let mut container = Container::default();
-    let kube_security_context =  deps_hack::k8s_openapi::api::core::v1::SecurityContext {
+    let kube_security_context = deps_hack::k8s_openapi::api::core::v1::SecurityContext {
         run_as_user: Some(1000),
         run_as_group: Some(1000),
         privileged: Some(true),
@@ -174,12 +192,14 @@ pub fn test_set_security_context(){
     let security_context = SecurityContext::from_kube(kube_security_context.clone());
 
     container.set_security_context(security_context);
-    assert_eq!(kube_security_context, container.into_kube().security_context.unwrap());
+    assert_eq!(
+        kube_security_context,
+        container.into_kube().security_context.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_clone(){
+pub fn test_clone() {
     let mut container = Container::default();
     container.set_image("image".to_string());
     let container_clone = container.clone();
@@ -187,7 +207,6 @@ pub fn test_clone(){
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_container = deps_hack::k8s_openapi::api::core::v1::Container {
         name: "name".to_string(),
@@ -197,8 +216,7 @@ pub fn test_kube() {
 
     let container = Container::from_kube(kube_container.clone());
 
-    assert_eq!(container.into_kube(),
-                kube_container.clone());
+    assert_eq!(container.into_kube(), kube_container.clone());
 
     let kube_container = deps_hack::k8s_openapi::api::core::v1::Container {
         name: "name_2".to_string(),
@@ -216,8 +234,5 @@ pub fn test_kube() {
 
     let container = Container::from_kube(kube_container.clone());
 
-    assert_eq!(container.into_kube(),
-                kube_container.clone());
-
-}
+    assert_eq!(container.into_kube(), kube_container.clone());
 }

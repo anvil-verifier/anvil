@@ -8,11 +8,8 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for SecurityContext
 #[test]
-#[verifier(external)]
-pub fn test_kube(){
+pub fn test_kube() {
     let kube_security_context = deps_hack::k8s_openapi::api::core::v1::SecurityContext {
         privileged: Some(true),
         ..Default::default()
@@ -20,7 +17,5 @@ pub fn test_kube(){
 
     let security_context = SecurityContext::from_kube(kube_security_context.clone());
 
-    assert_eq!(security_context.into_kube(),
-                kube_security_context);
-}
+    assert_eq!(security_context.into_kube(), kube_security_context);
 }

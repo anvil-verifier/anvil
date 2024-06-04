@@ -8,10 +8,7 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for stateful set spec
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let stateful_set_spec = StatefulSetSpec::default();
     assert_eq!(
@@ -21,7 +18,6 @@ pub fn test_default() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_replicas() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     stateful_set_spec.set_replicas(1);
@@ -29,7 +25,6 @@ pub fn test_set_replicas() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_selector() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut label_selector = LabelSelector::default();
@@ -44,7 +39,6 @@ pub fn test_set_selector() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_service_name() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     stateful_set_spec.set_service_name("name".to_string());
@@ -55,7 +49,6 @@ pub fn test_set_service_name() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_template() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
@@ -70,7 +63,6 @@ pub fn test_set_template() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_volume_claim_templates() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let volume_claim_templates_gen = || {
@@ -96,7 +88,6 @@ pub fn test_set_volume_claim_templates() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_pod_management_policy() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     stateful_set_spec.set_pod_management_policy("policy".to_string());
@@ -107,7 +98,6 @@ pub fn test_set_pod_management_policy() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_pvc_retention_policy() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
@@ -116,12 +106,14 @@ pub fn test_set_pvc_retention_policy() {
     stateful_set_spec.set_pvc_retention_policy(pvc_retention_policy.clone());
     assert_eq!(
         pvc_retention_policy.into_kube(),
-        stateful_set_spec.into_kube().persistent_volume_claim_retention_policy.unwrap()
+        stateful_set_spec
+            .into_kube()
+            .persistent_volume_claim_retention_policy
+            .unwrap()
     );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_replicas() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let temp = stateful_set_spec.replicas();
@@ -133,7 +125,6 @@ pub fn test_replicas() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_template() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
@@ -148,12 +139,13 @@ pub fn test_template() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_persistent_volume_claim_retention_policy() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let temp = stateful_set_spec.persistent_volume_claim_retention_policy();
     if !temp.is_none() {
-        panic!("StatefulSet persistent_volume_claim_retention_policy should be None, but it's not.");
+        panic!(
+            "StatefulSet persistent_volume_claim_retention_policy should be None, but it's not."
+        );
     }
     let mut pvc_retention_policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
     pvc_retention_policy.set_when_deleted("Delete".to_string());
@@ -161,12 +153,14 @@ pub fn test_persistent_volume_claim_retention_policy() {
     stateful_set_spec.set_pvc_retention_policy(pvc_retention_policy.clone());
     assert_eq!(
         pvc_retention_policy.into_kube(),
-        stateful_set_spec.persistent_volume_claim_retention_policy().unwrap().into_kube()
+        stateful_set_spec
+            .persistent_volume_claim_retention_policy()
+            .unwrap()
+            .into_kube()
     );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut stateful_set_spec = StatefulSetSpec::default();
     let mut pod_template_spec = PodTemplateSpec::default();
@@ -186,7 +180,6 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_sts_spec =
         deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
@@ -224,9 +217,5 @@ pub fn test_kube() {
         };
 
     let sts_spec = StatefulSetSpec::from_kube(kube_sts_spec.clone());
-    assert_eq!(
-        sts_spec.into_kube(),
-        kube_sts_spec
-    );
-}
+    assert_eq!(sts_spec.into_kube(), kube_sts_spec);
 }

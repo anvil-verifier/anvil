@@ -11,185 +11,138 @@ use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for api method
 #[test]
-#[verifier(external)]
 pub fn test_getrequest_key() {
     let api_method = KubeGetRequest {
-        api_resource: ApiResource::from_kube(
-            deps_hack::kube::api::ApiResource {
-                group: "group".to_string(),
-                version: "version".to_string(),
-                kind: "kind".to_string(),
-                api_version: "api_version".to_string(),
-                plural: "plural".to_string(),
-            },
-        ),
+        api_resource: ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+            group: "group".to_string(),
+            version: "version".to_string(),
+            kind: "kind".to_string(),
+            api_version: "api_version".to_string(),
+            plural: "plural".to_string(),
+        }),
         name: "name".to_string(),
         namespace: "namespace".to_string(),
     };
-    assert_eq!(
-        api_method.key(),
-        "kind/namespace/name"
-    );
+    assert_eq!(api_method.key(), "kind/namespace/name");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_listrequest_key() {
     let api_method = KubeListRequest {
-        api_resource: ApiResource::from_kube(
-            deps_hack::kube::api::ApiResource {
-                group: "group".to_string(),
-                version: "version".to_string(),
-                kind: "kind".to_string(),
-                api_version: "api_version".to_string(),
-                plural: "plural".to_string(),
-            },
-        ),
+        api_resource: ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+            group: "group".to_string(),
+            version: "version".to_string(),
+            kind: "kind".to_string(),
+            api_version: "api_version".to_string(),
+            plural: "plural".to_string(),
+        }),
         namespace: "namespace".to_string(),
     };
-    assert_eq!(
-        api_method.key(),
-        "kind/namespace"
-    );
+    assert_eq!(api_method.key(), "kind/namespace");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_createquest_key() {
     let api_method = KubeCreateRequest {
-        api_resource: ApiResource::from_kube(
-            deps_hack::kube::api::ApiResource {
-                group: "group".to_string(),
-                version: "version".to_string(),
-                kind: "kind".to_string(),
-                api_version: "api_version".to_string(),
-                plural: "plural".to_string(),
-            },
-        ),
+        api_resource: ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+            group: "group".to_string(),
+            version: "version".to_string(),
+            kind: "kind".to_string(),
+            api_version: "api_version".to_string(),
+            plural: "plural".to_string(),
+        }),
         namespace: "namespace".to_string(),
-        obj:  DynamicObject::from_kube(
-                deps_hack::kube::api::DynamicObject {
-                metadata: deps_hack::kube::api::ObjectMeta {
-                    name: Some("dyn_name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
-                types: Some(deps_hack::kube::api::TypeMeta {
-                    api_version: "api_version".to_string(),
-                    kind: "kind".to_string(),
-                }),
-                data: deps_hack::serde_json::json!({
-                    "key": "value",
-                }),
+        obj: DynamicObject::from_kube(deps_hack::kube::api::DynamicObject {
+            metadata: deps_hack::kube::api::ObjectMeta {
+                name: Some("dyn_name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
             },
-        )
+            types: Some(deps_hack::kube::api::TypeMeta {
+                api_version: "api_version".to_string(),
+                kind: "kind".to_string(),
+            }),
+            data: deps_hack::serde_json::json!({
+                "key": "value",
+            }),
+        }),
     };
-    assert_eq!(
-        api_method.key(),
-        "kind/namespace/dyn_name"
-    );
+    assert_eq!(api_method.key(), "kind/namespace/dyn_name");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_deleterequest_key() {
     let api_method = KubeDeleteRequest {
-        api_resource: ApiResource::from_kube(
-            deps_hack::kube::api::ApiResource {
-                group: "group".to_string(),
-                version: "version".to_string(),
-                kind: "kind".to_string(),
-                api_version: "api_version".to_string(),
-                plural: "plural".to_string(),
-            },
-        ),
+        api_resource: ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+            group: "group".to_string(),
+            version: "version".to_string(),
+            kind: "kind".to_string(),
+            api_version: "api_version".to_string(),
+            plural: "plural".to_string(),
+        }),
         name: "name".to_string(),
         namespace: "namespace".to_string(),
     };
-    assert_eq!(
-        api_method.key(),
-        "kind/namespace/name"
-    );
+    assert_eq!(api_method.key(), "kind/namespace/name");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_updaterequest_key() {
     let api_method = KubeUpdateRequest {
-        api_resource: ApiResource::from_kube(
-            deps_hack::kube::api::ApiResource {
-                group: "group".to_string(),
-                version: "version".to_string(),
-                kind: "kind".to_string(),
-                api_version: "api_version".to_string(),
-                plural: "plural".to_string(),
-            },
-        ),
+        api_resource: ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+            group: "group".to_string(),
+            version: "version".to_string(),
+            kind: "kind".to_string(),
+            api_version: "api_version".to_string(),
+            plural: "plural".to_string(),
+        }),
         name: "name".to_string(),
         namespace: "namespace".to_string(),
-        obj:  DynamicObject::from_kube(
-                deps_hack::kube::api::DynamicObject {
-                metadata: deps_hack::kube::api::ObjectMeta {
-                    name: Some("dyn_name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
-                types: Some(deps_hack::kube::api::TypeMeta {
-                    api_version: "api_version".to_string(),
-                    kind: "kind".to_string(),
-                }),
-                data: deps_hack::serde_json::json!({
-                    "key": "value",
-                }),
+        obj: DynamicObject::from_kube(deps_hack::kube::api::DynamicObject {
+            metadata: deps_hack::kube::api::ObjectMeta {
+                name: Some("dyn_name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
             },
-        )
+            types: Some(deps_hack::kube::api::TypeMeta {
+                api_version: "api_version".to_string(),
+                kind: "kind".to_string(),
+            }),
+            data: deps_hack::serde_json::json!({
+                "key": "value",
+            }),
+        }),
     };
-    assert_eq!(
-        api_method.key(),
-        "kind/namespace/name"
-    );
+    assert_eq!(api_method.key(), "kind/namespace/name");
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_updatestatusrequest_key() {
     let api_method = KubeUpdateStatusRequest {
-        api_resource: ApiResource::from_kube(
-            deps_hack::kube::api::ApiResource {
-                group: "group".to_string(),
-                version: "version".to_string(),
-                kind: "kind".to_string(),
-                api_version: "api_version".to_string(),
-                plural: "plural".to_string(),
-            },
-        ),
+        api_resource: ApiResource::from_kube(deps_hack::kube::api::ApiResource {
+            group: "group".to_string(),
+            version: "version".to_string(),
+            kind: "kind".to_string(),
+            api_version: "api_version".to_string(),
+            plural: "plural".to_string(),
+        }),
         name: "name".to_string(),
         namespace: "namespace".to_string(),
-        obj:  DynamicObject::from_kube(
-                deps_hack::kube::api::DynamicObject {
-                metadata: deps_hack::kube::api::ObjectMeta {
-                    name: Some("dyn_name".to_string()),
-                    namespace: Some("namespace".to_string()),
-                    ..Default::default()
-                },
-                types: Some(deps_hack::kube::api::TypeMeta {
-                    api_version: "api_version".to_string(),
-                    kind: "kind".to_string(),
-                }),
-                data: deps_hack::serde_json::json!({
-                    "key": "value",
-                }),
+        obj: DynamicObject::from_kube(deps_hack::kube::api::DynamicObject {
+            metadata: deps_hack::kube::api::ObjectMeta {
+                name: Some("dyn_name".to_string()),
+                namespace: Some("namespace".to_string()),
+                ..Default::default()
             },
-        )
+            types: Some(deps_hack::kube::api::TypeMeta {
+                api_version: "api_version".to_string(),
+                kind: "kind".to_string(),
+            }),
+            data: deps_hack::serde_json::json!({
+                "key": "value",
+            }),
+        }),
     };
-    assert_eq!(
-        api_method.key(),
-        "kind/namespace/name"
-    );
-}
-
-
+    assert_eq!(api_method.key(), "kind/namespace/name");
 }

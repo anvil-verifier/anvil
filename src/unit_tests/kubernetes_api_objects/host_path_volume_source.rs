@@ -9,17 +9,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for host path volume source
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let host_path_volume_source = HostPathVolumeSource::default();
-    assert_eq!(host_path_volume_source.into_kube(), deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default());
+    assert_eq!(
+        host_path_volume_source.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_path() {
     let mut host_path_volume_source = HostPathVolumeSource::default();
     host_path_volume_source.set_path("path".to_string());
@@ -27,25 +26,29 @@ pub fn test_set_path() {
 }
 
 #[test]
-#[verifier(external)]
-pub fn test_clone(){
+pub fn test_clone() {
     let mut host_path_volume_source = HostPathVolumeSource::default();
     host_path_volume_source.set_path("path".to_string());
     let host_path_volume_source_clone = host_path_volume_source.clone();
-    assert_eq!(host_path_volume_source.into_kube(), host_path_volume_source_clone.into_kube());
+    assert_eq!(
+        host_path_volume_source.into_kube(),
+        host_path_volume_source_clone.into_kube()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_host_path_volume_source = deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource{
-        path: "path".to_string(),
-        ..Default::default()
-    };
+    let kube_host_path_volume_source =
+        deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource {
+            path: "path".to_string(),
+            ..Default::default()
+        };
 
-    let host_path_volume_source = HostPathVolumeSource::from_kube(kube_host_path_volume_source.clone());
+    let host_path_volume_source =
+        HostPathVolumeSource::from_kube(kube_host_path_volume_source.clone());
 
-    assert_eq!(host_path_volume_source.into_kube(),
-        kube_host_path_volume_source);
-}
+    assert_eq!(
+        host_path_volume_source.into_kube(),
+        kube_host_path_volume_source
+    );
 }

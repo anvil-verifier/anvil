@@ -7,17 +7,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for policy rule
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let policy_rule = PolicyRule::default();
-    assert_eq!(policy_rule.into_kube(), deps_hack::k8s_openapi::api::rbac::v1::PolicyRule::default());
+    assert_eq!(
+        policy_rule.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::PolicyRule::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_api_groups() {
     let mut policy_rule = PolicyRule::default();
     let api_groups_gen = || {
@@ -36,7 +35,6 @@ pub fn test_set_api_groups() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_resources() {
     let mut policy_rule = PolicyRule::default();
     let resources_gen = || {
@@ -48,14 +46,10 @@ pub fn test_set_resources() {
         resources
     };
     policy_rule.set_resources(resources_gen());
-    assert_eq!(
-        resources_gen(),
-        policy_rule.into_kube().resources.unwrap()
-    );
+    assert_eq!(resources_gen(), policy_rule.into_kube().resources.unwrap());
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_verbs() {
     let mut policy_rule = PolicyRule::default();
     let verbs_gen = || {
@@ -67,28 +61,19 @@ pub fn test_set_verbs() {
         verbs
     };
     policy_rule.set_verbs(verbs_gen());
-    assert_eq!(
-        verbs_gen(),
-        policy_rule.into_kube().verbs
-    );
+    assert_eq!(verbs_gen(), policy_rule.into_kube().verbs);
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
-    let kube_policy_rule =
-        deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
-            api_groups: Some(vec!["api_groups".to_string()]),
-            resources: Some(vec!["resources".to_string()]),
-            verbs: vec!["verbs".to_string()],
-            ..Default::default()
-        };
+    let kube_policy_rule = deps_hack::k8s_openapi::api::rbac::v1::PolicyRule {
+        api_groups: Some(vec!["api_groups".to_string()]),
+        resources: Some(vec!["resources".to_string()]),
+        verbs: vec!["verbs".to_string()],
+        ..Default::default()
+    };
 
     let policy_rule = PolicyRule::from_kube(kube_policy_rule.clone());
 
-    assert_eq!(
-        policy_rule.into_kube(),
-        kube_policy_rule
-    );
-}
+    assert_eq!(policy_rule.into_kube(), kube_policy_rule);
 }

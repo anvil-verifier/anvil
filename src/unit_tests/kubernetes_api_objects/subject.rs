@@ -7,17 +7,16 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for subject
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let subject = Subject::default();
-    assert_eq!(subject.into_kube(), deps_hack::k8s_openapi::api::rbac::v1::Subject::default());
+    assert_eq!(
+        subject.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::Subject::default()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_kind() {
     let mut subject = Subject::default();
     subject.set_kind("kind".to_string());
@@ -25,7 +24,6 @@ pub fn test_set_kind() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_name() {
     let mut subject = Subject::default();
     subject.set_name("name".to_string());
@@ -33,15 +31,16 @@ pub fn test_set_name() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_set_namespace() {
     let mut subject = Subject::default();
     subject.set_namespace("namespace".to_string());
-    assert_eq!("namespace".to_string(), subject.into_kube().namespace.unwrap());
+    assert_eq!(
+        "namespace".to_string(),
+        subject.into_kube().namespace.unwrap()
+    );
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_subject = deps_hack::k8s_openapi::api::rbac::v1::Subject {
         kind: "kind".to_string(),
@@ -52,12 +51,13 @@ pub fn test_kube() {
 
     let subject = Subject::from_kube(kube_subject.clone());
 
-    assert_eq!(subject.into_kube(),
-                deps_hack::k8s_openapi::api::rbac::v1::Subject {
-                     kind: "kind".to_string(),
-                     name: "name".to_string(),
-                     namespace: Some("namespace".to_string()),
-                     ..Default::default()
-                });
-}
+    assert_eq!(
+        subject.into_kube(),
+        deps_hack::k8s_openapi::api::rbac::v1::Subject {
+            kind: "kind".to_string(),
+            name: "name".to_string(),
+            namespace: Some("namespace".to_string()),
+            ..Default::default()
+        }
+    );
 }

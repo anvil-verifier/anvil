@@ -7,10 +7,7 @@ use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-verus! {
-// Tests for life cycle
 #[test]
-#[verifier(external)]
 pub fn test_set_command() {
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec!["command".to_string()]);
@@ -21,7 +18,6 @@ pub fn test_set_command() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_default() {
     let exec_action = ExecAction::default();
     assert_eq!(
@@ -31,7 +27,6 @@ pub fn test_default() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_clone() {
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec!["command".to_string()]);
@@ -40,7 +35,6 @@ pub fn test_clone() {
 }
 
 #[test]
-#[verifier(external)]
 pub fn test_kube() {
     let kube_exec_action = deps_hack::k8s_openapi::api::core::v1::ExecAction {
         command: Some(vec!["command".to_string()]),
@@ -48,10 +42,5 @@ pub fn test_kube() {
 
     let exec_action = ExecAction::from_kube(kube_exec_action.clone());
 
-    assert_eq!(
-        exec_action.into_kube(),
-        kube_exec_action
-    );
-}
-
+    assert_eq!(exec_action.into_kube(), kube_exec_action);
 }
