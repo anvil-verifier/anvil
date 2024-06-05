@@ -81,7 +81,7 @@ jobs:
           vargo build --release
       - name: Verify zookeeper controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 50
-  replica-set-verification:
+  vreplicaset-verification:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -102,8 +102,8 @@ jobs:
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
-      - name: Verify replica set controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v_replica_set_controller.rs --time
+      - name: Verify vreplicaset controller
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh vreplicaset_controller.rs --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:

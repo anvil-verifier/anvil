@@ -15,8 +15,8 @@ app=$1
 registry=$2
 
 if [ "$app" != "zookeeper" ] && [ "$app" != "rabbitmq" ] && [ "$app" != "fluent" ]\
-   && [ "$app" != "v_stateful_set" ]; then
-    echo -e "${RED}The first argument has to be one of: zookeeper, rabbitmq, fluent.${NC}"
+   [ "$app" != "vreplicaset" ] && [ "$app" != "v_stateful_set" ]; then
+    echo -e "${RED}The first argument has to be one of: zookeeper, rabbitmq, fluent, vreplicaset, v_stateful_set.${NC}"
     exit 1    
 fi
 
