@@ -1,6 +1,6 @@
-We give an overview of the clock-based approach we use to model a distributed system.
+## Kubernetes Model
 
-## Environmental Assumptions
+**The description below is outdated and needs heavy revision.**
 
 We plan to start from simple controllers and environmental specifications.
 
