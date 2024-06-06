@@ -3,6 +3,7 @@
 pub mod common;
 pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
+pub mod vreplicaset_e2e;
 pub mod zookeeper_e2e;
 
 use common::Error;
@@ -11,6 +12,7 @@ use rabbitmq_e2e::{rabbitmq_e2e_test, rabbitmq_ephemeral_e2e_test, rabbitmq_scal
 use std::str::FromStr;
 use std::{env, sync::Arc};
 use tracing::*;
+use vreplicaset_e2e::vreplicaset_e2e_test;
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
 
 #[tokio::main]
@@ -47,6 +49,10 @@ async fn main() -> Result<(), Error> {
         "fluent" => {
             info!("Running fluent end-to-end test");
             return fluent_e2e_test().await;
+        }
+        "vreplicaset" => {
+            info!("Running vreplicaset end-to-end test");
+            return vreplicaset_e2e_test().await;
         }
         _ => {
             error!("Wrong command. Please specify the correct e2e test workload.");

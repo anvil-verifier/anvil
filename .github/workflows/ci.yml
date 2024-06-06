@@ -303,4 +303,20 @@ jobs:
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests for ephemeral storage
         run: cd e2e && cargo run -- zookeeper-ephemeral
-        
+  vreplicaset-e2e-test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.20"
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.23.0
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Deploy vreplicaset controller
+        run: ./local-test.sh vreplicaset
+      - name: Run vreplicaset e2e tests
+        run: cd e2e && cargo run -- vreplicaset
