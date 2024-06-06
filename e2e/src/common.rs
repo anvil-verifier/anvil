@@ -53,6 +53,9 @@ pub enum Error {
 
     #[error("Rabbitmq failed to set customized user/password!")]
     RabbitmqUserPassFailed,
+
+    #[error("Pods are inconsistent with replica set!")]
+    VReplicaSetFailed,
 }
 
 pub async fn apply_file(
