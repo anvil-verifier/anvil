@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::v_replica_set_controller::v_replica_set::trusted::{spec_types::*, step::*};
+use crate::v_replica_set_controller::trusted::{spec_types::*, step::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::Step, message::*};
 use crate::temporal_logic::defs::*;
@@ -37,7 +37,7 @@ pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, resources: Stored
     &&& resources.contains_key(key)
     &&& obj.kind == PodView::kind()
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
-    &&& vrs.spec.selector.matches(obj.metadata.labels)
+    &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
 }
 
 }
