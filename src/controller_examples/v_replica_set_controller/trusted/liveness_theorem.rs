@@ -35,6 +35,7 @@ pub open spec fn resource_state_matches(vrs: VReplicaSetView, resources: StoredS
 pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, resources: StoredState, key: ObjectRef) -> bool {
     let obj = resources[key];
     &&& resources.contains_key(key)
+    &&& obj.kind == PodView::kind()
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
     &&& vrs.spec.selector.matches(obj.metadata.labels)
 }
