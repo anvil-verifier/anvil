@@ -10,19 +10,19 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn liveness_theorem() -> bool { cluster_spec().entails(tla_forall(|vrs: VReplicaSetView| liveness::<M>(vrs))) }
+pub open spec fn liveness_theorem() -> bool { cluster_spec().entails(tla_forall(|vrs: VReplicaSetView| liveness(vrs))) }
 
 pub open spec fn cluster_spec() -> TempPred<VRSCluster> { VRSCluster::sm_spec() }
 
 pub open spec fn liveness(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
-    always(lift_state(desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches::<M>(vrs))))
+    always(lift_state(desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches(vrs))))
 }
 
 pub open spec fn desired_state_is(vrs: VReplicaSetView) -> StatePred<VRSCluster> { VRSCluster::desired_state_is(vrs) }
 
 pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<VRSCluster> {
     |s: VRSCluster| {
-        resource_state_matches::<M>(vrs, s.resources())
+        resource_state_matches(vrs, s.resources())
     }
 }
 
@@ -32,7 +32,7 @@ pub open spec fn resource_state_matches(vrs: VReplicaSetView, resources: StoredS
     &&& pods.len() == vrs.spec.replicas.unwrap_or(0)
 }
 
-pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, resources: StoredState, key: ObjRef) -> bool {
+pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, resources: StoredState, key: ObjectRef) -> bool {
     let obj = resources[key];
     &&& resources.contains_key(key)
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
