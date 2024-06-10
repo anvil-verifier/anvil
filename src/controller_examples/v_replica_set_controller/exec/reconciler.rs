@@ -292,10 +292,6 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
         if labels.is_some() {
             metadata.set_labels(labels.unwrap());
         }
-        let labels = template.metadata().unwrap().labels();
-        if labels.is_some() {
-            metadata.set_labels(labels.unwrap());
-        }
         let annotations = template.metadata().unwrap().annotations();
         if annotations.is_some() {
             metadata.set_annotations(annotations.unwrap());
