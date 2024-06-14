@@ -213,7 +213,7 @@ pub open spec fn objects_to_pods(objs: Seq<DynamicObjectView>) -> (pods_or_none:
     if objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() != 0 {
         None
     } else {
-        Some(objs.map(|i: int, o: DynamicObjectView| PodView::unmarshal(o).unwrap()))
+        Some(objs.map_values(|o: DynamicObjectView| PodView::unmarshal(o).unwrap()))
     }
 }
 
