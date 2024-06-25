@@ -193,9 +193,13 @@ pub open spec fn created_object_validity_check<K: CustomResourceView>(created_ob
     }
 }
 
-// TODO: need a lemma to say that the return value changes when the counter changes
-// TODO: do we want to take the generate_name field as an argument here?
-pub closed spec fn generate_name(counter: GenerateNameCounter) -> StringView;
+pub closed spec fn generate_name(s: ApiServerState) -> StringView;
+
+// TODO: This should be a spec ensures of the generate_name above
+#[verifier(external_body)]
+pub proof fn generated_name_is_unique(s: ApiServerState)
+    ensures forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s)
+{}
 
 #[verifier(inline)]
 pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest, s: ApiServerState) -> (ApiServerState, CreateResponse) {
@@ -209,7 +213,7 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
                 name: if req.obj.metadata.name.is_Some() {
                     req.obj.metadata.name
                 } else {
-                    Some(generate_name(s.generate_name_counter))
+                    Some(generate_name(s))
                 },
                 namespace: Some(req.namespace), // Set namespace for new object
                 resource_version: Some(s.resource_version_counter), // Set rv for new object
@@ -231,13 +235,6 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
                 stable_resources: s.stable_resources.remove(created_obj.object_ref()),
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
-                // if we use the generate_name rather than name, increment the counter to ensure that each
-                // generated name is unique
-                generate_name_counter: if req.obj.metadata.name.is_Some() {
-                    s.generate_name_counter
-                } else {
-                    s.generate_name_counter + 1
-                },
                 ..s
             }, CreateResponse{res: Ok(created_obj)})
         }
