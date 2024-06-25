@@ -16,6 +16,7 @@ pub struct ApiServerState {
     pub resources: StoredState,
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
+    pub generate_name_counter: GenerateNameCounter,
     pub stable_resources: Set<ObjectRef>,
 }
 

@@ -12,6 +12,11 @@ pub type Uid = int;
 // make ResourceVersion an int, instead of String, so that it is easy to compare in spec/proof
 pub type ResourceVersion = int;
 
+// GenerateNameCounter is used to specify how the API server generates a random and unique name
+// according to the generate name field
+// make GenerateNameCounter an int, instead of String, so that it is easy to compare in spec/proof
+pub type GenerateNameCounter = int;
+
 #[is_variant]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Kind {

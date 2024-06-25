@@ -166,8 +166,8 @@ pub open spec fn handle_list_request(req: ListRequest, s: ApiServerState) -> Lis
 }
 
 pub open spec fn create_request_admission_check<K: CustomResourceView>(req: CreateRequest, s: ApiServerState) -> Option<APIError> {
-    if req.obj.metadata.name.is_None() {
-        // Creation fails because the name of the provided object is not provided
+    if req.obj.metadata.name.is_None() && req.obj.metadata.generate_name.is_None() {
+        // Creation fails because neither the name nor the generate_name of the provided object is provided
         Some(APIError::Invalid)
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
@@ -193,6 +193,10 @@ pub open spec fn created_object_validity_check<K: CustomResourceView>(created_ob
     }
 }
 
+// TODO: need a lemma to say that the return value changes when the counter changes
+// TODO: do we want to take the generate_name field as an argument here?
+pub closed spec fn generate_name(counter: GenerateNameCounter) -> StringView;
+
 #[verifier(inline)]
 pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest, s: ApiServerState) -> (ApiServerState, CreateResponse) {
     if create_request_admission_check::<K>(req, s).is_Some() {
@@ -202,6 +206,11 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
         let created_obj = DynamicObjectView {
             kind: req.obj.kind,
             metadata: ObjectMetaView {
+                name: if req.obj.metadata.name.is_Some() {
+                    req.obj.metadata.name
+                } else {
+                    Some(generate_name(s.generate_name_counter))
+                },
                 namespace: Some(req.namespace), // Set namespace for new object
                 resource_version: Some(s.resource_version_counter), // Set rv for new object
                 uid: Some(s.uid_counter), // Set uid for new object
@@ -222,6 +231,13 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
                 stable_resources: s.stable_resources.remove(created_obj.object_ref()),
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
+                // if we use the generate_name rather than name, increment the counter to ensure that each
+                // generated name is unique
+                generate_name_counter: if req.obj.metadata.name.is_Some() {
+                    s.generate_name_counter
+                } else {
+                    s.generate_name_counter + 1
+                },
                 ..s
             }, CreateResponse{res: Ok(created_obj)})
         }
