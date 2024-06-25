@@ -90,6 +90,7 @@ pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_mo
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)))),
+        spec.entails(always(lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::daemon_set_not_exist_or_updated_or_no_more_status_from_bc(key, make_fn))))),
 {
@@ -100,6 +101,7 @@ pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_mo
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)(s)
         &&& Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)(s)
+        &&& Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)(s)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
     };
     combine_spec_entails_always_n!(
@@ -107,6 +109,7 @@ pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_mo
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)),
         lift_state(Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)),
+        lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)),
         lift_state(Self::each_object_in_etcd_is_well_formed())
     );
 
@@ -120,6 +123,7 @@ pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_mo
                 match req.content.get_APIRequest_0() {
                     APIRequest::CreateRequest(_) => {
                         if resource_create_request_msg(key)(req) {}
+                        if resource_create_request_msg_with_empty_name(key.kind, key.namespace)(req) {}
                     }
                     APIRequest::UpdateRequest(_) => {
                         if resource_update_request_msg(key)(req) {}
@@ -142,6 +146,7 @@ proof fn lemma_true_leads_to_daemon_set_not_exist_or_updated_or_no_more_pending_
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)))),
+        spec.entails(always(lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
     ensures spec.entails(true_pred().leads_to(lift_state(Self::daemon_set_not_exist_or_updated_or_no_more_status_from_bc(key, make_fn)))),
 {
@@ -196,6 +201,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_daemon_set_not_exist_
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)))),
+        spec.entails(always(lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
     ensures
         spec.entails(
@@ -297,6 +303,7 @@ proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_d
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)))),
+        spec.entails(always(lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
     ensures
         spec.entails(
@@ -350,6 +357,7 @@ proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_d
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)(s)
         &&& Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)(s)
+        &&& Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)(s)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
     };
     combine_spec_entails_always_n!(
@@ -357,6 +365,7 @@ proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_d
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_create_req_msg_for_this_ds_matches(key, make_fn)),
         lift_state(Self::every_in_flight_update_req_msg_for_this_ds_matches(key, make_fn)),
+        lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)),
         lift_state(Self::each_object_in_etcd_is_well_formed())
     );
 
@@ -374,6 +383,7 @@ proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_d
                     DaemonSetView::marshal_status_preserves_integrity();
                     if resource_create_request_msg(key)(input.get_Some_0()) {} else {}
                     if resource_update_request_msg(key)(input.get_Some_0()) {} else {}
+                    if resource_create_request_msg_with_empty_name(key.kind, key.namespace)(input.get_Some_0()) {}
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }
             },
