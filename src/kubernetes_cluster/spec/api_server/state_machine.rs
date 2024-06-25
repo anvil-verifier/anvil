@@ -175,8 +175,8 @@ pub open spec fn create_request_admission_check<K: CustomResourceView>(req: Crea
     } else if !unmarshallable_object::<K>(req.obj) {
         // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
-    } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
-        // Creation fails because the object already exists
+    } else if req.obj.metadata.name.is_Some() && s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
+        // Creation fails because the object has a name and it already exists
         Some(APIError::ObjectAlreadyExists)
     } else {
         None
