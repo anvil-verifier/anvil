@@ -162,13 +162,13 @@ pub fn handle_get_request(req: &KubeGetRequest, s: &ApiServerState) -> (ret: Kub
 fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -> (ret: Option<APIError>)
     ensures ret == model::create_request_admission_check::<K::V>(req@, s@),
 {
-    if req.obj.metadata().name().is_none() {
+    if req.obj.metadata().name().is_none() && req.obj.metadata().generate_name().is_none() {
         Some(APIError::Invalid)
     } else if req.obj.metadata().namespace().is_some() && !req.namespace.eq(&req.obj.metadata().namespace().unwrap()) {
         Some(APIError::BadRequest)
     } else if !Self::unmarshallable_object(&req.obj) {
         Some(APIError::BadRequest)
-    } else if s.resources.contains_key(&KubeObjectRef {
+    } else if req.obj.metadata().name().is_some() && s.resources.contains_key(&KubeObjectRef {
         kind: req.obj.kind(),
         name: req.obj.metadata().name().unwrap(),
         namespace: req.namespace.clone(),
@@ -192,11 +192,22 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
     }
 }
 
+// Here we just convert the counter to a String which certainly isn't
+// how the actual API server generates the name, but we are OK about
+// it here as we won't check the returned name in the test
+#[verifier(external_body)]
+fn generate_name(counter: i64) -> (ret: String)
+    ensures ret@ == model::generate_name(counter as int)
+{
+    counter.to_string()
+}
+
 pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) -> (ret: KubeCreateResponse)
     requires
         // No integer overflow
         old(s).resource_version_counter < i64::MAX,
         old(s).uid_counter < i64::MAX,
+        old(s).generate_name_counter < i64::MAX,
     ensures (s@, ret@) == model::handle_create_request::<K::V>(req@, old(s)@)
 {
     // TODO: use if-let?
@@ -205,6 +216,9 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
         KubeCreateResponse{res: Err(request_check_error.unwrap())}
     } else {
         let mut created_obj = req.obj.clone();
+        if req.obj.metadata().name().is_none() {
+            created_obj.set_name(Self::generate_name(s.generate_name_counter));
+        }
         created_obj.set_namespace(req.namespace.clone());
         created_obj.set_resource_version(s.resource_version_counter);
         created_obj.set_uid(s.uid_counter);
@@ -218,6 +232,9 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
             s.stable_resources.remove(&created_obj.object_ref());
             s.uid_counter = s.uid_counter + 1;
             s.resource_version_counter = s.resource_version_counter + 1;
+            if req.obj.metadata().name().is_none() {
+                s.generate_name_counter = s.generate_name_counter + 1;
+            }
             KubeCreateResponse{res: Ok(created_obj)}
         }
     }

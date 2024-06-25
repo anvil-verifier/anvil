@@ -16,6 +16,7 @@ pub struct ApiServerState {
     pub resources: ObjectMap,
     pub uid_counter: i64,
     pub resource_version_counter: i64,
+    pub generate_name_counter: i64,
     pub stable_resources: ObjectRefSet,
 }
 
@@ -25,6 +26,7 @@ impl ApiServerState {
             resources: ObjectMap::new(),
             uid_counter: 0,
             resource_version_counter: 0,
+            generate_name_counter: 0,
             stable_resources: ObjectRefSet::new(),
         }
     }
@@ -37,6 +39,7 @@ impl View for ApiServerState {
             resources: self.resources@,
             uid_counter: self.uid_counter as int,
             resource_version_counter: self.resource_version_counter as int,
+            generate_name_counter: self.generate_name_counter as int,
             stable_resources: self.stable_resources@,
         }
     }
