@@ -228,6 +228,15 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
     }
 }
 
+pub open spec fn no_create_resource_request_msg_with_empty_name_in_flight(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
+    |s: ZKCluster| {
+        forall |msg: ZKMessage| !{
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_create_request_msg_with_empty_name(get_request(sub_resource, zookeeper).key.kind, get_request(sub_resource, zookeeper).key.namespace)(msg)
+        }
+    }
+}
+
 pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         forall |msg: ZKMessage| !{
