@@ -1253,7 +1253,6 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
 }
 
 // We can probably hide a lof of spec functions to make this lemma faster
-#[verifier(spinoff_prover)]
 pub proof fn lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
     requires
         spec.entails(lift_state(ZKCluster::init())),
