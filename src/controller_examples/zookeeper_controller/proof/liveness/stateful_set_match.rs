@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
+    api_server::state_machine::generated_name_is_unique,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
@@ -41,6 +42,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, zookeeper)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, zookeeper)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, zookeeper)))),
@@ -256,6 +258,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
+                generated_name_is_unique(s.kubernetes_api_state);
                 if input.get_Some_0() == req_msg {
                     let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -374,6 +377,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
+                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -471,6 +475,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}
+                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -520,6 +525,7 @@ pub proof fn lemma_stateful_set_is_stable(
                 let req = input.get_Some_0();
                 assert(!resource_delete_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}
+                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }

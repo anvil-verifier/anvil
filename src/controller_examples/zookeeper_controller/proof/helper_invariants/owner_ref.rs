@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::spec::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
+    api_server::state_machine::generated_name_is_unique,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
@@ -131,14 +132,26 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
     let next = |s, s_prime| {
         &&& ZKCluster::next()(s, s_prime)
         &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, zookeeper)(s)
+        &&& no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper)(s)
     };
     lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(spec, sub_resource, zookeeper);
-    combine_spec_entails_always_n!(spec, lift_action(next), lift_action(ZKCluster::next()), lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, zookeeper)));
+    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, zookeeper);
+    combine_spec_entails_always_n!(spec, lift_action(next), lift_action(ZKCluster::next()),
+        lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(sub_resource, zookeeper)),
+        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper))
+    );
     let resource_key = get_request(sub_resource, zookeeper).key;
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if s_prime.resources().contains_key(resource_key) {
             assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
-            if !s.resources().contains_key(resource_key) || s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {} else {}
+            let step = choose |step| ZKCluster::next_step(s, s_prime, step);
+            match step {
+                Step::ApiServerStep(input) => {
+                    assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
+                    if !s.resources().contains_key(resource_key) || s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {} else {}
+                },
+                _ => {}
+            }
         }
     }
     init_invariant(spec, ZKCluster::init(), next, inv);

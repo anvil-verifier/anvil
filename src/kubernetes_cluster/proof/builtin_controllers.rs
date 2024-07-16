@@ -51,9 +51,10 @@ pub open spec fn no_create_msg_that_uses_generate_name(
     kind: Kind, namespace: StringView
 ) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: MsgType<E>|
-            #[trigger] resource_create_request_msg_with_empty_name(kind, namespace)(msg)
-            ==> !s.in_flight().contains(msg)
+        forall |msg: MsgType<E>| !{
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_create_request_msg_with_empty_name(kind, namespace)(msg)
+        }
     }
 }
 
