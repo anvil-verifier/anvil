@@ -4,7 +4,6 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
@@ -216,7 +215,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        generated_name_is_unique(s.kubernetes_api_state);
         let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {

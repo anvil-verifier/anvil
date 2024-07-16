@@ -210,6 +210,8 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
         let created_obj = DynamicObjectView {
             kind: req.obj.kind,
             metadata: ObjectMetaView {
+                // Set name for new object if name is not provided, here we generate
+                // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
                 name: if req.obj.metadata.name.is_Some() {
                     req.obj.metadata.name
                 } else {
@@ -224,7 +226,20 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
             spec: req.obj.spec,
             status: marshalled_default_status::<K>(req.obj.kind), // Overwrite the status with the default one
         };
-        if created_object_validity_check::<K>(created_obj).is_Some() {
+        if s.resources.contains_key(created_obj.object_ref()) {
+            // Note 1: You might find this branch redundant since we already have
+            // generated_name_is_unique which guarantees that the created_obj's
+            // key is different from any existing keys even if name was not provided.
+            // But we still add this branch just to avoid calling generated_name_is_unique
+            // when we want to show that create without a provided name does not override
+            // an existing object when writing proofs.
+            //
+            // Note 2: Adding this branch also means that if we want to prove the object
+            // is eventually created by a create request without the name provided,
+            // we need to explicitly call generated_name_is_unique to show that
+            // we do not fall into this branch.
+            (s, CreateResponse{res: Err(APIError::ObjectAlreadyExists)})
+        } else if created_object_validity_check::<K>(created_obj).is_Some() {
             // Creation fails.
             (s, CreateResponse{res: Err(created_object_validity_check::<K>(created_obj).get_Some_0())})
         } else {

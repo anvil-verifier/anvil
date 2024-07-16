@@ -192,14 +192,13 @@ fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<AP
     }
 }
 
-// Here we just return an empty String which certainly isn't
-// how the actual API server generates the name, but we are OK about
-// it here as we won't check the returned name in the test
+// No plan to run conformance test on create requests without names
+// so just panic here
 #[verifier(external_body)]
 fn generate_name(s: &ApiServerState) -> (ret: String)
     ensures ret@ == model::generate_name(s@)
 {
-    "".to_string()
+    panic!()
 }
 
 pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) -> (ret: KubeCreateResponse)
@@ -224,7 +223,9 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
         created_obj.unset_deletion_timestamp();
         created_obj.set_default_status::<K::V>();
         let object_check_error = Self::created_object_validity_check(&created_obj);
-        if object_check_error.is_some() {
+        if s.resources.contains_key(&created_obj.object_ref()) {
+            KubeCreateResponse{res: Err(APIError::ObjectAlreadyExists)}
+        } else if object_check_error.is_some() {
             KubeCreateResponse{res: Err(object_check_error.unwrap())}
         } else {
             s.resources.insert(created_obj.object_ref(), created_obj.clone());
