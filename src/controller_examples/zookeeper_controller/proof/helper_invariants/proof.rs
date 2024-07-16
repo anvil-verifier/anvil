@@ -1280,32 +1280,6 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
     }
 }
 
-// We can probably hide a lof of spec functions to make this lemma faster
-pub proof fn lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
-    requires
-        spec.entails(lift_state(ZKCluster::init())),
-        spec.entails(always(lift_action(ZKCluster::next()))),
-    ensures spec.entails(always(lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper)))),
-{
-    let key = zookeeper.object_ref();
-    let resource_key = get_request(sub_resource, zookeeper).key;
-    let inv = no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper);
-
-    assert forall |s: ZKCluster| #[trigger] ZKCluster::init()(s) implies inv(s) by {}
-
-    assert forall |s: ZKCluster, s_prime: ZKCluster| #[trigger] ZKCluster::next()(s, s_prime) && inv(s) implies inv(s_prime) by {
-        assert forall |msg: ZKMessage|
-            !(s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg))
-        by {
-            if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
-            }
-        }
-    }
-    init_invariant(spec, ZKCluster::init(), ZKCluster::next(), inv);
-}
-
-
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(
     spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView
 )
@@ -1643,6 +1617,31 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zooke
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ConfigMap, zookeeper))
     );
+}
+
+// We can probably hide a lof of spec functions to make this lemma faster
+pub proof fn lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec: TempPred<ZKCluster>, sub_resource: SubResource, zookeeper: ZookeeperClusterView)
+    requires
+        spec.entails(lift_state(ZKCluster::init())),
+        spec.entails(always(lift_action(ZKCluster::next()))),
+    ensures spec.entails(always(lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper)))),
+{
+    let key = zookeeper.object_ref();
+    let resource_key = get_request(sub_resource, zookeeper).key;
+    let inv = no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper);
+
+    assert forall |s: ZKCluster| #[trigger] ZKCluster::init()(s) implies inv(s) by {}
+
+    assert forall |s: ZKCluster, s_prime: ZKCluster| #[trigger] ZKCluster::next()(s, s_prime) && inv(s) implies inv(s_prime) by {
+        assert forall |msg: ZKMessage|
+            !(s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg))
+        by {
+            if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
+                assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
+            }
+        }
+    }
+    init_invariant(spec, ZKCluster::init(), ZKCluster::next(), inv);
 }
 
 }

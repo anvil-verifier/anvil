@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::spec::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
+    api_server::state_machine::generated_name_is_unique,
     cluster::*,
     cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
@@ -66,36 +67,35 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
 {
     let inv = stateful_set_in_etcd_satisfies_unchangeable(rabbitmq);
     let sts_res = SubResource::StatefulSet;
-    let key = rabbitmq.object_ref();
-    let sts_key = make_stateful_set_key(rabbitmq);
-    let resource_well_formed = |s: RMQCluster| {
-        &&& s.resources().contains_key(sts_key) ==> RMQCluster::etcd_object_is_well_formed(sts_key)(s)
-        &&& s.resources().contains_key(key) ==> RMQCluster::etcd_object_is_well_formed(key)(s)
-    };
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
-        &&& resource_well_formed(s)
-        &&& resource_well_formed(s_prime)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sts_res, rabbitmq)(s)
         &&& stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)(s)
         &&& stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)(s)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)(s)
+        &&& no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq)(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
-    always_to_always_later(spec, lift_state(resource_well_formed));
+    always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(spec, sts_res, rabbitmq);
     lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(spec, rabbitmq);
     lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(spec, rabbitmq);
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, sts_res, rabbitmq);
+    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sts_res, rabbitmq);
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(resource_well_formed), later(lift_state(resource_well_formed)),
+        spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
+        later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
         lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sts_res, rabbitmq)),
         lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)),
         lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)),
-        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq))
+        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)),
+        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        let key = rabbitmq.object_ref();
+        let sts_key = make_stateful_set_key(rabbitmq);
         if s_prime.resources().contains_key(key) && s_prime.resources().contains_key(sts_key) {
             if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
                 if !s.resources().contains_key(key) {
@@ -106,12 +106,14 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                         assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     }
                 } else if s.resources()[key] != s_prime.resources()[key] {
+                    generated_name_is_unique(s.kubernetes_api_state);
                     assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
                     assert(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref() == RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()
                         .transition_validation(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0()));
                 }
                 assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                assert(inv(s_prime));
             } else {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
@@ -119,9 +121,12 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                         let req = input.get_Some_0();
                         if resource_create_request_msg(sts_key)(req) {} else {}
                         if resource_update_request_msg(sts_key)(req) {} else {}
+                        if resource_create_request_msg_with_empty_name(sts_key.kind, sts_key.namespace)(req) {} else {}
+                        generated_name_is_unique(s.kubernetes_api_state);
                     },
                     _ => {}
                 }
+                assert(inv(s_prime));
             }
         }
     }
@@ -310,6 +315,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
                     assert(s.controller_state == s_prime.controller_state);
                     assert(s.in_flight().contains(msg));
                     if s.resources().contains_key(key) {
+                        generated_name_is_unique(s.kubernetes_api_state);
                         assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()
                         .transition_validation(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0()));
                     } else {
