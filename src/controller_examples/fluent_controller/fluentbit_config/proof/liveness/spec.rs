@@ -203,6 +203,7 @@ pub open spec fn derived_invariants_since_beginning(fbc: FluentBitConfigView) ->
     .and(always(lift_state(FBCCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(fbc.object_ref()))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, fbc)))))
     .and(always(tla_forall(|res: SubResource| lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fbc).key)))))
+    .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(res, fbc)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigView)
@@ -213,6 +214,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigVi
     let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight(res, fbc));
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, fbc));
     let a_to_p_5 = |res: SubResource| lift_state(FBCCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fbc).key));
+    let a_to_p_6 = |res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(res, fbc));
     stable_and_always_n!(
         lift_state(FBCCluster::every_in_flight_msg_has_unique_id()),
         lift_state(FBCCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(fbc.object_ref())),
@@ -231,7 +233,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigVi
         lift_state(FBCCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(fbc.object_ref())),
         lift_state(FBCCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(fbc.object_ref())),
         tla_forall(a_to_p_4),
-        tla_forall(a_to_p_5)
+        tla_forall(a_to_p_5),
+        tla_forall(a_to_p_6)
     );
 }
 
@@ -392,6 +395,13 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_5);
     });
+    let a_to_p_6 = |res: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(res, fbc));
+    assert_by(spec.entails(always(tla_forall(a_to_p_6))), {
+        assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_6(sub_resource))) by {
+            helper_invariants::lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, fbc);
+        }
+        spec_entails_always_tla_forall(spec, a_to_p_6);
+    });
 
     entails_always_and_n!(
         spec,
@@ -412,7 +422,8 @@ pub proof fn sm_spec_entails_all_invariants(fbc: FluentBitConfigView)
         lift_state(FBCCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(fbc.object_ref())),
         lift_state(FBCCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(fbc.object_ref())),
         tla_forall(a_to_p_4),
-        tla_forall(a_to_p_5)
+        tla_forall(a_to_p_5),
+        tla_forall(a_to_p_6)
     );
 }
 

@@ -1828,6 +1828,11 @@ pub proof fn lemma_always_no_create_resource_request_msg_with_empty_name_in_flig
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures spec.entails(always(lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, rabbitmq)))),
 {
+    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::create_request_admission_check);
+    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::created_object_validity_check);
+    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::update_request_admission_check);
+    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::update_status_request_admission_check);
+    // hide(crate::kubernetes_cluster::spec::api_server::state_machine::updated_object_validity_check);
     let key = rabbitmq.object_ref();
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let inv = no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, rabbitmq);
@@ -1850,17 +1855,21 @@ pub proof fn lemma_always_no_create_resource_request_msg_with_empty_name_in_flig
                         assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
                     }
                 },
-                Step::ClientStep() => {
+                // Step::ClientStep() => {
+                //     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
+                //         assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
+                //     }
+                // },
+                // Step::BuiltinControllersStep(_) => {
+                //     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
+                //         assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
+                //     }
+                // },
+                _ => {
                     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
                         assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
                     }
                 },
-                Step::BuiltinControllersStep(_) => {
-                    if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
-                    }
-                },
-                _ => {},
             }
         }
     }
