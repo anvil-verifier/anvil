@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
@@ -258,7 +257,6 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_ste
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
-                generated_name_is_unique(s.kubernetes_api_state);
                 if input.get_Some_0() == req_msg {
                     let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -377,7 +375,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -475,7 +472,6 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -525,7 +521,6 @@ pub proof fn lemma_stateful_set_is_stable(
                 let req = input.get_Some_0();
                 assert(!resource_delete_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }

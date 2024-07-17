@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
@@ -881,7 +880,6 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
             Step::ApiServerStep(input) => {
                 assert(!resource_delete_request_msg(resource_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(resource_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -974,7 +972,6 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_update_zk_node_step(spec:
             Step::ApiServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -1060,7 +1057,6 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
             Step::ApiServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -1215,7 +1211,6 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
             Step::ApiServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -1308,7 +1303,6 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_create_zk_parent_node_ste
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -1404,7 +1398,6 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             }
             _ => {}
         }
@@ -1501,7 +1494,6 @@ proof fn lemma_from_after_create_zk_parent_node_step_to_after_create_zk_node_ste
             Step::ApiServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }
@@ -1587,7 +1579,6 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
             Step::ApiServerStep(input) => {
                 assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
                 assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                generated_name_is_unique(s.kubernetes_api_state);
             },
             _ => {}
         }

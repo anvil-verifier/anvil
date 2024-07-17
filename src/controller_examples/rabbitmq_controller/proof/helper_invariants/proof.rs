@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     cluster::*,
     cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
@@ -170,7 +169,6 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
                                     let req = input.get_Some_0();
                                     assert(!resource_delete_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
                                     assert(!resource_update_status_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req));
-                                    generated_name_is_unique(s.kubernetes_api_state);
                                     if resource_update_request_msg(get_request(SubResource::ServerConfigMap, rabbitmq).key)(req) {} else {}
                                 },
                                 _ => {},
@@ -338,7 +336,6 @@ proof fn object_in_response_at_after_create_resource_step_is_same_as_etcd_helper
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
-                    generated_name_is_unique(s.kubernetes_api_state);
                     match req_msg.content.get_APIRequest_0() {
                         APIRequest::CreateRequest(_) => {
                             if !s.in_flight().contains(msg) {
@@ -515,7 +512,6 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
                     let req_msg = input.get_Some_0();
                     assert(!resource_delete_request_msg(resource_key)(req_msg));
                     assert(!resource_update_status_request_msg(resource_key)(req_msg));
-                    generated_name_is_unique(s.kubernetes_api_state);
                     match req_msg.content.get_APIRequest_0() {
                         APIRequest::UpdateRequest(_) => {
                             if !s.in_flight().contains(msg) {
@@ -1801,7 +1797,6 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<RMQCluster>, rabb
                 let req = input.get_Some_0();
                 assert(!resource_delete_request_msg(cm_key)(req));
                 assert(!resource_update_status_request_msg(cm_key)(req));
-                generated_name_is_unique(s.kubernetes_api_state);
                 if resource_update_request_msg(cm_key)(req) {} else {}
             },
             _ => {},

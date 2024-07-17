@@ -7,7 +7,6 @@ use crate::kubernetes_api_objects::spec::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,

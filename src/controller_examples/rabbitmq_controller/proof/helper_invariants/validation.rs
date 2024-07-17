@@ -7,7 +7,6 @@ use crate::kubernetes_api_objects::spec::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     cluster::*,
     cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
@@ -106,14 +105,12 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                         assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     }
                 } else if s.resources()[key] != s_prime.resources()[key] {
-                    generated_name_is_unique(s.kubernetes_api_state);
                     assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
                     assert(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref() == RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()
                         .transition_validation(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0()));
                 }
                 assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
-                assert(inv(s_prime));
             } else {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
@@ -122,7 +119,6 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                         if resource_create_request_msg(sts_key)(req) {} else {}
                         if resource_update_request_msg(sts_key)(req) {} else {}
                         if resource_create_request_msg_with_empty_name(sts_key.kind, sts_key.namespace)(req) {} else {}
-                        generated_name_is_unique(s.kubernetes_api_state);
                     },
                     _ => {}
                 }
@@ -315,7 +311,6 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
                     assert(s.controller_state == s_prime.controller_state);
                     assert(s.in_flight().contains(msg));
                     if s.resources().contains_key(key) {
-                        generated_name_is_unique(s.kubernetes_api_state);
                         assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()
                         .transition_validation(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0()));
                     } else {

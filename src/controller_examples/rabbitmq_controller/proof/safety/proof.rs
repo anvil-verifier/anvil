@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
     cluster::*,
     cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
@@ -66,7 +65,6 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
             if s.resources()[sts_key].spec != s_prime.resources()[sts_key].spec {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 let input = step.get_ApiServerStep_0().get_Some_0();
-                generated_name_is_unique(s.kubernetes_api_state);
                 if input.content.is_delete_request() {
                     assert(StatefulSetView::unmarshal(s.resources()[sts_key]).get_Ok_0().spec == StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec);
                 } else {
@@ -229,7 +227,6 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
         let sts_key = make_stateful_set_key(rabbitmq);
-        generated_name_is_unique(s.kubernetes_api_state);
         if s_prime.resources().contains_key(sts_key) {
             if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
                 if s_prime.resources().contains_key(key) {
@@ -341,7 +338,6 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
         Step::ApiServerStep(input) => {
             assert(s.controller_state == s_prime.controller_state);
             assert(s.in_flight().contains(msg));
-            generated_name_is_unique(s.kubernetes_api_state);
             if s_prime.resources().contains_key(key) {
                 if s.resources().contains_key(key) {
                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
@@ -394,7 +390,6 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         Step::ApiServerStep(input) => {
             assert(s.in_flight().contains(msg));
             assert(s.controller_state == s_prime.controller_state);
-            generated_name_is_unique(s.kubernetes_api_state);
             if s_prime.resources().contains_key(key) {
                 if s.resources().contains_key(key) {
                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
