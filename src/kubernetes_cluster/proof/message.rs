@@ -715,8 +715,8 @@ pub open spec fn key_of_object_in_matched_ok_create_resp_message_is_same_as_key_
             && s.ongoing_reconciles().contains_key(key)
             && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
             && #[trigger] Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-            ==> (create_req.obj.metadata.name.is_Some()
-                && Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg))
+            && create_req.obj.metadata.name.is_Some()
+            ==> Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg)
     }
 }
 
@@ -746,11 +746,13 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
         lift_state(Self::every_in_flight_msg_has_unique_id())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        let create_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request();
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_create_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)
-        && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().obj.metadata.name.is_Some() &&
+        && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+        && create_req.obj.metadata.name.is_Some()
+        implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().obj.metadata.name.is_Some() &&
         Self::is_ok_create_response_msg_and_matches_key(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().key())(msg) by {
             assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_create_request());
-            let create_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request();
             let req_key = create_req.key();
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
@@ -761,7 +763,8 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                         assert(false);
                     } else {
                         assert(s.ongoing_reconciles()[key].pending_req_msg == s_prime.ongoing_reconciles()[key].pending_req_msg);
-                        assert(create_req.obj.metadata.name.is_Some());
+                        // assert(create_req.obj.metadata.name.is_Some());
+
                         assert(Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg));
                     }
                 },

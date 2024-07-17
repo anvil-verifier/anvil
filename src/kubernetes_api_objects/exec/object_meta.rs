@@ -60,6 +60,15 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn generate_name(&self) -> (generate_name: Option<String>)
+        ensures
+            self@.generate_name.is_Some() == generate_name.is_Some(),
+            generate_name.is_Some() ==> generate_name.get_Some_0()@ == self@.generate_name.get_Some_0(),
+    {
+        self.inner.generate_name.clone()
+    }
+
+    #[verifier(external_body)]
     pub fn labels(&self) -> (labels: Option<StringMap>)
         ensures
             self@.labels.is_Some() == labels.is_Some(),

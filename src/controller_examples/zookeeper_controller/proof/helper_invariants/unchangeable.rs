@@ -128,6 +128,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<Z
         &&& object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)(s)
         &&& the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())(s)
+        &&& no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper)(s)
     };
     ZKCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
@@ -137,6 +138,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<Z
     lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec, sub_resource, zookeeper);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, zookeeper);
     lemma_always_the_object_in_reconcile_satisfies_state_validation(spec, zookeeper.object_ref());
+    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, zookeeper);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
@@ -146,7 +148,8 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<Z
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)),
         lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, zookeeper)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, zookeeper)),
-        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref()))
+        lift_state(the_object_in_reconcile_satisfies_state_validation(zookeeper.object_ref())),
+        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper))
     );
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         object_in_etcd_satisfies_unchangeable_induction(sub_resource, zookeeper, s, s_prime);
@@ -166,6 +169,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
         ZKCluster::each_object_in_etcd_is_well_formed()(s_prime),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, zookeeper)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s),
+        no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper)(s),
     ensures object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)(s_prime),
 {
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -187,6 +191,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
                 let req = input.get_Some_0();
                 if resource_create_request_msg(resource_key)(req) {} else {}
                 if resource_update_request_msg(resource_key)(req) {} else {}
+                if resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(req) {} else {}
             },
             _ => {}
         }

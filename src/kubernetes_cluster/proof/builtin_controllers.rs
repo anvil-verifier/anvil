@@ -12,6 +12,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 verus! {
@@ -42,6 +43,17 @@ pub open spec fn every_create_msg_sets_owner_references_as(
             s.in_flight().contains(msg)
             && #[trigger] resource_create_request_msg(key)(msg)
             ==> requirements(msg.content.get_create_request().obj.metadata.owner_references)
+    }
+}
+
+pub open spec fn no_create_msg_that_uses_generate_name(
+    kind: Kind, namespace: StringView
+) -> StatePred<Self> {
+    |s: Self| {
+        forall |msg: MsgType<E>| !{
+            &&& s.in_flight().contains(msg)
+            &&& #[trigger] resource_create_request_msg_with_empty_name(kind, namespace)(msg)
+        }
     }
 }
 
@@ -113,6 +125,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         // If the current owner_references does not satisfy the eventual requirement, the gc action is enabled.
         spec.entails(always(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))),
@@ -139,6 +152,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         &&& Self::next()(s, s_prime)
         &&& Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
         &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
+        &&& Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::garbage_collector_deletion_enabled(key)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s_prime) ==> Self::garbage_collector_deletion_enabled(key)(s_prime)
     };
@@ -148,6 +162,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         lift_action(Self::next()),
         lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
+        lift_state(Self::no_create_msg_that_uses_generate_name(key.kind, key.namespace)),
         lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))),
         later(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))
     );
@@ -206,6 +221,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                 let req = input.get_Some_0();
                 if resource_create_request_msg(key)(req) {} else {}
                 if resource_update_request_msg(key)(req) {} else {}
+                if resource_create_request_msg_with_empty_name(key.kind, key.namespace)(req) {} else {}
             },
             _ => {}
         }

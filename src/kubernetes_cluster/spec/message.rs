@@ -493,6 +493,17 @@ pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> spec_fn(Me
         && msg.content.get_create_request().obj.kind == key.kind
 }
 
+// This is mainly used for reasoning about create requests with generate name
+pub open spec fn resource_create_request_msg_with_empty_name<I, O>(kind: Kind, namespace: StringView) -> spec_fn(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_ApiServer()
+        && msg.content.is_create_request()
+        && msg.content.get_create_request().namespace == namespace
+        && msg.content.get_create_request().obj.metadata.name.is_None()
+        && msg.content.get_create_request().obj.metadata.generate_name.is_Some()
+        && msg.content.get_create_request().obj.kind == kind
+}
+
 pub open spec fn resource_update_status_request_msg<I, O>(key: ObjectRef) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
