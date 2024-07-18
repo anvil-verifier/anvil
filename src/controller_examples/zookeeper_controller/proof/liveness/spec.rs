@@ -230,7 +230,7 @@ pub open spec fn derived_invariants_since_beginning(zookeeper: ZookeeperClusterV
     .and(always(tla_forall(|res: SubResource| lift_state(ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, zookeeper).key)))))
     .and(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(zookeeper))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)))))
-    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper)))))
+    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, zookeeper)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperClusterView)
@@ -242,7 +242,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(zookeeper: ZookeeperCl
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, zookeeper));
     let a_to_p_5 = |res: SubResource| lift_state(ZKCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, zookeeper).key));
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper));
-    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper));
+    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, zookeeper));
     stable_and_always_n!(
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id()),
         lift_state(ZKCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()),
@@ -538,10 +538,10 @@ pub proof fn sm_spec_entails_all_invariants(zookeeper: ZookeeperClusterView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_6);
     });
-    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, zookeeper));
+    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, zookeeper));
     assert_by(spec.entails(always(tla_forall(a_to_p_7))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_7(sub_resource))) by {
-            helper_invariants::lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, zookeeper);
+            helper_invariants::lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, zookeeper);
         }
         spec_entails_always_tla_forall(spec, a_to_p_7);
     });

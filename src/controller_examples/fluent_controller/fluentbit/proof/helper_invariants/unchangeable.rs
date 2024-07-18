@@ -125,7 +125,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<F
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)(s)
         &&& object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, fb)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)(s)
-        &&& no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)(s)
+        &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)(s)
     };
     FBCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     FBCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
@@ -134,7 +134,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<F
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, sub_resource, fb);
     lemma_always_object_in_every_create_request_msg_satisfies_unchangeable(spec, sub_resource, fb);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, fb);
-    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, fb);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, fb);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(FBCluster::next()),
         lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
@@ -144,7 +144,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<F
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)),
         lift_state(object_in_every_create_request_msg_satisfies_unchangeable(sub_resource, fb)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, fb)),
-        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, fb))
     );
     assert forall |s: FBCluster, s_prime: FBCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         object_in_etcd_satisfies_unchangeable_induction(sub_resource, fb, s, s_prime);
@@ -164,7 +164,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
         FBCluster::each_object_in_etcd_is_well_formed()(s_prime),
         object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, fb)(s),
         object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s),
-        no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)(s),
+        no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)(s),
     ensures object_in_etcd_satisfies_unchangeable(sub_resource, fb)(s_prime),
 {
     let resource_key = get_request(sub_resource, fb).key;
@@ -193,7 +193,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
             Step::ApiServerStep(input) => {
                 let req = input.get_Some_0();
                 if resource_update_request_msg(resource_key)(req) {} else {}
-                if resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(req) {} else {}
+                if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req) {} else {}
             },
             _ => {}
         }

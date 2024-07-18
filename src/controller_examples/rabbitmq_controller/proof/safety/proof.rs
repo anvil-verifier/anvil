@@ -210,19 +210,19 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(SubResource::StatefulSet, rabbitmq)(s)
         &&& replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s)
-        &&& no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq)(s)
+        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq)(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(spec, SubResource::StatefulSet, rabbitmq);
     lemma_always_replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(spec, rabbitmq);
-    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, SubResource::StatefulSet, rabbitmq);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, SubResource::StatefulSet, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
         lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(SubResource::StatefulSet, rabbitmq)),
         lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)),
-        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
@@ -246,7 +246,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
                 match step {
                     Step::ApiServerStep(input) => {
                         let req = input.get_Some_0();
-                        assert(!resource_create_request_msg_with_empty_name(sts_key.kind, sts_key.namespace)(req));
+                        assert(!resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(req));
                     },
                     _ => {},
                 }
@@ -377,7 +377,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         RMQCluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
         object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(SubResource::StatefulSet, rabbitmq)(s),
-        // no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq)(s),
+        // no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq)(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
         resource_update_request_msg(make_stateful_set_key(rabbitmq))(msg),

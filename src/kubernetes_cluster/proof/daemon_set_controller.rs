@@ -123,7 +123,7 @@ pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_mo
                 match req.content.get_APIRequest_0() {
                     APIRequest::CreateRequest(_) => {
                         if resource_create_request_msg(key)(req) {}
-                        if resource_create_request_msg_with_empty_name(key.kind, key.namespace)(req) {}
+                        if resource_create_request_msg_without_name(key.kind, key.namespace)(req) {}
                     }
                     APIRequest::UpdateRequest(_) => {
                         if resource_update_request_msg(key)(req) {}
@@ -383,7 +383,7 @@ proof fn daemon_set_not_exist_or_updated_or_pending_update_status_requests_num_d
                     DaemonSetView::marshal_status_preserves_integrity();
                     if resource_create_request_msg(key)(input.get_Some_0()) {} else {}
                     if resource_update_request_msg(key)(input.get_Some_0()) {} else {}
-                    if resource_create_request_msg_with_empty_name(key.kind, key.namespace)(input.get_Some_0()) {}
+                    if resource_create_request_msg_without_name(key.kind, key.namespace)(input.get_Some_0()) {}
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }
             },
