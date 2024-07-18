@@ -494,7 +494,7 @@ pub open spec fn resource_create_request_msg<I, O>(key: ObjectRef) -> spec_fn(Me
 }
 
 // This is mainly used for reasoning about create requests with generate name
-pub open spec fn resource_create_request_msg_with_empty_name<I, O>(kind: Kind, namespace: StringView) -> spec_fn(Message<I, O>) -> bool {
+pub open spec fn resource_create_request_msg_without_name<I, O>(kind: Kind, namespace: StringView) -> spec_fn(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_ApiServer()
         && msg.content.is_create_request()

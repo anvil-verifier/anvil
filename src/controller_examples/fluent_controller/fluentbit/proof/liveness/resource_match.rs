@@ -45,7 +45,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_daemon_set(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, fb)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)))),
@@ -88,7 +88,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
     ensures
         spec.entails(lift_state(|s: FBCluster| {
             &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
@@ -417,7 +417,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         spec.entails(always(lift_state(FBCluster::busy_disabled()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
     ensures
         spec.entails(lift_state(|s: FBCluster| {
             &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
@@ -443,7 +443,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         &&& FBCluster::busy_disabled()(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)(s)
-        &&& helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)(s)
+        &&& helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -452,7 +452,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         lift_state(FBCluster::busy_disabled()),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)),
-        lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb))
+        lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -460,7 +460,7 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         match step {
             Step::ApiServerStep(input) => {
                 assert(!resource_create_request_msg(resource_key)(input.get_Some_0()));
-                assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
+                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
                 if input.get_Some_0() == req_msg {
                     let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
@@ -501,7 +501,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
         spec.entails(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(FBCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
     ensures
         spec.entails(lift_state(|s: FBCluster| {
             &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
@@ -536,7 +536,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
         &&& consistent_key(s)
         &&& FBCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)(s)
-        &&& helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)(s)
+        &&& helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)(s)
     };
     always_weaken_temp(spec, lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()), lift_state(consistent_key));
     combine_spec_entails_always_n!(
@@ -547,7 +547,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
         lift_state(consistent_key),
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)),
-        lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb))
+        lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -555,7 +555,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
         match step {
             Step::ApiServerStep(input) => {
                 assert(!resource_create_request_msg(resource_key)(input.get_Some_0()));
-                assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
+                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
             },
             _ => {}
         }
@@ -576,7 +576,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
         spec.entails(always(lift_state(FBCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
     ensures
         spec.entails(lift_state(|s: FBCluster| {
             &&& !s.resources().contains_key(get_request(sub_resource, fb).key)
@@ -598,7 +598,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
         &&& FBCluster::each_object_in_etcd_is_well_formed()(s)
         &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())(s)
         &&& helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)(s)
-        &&& helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)(s)
+        &&& helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -609,7 +609,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
         lift_state(FBCluster::each_object_in_etcd_is_well_formed()),
         lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation(fb.object_ref())),
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)),
-        lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb))
+        lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb))
     );
 
     let post = |s: FBCluster| {
@@ -635,7 +635,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
         match step {
             Step::ApiServerStep(input) => {
                 if resource_create_request_msg(resource_key)(input.get_Some_0()) {} else {}
-                if resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()) {} else {}
+                if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()) {} else {}
             },
             _ => {},
         }

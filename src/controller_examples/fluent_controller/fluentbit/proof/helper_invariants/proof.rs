@@ -620,17 +620,17 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
 {
     let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb);
     lemma_always_resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(spec, sub_resource, fb);
-    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, fb);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, fb);
     let stronger_next = |s, s_prime| {
         &&& FBCluster::next()(s, s_prime)
         &&& resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, fb)(s)
-        &&& no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)(s)
+        &&& no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(FBCluster::next()),
         lift_state(resource_object_create_or_update_request_msg_has_one_controller_ref_and_no_finalizers(sub_resource, fb)),
-        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, fb))
     );
     let resource_key = get_request(sub_resource, fb).key;
     assert forall |s, s_prime| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
@@ -638,7 +638,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         match step {
             Step::ApiServerStep(input) => {
                 let req_msg = input.get_Some_0();
-                assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(req_msg));
+                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req_msg));
             }
             _ => {}
         }
@@ -926,14 +926,14 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(tla_forall(|sub_resource: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb))))),
         spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fb))))),
-        spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb))))),
+        spec.entails(always(tla_forall(|sub_resource: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, fb))))),
     ensures spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| (lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb))))))),
 {
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb))))) by {
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, fb)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(every_resource_create_request_implies_at_after_create_resource_step(res, fb)), sub_resource);
         always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, fb)), sub_resource);
-        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_create_resource_request_msg_with_empty_name_in_flight(res, fb)), sub_resource);
+        always_tla_forall_apply(spec, |res: SubResource|lift_state(no_create_resource_request_msg_without_name_in_flight(res, fb)), sub_resource);
         lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(spec, sub_resource, fb);
     }
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb)));
@@ -950,7 +950,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb)))),
         spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fb)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, fb))))),
 {
     let key = get_request(sub_resource, fb).key;
@@ -996,7 +996,7 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
         spec.entails(always(lift_state(every_resource_update_request_implies_at_after_update_resource_step(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(daemon_set_in_etcd_satisfies_unchangeable(fb)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)))),
-        spec.entails(always(lift_state(no_create_resource_request_msg_with_empty_name_in_flight(SubResource::DaemonSet, fb)))),
+        spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(no_update_status_request_msg_not_from_bc_in_flight_of_daemon_set(fb)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(daemon_set_not_exists_or_matches_or_no_more_status_update(fb))))),
 {
@@ -1063,37 +1063,37 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
 }
 
 // We can probably hide a lof of spec functions to make this lemma faster
-pub proof fn lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
+pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires
         spec.entails(lift_state(FBCluster::init())),
         spec.entails(always(lift_action(FBCluster::next()))),
-    ensures spec.entails(always(lift_state(no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))),
+    ensures spec.entails(always(lift_state(no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))),
 {
     let key = fb.object_ref();
     let resource_key = get_request(sub_resource, fb).key;
-    let inv = no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb);
+    let inv = no_create_resource_request_msg_without_name_in_flight(sub_resource, fb);
 
     assert forall |s: FBCluster| #[trigger] FBCluster::init()(s) implies inv(s) by {}
 
     assert forall |s: FBCluster, s_prime: FBCluster| #[trigger] FBCluster::next()(s, s_prime) && inv(s) implies inv(s_prime) by {
         assert forall |msg: FBMessage|
-            !(s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg))
+            !(s_prime.in_flight().contains(msg) && #[trigger] resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg))
         by {
             let step = choose |step| FBCluster::next_step(s, s_prime, step);
             match step {
                 Step::ApiServerStep(_) => {
                     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
+                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
                     }
                 },
                 Step::ControllerStep(_) => {
                     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
+                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
                     }
                 },
                 _ => {
                     if !s.in_flight().contains(msg) && s_prime.in_flight().contains(msg) {
-                        assert(!resource_create_request_msg_with_empty_name(resource_key.kind, resource_key.namespace)(msg));
+                        assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(msg));
                     }
                 },
             }

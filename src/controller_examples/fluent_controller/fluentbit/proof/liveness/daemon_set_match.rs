@@ -42,7 +42,7 @@ pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(spec: Te
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)))),
-        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(SubResource::DaemonSet, fb)))),
+        spec.entails(always(lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(SubResource::DaemonSet, fb)))),
         spec.entails(always(lift_state(helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb)))),
     ensures
         spec.entails(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb)).leads_to(lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)))),

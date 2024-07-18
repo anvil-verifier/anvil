@@ -52,7 +52,7 @@ pub open spec fn no_create_msg_that_uses_generate_name(
     |s: Self| {
         forall |msg: MsgType<E>| !{
             &&& s.in_flight().contains(msg)
-            &&& #[trigger] resource_create_request_msg_with_empty_name(kind, namespace)(msg)
+            &&& #[trigger] resource_create_request_msg_without_name(kind, namespace)(msg)
         }
     }
 }
@@ -221,7 +221,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                 let req = input.get_Some_0();
                 if resource_create_request_msg(key)(req) {} else {}
                 if resource_update_request_msg(key)(req) {} else {}
-                if resource_create_request_msg_with_empty_name(key.kind, key.namespace)(req) {} else {}
+                if resource_create_request_msg_without_name(key.kind, key.namespace)(req) {} else {}
             },
             _ => {}
         }

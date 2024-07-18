@@ -112,7 +112,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, f
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)), SubResource::DaemonSet);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, fb)), SubResource::DaemonSet);
             always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb)), SubResource::DaemonSet);
-            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)), SubResource::DaemonSet);
+            always_tla_forall_apply(spec, |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)), SubResource::DaemonSet);
             helper_invariants::lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more_status_update(spec, fb);
         }
     }
@@ -221,7 +221,7 @@ pub open spec fn derived_invariants_since_beginning(fb: FluentBitView) -> TempPr
     .and(always(tla_forall(|res: SubResource| lift_state(FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fb).key)))))
     .and(always(lift_state(helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb))))
     .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb)))))
-    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb)))))
+    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(fb: FluentBitView)
@@ -233,7 +233,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fb: FluentBitView)
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, fb));
     let a_to_p_5 = |res: SubResource| lift_state(FBCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, fb).key));
     let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, fb));
-    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb));
+    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb));
     stable_and_always_n!(
         lift_state(FBCluster::every_in_flight_msg_has_unique_id()),
         lift_state(FBCluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(fb.object_ref())),
@@ -442,10 +442,10 @@ pub proof fn sm_spec_entails_all_invariants(fb: FluentBitView)
         }
         spec_entails_always_tla_forall(spec, a_to_p_6);
     });
-    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_with_empty_name_in_flight(sub_resource, fb));
+    let a_to_p_7 = |sub_resource: SubResource| lift_state(helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, fb));
     assert_by(spec.entails(always(tla_forall(a_to_p_7))), {
         assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_7(sub_resource))) by {
-            helper_invariants::lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sub_resource, fb);
+            helper_invariants::lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sub_resource, fb);
         }
         spec_entails_always_tla_forall(spec, a_to_p_7);
     });

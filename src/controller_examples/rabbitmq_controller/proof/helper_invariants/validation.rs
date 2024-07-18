@@ -74,7 +74,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
         &&& stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)(s)
         &&& stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)(s)
         &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)(s)
-        &&& no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq)(s)
+        &&& no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq)(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
@@ -82,7 +82,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
     lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(spec, rabbitmq);
     lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(spec, rabbitmq);
     lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, sts_res, rabbitmq);
-    lemma_always_no_create_resource_request_msg_with_empty_name_in_flight(spec, sts_res, rabbitmq);
+    lemma_always_no_create_resource_request_msg_without_name_in_flight(spec, sts_res, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
@@ -90,7 +90,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
         lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)),
         lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)),
         lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)),
-        lift_state(no_create_resource_request_msg_with_empty_name_in_flight(SubResource::StatefulSet, rabbitmq))
+        lift_state(no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
@@ -118,7 +118,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                         let req = input.get_Some_0();
                         if resource_create_request_msg(sts_key)(req) {} else {}
                         if resource_update_request_msg(sts_key)(req) {} else {}
-                        if resource_create_request_msg_with_empty_name(sts_key.kind, sts_key.namespace)(req) {} else {}
+                        if resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(req) {} else {}
                     },
                     _ => {}
                 }
