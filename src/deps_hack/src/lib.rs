@@ -330,3 +330,19 @@ pub struct VStatefulSetStatus {
     #[serde(rename = "observedGeneration")]
     pub observed_generation: Option<i64>,
 }
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(namespaced, group = "anvil.dev", version = "v1", kind = "Producer")]
+pub struct ProducerSpec {
+    pub message: String,
+}
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(namespaced, group = "anvil.dev", version = "v1", kind = "Consumer")]
+pub struct ConsumerSpec {
+    pub message: String,
+}
