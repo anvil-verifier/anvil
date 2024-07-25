@@ -47,9 +47,9 @@ impl Reconciler for ProducerReconciler {
     }
 }
 
-impl Default for ProducerReconciler {
-    fn default() -> ProducerReconciler { ProducerReconciler{} }
-}
+// impl Default for ProducerReconciler {
+//     pub fn default() -> ProducerReconciler { ProducerReconciler{} }
+// }
 
 #[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: ProducerReconcileState)

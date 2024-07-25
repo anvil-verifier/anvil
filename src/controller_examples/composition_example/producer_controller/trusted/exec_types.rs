@@ -40,6 +40,13 @@ impl View for Producer {
 
 impl Producer {
     #[verifier(external_body)]
+    pub fn default() -> (producer: Producer)
+        // ensures producer@ == ProducerView::default(),
+    {
+        Producer { inner: deps_hack::Producer::default() }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
     {
@@ -47,10 +54,24 @@ impl Producer {
     }
 
     #[verifier(external_body)]
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
+        // ensures self@ == old(self)@.set_metadata(metadata@),
+    {
+        self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
     pub fn spec(&self) -> (spec: ProducerSpec)
         ensures spec@ == self@.spec,
     {
         ProducerSpec { inner: self.inner.spec.clone() }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: ProducerSpec)
+        // ensures self@ == old(self)@.set_spec(spec@),
+    {
+        self.inner.spec = spec.into_kube();
     }
 
     #[verifier(external_body)]
@@ -109,12 +130,29 @@ impl ProducerSpec {
     pub spec fn view(&self) -> spec_types::ProducerSpecView;
 
     #[verifier(external_body)]
+    pub fn default() -> (producer_spec: ProducerSpec)
+        // ensures producer_spec@ == ProducerSpecView::default(),
+    {
+        ProducerSpec { inner: deps_hack::ProducerSpec::default() }
+    }
+
+    #[verifier(external_body)]
     pub fn message(&self) -> (message: String)
         ensures
             message@ == self@.message,
     {
         self.inner.message.clone()
     }
+
+    #[verifier(external_body)]
+    pub fn set_message(&mut self, message: String)
+        // ensures self@ == old(self)@.set_message(message@),
+    {
+        self.inner.message = message
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::ProducerSpec { self.inner }
 }
 
 }
