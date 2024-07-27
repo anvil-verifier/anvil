@@ -127,21 +127,68 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req)));
-                } else {
-                    return (error_state(state), None);
                 }
             }
             return (error_state(state), None);
         },
-        // ConsumerReconcileStep::AfterCreateProducer => {
-
-        // },
-        // ConsumerReconcileStep::AfterGetPod => {
-
-        // },
-        // ConsumerReconcileStep::AfterUpdatePod => {
-
-        // },
+        ConsumerReconcileStep::AfterCreateProducer => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let create_producer_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_producer_resp.is_ok() {
+                    let req = KubeAPIRequest::GetRequest(KubeGetRequest {
+                        api_resource: Pod::api_resource(),
+                        name: consumer.metadata().name().unwrap(),
+                        namespace: consumer.metadata().namespace().unwrap(),
+                    });
+                    let state_prime = ConsumerReconcileState {
+                        reconcile_step: ConsumerReconcileStep::AfterGetPod,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req)));
+                }
+            }
+            return (error_state(state), None);
+        },
+        ConsumerReconcileStep::AfterGetPod => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_pod_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_pod_resp.is_ok() {
+                    let old_obj_unmarshal_res = Pod::unmarshal(get_pod_resp.unwrap());
+                    if old_obj_unmarshal_res.is_ok() {
+                        let old_pod = old_obj_unmarshal_res.unwrap();
+                        let new_pod = update_pod(consumer, old_pod);
+                        let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Pod::api_resource(),
+                            name: consumer.metadata().name().unwrap(),
+                            namespace: consumer.metadata().namespace().unwrap(),
+                            obj: new_pod.marshal(),
+                        });
+                        let state_prime = ConsumerReconcileState {
+                            reconcile_step: ConsumerReconcileStep::AfterUpdatePod,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req)));
+                    }
+                }
+            }
+            return (error_state(state), None);
+        },
+        ConsumerReconcileStep::AfterUpdatePod => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let update_pod_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_pod_resp.is_ok() {
+                    let state_prime = ConsumerReconcileState {
+                        reconcile_step: ConsumerReconcileStep::Done,
+                        ..state
+                    };
+                    return (state_prime, None);
+                }
+            }
+            return (error_state(state), None);
+        },
         _ => {
             return (state, None);
         }
@@ -212,6 +259,22 @@ fn make_pod(consumer: &Consumer) -> (pod: Pod)
 }
 
 #[verifier(external_body)]
+fn update_pod(consumer: &Consumer, pod: Pod) -> (new_pod: Pod)
+{
+    let mut new_pod = pod.clone();
+    new_pod.set_metadata({
+        let mut metadata = new_pod.metadata();
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert("consumer_message".to_string(), consumer.spec().message());
+            labels
+        });
+        metadata
+    });
+    new_pod
+}
+
+#[verifier(external_body)]
 fn make_producer(consumer: &Consumer) -> (producer: Producer)
     // requires consumer@.well_formed(),
     // ensures pod@ == model_reconciler::make_pod(consumer@),
@@ -225,7 +288,7 @@ fn make_producer(consumer: &Consumer) -> (producer: Producer)
     });
     producer.set_spec({
         let mut producer_spec = ProducerSpec::default();
-        producer_spec.set_message("hello".to_string());
+        producer_spec.set_message(consumer.spec().message());
         producer_spec
     });
     producer
