@@ -1,0 +1,6 @@
+apiVersion: anvil.dev/v1
+kind: Consumer
+metadata:
+  name: consumer
+spec:
+  message: consumer-message
