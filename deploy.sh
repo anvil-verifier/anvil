@@ -11,19 +11,8 @@ GREEN='\033[1;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-app=$1
-registry=$2
-
-if [ "$app" != "zookeeper" ] && [ "$app" != "rabbitmq" ] && [ "$app" != "fluent" ]\
-   [ "$app" != "vreplicaset" ] && [ "$app" != "producer" ]; then
-    echo -e "${RED}The first argument has to be one of: zookeeper, rabbitmq, fluent, vreplicaset, producer.${NC}"
-    exit 1    
-fi
-
-if [ "$registry" != "remote" ] && [ "$registry" != "local" ]; then
-    echo -e "${RED}The second argument has to be one of: remote, local.${NC}"
-    exit 2
-fi
+app=$1 # should be the controller's name
+registry=$2 # should be either remote or local
 
 ## use imperative management for CRDs since metadata for PodTemplateSpec is too long.
 if cd deploy/$1 && kubectl create -f crd.yaml && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
