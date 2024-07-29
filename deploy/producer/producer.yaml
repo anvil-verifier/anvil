@@ -1,6 +1,6 @@
 apiVersion: anvil.dev/v1
 kind: Producer
 metadata:
-  name: producer
+  name: app
 spec:
-  message: producer-message
+  message: hello
