@@ -48,7 +48,7 @@ where
         + Sync
         + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
-    ReconcilerType: Reconciler + Send + Sync + Default,
+    ReconcilerType: Reconciler + Send + Sync,
     ReconcilerType::R: ResourceWrapper<K> + Send,
     ReconcilerType::T: Send,
     <ReconcilerType::ExternalAPIType as ExternalAPIShimLayer>::Input: Send,

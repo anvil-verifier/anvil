@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::v_replica_set_controller::trusted::{
-    spec_types::*, step::*,
-};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::v_replica_set_controller::trusted::{spec_types::*, step::*};
 use vstd::{prelude::*, string::*};
 
 verus! {
@@ -34,11 +32,11 @@ impl Reconciler<VReplicaSetView, EmptyAPI> for VReplicaSetReconciler {
     open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* expect nothing */ }
 }
 
-pub open spec fn reconcile_init_state() -> VReplicaSetReconcileState { 
-    VReplicaSetReconcileState { 
+pub open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
+    VReplicaSetReconcileState {
         reconcile_step: VReplicaSetReconcileStepView::Init,
         filtered_pods: None,
-    } 
+    }
 }
 
 pub open spec fn reconcile_done(state: VReplicaSetReconcileState) -> bool {
@@ -254,4 +252,3 @@ pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
 pub open spec fn make_owner_references(v_replica_set: VReplicaSetView) -> Seq<OwnerReferenceView> { seq![v_replica_set.controller_owner_ref()] }
 
 }
-    

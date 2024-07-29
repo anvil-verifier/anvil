@@ -80,3 +80,41 @@ jobs:
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
+  build-producer-controller:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build producer controller image
+        run: |
+          cp docker/controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/producer-controller:latest --build-arg APP=producer .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/producer-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/producer-controller:${{ github.sha }}
+      - name: Push producer controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/producer-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/producer-controller:${{ github.sha }}
+  build-consumer-controller:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build consumer controller image
+        run: |
+          cp docker/controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/consumer-controller:latest --build-arg APP=consumer .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/consumer-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/consumer-controller:${{ github.sha }}
+      - name: Push consumer controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/consumer-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/consumer-controller:${{ github.sha }}
