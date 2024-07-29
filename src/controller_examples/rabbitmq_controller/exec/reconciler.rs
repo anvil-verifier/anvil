@@ -48,10 +48,6 @@ impl Reconciler for RabbitmqReconciler {
     }
 }
 
-impl Default for RabbitmqReconciler {
-    fn default() -> RabbitmqReconciler { RabbitmqReconciler{} }
-}
-
 pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {

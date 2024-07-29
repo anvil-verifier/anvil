@@ -47,10 +47,6 @@ impl Reconciler for VReplicaSetReconciler {
     }
 }
 
-impl Default for VReplicaSetReconciler {
-    fn default() -> VReplicaSetReconciler { VReplicaSetReconciler{} }
-}
-
 pub fn reconcile_init_state() -> (state: VReplicaSetReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {
@@ -256,7 +252,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         let model_result = model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@));
         if model_result.is_some() {
             assert_seqs_equal!(
-                pods@.map_values(|p: Pod| p@), 
+                pods@.map_values(|p: Pod| p@),
                 model_result.unwrap().take(0)
             );
         }
@@ -267,23 +263,23 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             idx <= objs.len(),
             ({
                 let model_result = model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@));
-                &&& (model_result.is_some() ==> 
+                &&& (model_result.is_some() ==>
                         pods@.map_values(|p: Pod| p@) == model_result.unwrap().take(idx as int))
                 &&& forall|i: int| 0 <= i < idx ==> PodView::unmarshal(#[trigger] objs@[i]@).is_ok()
             }),
     {
         let pod_or_error = Pod::unmarshal(objs[idx].clone());
-        if pod_or_error.is_ok() { 
+        if pod_or_error.is_ok() {
             pods.push(pod_or_error.unwrap());
             proof {
                 // Show that the pods Vec and the model_result are equal up to index idx + 1.
                 let model_result = model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@));
                 if (model_result.is_some()) {
-                    assert(model_result.unwrap().take((idx + 1) as int) 
+                    assert(model_result.unwrap().take((idx + 1) as int)
                         == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
                     assert_seqs_equal!(
-                        pods@.map_values(|p: Pod| p@), 
-                        model_result.unwrap().take((idx + 1) as int) 
+                        pods@.map_values(|p: Pod| p@),
+                        model_result.unwrap().take((idx + 1) as int)
                     );
                 }
             }
@@ -313,10 +309,10 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         assert(filter_result.len() == 0) by {
             if filter_result.len() != 0 {
                 lemma_filter_contains_implies_contains(
-                    model_input, 
+                    model_input,
                     |o: DynamicObjectView| PodView::unmarshal(o).is_err(),
                     filter_result[0]
-                ); 
+                );
             }
         };
         assert(model_result.is_some());
@@ -364,15 +360,15 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
 
     proof {
         assert_seqs_equal!(
-            filtered_pods@.map_values(|p: Pod| p@), 
+            filtered_pods@.map_values(|p: Pod| p@),
             model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@).take(0), v_replica_set@)
         );
     }
 
-    while idx < pods.len() 
+    while idx < pods.len()
         invariant
             idx <= pods.len(),
-            filtered_pods@.map_values(|p: Pod| p@) 
+            filtered_pods@.map_values(|p: Pod| p@)
                 == model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@).take(idx as int), v_replica_set@),
     {
         let pod = &pods[idx];
@@ -386,7 +382,7 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
         && !pod.metadata().has_deletion_timestamp() {
             filtered_pods.push(pod.clone());
         }
-        
+
         proof {
             let spec_filter = |pod: PodView|
                 pod.metadata.owner_references_contains(v_replica_set@.controller_owner_ref())
