@@ -47,10 +47,6 @@ impl Reconciler for ProducerReconciler {
     }
 }
 
-// impl Default for ProducerReconciler {
-//     pub fn default() -> ProducerReconciler { ProducerReconciler{} }
-// }
-
 #[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: ProducerReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),

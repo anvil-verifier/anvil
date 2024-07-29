@@ -42,10 +42,6 @@ impl Reconciler for FluentBitReconciler {
     }
 }
 
-impl Default for FluentBitReconciler {
-    fn default() -> FluentBitReconciler { FluentBitReconciler{} }
-}
-
 pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {

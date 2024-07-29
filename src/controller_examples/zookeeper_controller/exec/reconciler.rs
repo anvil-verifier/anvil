@@ -50,10 +50,6 @@ impl Reconciler for ZookeeperReconciler {
     }
 }
 
-impl Default for ZookeeperReconciler {
-    fn default() -> ZookeeperReconciler { ZookeeperReconciler{} }
-}
-
 pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {

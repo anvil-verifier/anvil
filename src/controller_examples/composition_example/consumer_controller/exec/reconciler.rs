@@ -48,10 +48,6 @@ impl Reconciler for ConsumerReconciler {
     }
 }
 
-impl Default for ConsumerReconciler {
-    fn default() -> ConsumerReconciler { ConsumerReconciler{} }
-}
-
 #[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: ConsumerReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
