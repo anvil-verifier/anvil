@@ -132,6 +132,11 @@ fn make_pod(producer: &Producer) -> (pod: Pod)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(producer.metadata().name().unwrap());
         metadata.set_owner_references(make_owner_references(producer));
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert("producer_message".to_string(), producer.spec().message());
+            labels
+        });
         metadata
     });
     pod.set_spec({

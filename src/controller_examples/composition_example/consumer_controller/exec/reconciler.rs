@@ -221,51 +221,17 @@ pub fn make_owner_references(consumer: &Consumer) -> (owner_references: Vec<Owne
 }
 
 #[verifier(external_body)]
-fn make_pod(consumer: &Consumer) -> (pod: Pod)
-    requires consumer@.well_formed(),
-    ensures pod@ == model_reconciler::make_pod(consumer@),
-{
-    let mut pod = Pod::default();
-    pod.set_metadata({
-        let mut metadata = ObjectMeta::default();
-        metadata.set_name(consumer.metadata().name().unwrap());
-        metadata.set_owner_references(make_owner_references(consumer));
-        metadata
-    });
-    pod.set_spec({
-        let mut pod_spec = PodSpec::default();
-        pod_spec.set_containers({
-            let mut containers = Vec::new();
-            containers.push({
-                let mut container = Container::default();
-                container.set_name("nginx".to_string());
-                container.set_image("nginx:1.14.2".to_string());
-                container.set_ports({
-                    let mut ports = Vec::new();
-                    ports.push({
-                        let mut container_port = ContainerPort::default();
-                        container_port.set_container_port(80);
-                        container_port
-                    });
-                    ports
-                });
-                container
-            });
-            containers
-        });
-        pod_spec
-    });
-    pod
-}
-
-#[verifier(external_body)]
 fn update_pod(consumer: &Consumer, pod: Pod) -> (new_pod: Pod)
 {
     let mut new_pod = pod.clone();
     new_pod.set_metadata({
         let mut metadata = new_pod.metadata();
         metadata.set_labels({
-            let mut labels = StringMap::empty();
+            let mut labels = if metadata.labels().is_none() {
+                StringMap::empty()
+            } else {
+                metadata.labels().unwrap()
+            };
             labels.insert("consumer_message".to_string(), consumer.spec().message());
             labels
         });
@@ -277,7 +243,7 @@ fn update_pod(consumer: &Consumer, pod: Pod) -> (new_pod: Pod)
 #[verifier(external_body)]
 fn make_producer(consumer: &Consumer) -> (producer: Producer)
     // requires consumer@.well_formed(),
-    // ensures pod@ == model_reconciler::make_pod(consumer@),
+    // ensures pod@ == model_reconciler::make_producer(consumer@),
 {
     let mut producer = Producer::default();
     producer.set_metadata({
