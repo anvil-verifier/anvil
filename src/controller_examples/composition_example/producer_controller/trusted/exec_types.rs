@@ -41,7 +41,7 @@ impl View for Producer {
 impl Producer {
     #[verifier(external_body)]
     pub fn default() -> (producer: Producer)
-        // ensures producer@ == ProducerView::default(),
+        ensures producer@ == spec_types::ProducerView::default(),
     {
         Producer { inner: deps_hack::Producer::default() }
     }
@@ -55,7 +55,7 @@ impl Producer {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        // ensures self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
@@ -69,7 +69,7 @@ impl Producer {
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: ProducerSpec)
-        // ensures self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = spec.into_kube();
     }
@@ -131,7 +131,7 @@ impl ProducerSpec {
 
     #[verifier(external_body)]
     pub fn default() -> (producer_spec: ProducerSpec)
-        // ensures producer_spec@ == ProducerSpecView::default(),
+        ensures producer_spec@ == spec_types::ProducerSpecView::default(),
     {
         ProducerSpec { inner: deps_hack::ProducerSpec::default() }
     }
@@ -146,7 +146,7 @@ impl ProducerSpec {
 
     #[verifier(external_body)]
     pub fn set_message(&mut self, message: String)
-        // ensures self@ == old(self)@.set_message(message@),
+        ensures self@ == old(self)@.set_message(message@),
     {
         self.inner.message = message
     }

@@ -46,6 +46,20 @@ impl ProducerView {
             uid: self.metadata.uid.get_Some_0(),
         }
     }
+
+    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ProducerView {
+        ProducerView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
+    pub open spec fn set_spec(self, spec: ProducerSpecView) -> ProducerView {
+        ProducerView {
+            spec: spec,
+            ..self
+        }
+    }
 }
 
 impl ResourceView for ProducerView {
@@ -55,7 +69,7 @@ impl ResourceView for ProducerView {
     open spec fn default() -> ProducerView {
         ProducerView {
             metadata: ObjectMetaView::default(),
-            spec: arbitrary(), // TODO: specify the default value for spec
+            spec: ProducerSpecView::default(), // TODO: specify the default value for spec
             status: None,
         }
     }
@@ -144,6 +158,21 @@ impl CustomResourceView for ProducerView {
 
 pub struct ProducerSpecView {
     pub message: StringView,
+}
+
+impl ProducerSpecView {
+    pub open spec fn default() -> ProducerSpecView {
+        ProducerSpecView {
+            message: ""@,
+        }
+    }
+
+    pub open spec fn set_message(self, message: StringView) -> ProducerSpecView {
+        ProducerSpecView {
+            message: message,
+            ..self
+        }
+    }
 }
 
 }

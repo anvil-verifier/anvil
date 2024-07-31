@@ -48,7 +48,6 @@ impl Reconciler for ConsumerReconciler {
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: ConsumerReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {
@@ -57,7 +56,6 @@ pub fn reconcile_init_state() -> (state: ConsumerReconcileState)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_done(state: &ConsumerReconcileState) -> (res: bool)
     ensures res == model_reconciler::reconcile_done(state@),
 {
@@ -67,7 +65,6 @@ pub fn reconcile_done(state: &ConsumerReconcileState) -> (res: bool)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_error(state: &ConsumerReconcileState) -> (res: bool)
     ensures res == model_reconciler::reconcile_error(state@),
 {
@@ -77,12 +74,10 @@ pub fn reconcile_error(state: &ConsumerReconcileState) -> (res: bool)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, state: ConsumerReconcileState) -> (res: (ConsumerReconcileState, Option<Request<EmptyType>>))
     requires consumer@.well_formed(),
     ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(consumer@, opt_response_to_view(&resp_o), state@),
 {
-    let namespace = consumer.metadata().namespace().unwrap();
     match &state.reconcile_step {
         ConsumerReconcileStep::Init => {
             let req = KubeAPIRequest::GetRequest(KubeGetRequest {
@@ -115,7 +110,7 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
                     let producer = make_producer(consumer);
                     let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Producer::api_resource(),
-                        namespace: namespace,
+                        namespace: consumer.metadata().namespace().unwrap(),
                         obj: producer.marshal(),
                     });
                     let state_prime = ConsumerReconcileState {
@@ -191,8 +186,8 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
     }
 }
 
-pub fn error_state(state: ConsumerReconcileState) -> (state_prime: ConsumerReconcileState)
-    // ensures state_prime@ == model_reconciler::error_state(state@),
+fn error_state(state: ConsumerReconcileState) -> (state_prime: ConsumerReconcileState)
+    ensures state_prime@ == model_reconciler::error_state(state@),
 {
     ConsumerReconcileState {
         reconcile_step: ConsumerReconcileStep::Error,
@@ -200,52 +195,50 @@ pub fn error_state(state: ConsumerReconcileState) -> (state_prime: ConsumerRecon
     }
 }
 
-#[verifier(external_body)]
-pub fn make_owner_references(consumer: &Consumer) -> (owner_references: Vec<OwnerReference>)
-    requires consumer@.well_formed(),
-    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_reconciler::make_owner_references(consumer@),
-{
-    let mut owner_references = Vec::new();
-    owner_references.push(consumer.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            model_reconciler::make_owner_references(consumer@)
-        );
-    }
-    owner_references
-}
-
-#[verifier(external_body)]
 fn update_pod(consumer: &Consumer, pod: Pod) -> (new_pod: Pod)
+    requires consumer@.well_formed(),
+    ensures new_pod@ == model_reconciler::update_pod(consumer@, pod@),
 {
     let mut new_pod = pod.clone();
     new_pod.set_metadata({
-        let mut metadata = new_pod.metadata();
-        metadata.set_labels({
-            let mut labels = if metadata.labels().is_none() {
-                StringMap::empty()
-            } else {
-                metadata.labels().unwrap()
-            };
-            labels.insert("consumer_message".to_string(), consumer.spec().message());
-            labels
-        });
+        let mut metadata = pod.metadata();
+        if metadata.labels().is_none() {
+            metadata.set_labels({
+                let mut labels = StringMap::empty();
+                labels.insert("consumer_message".to_string(), consumer.spec().message());
+                labels
+            });
+        } else {
+            metadata.set_labels({
+                let mut labels = pod.metadata().labels().unwrap();
+                labels.insert("consumer_message".to_string(), consumer.spec().message());
+                labels
+            });
+        }
         metadata
     });
     new_pod
 }
 
-#[verifier(external_body)]
 fn make_producer(consumer: &Consumer) -> (producer: Producer)
-    // requires consumer@.well_formed(),
-    // ensures pod@ == model_reconciler::make_producer(consumer@),
+    requires consumer@.well_formed(),
+    ensures producer@ == model_reconciler::make_producer(consumer@),
 {
     let mut producer = Producer::default();
     producer.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(consumer.metadata().name().unwrap());
-        metadata.set_owner_references(make_owner_references(consumer));
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(consumer.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    model_reconciler::make_producer(consumer@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata
     });
     producer.set_spec({
