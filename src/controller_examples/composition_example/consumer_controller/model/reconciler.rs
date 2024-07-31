@@ -73,8 +73,8 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req)))
         },
         ConsumerReconcileStepView::AfterGetProducer => {
-            if is_some_k_get_resp!(resp_o) {
-                let res = extract_some_k_get_resp!(resp_o);
+            if is_some_k_get_resp_view!(resp_o) {
+                let res = extract_some_k_get_resp_view!(resp_o);
                 if res is Ok {
                     let req = APIRequest::GetRequest(GetRequest {
                         key: ObjectRef {
@@ -107,8 +107,8 @@ pub open spec fn reconcile_core(
             }
         },
         ConsumerReconcileStepView::AfterCreateProducer => {
-            if is_some_k_create_resp!(resp_o) {
-                let res = extract_some_k_create_resp!(resp_o);
+            if is_some_k_create_resp_view!(resp_o) {
+                let res = extract_some_k_create_resp_view!(resp_o);
                 if res is Ok {
                     let req = APIRequest::GetRequest(GetRequest {
                         key: ObjectRef {
@@ -130,8 +130,8 @@ pub open spec fn reconcile_core(
             }
         },
         ConsumerReconcileStepView::AfterGetPod => {
-            if is_some_k_get_resp!(resp_o) {
-                let res = extract_some_k_get_resp!(resp_o);
+            if is_some_k_get_resp_view!(resp_o) {
+                let res = extract_some_k_get_resp_view!(resp_o);
                 if res is Ok {
                     let old_pod_unmarshal_res = PodView::unmarshal(res.get_Ok_0());
                     if old_pod_unmarshal_res is Ok {
@@ -158,8 +158,8 @@ pub open spec fn reconcile_core(
             }
         },
         ConsumerReconcileStepView::AfterUpdatePod => {
-            if is_some_k_update_resp!(resp_o) {
-                let res = extract_some_k_update_resp!(resp_o);
+            if is_some_k_update_resp_view!(resp_o) {
+                let res = extract_some_k_update_resp_view!(resp_o);
                 if res is Ok {
                     let state_prime = ConsumerReconcileState {
                         reconcile_step: ConsumerReconcileStepView::Done,
