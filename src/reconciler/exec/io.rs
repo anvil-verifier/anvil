@@ -131,4 +131,56 @@ pub open spec fn opt_request_to_view<T: View>(request: &Option<Request<T>>) -> O
     }
 }
 
+#[macro_export]
+macro_rules! is_some_k_get_resp {
+    ($r:expr) => {
+        $r.is_some() && $r.as_ref().unwrap().is_k_response()
+        && $r.as_ref().unwrap().as_k_response_ref().is_get_response()
+    };
+}
+
+#[macro_export]
+macro_rules! is_some_k_create_resp {
+    ($r:expr) => {
+        $r.is_some() && $r.as_ref().unwrap().is_k_response()
+        && $r.as_ref().unwrap().as_k_response_ref().is_create_response()
+    };
+}
+
+#[macro_export]
+macro_rules! is_some_k_update_resp {
+    ($r:expr) => {
+        $r.is_some() && $r.as_ref().unwrap().is_k_response()
+        && $r.as_ref().unwrap().as_k_response_ref().is_update_response()
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_get_resp {
+    ($r:expr) => {
+        $r.unwrap().into_k_response().into_get_response().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_create_resp {
+    ($r:expr) => {
+        $r.unwrap().into_k_response().into_create_response().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_update_resp {
+    ($r:expr) => {
+        $r.unwrap().into_k_response().into_update_response().res
+    };
+}
+
+pub use is_some_k_get_resp;
+pub use is_some_k_create_resp;
+pub use is_some_k_update_resp;
+pub use extract_some_k_get_resp;
+pub use extract_some_k_create_resp;
+pub use extract_some_k_update_resp;
+
 }

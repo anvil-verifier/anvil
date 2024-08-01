@@ -92,9 +92,8 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
             return (state_prime, Some(Request::KRequest(req)));
         },
         ConsumerReconcileStep::AfterGetProducer => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_producer_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+            if is_some_k_get_resp!(resp_o) {
+                let get_producer_resp = extract_some_k_get_resp!(resp_o);
                 if get_producer_resp.is_ok() {
                     let req = KubeAPIRequest::GetRequest(KubeGetRequest {
                         api_resource: Pod::api_resource(),
@@ -123,9 +122,8 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
             return (error_state(state), None);
         },
         ConsumerReconcileStep::AfterCreateProducer => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
-                let create_producer_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+            if is_some_k_create_resp!(resp_o) {
+                let create_producer_resp = extract_some_k_create_resp!(resp_o);
                 if create_producer_resp.is_ok() {
                     let req = KubeAPIRequest::GetRequest(KubeGetRequest {
                         api_resource: Pod::api_resource(),
@@ -142,9 +140,8 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
             return (error_state(state), None);
         },
         ConsumerReconcileStep::AfterGetPod => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_pod_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+            if is_some_k_get_resp!(resp_o) {
+                let get_pod_resp = extract_some_k_get_resp!(resp_o);
                 if get_pod_resp.is_ok() {
                     let old_obj_unmarshal_res = Pod::unmarshal(get_pod_resp.unwrap());
                     if old_obj_unmarshal_res.is_ok() {
@@ -167,9 +164,8 @@ pub fn reconcile_core(consumer: &Consumer, resp_o: Option<Response<EmptyType>>, 
             return (error_state(state), None);
         },
         ConsumerReconcileStep::AfterUpdatePod => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
-                let update_pod_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+            if is_some_k_update_resp!(resp_o) {
+                let update_pod_resp = extract_some_k_update_resp!(resp_o);
                 if update_pod_resp.is_ok() {
                     let state_prime = ConsumerReconcileState {
                         reconcile_step: ConsumerReconcileStep::Done,
