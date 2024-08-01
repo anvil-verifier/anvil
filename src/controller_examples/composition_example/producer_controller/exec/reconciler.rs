@@ -47,7 +47,6 @@ impl Reconciler for ProducerReconciler {
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: ProducerReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {
@@ -56,7 +55,6 @@ pub fn reconcile_init_state() -> (state: ProducerReconcileState)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_done(state: &ProducerReconcileState) -> (res: bool)
     ensures res == model_reconciler::reconcile_done(state@),
 {
@@ -66,7 +64,6 @@ pub fn reconcile_done(state: &ProducerReconcileState) -> (res: bool)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_error(state: &ProducerReconcileState) -> (res: bool)
     ensures res == model_reconciler::reconcile_error(state@),
 {
@@ -76,7 +73,6 @@ pub fn reconcile_error(state: &ProducerReconcileState) -> (res: bool)
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_core(producer: &Producer, resp_o: Option<Response<EmptyType>>, state: ProducerReconcileState) -> (res: (ProducerReconcileState, Option<Request<EmptyType>>))
     requires producer@.well_formed(),
     ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(producer@, opt_response_to_view(&resp_o), state@),
@@ -102,23 +98,6 @@ pub fn reconcile_core(producer: &Producer, resp_o: Option<Response<EmptyType>>, 
     }
 }
 
-#[verifier(external_body)]
-pub fn make_owner_references(producer: &Producer) -> (owner_references: Vec<OwnerReference>)
-    requires producer@.well_formed(),
-    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_reconciler::make_owner_references(producer@),
-{
-    let mut owner_references = Vec::new();
-    owner_references.push(producer.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            model_reconciler::make_owner_references(producer@)
-        );
-    }
-    owner_references
-}
-
-#[verifier(external_body)]
 fn make_pod(producer: &Producer) -> (pod: Pod)
     requires producer@.well_formed(),
     ensures pod@ == model_reconciler::make_pod(producer@),
@@ -127,7 +106,17 @@ fn make_pod(producer: &Producer) -> (pod: Pod)
     pod.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(producer.metadata().name().unwrap());
-        metadata.set_owner_references(make_owner_references(producer));
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(producer.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    model_reconciler::make_pod(producer@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert("producer_message".to_string(), producer.spec().message());
@@ -150,10 +139,22 @@ fn make_pod(producer: &Producer) -> (pod: Pod)
                         container_port.set_container_port(80);
                         container_port
                     });
+                    proof {
+                        assert_seqs_equal!(
+                            ports@.map_values(|port: ContainerPort| port@),
+                            model_reconciler::make_pod(producer@).spec.get_Some_0().containers[0].ports.get_Some_0()
+                        );
+                    }
                     ports
                 });
                 container
             });
+            proof {
+                assert_seqs_equal!(
+                    containers@.map_values(|container: Container| container@),
+                    model_reconciler::make_pod(producer@).spec.get_Some_0().containers
+                );
+            }
             containers
         });
         pod_spec

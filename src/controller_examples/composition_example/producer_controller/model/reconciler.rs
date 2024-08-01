@@ -79,7 +79,8 @@ pub open spec fn make_pod(producer: ProducerView) -> (pod: PodView) {
     let pod = PodView {
         metadata: ObjectMetaView {
             name: Some(producer.metadata.name.unwrap()),
-            owner_references: Some(make_owner_references(producer)),
+            owner_references: Some(seq![producer.controller_owner_ref()]),
+            labels: Some(map!["producer_message"@ => producer.spec.message]),
             ..ObjectMetaView::default()
         },
         spec: Some(PodSpecView {
@@ -98,7 +99,5 @@ pub open spec fn make_pod(producer: ProducerView) -> (pod: PodView) {
     };
     pod
 }
-
-pub open spec fn make_owner_references(producer: ProducerView) -> Seq<OwnerReferenceView> { seq![producer.controller_owner_ref()] }
 
 }
