@@ -10,11 +10,11 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type VRSStep = Step<VRSMessage>;
+pub type CStep = Step<CMessage>;
 
-pub type VRSCluster = Cluster<ConsumerView, EmptyAPI, ConsumerReconciler>;
+pub type CCluster = Cluster<ConsumerView, EmptyAPI, ConsumerReconciler>;
 
-pub type VRSMessage = Message<EmptyTypeView, EmptyTypeView>;
+pub type CMessage = Message<EmptyTypeView, EmptyTypeView>;
 
 pub struct ConsumerReconciler {}
 
