@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::soundness::compositional_liveness_proof::state_machine::*;
+use crate::soundness::compositionality::state_machine::*;
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
