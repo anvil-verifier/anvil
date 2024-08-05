@@ -19,27 +19,27 @@ closed spec fn a_inv<S>() -> StatePred<S>;
 // The inv that b has to satisfy to make a's property hold when b runs with a
 closed spec fn b_inv<S>() -> StatePred<S>;
 
-/* The following two proof functions show that env can do anything that a or b might do */
+/* The following two proof functions show that shape shifter can do anything that a or b might do */
 
-// Behaviors of a are covered by behaviors of the env
+// Behaviors of a are covered by behaviors of the shape shifter
 #[verifier(external_body)]
-proof fn a_does_nothing_beyond_what_env_does<S, I>(input: I) -> (env_input: I)
+proof fn a_does_nothing_beyond_what_shape_shifter_does<S, I>(input: I) -> (ss_input: I)
     ensures forall |s, s_prime: S| #[trigger] controller_a_next(input)(s, s_prime)
-            ==> environment_next(env_input)(s, s_prime)
+            ==> shape_shifter_next(ss_input)(s, s_prime)
 {
     arbitrary()
 }
 
-// Behaviors of b are covered by behaviors of the env
+// Behaviors of b are covered by behaviors of the shape shifter
 #[verifier(external_body)]
-proof fn b_does_nothing_beyond_what_env_does<S, I>(input: I) -> (env_input: I)
+proof fn b_does_nothing_beyond_what_shape_shifter_does<S, I>(input: I) -> (ss_input: I)
     ensures forall |s, s_prime: S| #[trigger] controller_b_next(input)(s, s_prime)
-            ==> environment_next(env_input)(s, s_prime)
+            ==> shape_shifter_next(ss_input)(s, s_prime)
 {
     arbitrary()
 }
 
-/* The following two proof functions are theorems of the local cluster including env and a */
+/* The following two proof functions are theorems of the local cluster including shape shifter and a */
 
 // a's invariant holds in the local cluster
 #[verifier(external_body)]
@@ -53,20 +53,20 @@ proof fn a_inv_holds_locally<S, I>(spec: TempPred<S>)
 
 // a's property holds in the local cluster if the b's property and invariant also hold
 // note that a's property depends on b's property
-// for example, a waits for b to make some progress so that a can finish its job
+// for example, a waits for b to create a pod so that a can update the pod
 #[verifier(external_body)]
 proof fn a_property_holds_locally<S, I>(spec: TempPred<S>)
     requires
         spec.entails(lift_state(init::<S>())),
         spec.entails(always(lift_action(next_with_a_only::<S, I>()))),
-        spec.entails(fairness::<S>()),
+        spec.entails(a_fairness::<S>()),
         spec.entails(always(lift_state(b_inv::<S>()))),
         spec.entails(b_property::<S>()),
     ensures
         spec.entails(a_property::<S>()),
 {}
 
-/* The following two proof functions are theorems of the local cluster including env and b */
+/* The following two proof functions are theorems of the local cluster including shape shifter and b */
 
 // b's invariant holds in the local cluster
 #[verifier(external_body)]
@@ -84,7 +84,7 @@ proof fn b_property_holds_locally<S, I>(spec: TempPred<S>)
     requires
         spec.entails(lift_state(init::<S>())),
         spec.entails(always(lift_action(next_with_b_only::<S, I>()))),
-        spec.entails(fairness::<S>()),
+        spec.entails(b_fairness::<S>()),
         spec.entails(always(lift_state(a_inv::<S>()))),
     ensures
         spec.entails(b_property::<S>()),
@@ -97,7 +97,8 @@ proof fn a_property_holds_globally<S, I>(spec: TempPred<S>)
     requires
         spec.entails(lift_state(init::<S>())),
         spec.entails(always(lift_action(next::<S, I>()))),
-        spec.entails(fairness::<S>()),
+        spec.entails(a_fairness::<S>()),
+        spec.entails(b_fairness::<S>()),
     ensures
         spec.entails(a_property::<S>()),
 {
@@ -131,7 +132,7 @@ proof fn b_property_holds_globally<S, I>(spec: TempPred<S>)
     requires
         spec.entails(lift_state(init::<S>())),
         spec.entails(always(lift_action(next::<S, I>()))),
-        spec.entails(fairness::<S>()),
+        spec.entails(b_fairness::<S>()),
     ensures
         spec.entails(b_property::<S>()),
 {
@@ -169,8 +170,8 @@ proof fn next_does_nothing_beyond_next_with_a_only<S, I>(s: S, s_prime: S)
     assert(next_step(s, s_prime, step));
     match step {
         Step::ControllerBStep(input) => {
-            let env_input = b_does_nothing_beyond_what_env_does::<S, I>(input);
-            assert(next_step_with_a_only(s, s_prime, Step::EnvStep(env_input)));
+            let ss_input = b_does_nothing_beyond_what_shape_shifter_does::<S, I>(input);
+            assert(next_step_with_a_only(s, s_prime, Step::ControllerBStep(ss_input)));
         }
         _ => {
             assert(next_step_with_a_only(s, s_prime, step));
@@ -188,8 +189,8 @@ proof fn next_does_nothing_beyond_next_with_b_only<S, I>(s: S, s_prime: S)
     assert(next_step(s, s_prime, step));
     match step {
         Step::ControllerAStep(input) => {
-            let env_input = a_does_nothing_beyond_what_env_does::<S, I>(input);
-            assert(next_step_with_b_only(s, s_prime, Step::EnvStep(env_input)));
+            let ss_input = a_does_nothing_beyond_what_shape_shifter_does::<S, I>(input);
+            assert(next_step_with_b_only(s, s_prime, Step::ControllerAStep(ss_input)));
         }
         _ => {
             assert(next_step_with_b_only(s, s_prime, step));
