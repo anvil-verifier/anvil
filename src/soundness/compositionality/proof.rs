@@ -122,7 +122,6 @@ proof fn a_property_holds_globally<S, I>(spec: TempPred<S>)
         }
     }
 
-    b_property_holds_globally::<S, I>(spec);
     b_inv_holds_locally::<S, I>(spec);
     a_property_holds_locally::<S, I>(spec);
 }
