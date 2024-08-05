@@ -6,8 +6,8 @@ use vstd::prelude::*;
 
 verus! {
 
-pub closed spec fn upper_esr<S>() -> TempPred<S>;
+pub closed spec fn a_property<S>() -> TempPred<S>;
 
-pub closed spec fn lower_esr<S>() -> TempPred<S>;
+pub closed spec fn b_property<S>() -> TempPred<S>;
 
 }
