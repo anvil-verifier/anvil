@@ -6,6 +6,9 @@ use vstd::prelude::*;
 
 verus! {
 
+// Problem: how to do proof in a compositional way when one controller depends on
+// other controllers to be correct?
+//
 // This abstract state machine example is used to illustrate how to do compositional
 // liveness proof for controllers. There are two controllers: producer and consumer.
 // To make the proof conclusion general, the producer and consumer remain abstract
