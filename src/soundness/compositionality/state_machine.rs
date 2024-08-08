@@ -39,62 +39,62 @@ verus! {
 // (1) how the consumer uses the producer to realize its own desired state, and
 // (2) how the consumer and producer do NOT interfere with each other.
 
-// A helper trait that allows us to plug any controller logic into the state machine
-pub trait Controller<S, I> {
-    spec fn reconcile(input: I) -> ActionPred<S>;
+#[verifier::reject_recursive_types(S)]
+#[verifier::reject_recursive_types(I)]
+pub struct Controller<S, I> {
+    pub init: StatePred<S>,
+    pub next: spec_fn(I) -> ActionPred<S>,
 }
 
-// We define a struct for the abstract state machine. The dummy variables are not
-// used anywhere but just to shut up checks on unused generic types.
-pub struct Cluster<S, I, TargetController, AnotherController>
-where TargetController: Controller<S, I>, AnotherController: Controller<S, I>
-{
-    dummy_s: std::marker::PhantomData<S>,
-    dummy_i: std::marker::PhantomData<I>,
-    dummy_tc: std::marker::PhantomData<TargetController>,
-    dummy_ac: std::marker::PhantomData<AnotherController>,
+#[verifier::reject_recursive_types(S)]
+#[verifier::reject_recursive_types(I)]
+pub struct Cluster<S, I> {
+    pub target_controller: Controller<S, I>,
+    pub another_controller: Controller<S, I>,
 }
 
 // The methods below define the initial state and next transitions of the state machine.
-impl<S, I, TargetController, AnotherController> Cluster<S, I, TargetController, AnotherController>
-where TargetController: Controller<S, I>, AnotherController: Controller<S, I>
-{
-    pub open spec fn init() -> StatePred<S> {
-        init()
+impl<S, I> Cluster<S, I> {
+    pub open spec fn init(self) -> StatePred<S> {
+        |s| {
+            &&& (self.target_controller.init)(s)
+            &&& (self.another_controller.init)(s)
+            &&& other_init()(s)
+        }
     }
 
-    pub open spec fn target_controller_next(input: I) -> ActionPred<S> {
-        TargetController::reconcile(input)
+    pub open spec fn target_controller_next(self, input: I) -> ActionPred<S> {
+        (self.target_controller.next)(input)
     }
 
     // In a more complex example, there could be an array of "another controller"s.
-    pub open spec fn another_controller_next(input: I) -> ActionPred<S> {
-        AnotherController::reconcile(input)
+    pub open spec fn another_controller_next(self, input: I) -> ActionPred<S> {
+        (self.another_controller.next)(input)
     }
 
-    pub open spec fn other_components_next(input: I) -> ActionPred<S> {
+    pub open spec fn other_components_next(self, input: I) -> ActionPred<S> {
         other_components_next(input)
     }
 
-    pub open spec fn stutter() -> ActionPred<S> {
+    pub open spec fn stutter(self) -> ActionPred<S> {
         |s, s_prime: S| s == s_prime
     }
 
-    pub open spec fn next() -> ActionPred<S> {
-        |s, s_prime: S| exists |step: Step<I>| #[trigger] Self::next_step(s, s_prime, step)
+    pub open spec fn next(self) -> ActionPred<S> {
+        |s, s_prime: S| exists |step: Step<I>| #[trigger] self.next_step(s, s_prime, step)
     }
 
-    pub open spec fn next_step(s: S, s_prime: S, step: Step<I>) -> bool {
+    pub open spec fn next_step(self, s: S, s_prime: S, step: Step<I>) -> bool {
         match step {
-            Step::TargetControllerStep(input) => Self::target_controller_next(input)(s, s_prime),
-            Step::AnotherControllerStep(input) => Self::another_controller_next(input)(s, s_prime),
-            Step::OtherComponentsStep(input) => Self::other_components_next(input)(s, s_prime),
-            Step::StutterStep() => Self::stutter()(s, s_prime),
+            Step::TargetControllerStep(input) => self.target_controller_next(input)(s, s_prime),
+            Step::AnotherControllerStep(input) => self.another_controller_next(input)(s, s_prime),
+            Step::OtherComponentsStep(input) => self.other_components_next(input)(s, s_prime),
+            Step::StutterStep() => self.stutter()(s, s_prime),
         }
     }
 }
 
-pub spec fn init<S>() -> StatePred<S>;
+pub spec fn other_init<S>() -> StatePred<S>;
 
 pub spec fn other_components_next<S, I>(input: I) -> ActionPred<S>;
 
@@ -105,53 +105,26 @@ pub enum Step<I> {
     StutterStep(),
 }
 
-// The controller logic of the producer controller.
-pub struct ProducerController {}
+pub spec fn producer<S, I>() -> Controller<S, I>;
 
-impl<S, I> Controller<S, I> for ProducerController {
-    spec fn reconcile(input: I) -> ActionPred<S>;
-}
+pub spec fn consumer<S, I>() -> Controller<S, I>;
 
-// The controller logic of the consumer controller.
-pub struct ConsumerController {}
-
-impl<S, I> Controller<S, I> for ConsumerController {
-    spec fn reconcile(input: I) -> ActionPred<S>;
-}
-
-// The controller logic of the shape shifter. The shape shifter is not any
-// concrete controller. It's used to represent *any* possible controller
-// that will interact with the target controller.
-// If we write down the body of the reconcile, it will be:
-// randomly choose a state object to create, update or delete.
-pub struct ShapeShifter {}
-
-impl<S, I> Controller<S, I> for ShapeShifter {
-    spec fn reconcile(input: I) -> ActionPred<S>;
-}
-
-// Here is an example: the shape shifter can simulate the behavior of the
-// consumer. For any possible transition taken by the consumer, the shape
-// shifter can take the same transition.
-#[verifier(external_body)]
-pub proof fn shape_shifter_can_simulate_the_consumer<S, I>(input: I) -> (ss_input: I)
-    ensures
-        forall |s, s_prime: S| #[trigger] ConsumerController::reconcile(input)(s, s_prime)
-            ==> ShapeShifter::reconcile(ss_input)(s, s_prime)
-{
-    arbitrary()
-}
-
-// Fairness conditions used for proving liveness
 pub spec fn producer_fairness<S, I>() -> TempPred<S>;
 
 pub spec fn consumer_fairness<S, I>() -> TempPred<S>;
 
-// We "instantiate" the Cluster by plugging different controller logics into different positions.
-pub type ConsumerAndProducer<S, I> = Cluster<S, I, ConsumerController, ProducerController>;
+pub open spec fn consumer_and_producer<S, I>() -> Cluster<S, I> {
+    Cluster {
+        target_controller: consumer::<S, I>(),
+        another_controller: producer::<S, I>(),
+    }
+}
 
-pub type ConsumerAndShapeShifter<S, I> = Cluster<S, I, ConsumerController, ShapeShifter>;
-
-pub type ProducerAndShapeShifter<S, I> = Cluster<S, I, ProducerController, ShapeShifter>;
+pub open spec fn producer_and_any<S, I>(any: Controller<S, I>) -> Cluster<S, I> {
+    Cluster {
+        target_controller: producer::<S, I>(),
+        another_controller: any,
+    }
+}
 
 }
