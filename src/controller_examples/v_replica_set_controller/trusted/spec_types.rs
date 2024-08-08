@@ -21,7 +21,7 @@ pub type VRSMessage = Message<EmptyTypeView, EmptyTypeView>;
 pub struct VReplicaSetReconciler {}
 
 pub struct VReplicaSetReconcileState {
-    pub reconcile_step: VReplicaSetReconcileStepView,
+    pub reconcile_step: VReplicaSetReconcileStep,
     pub filtered_pods: Option<Seq<PodView>>,
 }
 
