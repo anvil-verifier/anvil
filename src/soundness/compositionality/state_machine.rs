@@ -67,6 +67,7 @@ where TargetController: Controller<S, I>, AnotherController: Controller<S, I>
         TargetController::reconcile(input)
     }
 
+    // In a more complex example, there could be an array of "another controller"s.
     pub open spec fn another_controller_next(input: I) -> ActionPred<S> {
         AnotherController::reconcile(input)
     }
