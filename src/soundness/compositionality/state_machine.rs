@@ -6,80 +6,93 @@ use vstd::prelude::*;
 
 verus! {
 
-// init function of the state machine
-pub closed spec fn init<S>() -> StatePred<S>;
-
-// next step action of the environment
-pub closed spec fn environment_next<S, I>(input: I) -> ActionPred<S>;
-
-// next step action of the controller a
-pub closed spec fn controller_a_next<S, I>(input: I) -> ActionPred<S>;
-
-// next step action of the controller b
-pub closed spec fn controller_b_next<S, I>(input: I) -> ActionPred<S>;
-
-// next step action of the shape shifter
-pub closed spec fn shape_shifter_next<S, I>(input: I) -> ActionPred<S>;
-
-// stutter step action to make always(next) hold
-pub open spec fn stutter<S>() -> ActionPred<S> {
-    |s, s_prime: S| s == s_prime
+pub trait Controller<S, I> {
+    spec fn reconcile(input: I) -> ActionPred<S>;
 }
 
-// Step decides which host to take a step and the input to that step
+pub struct Cluster<S, I, TargetController, AnotherController>
+where TargetController: Controller<S, I>, AnotherController: Controller<S, I>
+{
+    dummy_s: std::marker::PhantomData<S>,
+    dummy_i: std::marker::PhantomData<I>,
+    dummy_tc: std::marker::PhantomData<TargetController>,
+    dummy_ac: std::marker::PhantomData<AnotherController>,
+}
+
 pub enum Step<I> {
-    EnvStep(I),
-    ControllerAStep(I),
-    ControllerBStep(I),
+    OtherComponentsStep(I),
+    TargetControllerStep(I),
+    AnotherControllerStep(I),
     StutterStep(),
 }
 
-// next step action of the *global* cluster including both a and b
-pub open spec fn next<S, I>() -> ActionPred<S> {
-    |s, s_prime: S| exists |step: Step<I>| #[trigger] next_step(s, s_prime, step)
-}
+pub spec fn init<S>() -> StatePred<S>;
 
-pub open spec fn next_step<S, I>(s: S, s_prime: S, step: Step<I>) -> bool {
-    match step {
-        Step::EnvStep(input) => environment_next(input)(s, s_prime),
-        Step::ControllerAStep(input) => controller_a_next(input)(s, s_prime),
-        Step::ControllerBStep(input) => controller_b_next(input)(s, s_prime),
-        Step::StutterStep() => stutter()(s, s_prime),
+pub spec fn other_components_next<S, I>(input: I) -> ActionPred<S>;
+
+impl<S, I, TargetController, AnotherController> Cluster<S, I, TargetController, AnotherController>
+where TargetController: Controller<S, I>, AnotherController: Controller<S, I>
+{
+    pub open spec fn init() -> StatePred<S> {
+        init()
+    }
+
+    pub open spec fn target_controller_next(input: I) -> ActionPred<S> {
+        TargetController::reconcile(input)
+    }
+
+    pub open spec fn another_controller_next(input: I) -> ActionPred<S> {
+        AnotherController::reconcile(input)
+    }
+
+    pub open spec fn other_components_next(input: I) -> ActionPred<S> {
+        other_components_next(input)
+    }
+
+    pub open spec fn stutter() -> ActionPred<S> {
+        |s, s_prime: S| s == s_prime
+    }
+
+    pub open spec fn next() -> ActionPred<S> {
+        |s, s_prime: S| exists |step: Step<I>| #[trigger] Self::next_step(s, s_prime, step)
+    }
+
+    pub open spec fn next_step(s: S, s_prime: S, step: Step<I>) -> bool {
+        match step {
+            Step::TargetControllerStep(input) => Self::target_controller_next(input)(s, s_prime),
+            Step::AnotherControllerStep(input) => Self::another_controller_next(input)(s, s_prime),
+            Step::OtherComponentsStep(input) => Self::other_components_next(input)(s, s_prime),
+            Step::StutterStep() => Self::stutter()(s, s_prime),
+        }
     }
 }
 
-// next step action of the *local* cluster that replaces a with the shape shifter
-pub open spec fn next_with_b_only<S, I>() -> ActionPred<S> {
-    |s, s_prime: S| exists |step: Step<I>| #[trigger] next_step_with_b_only(s, s_prime, step)
+pub struct ProducerController {}
+
+impl<S, I> Controller<S, I> for ProducerController {
+    spec fn reconcile(input: I) -> ActionPred<S>;
 }
 
-pub open spec fn next_step_with_b_only<S, I>(s: S, s_prime: S, step: Step<I>) -> bool {
-    match step {
-        Step::EnvStep(input) => environment_next(input)(s, s_prime),
-        Step::ControllerAStep(input) => shape_shifter_next(input)(s, s_prime),
-        Step::ControllerBStep(input) => controller_b_next(input)(s, s_prime),
-        Step::StutterStep() => stutter()(s, s_prime),
-    }
+pub struct ConsumerController {}
+
+impl<S, I> Controller<S, I> for ConsumerController {
+    spec fn reconcile(input: I) -> ActionPred<S>;
 }
 
-// next step action of the *local* cluster that replaces b with the shape shifter
-pub open spec fn next_with_a_only<S, I>() -> ActionPred<S> {
-    |s, s_prime: S| exists |step: Step<I>| #[trigger] next_step_with_a_only(s, s_prime, step)
+pub struct ShapeShifter {}
+
+impl<S, I> Controller<S, I> for ShapeShifter {
+    spec fn reconcile(input: I) -> ActionPred<S>;
 }
 
-pub open spec fn next_step_with_a_only<S, I>(s: S, s_prime: S, step: Step<I>) -> bool {
-    match step {
-        Step::EnvStep(input) => environment_next(input)(s, s_prime),
-        Step::ControllerAStep(input) => controller_a_next(input)(s, s_prime),
-        Step::ControllerBStep(input) => shape_shifter_next(input)(s, s_prime),
-        Step::StutterStep() => stutter()(s, s_prime),
-    }
-}
+pub spec fn producer_fairness<S, I>() -> TempPred<S>;
 
-// fairness condition of controller a
-pub closed spec fn a_fairness<S>() -> TempPred<S>;
+pub spec fn consumer_fairness<S, I>() -> TempPred<S>;
 
-// fairness condition of controller b
-pub closed spec fn b_fairness<S>() -> TempPred<S>;
+pub type ConsumerAndProducer<S, I> = Cluster<S, I, ConsumerController, ProducerController>;
+
+pub type ConsumerAndShapeShifter<S, I> = Cluster<S, I, ConsumerController, ShapeShifter>;
+
+pub type ProducerAndShapeShifter<S, I> = Cluster<S, I, ProducerController, ShapeShifter>;
 
 }
