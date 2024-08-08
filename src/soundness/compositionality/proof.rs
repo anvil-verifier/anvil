@@ -103,7 +103,7 @@ proof fn cp_does_nothing_beyond_ps<S, I>(s: S, s_prime: S)
     assert(ConsumerAndProducer::next_step(s, s_prime, step));
     match step {
         Step::TargetControllerStep(input) => {
-            let ss_input = consumer_does_nothing_beyond_what_shape_shifter_does::<S, I>(input);
+            let ss_input = shape_shifter_can_simulate_the_consumer::<S, I>(input);
             assert(ProducerAndShapeShifter::next_step(s, s_prime, Step::AnotherControllerStep(ss_input)));
         }
         Step::AnotherControllerStep(input) => {

@@ -130,8 +130,9 @@ impl<S, I> Controller<S, I> for ShapeShifter {
 // consumer. For any possible transition taken by the consumer, the shape
 // shifter can take the same transition.
 #[verifier(external_body)]
-pub proof fn consumer_does_nothing_beyond_what_shape_shifter_does<S, I>(input: I) -> (ss_input: I)
-    ensures forall |s, s_prime: S| #[trigger] ConsumerController::reconcile(input)(s, s_prime)
+pub proof fn shape_shifter_can_simulate_the_consumer<S, I>(input: I) -> (ss_input: I)
+    ensures
+        forall |s, s_prime: S| #[trigger] ConsumerController::reconcile(input)(s, s_prime)
             ==> ShapeShifter::reconcile(ss_input)(s, s_prime)
 {
     arbitrary()
