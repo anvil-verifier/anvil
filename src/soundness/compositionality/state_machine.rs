@@ -42,8 +42,21 @@ verus! {
 #[verifier::reject_recursive_types(S)]
 #[verifier::reject_recursive_types(I)]
 pub struct Controller<S, I> {
-    pub init: StatePred<S>,
-    pub next: spec_fn(I) -> ActionPred<S>,
+    pub init_pred: StatePred<S>,
+    pub next_pred: spec_fn(I) -> ActionPred<S>,
+}
+
+impl<S, I> Controller<S, I> {
+    pub open spec fn init(self) -> StatePred<S> {
+        self.init_pred
+    }
+
+    pub open spec fn next(self, input: I) -> ActionPred<S> {
+        |s, s_prime| {
+            &&& (self.next_pred)(input)(s, s_prime)
+            &&& network_next(input)(s, s_prime)
+        }
+    }
 }
 
 #[verifier::reject_recursive_types(S)]
@@ -56,7 +69,7 @@ pub struct Cluster<S, I> {
 impl<S, I> Cluster<S, I> {
     pub open spec fn init(self) -> StatePred<S> {
         |s| {
-            &&& forall |i| 0 <= i < self.controllers.len() ==> (#[trigger] self.controllers[i].init)(s)
+            &&& forall |i| 0 <= i < self.controllers.len() ==> #[trigger] self.controllers[i].init()(s)
             &&& other_init()(s)
         }
     }
@@ -64,7 +77,7 @@ impl<S, I> Cluster<S, I> {
     pub open spec fn controller_next(self, index: int, input: I) -> ActionPred<S> {
         |s, s_prime| {
             &&& 0 <= index < self.controllers.len()
-            &&& (self.controllers[index].next)(input)(s, s_prime)
+            &&& self.controllers[index].next(input)(s, s_prime)
         }
     }
 
@@ -90,6 +103,8 @@ impl<S, I> Cluster<S, I> {
 }
 
 pub spec fn other_init<S>() -> StatePred<S>;
+
+pub spec fn network_next<S, I>(input: I) -> ActionPred<S>;
 
 pub spec fn other_components_next<S, I>(input: I) -> ActionPred<S>;
 
