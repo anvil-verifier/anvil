@@ -10,15 +10,9 @@ verus! {
 // other controllers to be correct?
 //
 // This abstract state machine example is used to illustrate how to do compositional
-// liveness proof for controllers. There are two controllers: producer and consumer.
-// To make the proof conclusion general, the producer and consumer remain abstract
-// in this example (spec functions without body).
-//
-// The producer realizes its desired state without relying on any other controller.
-// The consumer relies on the producer to realize its desired state. For example,
-// during the consumer's state reconciliation, it might create a desired state
-// description of the producer, wait for the producer to realize the producer's
-// desired state, and then continue to work based on the producer's desired state.
+// liveness proof for controllers. There are two types controllers: (1) a consumer
+// and (2) a sequence of producers that the consumer depends on. To make the proof
+// conclusion general, the producer and consumer remain abstract in this example.
 //
 // One concrete example could be:
 // A consumer desired state description is created -> the consumer gets triggered
@@ -29,15 +23,15 @@ verus! {
 // Note that this example differs from the classic producer-consumer model where the
 // consumer does not generate anything as the producer's input.
 //
-// Our end goal is to prove the correctness (ESR) of both the producer and consumer
-// controller in a compositional way. That is, to first prove the correctness of the
+// Our end goal is to prove the correctness (ESR) of all the producer and consumer
+// controllers in a compositional way. That is, to first prove the correctness of each
 // producer (without the consumer involved), and then prove the correctness of the
-// consumer using the previous correctness conclusion, while minimizing the effort
-// to reason about the interactions between the two controllers.
+// consumer using the previous correctness conclusions, while minimizing the effort
+// to reason about the interactions between different controllers.
 //
 // The key of the proof is to reason about:
-// (1) how the consumer uses the producer to realize its own desired state, and
-// (2) how the consumer and producer do NOT interfere with each other.
+// (1) how the consumer uses the producers to realize its own desired state, and
+// (2) how the consumer and producers do NOT interfere with each other.
 
 #[verifier::reject_recursive_types(S)]
 #[verifier::reject_recursive_types(I)]

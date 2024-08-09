@@ -51,9 +51,8 @@ proof fn consumer_property_holds<S, I>(spec: TempPred<S>)
 // To prove the above theorem, there are three proof obligations.
 
 // Proof obligation 1:
-// Producer is correct when running with the shape shifter assuming no interference.
-// In fact, this theorem is all you need if you only care about the producer, not the
-// consumer.
+// Producer is correct when running in any cluster where there is no interference.
+// This theorem is all you need if you only care about the producer, not the consumer.
 #[verifier(external_body)]
 proof fn producer_property_holds_if_no_interference<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, p_index: int)
     requires
