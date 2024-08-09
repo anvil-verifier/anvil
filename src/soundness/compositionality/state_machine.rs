@@ -114,23 +114,17 @@ pub enum Step<I> {
     StutterStep(),
 }
 
-pub spec fn producer<S, I>() -> Controller<S, I>;
+pub spec fn producers<S, I>() -> Seq<Controller<S, I>>;
 
 pub spec fn consumer<S, I>() -> Controller<S, I>;
 
-pub spec fn producer_fairness<S, I>() -> TempPred<S>;
+pub spec fn producer_fairness<S, I>(p_index: int) -> TempPred<S>;
 
 pub spec fn consumer_fairness<S, I>() -> TempPred<S>;
 
-pub open spec fn consumer_and_producer<S, I>() -> Cluster<S, I> {
+pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
     Cluster {
-        controllers: seq![consumer::<S, I>(), producer::<S, I>()],
-    }
-}
-
-pub open spec fn any_and_producer<S, I>(any: Seq<Controller<S, I>>) -> Cluster<S, I> {
-    Cluster {
-        controllers: any.push(producer::<S, I>()),
+        controllers: producers::<S, I>().push(consumer::<S, I>()),
     }
 }
 
