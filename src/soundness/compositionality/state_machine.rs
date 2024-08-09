@@ -49,27 +49,23 @@ pub struct Controller<S, I> {
 #[verifier::reject_recursive_types(S)]
 #[verifier::reject_recursive_types(I)]
 pub struct Cluster<S, I> {
-    pub target_controller: Controller<S, I>,
-    pub another_controller: Controller<S, I>,
+    pub controllers: Seq<Controller<S, I>>,
 }
 
 // The methods below define the initial state and next transitions of the state machine.
 impl<S, I> Cluster<S, I> {
     pub open spec fn init(self) -> StatePred<S> {
         |s| {
-            &&& (self.target_controller.init)(s)
-            &&& (self.another_controller.init)(s)
+            &&& forall |i| 0 <= i < self.controllers.len() ==> (#[trigger] self.controllers[i].init)(s)
             &&& other_init()(s)
         }
     }
 
-    pub open spec fn target_controller_next(self, input: I) -> ActionPred<S> {
-        (self.target_controller.next)(input)
-    }
-
-    // In a more complex example, there could be an array of "another controller"s.
-    pub open spec fn another_controller_next(self, input: I) -> ActionPred<S> {
-        (self.another_controller.next)(input)
+    pub open spec fn controller_next(self, index: int, input: I) -> ActionPred<S> {
+        |s, s_prime| {
+            &&& 0 <= index < self.controllers.len()
+            &&& (self.controllers[index].next)(input)(s, s_prime)
+        }
     }
 
     pub open spec fn other_components_next(self, input: I) -> ActionPred<S> {
@@ -86,8 +82,7 @@ impl<S, I> Cluster<S, I> {
 
     pub open spec fn next_step(self, s: S, s_prime: S, step: Step<I>) -> bool {
         match step {
-            Step::TargetControllerStep(input) => self.target_controller_next(input)(s, s_prime),
-            Step::AnotherControllerStep(input) => self.another_controller_next(input)(s, s_prime),
+            Step::ControllerStep(index, input) => self.controller_next(index, input)(s, s_prime),
             Step::OtherComponentsStep(input) => self.other_components_next(input)(s, s_prime),
             Step::StutterStep() => self.stutter()(s, s_prime),
         }
@@ -100,8 +95,7 @@ pub spec fn other_components_next<S, I>(input: I) -> ActionPred<S>;
 
 pub enum Step<I> {
     OtherComponentsStep(I),
-    TargetControllerStep(I),
-    AnotherControllerStep(I),
+    ControllerStep(int, I),
     StutterStep(),
 }
 
@@ -115,15 +109,13 @@ pub spec fn consumer_fairness<S, I>() -> TempPred<S>;
 
 pub open spec fn consumer_and_producer<S, I>() -> Cluster<S, I> {
     Cluster {
-        target_controller: consumer::<S, I>(),
-        another_controller: producer::<S, I>(),
+        controllers: seq![consumer::<S, I>(), producer::<S, I>()],
     }
 }
 
-pub open spec fn producer_and_any<S, I>(any: Controller<S, I>) -> Cluster<S, I> {
+pub open spec fn any_and_producer<S, I>(any: Seq<Controller<S, I>>) -> Cluster<S, I> {
     Cluster {
-        target_controller: producer::<S, I>(),
-        another_controller: any,
+        controllers: any.push(producer::<S, I>()),
     }
 }
 

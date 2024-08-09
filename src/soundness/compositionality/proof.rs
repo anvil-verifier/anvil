@@ -14,7 +14,7 @@ spec fn consumer_property<S>() -> TempPred<S>;
 spec fn producer_property<S>() -> TempPred<S>;
 
 // The inv saying that no one interferes with the producer's reconcile
-spec fn no_one_interferes_producer<S, I>(any: Controller<S, I>) -> StatePred<S>;
+spec fn no_one_interferes_producer<S, I>(any: Seq<Controller<S, I>>) -> StatePred<S>;
 
 // Our goal is to prove that both producer and consumer are correct
 //    requires
@@ -33,10 +33,10 @@ spec fn no_one_interferes_producer<S, I>(any: Controller<S, I>) -> StatePred<S>;
 // In fact, this theorem is all you need if you only care about the producer, not the
 // consumer.
 #[verifier(external_body)]
-proof fn producer_property_holds_if_no_interference<S, I>(spec: TempPred<S>, any: Controller<S, I>)
+proof fn producer_property_holds_if_no_interference<S, I>(spec: TempPred<S>, any: Seq<Controller<S, I>>)
     requires
-        spec.entails(lift_state(producer_and_any::<S, I>(any).init())),
-        spec.entails(always(lift_action(producer_and_any::<S, I>(any).next()))),
+        spec.entails(lift_state(any_and_producer::<S, I>(any).init())),
+        spec.entails(always(lift_action(any_and_producer::<S, I>(any).next()))),
         spec.entails(producer_fairness::<S, I>()),
         spec.entails(always(lift_state(no_one_interferes_producer::<S, I>(any)))),
     ensures
@@ -65,7 +65,7 @@ proof fn consumer_does_not_interfere_with_the_producer<S, I>(spec: TempPred<S>)
         spec.entails(lift_state(consumer_and_producer::<S, I>().init())),
         spec.entails(always(lift_action(consumer_and_producer::<S, I>().next()))),
     ensures
-        spec.entails(always(lift_state(no_one_interferes_producer::<S, I>(consumer())))),
+        spec.entails(always(lift_state(no_one_interferes_producer::<S, I>(seq![consumer()])))),
 {}
 
 // Now we can draw the final conclusion with the lemmas above.
@@ -80,43 +80,23 @@ proof fn consumer_property_holds<S, I>(spec: TempPred<S>)
         spec.entails(consumer_property::<S>()),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies lift_state(producer_and_any::<S, I>(consumer()).init()).satisfied_by(ex) by {
+    implies lift_state(any_and_producer::<S, I>(seq![consumer()]).init()).satisfied_by(ex) by {
         assert(spec.implies(lift_state(consumer_and_producer::<S, I>().init())).satisfied_by(ex));
+        assert(seq![consumer::<S, I>()].push(producer()) =~= seq![consumer(), producer()])
     }
 
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(lift_action(producer_and_any::<S, I>(consumer()).next())).satisfied_by(ex) by {
+    implies always(lift_action(any_and_producer::<S, I>(seq![consumer()]).next())).satisfied_by(ex) by {
         assert(spec.implies(always(lift_action(consumer_and_producer::<S, I>().next()))).satisfied_by(ex));
-        assert forall |i| #[trigger] lift_action(producer_and_any::<S, I>(consumer()).next()).satisfied_by(ex.suffix(i)) by {
+        assert forall |i| #[trigger] lift_action(any_and_producer::<S, I>(seq![consumer()]).next()).satisfied_by(ex.suffix(i)) by {
             assert(lift_action(consumer_and_producer::<S, I>().next()).satisfied_by(ex.suffix(i)));
-            state_machine_simulation::<S, I>(ex.suffix(i).head(), ex.suffix(i).head_next());
+            assert(seq![consumer::<S, I>()].push(producer()) =~= seq![consumer(), producer()])
         }
     }
 
     consumer_does_not_interfere_with_the_producer::<S, I>(spec);
-    producer_property_holds_if_no_interference::<S, I>(spec, consumer());
+    producer_property_holds_if_no_interference::<S, I>(spec, seq![consumer()]);
     consumer_property_holds_if_producer_property_holds::<S, I>(spec);
-}
-
-proof fn state_machine_simulation<S, I>(s: S, s_prime: S)
-    requires
-        consumer_and_producer::<S, I>().next()(s, s_prime),
-    ensures
-        producer_and_any::<S, I>(consumer()).next()(s, s_prime),
-{
-    let step = choose |step: Step<I>| consumer_and_producer::<S, I>().next_step(s, s_prime, step);
-    assert(consumer_and_producer::<S, I>().next_step(s, s_prime, step));
-    match step {
-        Step::TargetControllerStep(input) => {
-            assert(producer_and_any::<S, I>(consumer()).next_step(s, s_prime, Step::AnotherControllerStep(input)));
-        }
-        Step::AnotherControllerStep(input) => {
-            assert(producer_and_any::<S, I>(consumer()).next_step(s, s_prime, Step::TargetControllerStep(input)));
-        }
-        _ => {
-            assert(producer_and_any::<S, I>(consumer()).next_step(s, s_prime, step));
-        }
-    }
 }
 
 }
