@@ -112,9 +112,13 @@ pub spec fn producers<S, I>() -> Seq<Controller<S, I>>;
 
 pub spec fn consumer<S, I>() -> Controller<S, I>;
 
-pub spec fn producer_fairness<S, I>(p_index: int) -> TempPred<S>;
+pub open spec fn producer_fairness<S, I>(p_index: int) -> TempPred<S> {
+    tla_forall(|input: I| weak_fairness(producers()[p_index].next(input)))
+}
 
-pub spec fn consumer_fairness<S, I>() -> TempPred<S>;
+pub open spec fn consumer_fairness<S, I>() -> TempPred<S> {
+    tla_forall(|input: I| weak_fairness(consumer().next(input)))
+}
 
 pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
     Cluster {
