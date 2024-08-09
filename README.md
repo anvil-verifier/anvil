@@ -58,5 +58,10 @@ Verifying controllers still requires some expertise on SMT-based theorem proving
 ## Publications
 
 - [Anvil: Verifying Liveness of Cluster Management Controllers](https://www.usenix.org/conference/osdi24/presentation/sun-xudong) <br>
-Xudong Sun, Wenjie Ma, Jiawei Tyler Gu, Zicheng Ma, Tej Chajed, Jon Howell, Andrea Lattuada, Oded Padon, Lalith Suresh, Adriana Szekeres, and Tianyin Xu. In Proceedings of the 18th USENIX Symposium on Operating Systems Design and Implementation (OSDI'24), Santa Clara, CA, USA, Jul. 2024.
+Xudong Sun, Wenjie Ma, Jiawei Tyler Gu, Zicheng Ma, Tej Chajed, Jon Howell, Andrea Lattuada, Oded Padon, Lalith Suresh, Adriana Szekeres, and Tianyin Xu.
+In Proceedings of the 18th USENIX Symposium on Operating Systems Design and Implementation (OSDI'24), Santa Clara, CA, USA, Jul. 2024.
+
+- [Anvil: Building Kubernetes Controllers That Do Not Break](https://www.usenix.org/publications/loginonline/anvil-building-formally-verified-kubernetes-controllers) <br>
+Xudong Sun, Jiawei Tyler Gu, Cody Rivera, Tej Chajed, Jon Howell, Andrea Lattuada, Oded Padon, Lalith Suresh, Adriana Szekeres, and Tianyin Xu.
+In USENIX ;login:, Jun. 2024.
 
