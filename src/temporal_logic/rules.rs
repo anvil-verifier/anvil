@@ -1935,4 +1935,41 @@ pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     leads_to_trans_temp(spec, p, q.or(s), r.or(s));
 }
 
+/// Concluding p(n) ~> p(0) using ranking functions, with a step of one.
+/// pre:
+///     forall |n: nat|, n > 0 ==> spec |= p(n) ~> p(n - 1)
+/// post:
+///     forall |n: nat|, spec |= p(n) ~> p(0).
+pub proof fn leads_to_rank_step_one<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>)
+    requires
+        forall |n: nat| #![trigger p(n)] (n > 0 ==> spec.entails(p(n).leads_to(p((n - 1) as nat)))),
+    ensures
+        forall |n: nat| #[trigger] spec.entails(p(n).leads_to(p(0))),
+{
+    let pre = {
+        forall |n: nat| #![trigger p(n)] (n > 0 ==> spec.entails(p(n).leads_to(p((n - 1) as nat))))
+    };
+    assert forall |n: nat| pre implies #[trigger] spec.entails(p(n).leads_to(p(0))) by {
+        leads_to_rank_step_one_help(spec, p, n);
+    }
+}
+
+pub proof fn leads_to_rank_step_one_help<T>(spec: TempPred<T>, p: spec_fn(nat) -> TempPred<T>, n: nat)
+    requires
+        forall |n: nat| #![trigger p(n)] (n > 0 ==> spec.entails(p(n).leads_to(p((n - 1) as nat)))),
+    ensures
+        spec.entails(p(n).leads_to(p(0))),
+    decreases n,
+{
+    if n > 0 {
+        // p(n) ~> p(n - 1), p(n - 1) ~> p(0)
+        // combine with leads-to transitivity
+        leads_to_rank_step_one_help(spec, p, (n - 1) as nat);
+        leads_to_trans_n!(spec, p(n), p((n - 1) as nat), p(0));
+    } else {
+        // p(0) ~> p(0) trivially
+        leads_to_self_temp(p(0));
+    }
+}
+
 }
