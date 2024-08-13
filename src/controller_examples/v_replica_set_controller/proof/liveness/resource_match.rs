@@ -36,34 +36,12 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             ).leads_to(lift_state(current_state_matches(vrs)))
         )
 {
-    // Deal with transition from init to pod listings.
-    lemma_from_init_step_to_send_list_pods_req(spec, vrs, diff);
-    lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(spec, vrs, diff);
-
-    // TODO: Would an invariant be a better way of showing 
-    // num_diff_pods_is is maintained across this introductory step?
-    leads_to_trans_n!(
-        spec, 
-        lift_state(
-            |s: VRSCluster| {
-                &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
-                &&& num_diff_pods_is(vrs, diff)(s)
-            }
-        ),
-        lift_state(
-            |s: VRSCluster| {
-                &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
-                &&& num_diff_pods_is(vrs, diff)(s)
-            }
-        ),
-        lift_state(
-            |s: VRSCluster| {
-                &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
-                &&& num_diff_pods_is(vrs, diff)(s)
-            }
-        )
+    let pre = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
     );
-
     let list_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
         |s: VRSCluster| {
             &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, resp_msg)(s)
@@ -77,69 +55,136 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         }
     );
 
-    // Dispatch by difference.
+    // Deal with transition from init to listing the pods.
+    lemma_from_init_step_to_send_list_pods_req(spec, vrs, diff);
+    lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(spec, vrs, diff);
+
+    // TODO: Would an invariant be a better way of showing 
+    // num_diff_pods_is is maintained across this introductory step?
+    leads_to_trans_n!(
+        spec, 
+        pre(diff),
+        lift_state(
+            |s: VRSCluster| {
+                &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        ),
+        list_resp(diff)
+    );
+
+    // Now we've listed the pods, perform different behaviors accoding to the difference.
     if diff < 0 {
-        // // Predicates specific to creating pods.
-        // let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
-        //     &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
-        //     &&& num_diff_pods_is(vrs, diff)(s)
-        // });
-        // let create_req = |diff: int| lift_state(
-        //     |s: VRSCluster| {
-        //         &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
-        //         &&& num_diff_pods_is(vrs, diff)(s)
-        //     }
-        // );
-        // let create_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
-        //     |s: VRSCluster| {
-        //         &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
-        //         &&& num_diff_pods_is(vrs, diff)(s)
-        //     }
-        // );
-        // let create_resp = |diff: int| lift_state(
-        //     |s: VRSCluster| {
-        //         &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
-        //         &&& num_diff_pods_is(vrs, diff)(s)
-        //     }
-        // )
+        // Predicates specific to creating pods.
+        let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
+            &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        });
+        let create_req = |diff: int| lift_state(
+            |s: VRSCluster| {
+                &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        );
+        let create_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
+            |s: VRSCluster| {
+                &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        );
+        let create_resp = |diff: int| lift_state(
+            |s: VRSCluster| {
+                &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        );
 
-        // // Try creating a pod starting in the AfterListPods step.
-        // assert forall |resp_msg: VRSMessage| 
-        //             #[trigger] spec.entails(
-        // // lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(
-        // //     spec, vrs, resp_msg, diff
-        // // );
-        // // lemma_from_after_send_create_pod_req_to_recieve_ok_resp(
-        // //     spec, vrs, resp_msg, diff
-        // // );
-        // //leads_to_trans_n!(spec, )
+        // Apply two lemmas relating to the first created pod.
+        assert forall |resp_msg: VRSMessage| 
+                    diff < 0 implies #[trigger] spec.entails(list_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
+            lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(spec, vrs, resp_msg, diff);
+        };
+        assert forall |req_msg: VRSMessage| 
+                    diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
+            lemma_from_after_send_create_pod_req_to_recieve_ok_resp(spec, vrs, req_msg, diff);
+        };
 
-        assume(false);
+        // Attach the two lemmas to the transitivity chain.
+        leads_to_exists_intro(spec, |resp_msg: VRSMessage| list_resp_msg(resp_msg, diff), create_req(diff));
+        leads_to_exists_intro(spec, |req_msg: VRSMessage| create_req_msg(req_msg, diff), create_resp(diff + 1));
+        assert_by(
+            spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)))),
+            {
+                assert forall |ex| #[trigger] list_resp(diff).satisfied_by(ex) 
+                    implies tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                    let s = ex.head();
+                    let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
+                    let resp_msg = choose |resp_msg| {
+                        &&& #[trigger] s.in_flight().contains(resp_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+                        &&& resp_msg.content.get_list_response().res.is_Ok()
+                        &&& {
+                            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                            // The response must give back all the pods in the replicaset's namespace.
+                            resp_objs.to_set() == s.resources().values().filter(
+                                |o: DynamicObjectView| {
+                                    &&& o.kind == PodView::kind()
+                                    &&& o.metadata.namespace.is_Some()
+                                    &&& o.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                                }
+                            )
+                        }
+                    };
+                    assert((|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+                };
+                valid_implies_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)));
+            }
+        );
+        assert_by(
+            spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)))),
+            {
+                assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex) 
+                    implies tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                    let req_msg = ex.head().ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
+                    assert((|req_msg: VRSMessage| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+                };
+                valid_implies_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)));
+            }
+        );
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            list_resp(diff),
+            tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)), 
+            create_req(diff),
+            tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)),
+            create_resp(diff + 1)
+        );
+
+        // Is the create request after listing the pods enough?
+        if diff + 1 == 0 {
+            // If so, pre(diff) ~> current_state_matches(vrs) trivially.
+            valid_implies_implies_leads_to(spec, create_resp(diff + 1), lift_state(current_state_matches(vrs)));
+            leads_to_trans_n!(
+                spec, 
+                pre(diff), 
+                create_resp(diff + 1),
+                lift_state(current_state_matches(vrs))
+            );
+            return;
+        }
+
+        assume(false); // Not proven yet!!
     } else if diff > 0 {
         assume(false);
     } else {
         // diff = 0
-        // Use p ~> q, weakening of q => q'.
-        leads_to_weaken_temp(
-            spec,
-            lift_state(
-                |s: VRSCluster| {
-                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
-                    &&& num_diff_pods_is(vrs, diff)(s)
-                }
-            ),
-            lift_state(
-                |s: VRSCluster| {
-                    &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
-                    &&& num_diff_pods_is(vrs, diff)(s)
-                }
-            ),
-            lift_state(
-                |s: VRSCluster| {
-                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
-                    &&& num_diff_pods_is(vrs, diff)(s)
-                }
-            ),
+        // list_resp(diff) ~> current_state_matches(vrs) trivially.
+        valid_implies_implies_leads_to(spec, list_resp(diff), lift_state(current_state_matches(vrs)));
+        leads_to_trans_n!(
+            spec, 
+            pre(diff),
+            list_resp(diff),
             lift_state(current_state_matches(vrs))
         );
     }
