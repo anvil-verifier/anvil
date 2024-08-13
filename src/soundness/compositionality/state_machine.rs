@@ -68,6 +68,9 @@ impl<S, I> Cluster<S, I> {
         }
     }
 
+    // Inside this action, we need to require the message sent by controllers[i]
+    // to piggyback i so that we can tell which message in network is sent by who.
+    // In other words, the index i here serves as a sender id.
     pub open spec fn controller_next(self, index: int, input: I) -> ActionPred<S> {
         |s, s_prime| {
             &&& 0 <= index < self.controllers.len()
