@@ -26,37 +26,72 @@ spec fn one_does_not_interfere_with_consumer<S, I>(cluster: Cluster<S, I>, good_
 // The inv asserts that the controller indexed by good_citizen_id does not interfere with the producer's reconcile
 spec fn one_does_not_interfere_with_producer<S, I>(cluster: Cluster<S, I>, good_citizen_id: int, p_index: int) -> StatePred<S>;
 
-// // This is our end-goal theorem: in a cluster with all the producers and the consumer,
-// // all controllers are correct.
-// proof fn consumer_property_holds<S, I>(spec: TempPred<S>)
-//     requires
-//         spec.entails(lift_state(consumer_and_producers::<S, I>().init())),
-//         spec.entails(always(lift_action(consumer_and_producers::<S, I>().next()))),
-//         forall |p_index: int| 0 <= p_index < producers::<S, I>().len() ==> #[trigger] spec.entails(producer_fairness::<S, I>(p_index)),
-//         spec.entails(consumer_fairness::<S, I>()),
-//     ensures
-//         forall |p_index: int| 0 <= p_index < producers::<S, I>().len() ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
-//         spec.entails(consumer_property::<S>()),
-// {
-//     let cluster = consumer_and_producers::<S, I>();
+// The only reason I need this spec fun is to use it as a trigger (in the case that no one else can serve as a trigger).
+pub open spec fn within_range<A>(seq: Seq<A>, index: int) -> bool {
+    0 <= index < seq.len()
+}
 
-//     assert forall |p_index| 0 <= p_index < producers::<S, I>().len() implies #[trigger] spec.entails(producer_property::<S>(p_index)) by {
-//         assert forall |s| cluster.init()(s) implies #[trigger] producers::<S, I>()[p_index].init()(s) by {
-//             assert forall |i| 0 <= i < cluster.controllers.len() implies #[trigger] cluster.controllers[i].init()(s) by {}
-//             assert(producers::<S, I>()[p_index] =~= cluster.controllers[p_index]);
-//         }
+pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
+    Cluster {
+        controllers: producers::<S, I>().push(consumer::<S, I>()),
+    }
+}
 
-//         // assert forall |input, s, s_prime| #[trigger] producers::<S, I>()[p_index].next(input)(s, s_prime) implies cluster.next()(s, s_prime) by {
-//         //     let step = Step::ControllerStep(p_index, input);
-//         //     assert(cluster.next_step(s, s_prime, step));
-//         // }
+// This is our end-goal theorem: in a cluster with all the producers and the consumer,
+// all controllers are correct.
+proof fn consumer_and_producer_properties_hold_in_a_concrete_cluster<S, I>(spec: TempPred<S>)
+    requires
+        spec.entails(lift_state(consumer_and_producers::<S, I>().init())),
+        spec.entails(always(lift_action(consumer_and_producers::<S, I>().next()))),
+        forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
+            ==> #[trigger] spec.entails(producer_fairness::<S, I>(p_index)),
+        spec.entails(consumer_fairness::<S, I>()),
+    ensures
+        forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
+            ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
+        spec.entails(consumer_property::<S>()),
+{
+    let cluster = consumer_and_producers::<S, I>();
 
-//         consumer_does_not_interfere_with_the_producer::<S, I>(spec, p_index);
-//         producer_property_holds_if_no_interference::<S, I>(spec, cluster, p_index);
-//     }
+    let producer_ids = producers::<S, I>().map(|i: int, producer: Controller<S, I>| i);
+    let consumer_id = cluster.controllers.len() - 1;
 
-//     consumer_property_holds_if_producer_property_holds::<S, I>(spec);
-// }
+    assert forall |s| #[trigger] cluster.init()(s) implies consumer::<S, I>().init()(s) by {
+        assert forall |i| 0 <= i < cluster.controllers.len() implies #[trigger] cluster.controllers[i].init()(s) by {}
+        assert(consumer::<S, I>() =~= cluster.controllers.last());
+    }
+
+    assert forall |p_index| #![trigger producers::<S, I>()[p_index]] 0 <= p_index < producers::<S, I>().len()
+    implies forall |s| #[trigger] cluster.init()(s) ==> producers::<S, I>()[p_index].init()(s) by {
+        assert forall |s| #[trigger] cluster.init()(s) implies producers::<S, I>()[p_index].init()(s) by {
+            assert forall |i| 0 <= i < cluster.controllers.len() implies #[trigger] cluster.controllers[i].init()(s) by {}
+            assert(producers::<S, I>()[p_index] =~= cluster.controllers[p_index]);
+        }
+    }
+
+    assert forall |good_citizen_id: int| 0 <= good_citizen_id < cluster.controllers.len()
+        && good_citizen_id != consumer_id
+        && !(exists |i| 0 <= i < producer_ids.len() && good_citizen_id == producer_ids[i])
+    implies
+        spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id))))
+        && forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
+            ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index))))
+    by {
+        assert forall |controller_id| #[trigger] within_range(cluster.controllers, controller_id)
+        implies controller_id == consumer_id || exists |i| #[trigger] within_range(producer_ids, i) && controller_id == producer_ids[i] by {
+            if controller_id == cluster.controllers.len() - 1 {
+                assert(controller_id == consumer_id);
+            } else {
+                let i = controller_id;
+                assert(within_range(producer_ids, i) && controller_id == producer_ids[i]);
+            }
+        }
+        assert(within_range(cluster.controllers, good_citizen_id));
+        assert(good_citizen_id == consumer_id || exists |i| #[trigger] within_range(producer_ids, i) && good_citizen_id == producer_ids[i]);
+    }
+
+    consumer_and_producer_properties_hold(spec, cluster, consumer_id, producer_ids);
+}
 
 proof fn consumer_and_producer_properties_hold<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, consumer_id: int, producer_ids: Seq<int>)
     requires
@@ -89,9 +124,9 @@ proof fn consumer_and_producer_properties_hold<S, I>(spec: TempPred<S>, cluster:
                 && forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
                     ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index))))
     ensures
-        spec.entails(consumer_property::<S>()),
         forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
             ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
+        spec.entails(consumer_property::<S>()),
 {
     assert forall |p_index| 0 <= p_index < producers::<S, I>().len() implies #[trigger] spec.entails(producer_property::<S>(p_index)) by {
         let producer_id = producer_ids[p_index];

@@ -120,10 +120,4 @@ pub open spec fn consumer_fairness<S, I>() -> TempPred<S> {
     tla_forall(|input: I| weak_fairness(consumer().next(input)))
 }
 
-pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
-    Cluster {
-        controllers: producers::<S, I>().push(consumer::<S, I>()),
-    }
-}
-
 }
