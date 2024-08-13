@@ -19,103 +19,328 @@ use crate::v_replica_set_controller::{
     proof::{helper_invariants, predicate::*},
     trusted::{spec_types::*, step::*, liveness_theorem::*},
 };
-use vstd::{prelude::*, string::*};
+use vstd::{prelude::*, string::*, math::abs};
 
 verus! {
 
-#[verifier(external_body)]
-pub proof fn lemma_from_after_list_pods_step_to_after_scale_pod_step_or_done(
-    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: nat,
+pub proof fn lemma_from_diff_and_init_to_current_state_matches(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int,
 )
     ensures
-        // Case 1: Number of matching pods is less than the replica count.
-        diff > 0 ==> spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_fewer_pods_is(vrs, s.resources(), diff)
-                &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& num_fewer_pods_is(vrs, s.resources(), (diff - 1) as nat)
-                &&& pending_req_in_flight_at_after_create_pod_step(vrs, (diff - 1) as nat)(s)
-            }))
-        ),
-        // Case 2: Number of matching pods is greater than the replica count.
-        diff > 0 ==> spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_more_pods_is(vrs, s.resources(), diff)
-                &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& num_more_pods_is(vrs, s.resources(), (diff - 1) as nat)
-                &&& pending_req_in_flight_at_after_delete_pod_step(vrs, (diff - 1) as nat)(s)
-            }))
-        ),
-        // Case 3: Number of matching pods equals the replica count.
         spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_more_pods_is(vrs, s.resources(), 0)
+            lift_state(
+                |s: VRSCluster| {
+                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(lift_state(current_state_matches(vrs)))
+        )
+{
+    // Deal with transition from init to pod listings.
+    lemma_from_init_step_to_send_list_pods_req(spec, vrs, diff);
+    lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(spec, vrs, diff);
+
+    // TODO: Would an invariant be a better way of showing 
+    // num_diff_pods_is is maintained across this introductory step?
+    leads_to_trans_n!(
+        spec, 
+        lift_state(
+            |s: VRSCluster| {
+                &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        ),
+        lift_state(
+            |s: VRSCluster| {
                 &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& resource_state_matches(vrs, s.resources())
-                &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Done)(s)
-            }))
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        ),
+        lift_state(
+            |s: VRSCluster| {
+                &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        )
+    );
+
+    let list_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, resp_msg)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_resp = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Dispatch by difference.
+    if diff < 0 {
+        // // Predicates specific to creating pods.
+        // let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
+        //     &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
+        //     &&& num_diff_pods_is(vrs, diff)(s)
+        // });
+        // let create_req = |diff: int| lift_state(
+        //     |s: VRSCluster| {
+        //         &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+        //         &&& num_diff_pods_is(vrs, diff)(s)
+        //     }
+        // );
+        // let create_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
+        //     |s: VRSCluster| {
+        //         &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
+        //         &&& num_diff_pods_is(vrs, diff)(s)
+        //     }
+        // );
+        // let create_resp = |diff: int| lift_state(
+        //     |s: VRSCluster| {
+        //         &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
+        //         &&& num_diff_pods_is(vrs, diff)(s)
+        //     }
+        // )
+
+        // // Try creating a pod starting in the AfterListPods step.
+        // assert forall |resp_msg: VRSMessage| 
+        //             #[trigger] spec.entails(
+        // // lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(
+        // //     spec, vrs, resp_msg, diff
+        // // );
+        // // lemma_from_after_send_create_pod_req_to_recieve_ok_resp(
+        // //     spec, vrs, resp_msg, diff
+        // // );
+        // //leads_to_trans_n!(spec, )
+
+        assume(false);
+    } else if diff > 0 {
+        assume(false);
+    } else {
+        // diff = 0
+        // Use p ~> q, weakening of q => q'.
+        leads_to_weaken_temp(
+            spec,
+            lift_state(
+                |s: VRSCluster| {
+                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ),
+            lift_state(
+                |s: VRSCluster| {
+                    &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ),
+            lift_state(
+                |s: VRSCluster| {
+                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ),
+            lift_state(current_state_matches(vrs))
+        );
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_from_init_step_to_send_list_pods_req(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
+)
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
+                        &&& num_diff_pods_is(vrs, diff)(s)
+                    }
+                )
+            )
+        )
+{
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
+)
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
+                        &&& num_diff_pods_is(vrs, diff)(s)
+                    }
+                )
+            )
+        )
+{
+}
+
+// If there are too few pods, these lemmas apply.
+#[verifier(external_body)]
+pub proof fn lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
+)
+    requires 
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, resp_msg)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff)(s)
+                    }
+                )
+            )
         ),
 {
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_create_pod_step_to_after_create_pod_step_or_done(
-    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: nat,
+pub proof fn lemma_from_after_send_create_pod_req_to_recieve_ok_resp(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, req_msg: VRSMessage, diff: int
 )
+    requires 
+        diff < 0,
     ensures
-        // Case 1: Number of matching pods is less than the replica count.
-        diff > 0 ==> spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_fewer_pods_is(vrs, s.resources(), diff)
-                &&& pending_req_in_flight_at_after_create_pod_step(vrs, diff)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& num_fewer_pods_is(vrs, s.resources(), (diff - 1) as nat)
-                &&& pending_req_in_flight_at_after_create_pod_step(vrs, (diff - 1) as nat)(s)
-            }))
-        ),
-        // Case 2: No more pods to create.
-        diff == 0 ==> spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_fewer_pods_is(vrs, s.resources(), 0)
-                &&& pending_req_in_flight_at_after_create_pod_step(vrs, 0)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& resource_state_matches(vrs, s.resources())
-                &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Done)(s)
-            }))
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff + 1)(s)
+                    }
+                )
+            )
         ),
 {
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_delete_pod_step_to_after_delete_pod_step_or_done(
-    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: nat,
+pub proof fn lemma_from_after_recieve_ok_resp_to_send_create_pod_req(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
 )
+    requires 
+        diff < 0,
     ensures
-        // Case 1: Number of matching pods is less than the replica count.
-        diff > 0 ==> spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_more_pods_is(vrs, s.resources(), diff)
-                &&& pending_req_in_flight_at_after_delete_pod_step(vrs, diff)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& num_fewer_pods_is(vrs, s.resources(), (diff - 1) as nat)
-                &&& pending_req_in_flight_at_after_delete_pod_step(vrs, (diff - 1) as nat)(s)
-            }))
-        ),
-        // Case 2: No more pods to create.
-        diff == 0 ==> spec.entails(
-            lift_state(|s: VRSCluster| {
-                &&& num_more_pods_is(vrs, s.resources(), 0)
-                &&& pending_req_in_flight_at_after_delete_pod_step(vrs, 0)(s)
-            }).leads_to(lift_state(|s: VRSCluster| {
-                &&& resource_state_matches(vrs, s.resources())
-                &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Done)(s)
-            }))
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff)(s)
+                    }
+                )
+            )
         ),
 {
 }
 
+// If there are too many pods, this lemma applies.
+#[verifier(external_body)]
+pub proof fn lemma_from_after_recieve_list_pods_resp_to_send_delete_pod_req(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
+)
+    requires 
+        diff > 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, resp_msg)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& pending_req_in_flight_at_after_delete_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff)(s)
+                    }
+                )
+            )
+        ),
+{
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_from_after_send_delete_pod_req_to_recieve_ok_resp(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, req_msg: VRSMessage, diff: int
+)
+    requires 
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff - 1)(s)
+                    }
+                )
+            )
+        ),
+{
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_from_after_recieve_ok_resp_to_send_delete_pod_req(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
+)
+    requires 
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(vrs, resp_msg, abs(diff))(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff)(s)
+                    }
+                )
+            )
+        ),
+{
+}
 
 }
