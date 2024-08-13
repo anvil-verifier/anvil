@@ -16,8 +16,7 @@ use crate::v_replica_set_controller::model::{reconciler::*};
 use crate::v_replica_set_controller::trusted::{
     liveness_theorem::*, spec_types::*, step::*,
 };
-use vstd::math::abs;
-use vstd::prelude::*;
+use vstd::{prelude::*, math::abs};
 
 verus! {
 
