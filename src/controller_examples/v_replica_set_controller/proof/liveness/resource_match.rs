@@ -42,12 +42,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
-    let list_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
-        |s: VRSCluster| {
-            &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, resp_msg)(s)
-            &&& num_diff_pods_is(vrs, diff)(s)
-        }
-    );
     let list_resp = |diff: int| lift_state(
         |s: VRSCluster| {
             &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
@@ -57,7 +51,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 
     // Deal with transition from init to listing the pods.
     lemma_from_init_step_to_send_list_pods_req(spec, vrs, diff);
-    lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(spec, vrs, diff);
+    lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(spec, vrs, diff);
 
     // TODO: Would an invariant be a better way of showing 
     // num_diff_pods_is is maintained across this introductory step?
@@ -75,23 +69,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 
     // Now we've listed the pods, perform different behaviors accoding to the difference.
     if diff < 0 {
-        // Predicates specific to creating pods.
-        let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
-            &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
-            &&& num_diff_pods_is(vrs, diff)(s)
-        });
-        let create_req = |diff: int| lift_state(
-            |s: VRSCluster| {
-                &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
-                &&& num_diff_pods_is(vrs, diff)(s)
-            }
-        );
-        let create_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
-            |s: VRSCluster| {
-                &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
-                &&& num_diff_pods_is(vrs, diff)(s)
-            }
-        );
         let create_resp = |diff: int| lift_state(
             |s: VRSCluster| {
                 &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
@@ -99,71 +76,16 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             }
         );
 
-        assert_by(diff < 0 ==> spec.entails(pre(diff).leads_to(create_resp(diff + 1))), {
-            // Apply two lemmas relating to the first created pod.
-            assert forall |resp_msg: VRSMessage| 
-                        diff < 0 implies #[trigger] spec.entails(list_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
-                lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(spec, vrs, resp_msg, diff);
-            };
-            assert forall |req_msg: VRSMessage| 
-                        diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
-                lemma_from_after_send_create_pod_req_to_recieve_ok_resp(spec, vrs, req_msg, diff);
-            };
+        // Add first create pod request after listing pods to leads-to chain.
+        lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(spec, vrs, diff);
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            list_resp(diff),
+            create_resp(diff + 1)
+        );
 
-            // Attach the two lemmas to the transitivity chain.
-            leads_to_exists_intro(spec, |resp_msg: VRSMessage| list_resp_msg(resp_msg, diff), create_req(diff));
-            leads_to_exists_intro(spec, |req_msg: VRSMessage| create_req_msg(req_msg, diff), create_resp(diff + 1));
-            assert_by(
-                spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)))),
-                {
-                    assert forall |ex| #[trigger] list_resp(diff).satisfied_by(ex) 
-                        implies tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
-                        let s = ex.head();
-                        let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
-                        let resp_msg = choose |resp_msg| {
-                            &&& #[trigger] s.in_flight().contains(resp_msg)
-                            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-                            &&& resp_msg.content.get_list_response().res.is_Ok()
-                            &&& {
-                                let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                                // The response must give back all the pods in the replicaset's namespace.
-                                resp_objs.to_set() == s.resources().values().filter(
-                                    |o: DynamicObjectView| {
-                                        &&& o.kind == PodView::kind()
-                                        &&& o.metadata.namespace.is_Some()
-                                        &&& o.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
-                                    }
-                                )
-                            }
-                        };
-                        assert((|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
-                    };
-                    valid_implies_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)));
-                }
-            );
-            assert_by(
-                spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)))),
-                {
-                    assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex) 
-                        implies tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
-                        let req_msg = ex.head().ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
-                        assert((|req_msg: VRSMessage| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
-                    };
-                    valid_implies_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)));
-                }
-            );
-            leads_to_trans_n!(
-                spec,
-                pre(diff),
-                list_resp(diff),
-                tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)), 
-                create_req(diff),
-                tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)),
-                create_resp(diff + 1)
-            );
-        });
-
-        // Is the create request after listing the pods enough?
+        // Is this enough?
         if diff + 1 == 0 {
             // If so, pre(diff) ~> current_state_matches(vrs) trivially.
             valid_implies_implies_leads_to(spec, create_resp(diff + 1), lift_state(current_state_matches(vrs)));
@@ -191,62 +113,16 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             valid_implies_implies_leads_to(spec, ranking_pred(n), create_resp(-n));
         };
 
-        // Proving n > 0 => ranking_pred(n) ~> ranking_pred(n - 1)
+         // Proving n > 0 => ranking_pred(n) ~> ranking_pred(n - 1)
         assert forall |n: nat| #![trigger ranking_pred(n)] 
-                        n > 0 implies spec.entails(ranking_pred(n).leads_to(ranking_pred((n - 1) as nat))) by {
+                    n > 0 implies spec.entails(ranking_pred(n).leads_to(ranking_pred((n - 1) as nat))) by {
             let diff = -n;
-
-            // Apply two lemmas relating to subsequent created pods.
-            assert forall |resp_msg: VRSMessage| 
-                        diff < 0 implies #[trigger] spec.entails(create_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
-                lemma_from_after_recieve_ok_resp_to_send_create_pod_req(spec, vrs, resp_msg, diff);
-            };
-            assert forall |req_msg: VRSMessage| 
-                        diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
-                lemma_from_after_send_create_pod_req_to_recieve_ok_resp(spec, vrs, req_msg, diff);
-            };
-
-            // Chain the lemmas by transitivity.
-            leads_to_exists_intro(spec, |resp_msg: VRSMessage| create_resp_msg(resp_msg, diff), create_req(diff));
-            leads_to_exists_intro(spec, |req_msg: VRSMessage| create_req_msg(req_msg, diff), create_resp(diff + 1));
-            assert_by(
-                spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)))),
-                {
-                    assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex) 
-                        implies tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
-                        let req_msg = ex.head().ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
-                        assert((|req_msg: VRSMessage| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
-                    };
-                    valid_implies_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)));
-                }
-            );
-
-            // Chain out of and into our ranking predicate.
-            assert_by(
-                spec.entails(create_resp(diff).leads_to(tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)))),
-                {
-                    assert forall |ex| #[trigger] create_resp(diff).satisfied_by(ex) 
-                        implies tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
-                        let s = ex.head();
-                        let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
-                        let resp_msg = choose |resp_msg| {
-                            &&& #[trigger] s.in_flight().contains(resp_msg)
-                            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-                            &&& resp_msg.content.get_create_response().res.is_Ok()
-                        };
-                        assert((|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
-                    };
-                    valid_implies_implies_leads_to(spec, create_resp(diff), tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)));
-                }
-            );
+            lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp(spec, vrs, diff);
 
             leads_to_trans_n!(
                 spec,
                 ranking_pred(n),
                 create_resp(diff),
-                tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)),
-                create_req(diff),
-                tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)),
                 create_resp(diff + 1),
                 ranking_pred((n - 1) as nat)
             );
@@ -281,6 +157,224 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     }
 }
 
+pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
+)
+    requires 
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff + 1)(s)
+                    }
+                )
+            )
+        ),
+{
+    let list_resp = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, resp_msg)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(
+        |s: VRSCluster| {
+        &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_req = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Apply two lemmas relating to the first created pod.
+    assert forall |resp_msg: VRSMessage| 
+                diff < 0 implies #[trigger] spec.entails(list_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
+        lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(spec, vrs, resp_msg, diff);
+    };
+    assert forall |req_msg: VRSMessage| 
+                diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
+        lemma_from_after_send_create_pod_req_to_receive_ok_resp(spec, vrs, req_msg, diff);
+    };
+
+    // Chain lemmas by transitivity.
+    leads_to_exists_intro(spec, |resp_msg: VRSMessage| list_resp_msg(resp_msg, diff), create_req(diff));
+    leads_to_exists_intro(spec, |req_msg: VRSMessage| create_req_msg(req_msg, diff), create_resp(diff + 1));
+    assert_by(
+        spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] list_resp(diff).satisfied_by(ex) 
+                implies tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& resp_msg.content.get_list_response().res.is_Ok()
+                    &&& {
+                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                        // The response must give back all the pods in the replicaset's namespace.
+                        resp_objs.to_set() == s.resources().values().filter(
+                            |o: DynamicObjectView| {
+                                &&& o.kind == PodView::kind()
+                                &&& o.metadata.namespace.is_Some()
+                                &&& o.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                            }
+                        )
+                    }
+                };
+                assert((|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+            };
+            valid_implies_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)));
+        }
+    );
+    assert_by(
+        spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex) 
+                implies tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
+                assert((|req_msg: VRSMessage| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+            };
+            valid_implies_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)));
+        }
+    );
+    leads_to_trans_n!(
+        spec,
+        list_resp(diff),
+        tla_exists(|resp_msg: VRSMessage| list_resp_msg(resp_msg, diff)), 
+        create_req(diff),
+        tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)),
+        create_resp(diff + 1)
+    );
+}
+
+pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
+)
+    requires 
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: VRSCluster| {
+                    &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: VRSCluster| {
+                        &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff + 1)(s)
+                    }
+                )
+            )
+        ),
+{
+    let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
+        &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+    });
+    let create_req = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& pending_req_in_flight_at_after_create_pod_step(vrs, (abs(diff) - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp_msg = |resp_msg: VRSMessage, diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, resp_msg, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp = |diff: int| lift_state(
+        |s: VRSCluster| {
+            &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Apply two lemmas relating to subsequent created pods.
+    assert forall |resp_msg: VRSMessage| 
+                diff < 0 implies #[trigger] spec.entails(create_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
+        lemma_from_after_receive_ok_resp_to_send_create_pod_req(spec, vrs, resp_msg, diff);
+    };
+    assert forall |req_msg: VRSMessage| 
+                diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
+        lemma_from_after_send_create_pod_req_to_receive_ok_resp(spec, vrs, req_msg, diff);
+    };
+
+    // Chain the lemmas by transitivity.
+    leads_to_exists_intro(spec, |resp_msg: VRSMessage| create_resp_msg(resp_msg, diff), create_req(diff));
+    leads_to_exists_intro(spec, |req_msg: VRSMessage| create_req_msg(req_msg, diff), create_resp(diff + 1));
+    assert_by(
+        spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex) 
+                implies tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
+                assert((|req_msg: VRSMessage| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+            };
+            valid_implies_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)));
+        }
+    );
+    assert_by(
+        spec.entails(create_resp(diff).leads_to(tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] create_resp(diff).satisfied_by(ex) 
+                implies tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& resp_msg.content.get_create_response().res.is_Ok()
+                };
+                assert((|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+            };
+            valid_implies_implies_leads_to(spec, create_resp(diff), tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)));
+        }
+    );
+
+    leads_to_trans_n!(
+        spec,
+        create_resp(diff),
+        tla_exists(|resp_msg: VRSMessage| create_resp_msg(resp_msg, diff)),
+        create_req(diff),
+        tla_exists(|req_msg: VRSMessage| create_req_msg(req_msg, diff)),
+        create_resp(diff + 1)
+    );
+}
+
 #[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_pods_req(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
@@ -305,7 +399,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(
+pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
 )
     ensures
@@ -329,7 +423,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_recieve_list_pods_resp(
 
 // If there are too few pods, these lemmas apply.
 #[verifier(external_body)]
-pub proof fn lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(
+pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
 )
     requires 
@@ -354,7 +448,7 @@ pub proof fn lemma_from_after_recieve_list_pods_resp_to_send_create_pod_req(
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_send_create_pod_req_to_recieve_ok_resp(
+pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, req_msg: VRSMessage, diff: int
 )
     requires 
@@ -379,7 +473,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_recieve_ok_resp(
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_recieve_ok_resp_to_send_create_pod_req(
+pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
 )
     requires 
@@ -405,7 +499,7 @@ pub proof fn lemma_from_after_recieve_ok_resp_to_send_create_pod_req(
 
 // If there are too many pods, this lemma applies.
 #[verifier(external_body)]
-pub proof fn lemma_from_after_recieve_list_pods_resp_to_send_delete_pod_req(
+pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
 )
     requires 
@@ -430,7 +524,7 @@ pub proof fn lemma_from_after_recieve_list_pods_resp_to_send_delete_pod_req(
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_send_delete_pod_req_to_recieve_ok_resp(
+pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, req_msg: VRSMessage, diff: int
 )
     requires 
@@ -455,7 +549,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_recieve_ok_resp(
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_recieve_ok_resp_to_send_delete_pod_req(
+pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, resp_msg: VRSMessage, diff: int
 )
     requires 
