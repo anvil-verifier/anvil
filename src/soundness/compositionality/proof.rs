@@ -37,7 +37,7 @@ pub open spec fn within_range<A>(seq: Seq<A>, index: int) -> bool {
     0 <= index < seq.len()
 }
 
-// This is our end-goal theorem: the consumer and producers are correct in any cluster
+// This is our top-level theorem: the consumer and producers are correct in any cluster
 // if the other controllers in that cluster do not interfere with the consumer or producers.
 // # Arguments:
 // * spec: the temporal predicate that represents the state machine
