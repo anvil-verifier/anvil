@@ -56,14 +56,14 @@ impl<S, I> Controller<S, I> {
 #[verifier::reject_recursive_types(S)]
 #[verifier::reject_recursive_types(I)]
 pub struct Cluster<S, I> {
-    pub controllers: Seq<Controller<S, I>>,
+    pub controllers: Map<int, Controller<S, I>>,
 }
 
 // The methods below define the initial state and next transitions of the state machine.
 impl<S, I> Cluster<S, I> {
     pub open spec fn init(self) -> StatePred<S> {
         |s| {
-            &&& forall |i| 0 <= i < self.controllers.len() ==> #[trigger] self.controllers[i].init()(s)
+            &&& forall |key| #[trigger] self.controllers.contains_key(key) ==> self.controllers[key].init()(s)
             &&& other_init()(s)
         }
     }
@@ -73,7 +73,7 @@ impl<S, I> Cluster<S, I> {
     // In other words, the index i here serves as a sender id.
     pub open spec fn controller_next(self, index: int, input: I) -> ActionPred<S> {
         |s, s_prime| {
-            &&& 0 <= index < self.controllers.len()
+            &&& self.controllers.contains_key(index)
             &&& self.controllers[index].next(input)(s, s_prime)
         }
     }
