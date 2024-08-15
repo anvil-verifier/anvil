@@ -221,6 +221,35 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         ),
     ensures spec.entails(lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))),
 {
+    Self::lemma_from_some_state_to_arbitrary_next_state(spec, cr, state, next_state);
+    leads_to_trans_n!(
+        spec,
+        lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)),
+        lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)),
+        lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref()))
+    );
+}
+
+pub proof fn lemma_from_some_state_to_arbitrary_next_state(
+    spec: TempPred<Self>, cr: K, state: spec_fn(R::T) -> bool, next_state: spec_fn(R::T) -> bool
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::external_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(cr.object_ref())))),
+        spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)))),
+        forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
+        forall |cr_1, resp_o, s|
+            state(s) ==>
+            #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
+    ensures spec.entails(lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).leads_to(lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)))),
+{
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: Self| {
         Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
         && Self::has_pending_req_msg(s, cr.object_ref())
@@ -249,8 +278,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec,
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)),
         lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight),
-        lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)),
-        lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref()))
+        lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state))
     );
 }
 
