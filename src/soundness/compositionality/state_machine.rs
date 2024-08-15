@@ -68,6 +68,9 @@ impl<S, I> Cluster<S, I> {
         }
     }
 
+    // Inside this action, we need to require the message sent by controllers[i]
+    // to piggyback i so that we can tell which message in network is sent by who.
+    // In other words, the index i here serves as a sender id.
     pub open spec fn controller_next(self, index: int, input: I) -> ActionPred<S> {
         |s, s_prime| {
             &&& 0 <= index < self.controllers.len()
@@ -118,12 +121,6 @@ pub open spec fn producer_fairness<S, I>(p_index: int) -> TempPred<S> {
 
 pub open spec fn consumer_fairness<S, I>() -> TempPred<S> {
     tla_forall(|input: I| weak_fairness(consumer().next(input)))
-}
-
-pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
-    Cluster {
-        controllers: producers::<S, I>().push(consumer::<S, I>()),
-    }
 }
 
 }
