@@ -32,11 +32,6 @@ spec fn one_does_not_interfere_with_consumer<S, I>(cluster: Cluster<S, I>, good_
 // similar to the one above.
 spec fn one_does_not_interfere_with_producer<S, I>(cluster: Cluster<S, I>, good_citizen_id: int, p_index: int) -> StatePred<S>;
 
-// The only reason I need this spec fun is to use it as a trigger in the case that no one else can serve as a trigger.
-pub open spec fn within_range<A>(seq: Seq<A>, index: int) -> bool {
-    0 <= index < seq.len()
-}
-
 // This is our top-level theorem: the consumer and producers are correct in any cluster
 // if the other controllers in that cluster do not interfere with the consumer or producers.
 // # Arguments:
