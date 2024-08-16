@@ -49,10 +49,10 @@ proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cl
         forall |p_index| #![trigger producers::<S, I>()[p_index]] 0 <= p_index < producers::<S, I>().len()
             ==> forall |s| cluster.init()(s) ==> #[trigger] producers::<S, I>()[p_index].init()(s),
         // The fairness condition is enough to say that the consumer runs as part of the cluster's next transition.
-        spec.entails(consumer_fairness::<S, I>()),
+        spec.entails(controller_fairness::<S, I>(consumer())),
         // The fairness condition is enough to say that each producer runs as part of the cluster's next transition.
         forall |p_index| 0 <= p_index < producers::<S, I>().len()
-            ==> #[trigger] spec.entails(producer_fairness::<S, I>(p_index)),
+            ==> #[trigger] spec.entails(controller_fairness::<S, I>(producers()[p_index])),
         // The consumer_id points to the consumer.
         cluster.controllers.contains_pair(consumer_id, consumer::<S, I>()),
         // Each element in producer_ids points to each producer respectively.
@@ -119,6 +119,10 @@ proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cl
     consumer_is_correct(spec, cluster, consumer_id);
 }
 
+pub spec fn producers<S, I>() -> Seq<Controller<S, I>>;
+
+pub spec fn consumer<S, I>() -> Controller<S, I>;
+
 // A concrete cluster with only producers and consumer
 pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
     Cluster {
@@ -134,8 +138,8 @@ proof fn consumer_and_producers_are_correct_in_a_concrete_cluster<S, I>(spec: Te
         spec.entails(lift_state(consumer_and_producers::<S, I>().init())),
         spec.entails(always(lift_action(consumer_and_producers::<S, I>().next()))),
         forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
-            ==> #[trigger] spec.entails(producer_fairness::<S, I>(p_index)),
-        spec.entails(consumer_fairness::<S, I>()),
+            ==> #[trigger] spec.entails(controller_fairness::<S, I>(producers()[p_index])),
+        spec.entails(controller_fairness::<S, I>(consumer())),
     ensures
         forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
             ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
@@ -195,7 +199,7 @@ proof fn producer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, pr
         // The cluster starts with the initial state of the producer.
         forall |s| cluster.init()(s) ==> #[trigger] producers::<S, I>()[p_index].init()(s),
         // The fairness condition is enough to say that the producer runs as part of the cluster's next transition.
-        spec.entails(producer_fairness::<S, I>(p_index)),
+        spec.entails(controller_fairness::<S, I>(producers()[p_index])),
         // The next two preconditions say that no controller (except the producer itself) interferes with this producer.
         cluster.controllers.contains_pair(producer_id, producers::<S, I>()[p_index]),
         forall |good_citizen_id| cluster.controllers.remove(producer_id).contains_key(good_citizen_id)
@@ -214,7 +218,7 @@ proof fn consumer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, co
         // The cluster starts with the initial state of the consumer.
         forall |s| cluster.init()(s) ==> #[trigger] consumer::<S, I>().init()(s),
         // The fairness condition is enough to say that the consumer runs as part of the cluster's next transition.
-        spec.entails(consumer_fairness::<S, I>()),
+        spec.entails(controller_fairness::<S, I>(consumer())),
         // The next two preconditions say that no controller (except the consumer itself) interferes with this consumer.
         cluster.controllers.contains_pair(consumer_id, consumer::<S, I>()),
         forall |good_citizen_id| cluster.controllers.remove(consumer_id).contains_key(good_citizen_id)
