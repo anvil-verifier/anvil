@@ -72,15 +72,21 @@ proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cl
                 && forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
                     ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index))))
     ensures
-        forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
-            ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
         spec.entails(consumer_property::<S>()),
+        forall |good_citizen_id| #[trigger] cluster.controllers.contains_key(good_citizen_id) && good_citizen_id != consumer_id
+            ==> spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))),
+        forall |p_index| 0 <= p_index < producers::<S, I>().len()
+            ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
+        forall |p_index| #![trigger producer_ids[p_index]] 0 <= p_index < producers::<S, I>().len()
+            ==> forall |good_citizen_id| #[trigger] cluster.controllers.contains_key(good_citizen_id) && good_citizen_id != producer_ids[p_index]
+                ==> spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))),
 {
-    assert forall |p_index| 0 <= p_index < producers::<S, I>().len() implies #[trigger] spec.entails(producer_property::<S>(p_index)) by {
-        assert(producer_ids.contains_key(p_index));
-        let producer_id = producer_ids[p_index];
-        assert forall |good_citizen_id| cluster.controllers.contains_key(good_citizen_id) && good_citizen_id != producer_id
-        implies spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))) by {
+    assert forall |p_index| #![trigger producer_ids[p_index]] 0 <= p_index < producers::<S, I>().len()
+    implies (forall |good_citizen_id| #[trigger] cluster.controllers.contains_key(good_citizen_id) && good_citizen_id != producer_ids[p_index]
+        ==> spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))))
+    by {
+        assert forall |good_citizen_id| #[trigger] cluster.controllers.contains_key(good_citizen_id) && good_citizen_id != producer_ids[p_index]
+        implies spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))) by {
             if good_citizen_id == consumer_id {
                 consumer_does_not_interfere_with_the_producer(spec, cluster, good_citizen_id, p_index);
             } else if producer_ids.contains_value(good_citizen_id) {
@@ -91,6 +97,11 @@ proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cl
                 assert(spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))));
             }
         }
+    }
+
+    assert forall |p_index| 0 <= p_index < producers::<S, I>().len() implies #[trigger] spec.entails(producer_property::<S>(p_index)) by {
+        assert(producer_ids.contains_key(p_index));
+        let producer_id = producer_ids[p_index];
         producer_is_correct(spec, cluster, producer_id, p_index);
     }
 
