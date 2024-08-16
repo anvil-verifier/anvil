@@ -32,77 +32,87 @@ spec fn one_does_not_interfere_with_consumer<S, I>(cluster: Cluster<S, I>, good_
 // similar to the one above.
 spec fn one_does_not_interfere_with_producer<S, I>(cluster: Cluster<S, I>, good_citizen_id: int, p_index: int) -> StatePred<S>;
 
-// The only reason I need this spec fun is to use it as a trigger in the case that no one else can serve as a trigger.
-pub open spec fn within_range<A>(seq: Seq<A>, index: int) -> bool {
-    0 <= index < seq.len()
-}
-
 // This is our top-level theorem: the consumer and producers are correct in any cluster
 // if the other controllers in that cluster do not interfere with the consumer or producers.
 // # Arguments:
 // * spec: the temporal predicate that represents the state machine
 // * cluster: the cluster that we want to run the consumers/producers in
-// * consumer_id: the index of the consumer inside cluster.controllers
-// * producer_ids: the sequence of indexes of the producers inside cluster.controllers
-proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, consumer_id: int, producer_ids: Seq<int>)
+// * consumer_id: the key of the consumer in cluster.controllers
+// * producer_ids: maps the index of each producer to the key used in cluster.controllers
+proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, consumer_id: int, producer_ids: Map<int, int>)
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         // The cluster starts with the initial state of the consumer.
         forall |s| cluster.init()(s) ==> #[trigger] consumer::<S, I>().init()(s),
         // The cluster starts with the initial state of the producer.
-        forall |p_index: int| #![trigger producers::<S, I>()[p_index]] 0 <= p_index < producers::<S, I>().len()
+        forall |p_index| #![trigger producers::<S, I>()[p_index]] 0 <= p_index < producers::<S, I>().len()
             ==> forall |s| cluster.init()(s) ==> #[trigger] producers::<S, I>()[p_index].init()(s),
         // The fairness condition is enough to say that the consumer runs as part of the cluster's next transition.
         spec.entails(consumer_fairness::<S, I>()),
         // The fairness condition is enough to say that each producer runs as part of the cluster's next transition.
-        forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
+        forall |p_index| 0 <= p_index < producers::<S, I>().len()
             ==> #[trigger] spec.entails(producer_fairness::<S, I>(p_index)),
-        // The next five preconditions say that each consumer/producer id points to the consumer and producers
-        // in cluster.controllers.
-        0 <= consumer_id < cluster.controllers.len(),
-        producer_ids.len() == producers::<S, I>().len(),
-        forall |i| #![trigger producer_ids[i]] 0 <= i < producer_ids.len() ==> 0 <= producer_ids[i] < cluster.controllers.len(),
-        cluster.controllers[consumer_id] == consumer::<S, I>(),
-        forall |i| #![trigger producer_ids[i]] 0 <= i < producer_ids.len() ==> cluster.controllers[producer_ids[i]] == producers::<S, I>()[i],
-        // For any other controller in the cluster that is not pointed by the consumer or producer id...
-        forall |good_citizen_id: int| 0 <= good_citizen_id < cluster.controllers.len()
-            && good_citizen_id != consumer_id
-            && !(exists |i| 0 <= i < producer_ids.len() && good_citizen_id == producer_ids[i])
-            // ..., that controller does not interfere with the consumer...
-            ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id))))
-                // ...and does not interfere with any producer.
-                && forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
-                    ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index))))
+        // The consumer_id points to the consumer.
+        cluster.controllers.contains_pair(consumer_id, consumer::<S, I>()),
+        // Each element in producer_ids points to each producer respectively.
+        forall |key| producer_ids.contains_key(key)
+            ==> cluster.controllers.contains_pair(#[trigger] producer_ids[key], producers::<S, I>()[key]),
+        // A key exists in producer_ids iff it's within the range of producers,
+        // which guarantees that producer_ids covers and only covers all the producers.
+        forall |key| #[trigger] producer_ids.contains_key(key) <==> 0 <= key < producers::<S, I>().len(),
+        // No other controllers interfere with the consumer.
+        forall |good_citizen_id| #[trigger] cluster.controllers.remove(consumer_id).remove_keys(producer_ids.values()).contains_key(good_citizen_id)
+            ==> spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))),
+        // For each producer, no other controllers interfere with that producer.
+        forall |p_index: int| #![trigger producer_ids[p_index]] 0 <= p_index < producers::<S, I>().len()
+            ==> forall |good_citizen_id| #[trigger] cluster.controllers.remove(consumer_id).remove_keys(producer_ids.values()).contains_key(good_citizen_id)
+                ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index))))
     ensures
-        forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
-            ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
+        // Consumer is correct.
         spec.entails(consumer_property::<S>()),
+        // Each producer is correct.
+        forall |p_index| 0 <= p_index < producers::<S, I>().len()
+            ==> #[trigger] spec.entails(producer_property::<S>(p_index)),
+        // No one interferes with the consumer (except the consumer itself).
+        forall |good_citizen_id| #[trigger] cluster.controllers.remove(consumer_id).contains_key(good_citizen_id)
+            ==> spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))),
+        // For each producer, no one interferes with that producer (except that producer itself).
+        forall |p_index| #![trigger producer_ids[p_index]] 0 <= p_index < producers::<S, I>().len()
+            ==> forall |good_citizen_id| #[trigger] cluster.controllers.remove(producer_ids[p_index]).contains_key(good_citizen_id)
+                ==> spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))),
 {
-    assert forall |p_index| 0 <= p_index < producers::<S, I>().len() implies #[trigger] spec.entails(producer_property::<S>(p_index)) by {
-        let producer_id = producer_ids[p_index];
-        assert forall |good_citizen_id| 0 <= good_citizen_id < cluster.controllers.len() && good_citizen_id != producer_id
-        implies spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))) by {
+    assert forall |p_index| #![trigger producer_ids[p_index]] 0 <= p_index < producers::<S, I>().len()
+    implies (forall |good_citizen_id| #[trigger] cluster.controllers.remove(producer_ids[p_index]).contains_key(good_citizen_id)
+        ==> spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))))
+    by {
+        assert forall |good_citizen_id| #[trigger] cluster.controllers.contains_key(good_citizen_id) && good_citizen_id != producer_ids[p_index]
+        implies spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))) by {
             if good_citizen_id == consumer_id {
                 consumer_does_not_interfere_with_the_producer(spec, cluster, good_citizen_id, p_index);
-            } else if exists |j| 0 <= j < producer_ids.len() && good_citizen_id == producer_ids[j] {
-                let j = choose |j| 0 <= j < producer_ids.len() && good_citizen_id == producer_ids[j];
-                assert(cluster.controllers[good_citizen_id] == producers::<S, I>()[j]);
+            } else if producer_ids.contains_value(good_citizen_id) {
+                let j = choose |j| producer_ids.dom().contains(j) && #[trigger] producer_ids[j] == good_citizen_id;
                 producer_does_not_interfere_with_the_producer(spec, cluster, good_citizen_id, j, p_index);
             } else {
-                assert(spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id))))); // this assert is just used for triggering
+                assert(cluster.controllers.remove(consumer_id).remove_keys(producer_ids.values()).contains_key(good_citizen_id));
                 assert(spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))));
             }
         }
+    }
+
+    assert forall |p_index| 0 <= p_index < producers::<S, I>().len() implies #[trigger] spec.entails(producer_property::<S>(p_index)) by {
+        assert(producer_ids.contains_key(p_index));
+        let producer_id = producer_ids[p_index];
         producer_is_correct(spec, cluster, producer_id, p_index);
     }
 
-    assert forall |good_citizen_id| 0 <= good_citizen_id < cluster.controllers.len() && good_citizen_id != consumer_id
+    assert forall |good_citizen_id| cluster.controllers.remove(consumer_id).contains_key(good_citizen_id)
     implies spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))) by {
-        if exists |j| 0 <= j < producer_ids.len() && good_citizen_id == producer_ids[j] {
-            let j = choose |j| 0 <= j < producer_ids.len() && good_citizen_id == producer_ids[j];
+        if producer_ids.contains_value(good_citizen_id) {
+            let j = choose |j| producer_ids.dom().contains(j) && #[trigger] producer_ids[j] == good_citizen_id;
             producer_does_not_interfere_with_the_consumer(spec, cluster, good_citizen_id, j);
         } else {
+            assert(cluster.controllers.remove(consumer_id).remove_keys(producer_ids.values()).contains_key(good_citizen_id));
             assert(spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))));
         }
     }
@@ -112,7 +122,8 @@ proof fn consumer_and_producers_are_correct<S, I>(spec: TempPred<S>, cluster: Cl
 // A concrete cluster with only producers and consumer
 pub open spec fn consumer_and_producers<S, I>() -> Cluster<S, I> {
     Cluster {
-        controllers: producers::<S, I>().push(consumer::<S, I>()),
+        controllers: Map::new(|k| 0 <= k < producers::<S, I>().len(), |k| producers::<S, I>()[k])
+            .insert(producers::<S, I>().len() as int, consumer::<S, I>())
     }
 }
 
@@ -132,43 +143,40 @@ proof fn consumer_and_producers_are_correct_in_a_concrete_cluster<S, I>(spec: Te
 {
     let cluster = consumer_and_producers::<S, I>();
 
-    let producer_ids = producers::<S, I>().map(|i: int, producer: Controller<S, I>| i);
-    let consumer_id = cluster.controllers.len() - 1;
+    let producer_ids = Map::new(|k: int| 0 <= k < producers::<S, I>().len(), |k: int| k);
+    let consumer_id = producers::<S, I>().len() as int;
 
     assert forall |s| #[trigger] cluster.init()(s) implies consumer::<S, I>().init()(s) by {
-        assert forall |i| 0 <= i < cluster.controllers.len() implies #[trigger] cluster.controllers[i].init()(s) by {}
-        assert(consumer::<S, I>() =~= cluster.controllers.last());
+        assert forall |i| #[trigger] cluster.controllers.contains_key(i) implies cluster.controllers[i].init()(s) by {}
+        assert(cluster.controllers.contains_key(consumer_id));
     }
 
     assert forall |p_index| #![trigger producers::<S, I>()[p_index]] 0 <= p_index < producers::<S, I>().len()
     implies forall |s| #[trigger] cluster.init()(s) ==> producers::<S, I>()[p_index].init()(s) by {
         assert forall |s| #[trigger] cluster.init()(s) implies producers::<S, I>()[p_index].init()(s) by {
-            assert forall |i| 0 <= i < cluster.controllers.len() implies #[trigger] cluster.controllers[i].init()(s) by {}
-            assert(producers::<S, I>()[p_index] =~= cluster.controllers[p_index]);
+            assert forall |i| #[trigger] cluster.controllers.contains_key(i) implies cluster.controllers[i].init()(s) by {}
+            assert(cluster.controllers.contains_key(p_index));
         }
     }
 
     // Due to our cluster construct, you won't find a good_citizen_id that is neither the consumer nor any producer.
     // So we prove the following assertion by contradiction.
-    assert forall |good_citizen_id: int| 0 <= good_citizen_id < cluster.controllers.len()
-        && good_citizen_id != consumer_id
-        && !(exists |i| 0 <= i < producer_ids.len() && good_citizen_id == producer_ids[i])
+    assert forall |good_citizen_id: int|
+        #[trigger] cluster.controllers.remove(consumer_id).remove_keys(producer_ids.values()).contains_key(good_citizen_id)
     implies
-        spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id))))
+        spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id))))
         && forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
             ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index))))
     by {
-        assert forall |controller_id| #[trigger] within_range(cluster.controllers, controller_id) // I am using within_range here because no one else can be a trigger
-        implies controller_id == consumer_id || exists |i| #[trigger] within_range(producer_ids, i) && controller_id == producer_ids[i] by {
-            if controller_id == cluster.controllers.len() - 1 {
+        assert forall |controller_id| #[trigger] cluster.controllers.contains_key(controller_id)
+        implies controller_id == consumer_id || producer_ids.values().contains(controller_id) by {
+            if controller_id == producers::<S, I>().len() as int {
                 assert(controller_id == consumer_id);
             } else {
-                let i = controller_id;
-                assert(within_range(producer_ids, i) && controller_id == producer_ids[i]);
+                assert(producer_ids.dom().contains(controller_id) && producer_ids[controller_id] == controller_id);
             }
         }
-        assert(within_range(cluster.controllers, good_citizen_id));
-        assert(good_citizen_id == consumer_id || exists |i| #[trigger] within_range(producer_ids, i) && good_citizen_id == producer_ids[i]);
+        assert(!cluster.controllers.remove(consumer_id).remove_keys(producer_ids.values()).contains_key(good_citizen_id));
     }
 
     consumer_and_producers_are_correct(spec, cluster, consumer_id, producer_ids);
@@ -182,7 +190,6 @@ proof fn consumer_and_producers_are_correct_in_a_concrete_cluster<S, I>(spec: Te
 proof fn producer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, producer_id: int, p_index: int)
     requires
         0 <= p_index < producers::<S, I>().len(),
-        0 <= producer_id < cluster.controllers.len(),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         // The cluster starts with the initial state of the producer.
@@ -190,8 +197,8 @@ proof fn producer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, pr
         // The fairness condition is enough to say that the producer runs as part of the cluster's next transition.
         spec.entails(producer_fairness::<S, I>(p_index)),
         // The next two preconditions say that no controller (except the producer itself) interferes with this producer.
-        cluster.controllers[producer_id] == producers::<S, I>()[p_index],
-        forall |good_citizen_id| 0 <= good_citizen_id < cluster.controllers.len() && good_citizen_id != producer_id
+        cluster.controllers.contains_pair(producer_id, producers::<S, I>()[p_index]),
+        forall |good_citizen_id| cluster.controllers.remove(producer_id).contains_key(good_citizen_id)
             ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))),
     ensures
         spec.entails(producer_property::<S>(p_index)),
@@ -202,7 +209,6 @@ proof fn producer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, pr
 #[verifier(external_body)]
 proof fn consumer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, consumer_id: int)
     requires
-        0 <= consumer_id < cluster.controllers.len(),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         // The cluster starts with the initial state of the consumer.
@@ -210,8 +216,8 @@ proof fn consumer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, co
         // The fairness condition is enough to say that the consumer runs as part of the cluster's next transition.
         spec.entails(consumer_fairness::<S, I>()),
         // The next two preconditions say that no controller (except the consumer itself) interferes with this consumer.
-        cluster.controllers[consumer_id] == consumer::<S, I>(),
-        forall |good_citizen_id| 0 <= good_citizen_id < cluster.controllers.len() && good_citizen_id != consumer_id
+        cluster.controllers.contains_pair(consumer_id, consumer::<S, I>()),
+        forall |good_citizen_id| cluster.controllers.remove(consumer_id).contains_key(good_citizen_id)
             ==> spec.entails(always(lift_state(#[trigger] one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))),
         // We directly use the temporal spec of the producers.
         forall |p_index: int| 0 <= p_index < producers::<S, I>().len()
@@ -226,10 +232,9 @@ proof fn consumer_is_correct<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, co
 proof fn consumer_does_not_interfere_with_the_producer<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, good_citizen_id: int, p_index: int)
     requires
         0 <= p_index < producers::<S, I>().len(),
-        0 <= good_citizen_id < cluster.controllers.len(),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        cluster.controllers[good_citizen_id] == consumer::<S, I>(),
+        cluster.controllers.contains_pair(good_citizen_id, consumer::<S, I>()),
     ensures
         // The consumer (which is the good citizen here) never interferes with the producer.
         spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, p_index)))),
@@ -245,10 +250,9 @@ proof fn producer_does_not_interfere_with_the_producer<S, I>(spec: TempPred<S>, 
         // We require the two producers to be different because there is no point to prove
         // a producer does not interfere with another instance of itself.
         p_index != q_index,
-        0 <= good_citizen_id < cluster.controllers.len(),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        cluster.controllers[good_citizen_id] == producers::<S, I>()[p_index],
+        cluster.controllers.contains_pair(good_citizen_id, producers::<S, I>()[p_index]),
     ensures
         // The producer (p_index, which is the good citizen here) never interferes with the other producer (q_index).
         spec.entails(always(lift_state(one_does_not_interfere_with_producer::<S, I>(cluster, good_citizen_id, q_index)))),
@@ -260,10 +264,9 @@ proof fn producer_does_not_interfere_with_the_producer<S, I>(spec: TempPred<S>, 
 proof fn producer_does_not_interfere_with_the_consumer<S, I>(spec: TempPred<S>, cluster: Cluster<S, I>, good_citizen_id: int, p_index: int)
     requires
         0 <= p_index < producers::<S, I>().len(),
-        0 <= good_citizen_id < cluster.controllers.len(),
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
-        cluster.controllers[good_citizen_id] == producers::<S, I>()[p_index],
+        cluster.controllers.contains_pair(good_citizen_id, producers::<S, I>()[p_index]),
     ensures
         // The producer (which is the good citizen here) never interferes with the consumer.
         spec.entails(always(lift_state(one_does_not_interfere_with_consumer::<S, I>(cluster, good_citizen_id)))),
