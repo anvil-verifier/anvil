@@ -164,7 +164,7 @@ proof fn consumer_does_not_interfere_with_the_producer<S, I>(spec: TempPred<S>, 
         spec.entails(always(lift_action(cluster.next()))),
         cluster.controllers.contains_pair(good_citizen_id, consumer),
     ensures
-        // The consumer (which is the good citizen here) never interferes with the producer.
+        // The consumer never interferes with the producer.
         spec.entails(always(lift_state(one_does_not_interfere_with_this_controller::<S, I>(cluster, good_citizen_id, producers[p_index])))),
 {}
 
@@ -182,7 +182,7 @@ proof fn producer_does_not_interfere_with_the_producer<S, I>(spec: TempPred<S>, 
         spec.entails(always(lift_action(cluster.next()))),
         cluster.controllers.contains_pair(good_citizen_id, producers[p_index]),
     ensures
-        // The producer (p_index, which is the good citizen here) never interferes with the other producer (q_index).
+        // The producer (p_index) never interferes with the other producer (q_index).
         spec.entails(always(lift_state(one_does_not_interfere_with_this_controller::<S, I>(cluster, good_citizen_id, producers[q_index])))),
 {}
 
@@ -196,7 +196,7 @@ proof fn producer_does_not_interfere_with_the_consumer<S, I>(spec: TempPred<S>, 
         spec.entails(always(lift_action(cluster.next()))),
         cluster.controllers.contains_pair(good_citizen_id, producers[p_index]),
     ensures
-        // The producer (which is the good citizen here) never interferes with the consumer.
+        // The producer never interferes with the consumer.
         spec.entails(always(lift_state(one_does_not_interfere_with_this_controller::<S, I>(cluster, good_citizen_id, consumer)))),
 {}
 
