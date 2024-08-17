@@ -33,6 +33,36 @@ pub open spec fn waiter_spec_group<S, I>() -> ControllerSpecGroup<S, I> {
     }
 }
 
+pub struct WaiterAndCooks<S, I> {
+    dummy_s: std::marker::PhantomData<S>,
+    dummy_i: std::marker::PhantomData<I>,
+}
+
+impl<S, I> Compositional<S, I> for WaiterAndCooks<S, I> {
+    open spec fn consumer() -> ControllerSpecGroup<S, I> {
+        waiter_spec_group()
+    }
+
+    open spec fn producers() -> Seq<ControllerSpecGroup<S, I>> {
+        cook_spec_groups()
+    }
+
+    #[verifier(external_body)]
+    proof fn producer_is_correct(spec: TempPred<S>, cluster: Cluster<S, I>, p_index: int) {}
+
+    #[verifier(external_body)]
+    proof fn consumer_is_correct(spec: TempPred<S>, cluster: Cluster<S, I>) {}
+
+    #[verifier(external_body)]
+    proof fn consumer_does_not_interfere_with_the_producer(spec: TempPred<S>, cluster: Cluster<S, I>, p_index: int) {}
+
+    #[verifier(external_body)]
+    proof fn producer_does_not_interfere_with_the_producer(spec: TempPred<S>, cluster: Cluster<S, I>, p_index: int, q_index: int) {}
+
+    #[verifier(external_body)]
+    proof fn producer_does_not_interfere_with_the_consumer(spec: TempPred<S>, cluster: Cluster<S, I>, p_index: int) {}
+}
+
 // A concrete cluster with only cooks and waiter_spec_group
 pub open spec fn waiter_and_cooks<S, I>() -> Cluster<S, I> {
     Cluster {
@@ -111,7 +141,7 @@ proof fn waiter_and_cooks_are_correct<S, I>(spec: TempPred<S>)
         }
     }
 
-    consumer_and_producers_are_correct(spec, cluster, waiter_spec_group(), cook_spec_groups());
+    WaiterAndCooks::consumer_and_producers_are_correct(spec, cluster);
 }
 
 }
