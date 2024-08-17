@@ -8,9 +8,9 @@ use vstd::prelude::*;
 
 verus! {
 
-// This is a use case of waiter_and_cooks_are_correct:
-// We can apply waiter_and_cooks_are_correct to a concrete cluster that includes
-// only a waiter_spec_group and a sequence of cook_spec_groups.
+// This is a use case of consumer_and_producers_are_correct:
+// We can apply consumer_and_producers_are_correct to a concrete cluster that includes
+// only a waiter and a sequence of cooks.
 pub spec fn cooks<S, I>() -> Seq<Controller<S, I>>;
 
 pub spec fn waiter<S, I>() -> Controller<S, I>;
