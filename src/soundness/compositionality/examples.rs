@@ -15,21 +15,21 @@ pub spec fn producer_controllers<S, I>() -> Seq<Controller<S, I>>;
 
 pub spec fn consumer_controller<S, I>() -> Controller<S, I>;
 
-pub open spec fn producers<S, I>() -> Seq<ControllerSpecs<S, I>> {
-    producer_controllers().map(|i, v| ControllerSpecs {
+pub open spec fn producers<S, I>() -> Seq<ControllerSpecGroup<S, I>> {
+    producer_controllers().map(|i, v| ControllerSpecGroup {
         controller: v,
         key: i,
         property: arbitrary(),
-        non_interference: arbitrary(),
+        not_interfered_by: arbitrary(),
     })
 }
 
-pub open spec fn consumer<S, I>() -> ControllerSpecs<S, I> {
-    ControllerSpecs::<S, I> {
+pub open spec fn consumer<S, I>() -> ControllerSpecGroup<S, I> {
+    ControllerSpecGroup::<S, I> {
         controller: consumer_controller(),
         key: producers::<S, I>().len() as int,
         property: arbitrary(),
-        non_interference: arbitrary(),
+        not_interfered_by: arbitrary(),
     }
 }
 
@@ -68,7 +68,7 @@ proof fn consumer_and_producers_are_correct_in_a_concrete_cluster<S, I>(spec: Te
         }
     }
 
-    let producer_keys = producers().map_values(|p: ControllerSpecs<S, I>| p.key);
+    let producer_keys = producers().map_values(|p: ControllerSpecGroup<S, I>| p.key);
     let producer_key_set = producer_keys.to_set();
 
     // Due to our cluster construct, you won't find a good_citizen_id that is neither the consumer nor any producer.
@@ -76,7 +76,7 @@ proof fn consumer_and_producers_are_correct_in_a_concrete_cluster<S, I>(spec: Te
     assert forall |good_citizen_id: int|
         cluster.controllers.remove(consumer::<S, I>().key).remove_keys(producer_key_set).contains_key(good_citizen_id)
     implies
-        #[trigger] spec.entails(always(lift_state((consumer::<S, I>().non_interference)(good_citizen_id))))
+        #[trigger] spec.entails(always(lift_state((consumer::<S, I>().not_interfered_by)(good_citizen_id))))
     by {
         assert forall |controller_id| #[trigger] cluster.controllers.contains_key(controller_id)
         implies controller_id == consumer::<S, I>().key || producer_key_set.contains(controller_id) by {
@@ -92,12 +92,12 @@ proof fn consumer_and_producers_are_correct_in_a_concrete_cluster<S, I>(spec: Te
     assert forall |p_index| #![trigger producers::<S, I>()[p_index]] 0 <= p_index < producers::<S, I>().len()
     implies
         (forall |good_citizen_id| cluster.controllers.remove(consumer::<S, I>().key).remove_keys(producer_key_set).contains_key(good_citizen_id)
-            ==> spec.entails(always(lift_state(#[trigger] (producers::<S, I>()[p_index].non_interference)(good_citizen_id)))))
+            ==> spec.entails(always(lift_state(#[trigger] (producers::<S, I>()[p_index].not_interfered_by)(good_citizen_id)))))
     by {
         assert forall |good_citizen_id|
             cluster.controllers.remove(consumer::<S, I>().key).remove_keys(producer_key_set).contains_key(good_citizen_id)
         implies
-            #[trigger] spec.entails(always(lift_state(#[trigger] (producers::<S, I>()[p_index].non_interference)(good_citizen_id))))
+            #[trigger] spec.entails(always(lift_state(#[trigger] (producers::<S, I>()[p_index].not_interfered_by)(good_citizen_id))))
         by {
             assert forall |controller_id| #[trigger] cluster.controllers.contains_key(controller_id)
             implies controller_id == consumer::<S, I>().key || producer_key_set.contains(controller_id) by {
