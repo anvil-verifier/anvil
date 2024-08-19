@@ -1972,4 +1972,37 @@ proof fn leads_to_rank_step_one_help<T>(spec: TempPred<T>, p: spec_fn(nat) -> Te
     }
 }
 
+// usize version of the proof rule leads_to_rank_step_one.
+pub proof fn leads_to_rank_step_one_usize<T>(spec: TempPred<T>, p: spec_fn(usize) -> TempPred<T>)
+    requires
+        forall |n: usize| #![trigger p(n)] (n > 0 ==> spec.entails(p(n).leads_to(p((n - 1) as usize)))),
+    ensures
+        forall |n: usize| #[trigger] spec.entails(p(n).leads_to(p(0))),
+{
+    let pre = {
+        forall |n: usize| #![trigger p(n)] (n > 0 ==> spec.entails(p(n).leads_to(p((n - 1) as usize))))
+    };
+    assert forall |n: usize| pre implies #[trigger] spec.entails(p(n).leads_to(p(0))) by {
+        leads_to_rank_step_one_usize_help(spec, p, n);
+    }
+}
+
+proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usize) -> TempPred<T>, n: usize)
+    requires
+        forall |n: usize| #![trigger p(n)] (n > 0 ==> spec.entails(p(n).leads_to(p((n - 1) as usize)))),
+    ensures
+        spec.entails(p(n).leads_to(p(0))),
+    decreases n,
+{
+    if n > 0 {
+        // p(n) ~> p(n - 1), p(n - 1) ~> p(0)
+        // combine with leads-to transitivity
+        leads_to_rank_step_one_usize_help(spec, p, (n - 1) as usize);
+        leads_to_trans_n!(spec, p(n), p((n - 1) as usize), p(0));
+    } else {
+        // p(0) ~> p(0) trivially
+        leads_to_self_temp(p(0));
+    }
+}
+
 }
