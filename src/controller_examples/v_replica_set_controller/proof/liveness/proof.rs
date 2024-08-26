@@ -20,6 +20,7 @@ use crate::v_replica_set_controller::{
         helper_invariants,
         liveness::{
             spec::*,
+            resource_match::*,
             terminate,
         },
         predicate::*,
@@ -81,18 +82,135 @@ proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView)
 {
     let spec = assumption_and_invariants_of_all_phases(vrs);
 
-    assert forall |k : usize| #![auto] spec.entails(always(lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterCreatePod(k)))))) by {
-        always_tla_forall_apply(spec, |k: usize| lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterCreatePod(k)))), k);
-    }
-    assert forall |k : usize| #![auto] spec.entails(always(lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterDeletePod(k)))))) by {
-        always_tla_forall_apply(spec, |k: usize| lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterDeletePod(k)))), k);
-    }
-    
+    let reconcile_idle = lift_state(|s: VRSCluster| { !s.ongoing_reconciles().contains_key(vrs.object_ref()) });
+    let reconcile_scheduled = lift_state(|s: VRSCluster| {
+        &&& !s.ongoing_reconciles().contains_key(vrs.object_ref())
+        &&& s.scheduled_reconciles().contains_key(vrs.object_ref())
+    });
+    let at_init = lift_state(no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init));
+    let diff_at_init = |diff| lift_state(
+        |s: VRSCluster| {
+            &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+        
     // The use of termination property ensures spec |= true ~> reconcile_idle.
     terminate::reconcile_eventually_terminates(spec, vrs);
     // Then we can continue to show that spec |= reconcile_idle ~> []current_state_matches(vrs).
 
-    assume(false);
+    // The following two lemmas show that spec |= reconcile_idle ~> init /\ no_pending_req.
+    lemma_from_reconcile_idle_to_scheduled(spec, vrs);
+    lemma_from_scheduled_to_init_step(spec, vrs);
+
+    // Show that true == exists |diff| num_diff_pods_is(diff).
+    assert_by(true_pred::<VRSCluster>() == tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))), {
+        let exists_num_diff_pods_is = tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff)));
+        assert forall |ex: Execution<VRSCluster>|
+        true_pred::<VRSCluster>().satisfied_by(ex) implies #[trigger] exists_num_diff_pods_is.satisfied_by(ex) by {
+            let s = ex.head();
+            let pods = matching_pods(vrs, s.resources());
+            let diff = pods.len() - vrs.spec.replicas.unwrap_or(0);
+
+            // Instantiate exists statement.
+            assert((|diff| lift_state(num_diff_pods_is(vrs, diff)))(diff).satisfied_by(ex));        
+        }
+        assert(valid(true_pred::<VRSCluster>().implies(exists_num_diff_pods_is)));
+        temp_pred_equality(true_pred::<VRSCluster>(), tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))));
+    });
+
+    // Show that init /\ no_pending_req ~> exists |diff| (num_diff_pods_is(diff) /\ init)
+    assert_by(spec.entails(at_init.leads_to(tla_exists(diff_at_init))), {
+        assert forall |ex: Execution<VRSCluster>|
+        at_init.satisfied_by(ex) implies #[trigger] tla_exists(diff_at_init).satisfied_by(ex) by {
+            assert(tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))).satisfied_by(ex));
+            let diff = choose |diff| lift_state(#[trigger] num_diff_pods_is(vrs, diff)).satisfied_by(ex);
+            assert(diff_at_init(diff).satisfied_by(ex));
+        }
+        implies_to_leads_to(spec, at_init, tla_exists(diff_at_init));
+    });
+
+    // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
+    assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(current_state_matches(vrs)))) by {
+        lemma_from_diff_and_init_to_current_state_matches(spec, vrs, diff);
+    }
+    leads_to_exists_intro(spec, diff_at_init, lift_state(current_state_matches(vrs)));
+
+    // Chain everything together
+    leads_to_trans_n!(
+        spec,
+        true_pred(),
+        reconcile_idle,
+        reconcile_scheduled,
+        at_init,
+        tla_exists(diff_at_init),
+        lift_state(current_state_matches(vrs))
+    );
+
+    // Further prove stability
+    lemma_current_state_matches_is_stable(spec, vrs, true_pred());
+}
+
+proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<VRSCluster>, vrs: VReplicaSetView)
+    requires
+        spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(tla_forall(|i| VRSCluster::schedule_controller_reconcile().weak_fairness(i))),
+        spec.entails(always(lift_state(VRSCluster::desired_state_is(vrs)))),
+    ensures
+        spec.entails(lift_state(|s: VRSCluster| { !s.ongoing_reconciles().contains_key(vrs.object_ref()) })
+        .leads_to(lift_state(|s: VRSCluster| {
+            &&& !s.ongoing_reconciles().contains_key(vrs.object_ref())
+            &&& s.scheduled_reconciles().contains_key(vrs.object_ref())
+        }))),
+{
+    let pre = |s: VRSCluster| {
+        &&& !s.ongoing_reconciles().contains_key(vrs.object_ref())
+        &&& !s.scheduled_reconciles().contains_key(vrs.object_ref())
+    };
+    let post = |s: VRSCluster| {
+        &&& !s.ongoing_reconciles().contains_key(vrs.object_ref())
+        &&& s.scheduled_reconciles().contains_key(vrs.object_ref())
+    };
+    let input = vrs.object_ref();
+    VRSCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, VRSCluster::next(), VRSCluster::desired_state_is(vrs), pre, post);
+    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
+    or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
+    temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: VRSCluster| {!s.ongoing_reconciles().contains_key(vrs.object_ref())}));
+}
+
+proof fn lemma_from_scheduled_to_init_step(spec: TempPred<VRSCluster>, vrs: VReplicaSetView)
+    requires
+        spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(VRSCluster::crash_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
+        spec.entails(always(lift_state(VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs)))),
+    ensures
+        spec.entails(lift_state(|s: VRSCluster| {
+            &&& !s.ongoing_reconciles().contains_key(vrs.object_ref())
+            &&& s.scheduled_reconciles().contains_key(vrs.object_ref())
+        }).leads_to(lift_state(no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)))),
+{
+    let pre = |s: VRSCluster| {
+        &&& !s.ongoing_reconciles().contains_key(vrs.object_ref())
+        &&& s.scheduled_reconciles().contains_key(vrs.object_ref())
+    };
+    let post = no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init);
+    let input = (None, Some(vrs.object_ref()));
+    let stronger_next = |s, s_prime| {
+        &&& VRSCluster::next()(s, s_prime)
+        &&& VRSCluster::crash_disabled()(s)
+        &&& VRSCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()(s)
+        &&& VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(VRSCluster::next()),
+        lift_state(VRSCluster::crash_disabled()),
+        lift_state(VRSCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
+        lift_state(VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs))
+    );
+    VRSCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, VRSCluster::run_scheduled_reconcile(), pre, post);
 }
 
 }

@@ -35,6 +35,13 @@ pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, step: VReplicaSetRec
     }
 }
 
+pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, step: VReplicaSetReconcileStep) -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        &&& at_vrs_step_with_vrs(vrs, step)(s)
+        &&& VRSCluster::no_pending_req_msg(s, vrs.object_ref())
+    }
+}
+
 // Predicates for reasoning about pods
 pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<ObjectRef> {
     Set::new(|k: ObjectRef| owned_selector_match_is(vrs, resources, k))
@@ -43,7 +50,6 @@ pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> 
 pub open spec fn num_diff_pods_is(vrs: VReplicaSetView, diff: int) -> StatePred<VRSCluster> {
     |s: VRSCluster| {
         let pods = matching_pods(vrs, s.resources());
-        &&& pods.finite() 
         &&& pods.len() - vrs.spec.replicas.unwrap_or(0) == diff
     }
 }

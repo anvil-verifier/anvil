@@ -28,7 +28,6 @@ pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<VRSClu
 
 pub open spec fn resource_state_matches(vrs: VReplicaSetView, resources: StoredState) -> bool {
     let pods: Set<ObjectRef> = Set::new(|k: ObjectRef| owned_selector_match_is(vrs, resources, k));
-    &&& pods.finite()
     &&& pods.len() == vrs.spec.replicas.unwrap_or(0)
 }
 

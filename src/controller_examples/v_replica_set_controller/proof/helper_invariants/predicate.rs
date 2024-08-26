@@ -24,4 +24,8 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
+pub open spec fn cluster_resources_is_finite() -> StatePred<VRSCluster> {
+    |s: VRSCluster| s.resources().dom().finite()
+} 
+
 }

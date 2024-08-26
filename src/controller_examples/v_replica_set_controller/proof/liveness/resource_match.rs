@@ -861,4 +861,16 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
 {
 }
 
+// Ensures that once we've reconciled, we stay reconciled.
+#[verifier(external_body)]
+pub proof fn lemma_current_state_matches_is_stable(
+    spec: TempPred<VRSCluster>, vrs: VReplicaSetView, p: TempPred<VRSCluster>
+)
+    requires
+        spec.entails(p.leads_to(lift_state(current_state_matches(vrs)))),
+    ensures
+        spec.entails(p.leads_to(always(lift_state(current_state_matches(vrs))))),
+{
+}
+
 }
