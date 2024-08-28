@@ -16,7 +16,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use crate::v_replica_set_controller::{
     model::{reconciler::*},
-    proof::{helper_invariants, predicate::*},
+    proof::{helper_invariants, predicate::*, liveness::api_actions::*},
     trusted::{spec_types::*, step::*, liveness_theorem::*},
 };
 use vstd::{prelude::*, string::*, math::abs};
@@ -26,11 +26,24 @@ verus! {
 pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int,
 )
+    requires
+        spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(VRSCluster::crash_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(
+            vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_has_an_empty_deletion_timestamp()))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)))),
     ensures
         spec.entails(
             lift_state(
                 |s: VRSCluster| {
-                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                    &&& no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
                     &&& num_diff_pods_is(vrs, diff)(s)
                 }
             ).leads_to(lift_state(current_state_matches(vrs)))
@@ -38,7 +51,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
 {
     let pre = |diff: int| lift_state(
         |s: VRSCluster| {
-            &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+            &&& no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
@@ -227,15 +240,27 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_pods_req(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
 )
+    requires
+        spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(VRSCluster::crash_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(
+            vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_has_an_empty_deletion_timestamp()))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)))),
     ensures
         spec.entails(
             lift_state(
                 |s: VRSCluster| {
-                    &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+                    &&& no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
                     &&& num_diff_pods_is(vrs, diff)(s)
                 }
             ).leads_to(
@@ -248,6 +273,61 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
             )
         )
 {
+    let pre = |s: VRSCluster| {
+        &&& no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+    };
+    let post = |s: VRSCluster| {
+        &&& pending_req_in_flight_at_after_list_pods_step(vrs)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+    };
+    let input = (None, Some(vrs.object_ref()));
+    let stronger_next = |s, s_prime: VRSCluster| {
+        &&& VRSCluster::next()(s, s_prime)
+        &&& VRSCluster::crash_disabled()(s)
+        &&& VRSCluster::busy_disabled()(s)
+        &&& VRSCluster::every_in_flight_msg_has_unique_id()(s)
+        &&& VRSCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& VRSCluster::no_pending_req_msg_at_reconcile_state(vrs.object_ref(), 
+                |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)(s)
+        &&& helper_invariants::every_create_request_has_an_empty_deletion_timestamp()(s)
+        &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
+        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)(s)
+        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)(s)
+    };
+    let state_is_init = |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init;
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(VRSCluster::next()),
+        lift_state(VRSCluster::crash_disabled()),
+        lift_state(VRSCluster::busy_disabled()),
+        lift_state(VRSCluster::every_in_flight_msg_has_unique_id()),
+        lift_state(VRSCluster::each_object_in_etcd_is_well_formed()),
+        lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(vrs.object_ref(), state_is_init)),
+        lift_state(helper_invariants::every_create_request_has_an_empty_deletion_timestamp()),
+        lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
+        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)),
+        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| VRSCluster::next_step(s, s_prime, step);
+        match step {
+            Step::ApiServerStep(msg) => {
+                let msg = msg.unwrap();
+                lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
+                    s, s_prime, vrs, diff, msg
+                );
+                // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
+                assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
+            },
+            _ => {}
+        }
+    }
+
+    VRSCluster::lemma_pre_leads_to_post_by_controller(
+        spec, input, stronger_next, VRSCluster::continue_reconcile(), pre, post
+    );
 }
 
 #[verifier(external_body)]

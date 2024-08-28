@@ -90,7 +90,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView)
     let at_init = lift_state(no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init));
     let diff_at_init = |diff| lift_state(
         |s: VRSCluster| {
-            &&& at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
+            &&& no_pending_req_at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::Init)(s)
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
