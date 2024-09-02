@@ -570,8 +570,6 @@ pub open spec fn handle_request() -> ApiServerAction {
         precondition: |input: ApiServerActionInput, s: ApiServerState| {
             &&& input.recv.is_Some()
             &&& input.recv.get_Some_0().content.is_APIRequest()
-            // This dst check is redundant since the compound state machine has checked it
-            &&& input.recv.get_Some_0().dst == HostId::ApiServer
         },
         transition: |input: ApiServerActionInput, s: ApiServerState| {
             // This transition describes how Kubernetes API server handles requests,

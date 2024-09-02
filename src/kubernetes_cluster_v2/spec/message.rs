@@ -3,7 +3,8 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, marshal::*};
+use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*};
+use crate::kubernetes_cluster_v2::spec::opaque::*;
 use crate::vstd_ext::string_view::*;
 use vstd::{multiset::*, prelude::*};
 
@@ -11,7 +12,7 @@ verus! {
 
 pub type RestId = nat;
 
-pub type ExternalMessageContent = Value;
+pub type ExternalMessageContent = Opaque;
 
 pub struct MessageOps {
     pub recv: Option<Message>,
@@ -292,37 +293,43 @@ pub open spec fn form_msg(src: HostId, dst: HostId, rest_id: RestId, msg_content
 pub open spec fn form_get_resp_msg(req_msg: Message, resp: GetResponse) -> Message
     recommends req_msg.content.is_get_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, Self::get_resp_msg_content(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
 }
 
 pub open spec fn form_list_resp_msg(req_msg: Message, resp: ListResponse) -> Message
     recommends req_msg.content.is_list_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, Self::list_resp_msg_content(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
 }
 
 pub open spec fn form_create_resp_msg(req_msg: Message, resp: CreateResponse) -> Message
     recommends req_msg.content.is_create_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, Self::create_resp_msg_content(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
 }
 
 pub open spec fn form_delete_resp_msg(req_msg: Message, resp: DeleteResponse) -> Message
     recommends req_msg.content.is_delete_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, Self::delete_resp_msg_content(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
 }
 
 pub open spec fn form_update_resp_msg(req_msg: Message, resp: UpdateResponse) -> Message
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, Self::update_resp_msg_content(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
 }
 
 pub open spec fn form_update_status_resp_msg(req_msg: Message, resp: UpdateStatusResponse) -> Message
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, Self::update_status_resp_msg_content(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
+}
+
+pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalMessageContent) -> Message
+    recommends req_msg.content.is_ExternalRequest(),
+{
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::ExternalResponse(resp))
 }
 
 pub open spec fn get_req_msg_content(key: ObjectRef) -> MessageContent {
@@ -365,30 +372,6 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
         name: name,
         obj: obj,
     }))
-}
-
-pub open spec fn get_resp_msg_content(resp: GetResponse) -> MessageContent {
-    MessageContent::APIResponse(APIResponse::GetResponse(resp))
-}
-
-pub open spec fn list_resp_msg_content(resp: ListResponse) -> MessageContent {
-    MessageContent::APIResponse(APIResponse::ListResponse(resp))
-}
-
-pub open spec fn create_resp_msg_content(resp: CreateResponse) -> MessageContent {
-    MessageContent::APIResponse(APIResponse::CreateResponse(resp))
-}
-
-pub open spec fn delete_resp_msg_content(resp: DeleteResponse) -> MessageContent {
-    MessageContent::APIResponse(APIResponse::DeleteResponse(resp))
-}
-
-pub open spec fn update_resp_msg_content(resp: UpdateResponse) -> MessageContent {
-    MessageContent::APIResponse(APIResponse::UpdateResponse(resp))
-}
-
-pub open spec fn update_status_resp_msg_content(resp: UpdateStatusResponse) -> MessageContent {
-    MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp))
 }
 
 }
