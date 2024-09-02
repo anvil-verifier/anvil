@@ -2,24 +2,44 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, resource::*};
-use crate::kubernetes_cluster::spec::message::*;
-use crate::reconciler::spec::reconciler::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster_v2::spec::{message::*, opaque::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct ControllerState<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
-    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, E, R>>,
-    pub scheduled_reconciles: Map<ObjectRef, K>,
+pub struct ControllerState {
+    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile>,
+    pub scheduled_reconciles: Map<ObjectRef, DynamicObjectView>,
+    pub reconcile: Reconcile,
+    pub cr_kind: Kind,
 }
 
-pub struct OngoingReconcile<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
-    pub triggering_cr: K,
-    pub pending_req_msg: Option<MsgType<E>>,
-    pub local_state: R::T,
+pub type ReconcileLocalState = Opaque;
+
+pub enum RequestContent {
+    KubernetesRequest(APIRequest),
+    ExternalRequest(ExternalMessageContent),
+}
+
+pub enum ResponseContent {
+    KubernetesResponse(APIResponse),
+    ExternalResponse(ExternalMessageContent),
+}
+
+pub struct Reconcile {
+    pub init: spec_fn() -> ReconcileLocalState,
+    pub transition: spec_fn(DynamicObjectView, Option<ResponseContent>, ReconcileLocalState) -> (ReconcileLocalState, Option<RequestContent>),
+    pub done: spec_fn(ReconcileLocalState) -> bool,
+    pub error: spec_fn(ReconcileLocalState) -> bool,
+}
+
+pub struct OngoingReconcile {
+    pub triggering_cr: DynamicObjectView,
+    pub pending_req_msg: Option<Message>,
+    pub local_state: ReconcileLocalState,
 }
 
 #[is_variant]
@@ -29,19 +49,20 @@ pub enum ControllerStep {
     EndReconcile,
 }
 
-pub struct ControllerActionInput<E: ExternalAPI> {
-    pub recv: Option<MsgType<E>>,
+pub struct ControllerActionInput {
+    pub recv: Option<Message>,
     pub scheduled_cr_key: Option<ObjectRef>,
     pub rest_id_allocator: RestIdAllocator,
+    pub controller_id: int,
 }
 
-pub struct ControllerActionOutput<E: ExternalAPI> {
-    pub send: Multiset<MsgType<E>>,
+pub struct ControllerActionOutput {
+    pub send: Multiset<Message>,
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type ControllerStateMachine<K, E, R> = StateMachine<ControllerState<K, E, R>, ControllerActionInput<E>, ControllerActionInput<E>, ControllerActionOutput<E>, ControllerStep>;
+pub type ControllerStateMachine = StateMachine<ControllerState, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;
 
-pub type ControllerAction<K, E, R> = Action<ControllerState<K, E, R>, ControllerActionInput<E>, ControllerActionOutput<E>>;
+pub type ControllerAction = Action<ControllerState, ControllerActionInput, ControllerActionOutput>;
 
 }

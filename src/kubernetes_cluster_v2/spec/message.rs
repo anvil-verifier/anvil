@@ -239,6 +239,10 @@ pub open spec fn controller_req_msg(controller_id: int, req_id: RestId, req: API
     Message::form_msg(HostId::Controller(controller_id), HostId::ApiServer, req_id, MessageContent::APIRequest(req))
 }
 
+pub open spec fn controller_external_req_msg(controller_id: int, req_id: RestId, req: ExternalMessageContent) -> Message {
+    Message::form_msg(HostId::Controller(controller_id), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
+}
+
 pub open spec fn built_in_controller_req_msg(msg_content: MessageContent, rest_id: RestId) -> Message {
     Message::form_msg(HostId::BuiltinController, HostId::ApiServer, rest_id, msg_content)
 }
