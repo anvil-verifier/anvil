@@ -6,7 +6,7 @@ pub mod api_server;
 // pub mod cluster;
 // pub mod cluster_state_machine;
 // pub mod controller;
-pub mod external_api;
+pub mod external;
 pub mod message;
 pub mod network;
 pub mod opaque;

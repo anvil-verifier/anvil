@@ -14,26 +14,26 @@ verus! {
 
 pub type ExternalLocalState = Opaque;
 
-pub struct ExternalAPIState {
+pub struct ExternalState {
     pub state: ExternalLocalState,
     pub transition: spec_fn(ExternalMessageContent, ExternalLocalState, StoredState) -> (ExternalLocalState, ExternalMessageContent),
 }
 
-pub enum ExternalAPIStep {
+pub enum ExternalStep {
     HandleExternalRequest,
 }
 
-pub struct ExternalAPIActionInput {
+pub struct ExternalActionInput {
     pub recv: Option<Message>,
     pub resources: StoredState,
 }
 
-pub struct ExternalAPIActionOutput {
+pub struct ExternalActionOutput {
     pub send: Multiset<Message>,
 }
 
-pub type ExternalAPIStateMachine = StateMachine<ExternalAPIState, ExternalAPIActionInput, ExternalAPIActionInput, ExternalAPIActionOutput, ExternalAPIStep>;
+pub type ExternalStateMachine = StateMachine<ExternalState, ExternalActionInput, ExternalActionInput, ExternalActionOutput, ExternalStep>;
 
-pub type ExternalAPIAction = Action<ExternalAPIState, ExternalAPIActionInput, ExternalAPIActionOutput>;
+pub type ExternalAction = Action<ExternalState, ExternalActionInput, ExternalActionOutput>;
 
 }
