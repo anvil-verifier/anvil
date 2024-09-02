@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{api_server::types::*, cluster::Cluster, message::*};
+use crate::kubernetes_cluster_v2::spec::{api_server::types::*, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -23,7 +23,7 @@ verus! {
 // + Support graceful deletion
 
 #[verifier(inline)]
-pub open spec fn unmarshallable_spec<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
+pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
         Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec).is_Ok(),
@@ -35,12 +35,12 @@ pub open spec fn unmarshallable_spec<K: CustomResourceView>(obj: DynamicObjectVi
         Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::CustomResourceKind => K::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::CustomResourceKind => (installed_types.unmarshallable_spec)(obj),
     }
 }
 
 #[verifier(inline)]
-pub open spec fn unmarshallable_status<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
+pub open spec fn unmarshallable_status(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
         Kind::ConfigMapKind => ConfigMapView::unmarshal_status(obj.status).is_Ok(),
         Kind::DaemonSetKind => DaemonSetView::unmarshal_status(obj.status).is_Ok(),
@@ -52,12 +52,12 @@ pub open spec fn unmarshallable_status<K: CustomResourceView>(obj: DynamicObject
         Kind::ServiceKind => ServiceView::unmarshal_status(obj.status).is_Ok(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status).is_Ok(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
-        Kind::CustomResourceKind => K::unmarshal_status(obj.status).is_Ok(),
+        Kind::CustomResourceKind => (installed_types.unmarshallable_status)(obj),
     }
 }
 
-pub open spec fn unmarshallable_object<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
-    unmarshallable_spec::<K>(obj) && unmarshallable_status::<K>(obj)
+pub open spec fn unmarshallable_object(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
+    unmarshallable_spec(obj, installed_types) && unmarshallable_status(obj, installed_types)
 }
 
 pub open spec fn metadata_validity_check(obj: DynamicObjectView) -> Option<APIError> {
@@ -80,7 +80,7 @@ pub open spec fn metadata_transition_validity_check(obj: DynamicObjectView, old_
     }
 }
 
-pub open spec fn valid_object<K: CustomResourceView>(obj: DynamicObjectView) -> bool {
+pub open spec fn valid_object(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
         Kind::ConfigMapKind => ConfigMapView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::DaemonSetKind => DaemonSetView::unmarshal(obj).get_Ok_0().state_validation(),
@@ -92,19 +92,19 @@ pub open spec fn valid_object<K: CustomResourceView>(obj: DynamicObjectView) -> 
         Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::CustomResourceKind => K::unmarshal(obj).get_Ok_0().state_validation(),
+        Kind::CustomResourceKind => (installed_types.valid_object)(obj),
     }
 }
 
-pub open spec fn object_validity_check<K: CustomResourceView>(obj: DynamicObjectView) -> Option<APIError> {
-    if !valid_object::<K>(obj) {
+pub open spec fn object_validity_check(obj: DynamicObjectView, installed_types: InstalledTypes) -> Option<APIError> {
+    if !valid_object(obj, installed_types) {
         Some(APIError::Invalid)
     } else {
         None
     }
 }
 
-pub open spec fn valid_transition<K: CustomResourceView>(obj: DynamicObjectView, old_obj: DynamicObjectView) -> bool {
+pub open spec fn valid_transition(obj: DynamicObjectView, old_obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
         Kind::ConfigMapKind => ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0()),
         Kind::DaemonSetKind => DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0()),
@@ -116,19 +116,19 @@ pub open spec fn valid_transition<K: CustomResourceView>(obj: DynamicObjectView,
         Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0()),
         Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0()),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0()),
-        Kind::CustomResourceKind => K::unmarshal(obj).get_Ok_0().transition_validation(K::unmarshal(old_obj).get_Ok_0()),
+        Kind::CustomResourceKind => (installed_types.valid_transition)(obj, old_obj),
     }
 }
 
-pub open spec fn object_transition_validity_check<K: CustomResourceView>(obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
-    if !valid_transition::<K>(obj, old_obj) {
+pub open spec fn object_transition_validity_check(obj: DynamicObjectView, old_obj: DynamicObjectView, installed_types: InstalledTypes) -> Option<APIError> {
+    if !valid_transition(obj, old_obj, installed_types) {
         Some(APIError::Invalid)
     } else {
         None
     }
 }
 
-pub open spec fn marshalled_default_status<K: CustomResourceView>(kind: Kind) -> Value {
+pub open spec fn marshalled_default_status(kind: Kind, installed_types: InstalledTypes) -> Value {
     match kind {
         Kind::ConfigMapKind => ConfigMapView::marshal_status(ConfigMapView::default().status()),
         Kind::DaemonSetKind => DaemonSetView::marshal_status(DaemonSetView::default().status()),
@@ -140,7 +140,7 @@ pub open spec fn marshalled_default_status<K: CustomResourceView>(kind: Kind) ->
         Kind::ServiceKind => ServiceView::marshal_status(ServiceView::default().status()),
         Kind::StatefulSetKind => StatefulSetView::marshal_status(StatefulSetView::default().status()),
         Kind::ServiceAccountKind => ServiceAccountView::marshal_status(ServiceAccountView::default().status()),
-        Kind::CustomResourceKind => K::marshal_status(K::default().status()),
+        Kind::CustomResourceKind => (installed_types.marshalled_default_status)(kind),
     }
 }
 
@@ -165,14 +165,14 @@ pub open spec fn handle_list_request(req: ListRequest, s: ApiServerState) -> Lis
     ListResponse{res: Ok(map_to_seq(s.resources, selector))}
 }
 
-pub open spec fn create_request_admission_check<K: CustomResourceView>(req: CreateRequest, s: ApiServerState) -> Option<APIError> {
+pub open spec fn create_request_admission_check(req: CreateRequest, s: ApiServerState) -> Option<APIError> {
     if req.obj.metadata.name.is_None() && req.obj.metadata.generate_name.is_None() {
         // Creation fails because neither the name nor the generate_name of the provided object is provided
         Some(APIError::Invalid)
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !unmarshallable_object::<K>(req.obj) {
+    } else if !unmarshallable_object(req.obj, s.installed_types) {
         // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if req.obj.metadata.name.is_Some() && s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -183,11 +183,11 @@ pub open spec fn create_request_admission_check<K: CustomResourceView>(req: Crea
     }
 }
 
-pub open spec fn created_object_validity_check<K: CustomResourceView>(created_obj: DynamicObjectView) -> Option<APIError> {
+pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, installed_types: InstalledTypes) -> Option<APIError> {
     if metadata_validity_check(created_obj).is_Some() {
         metadata_validity_check(created_obj)
-    } else if object_validity_check::<K>(created_obj).is_Some() {
-        object_validity_check::<K>(created_obj)
+    } else if object_validity_check(created_obj, installed_types).is_Some() {
+        object_validity_check(created_obj, installed_types)
     } else {
         None
     }
@@ -202,10 +202,10 @@ pub proof fn generated_name_is_unique(s: ApiServerState)
 {}
 
 #[verifier(inline)]
-pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest, s: ApiServerState) -> (ApiServerState, CreateResponse) {
-    if create_request_admission_check::<K>(req, s).is_Some() {
+pub open spec fn handle_create_request(req: CreateRequest, s: ApiServerState) -> (ApiServerState, CreateResponse) {
+    if create_request_admission_check(req, s).is_Some() {
         // Creation fails.
-        (s, CreateResponse{res: Err(create_request_admission_check::<K>(req, s).get_Some_0())})
+        (s, CreateResponse{res: Err(create_request_admission_check(req, s).get_Some_0())})
     } else {
         let created_obj = DynamicObjectView {
             kind: req.obj.kind,
@@ -224,7 +224,7 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
                 ..req.obj.metadata
             },
             spec: req.obj.spec,
-            status: marshalled_default_status::<K>(req.obj.kind), // Overwrite the status with the default one
+            status: marshalled_default_status(req.obj.kind, s.installed_types), // Overwrite the status with the default one
         };
         if s.resources.contains_key(created_obj.object_ref()) {
             // Note 1: You might find this branch redundant since we already have
@@ -239,9 +239,9 @@ pub open spec fn handle_create_request<K: CustomResourceView>(req: CreateRequest
             // we need to explicitly call generated_name_is_unique to show that
             // we do not fall into this branch.
             (s, CreateResponse{res: Err(APIError::ObjectAlreadyExists)})
-        } else if created_object_validity_check::<K>(created_obj).is_Some() {
+        } else if created_object_validity_check(created_obj, s.installed_types).is_Some() {
             // Creation fails.
-            (s, CreateResponse{res: Err(created_object_validity_check::<K>(created_obj).get_Some_0())})
+            (s, CreateResponse{res: Err(created_object_validity_check(created_obj, s.installed_types).get_Some_0())})
         } else {
             // Creation succeeds.
             (ApiServerState {
@@ -314,7 +314,7 @@ pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
     }
 }
 
-pub open spec fn update_request_admission_check_helper<K: CustomResourceView>(name: StringView, namespace: StringView, obj: DynamicObjectView, s: ApiServerState) -> Option<APIError> {
+pub open spec fn update_request_admission_check_helper(name: StringView, namespace: StringView, obj: DynamicObjectView, s: ApiServerState) -> Option<APIError> {
     let key = ObjectRef {
         kind: obj.kind,
         namespace: namespace,
@@ -332,7 +332,7 @@ pub open spec fn update_request_admission_check_helper<K: CustomResourceView>(na
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !unmarshallable_object::<K>(obj) {
+    } else if !unmarshallable_object(obj, s.installed_types) {
         // Update fails because the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
@@ -358,8 +358,8 @@ pub open spec fn update_request_admission_check_helper<K: CustomResourceView>(na
     }
 }
 
-pub open spec fn update_request_admission_check<K: CustomResourceView>(req: UpdateRequest, s: ApiServerState) -> Option<APIError> {
-    update_request_admission_check_helper::<K>(req.name, req.namespace, req.obj, s)
+pub open spec fn update_request_admission_check(req: UpdateRequest, s: ApiServerState) -> Option<APIError> {
+    update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
 pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
@@ -378,25 +378,25 @@ pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) 
     updated_obj
 }
 
-pub open spec fn updated_object_validity_check<K: CustomResourceView>(updated_obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
+pub open spec fn updated_object_validity_check(updated_obj: DynamicObjectView, old_obj: DynamicObjectView, installed_types: InstalledTypes) -> Option<APIError> {
     if metadata_validity_check(updated_obj).is_Some() {
         metadata_validity_check(updated_obj)
     } else if metadata_transition_validity_check(updated_obj, old_obj).is_Some() {
         metadata_transition_validity_check(updated_obj, old_obj)
-    } else if object_validity_check::<K>(updated_obj).is_Some() {
-        object_validity_check::<K>(updated_obj)
-    } else if object_transition_validity_check::<K>(updated_obj, old_obj).is_Some() {
-        object_transition_validity_check::<K>(updated_obj, old_obj)
+    } else if object_validity_check(updated_obj, installed_types).is_Some() {
+        object_validity_check(updated_obj, installed_types)
+    } else if object_transition_validity_check(updated_obj, old_obj, installed_types).is_Some() {
+        object_transition_validity_check(updated_obj, old_obj, installed_types)
     } else {
         None
     }
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_request<K: CustomResourceView>(req: UpdateRequest, s: ApiServerState) -> (ApiServerState, UpdateResponse) {
-    if update_request_admission_check::<K>(req, s).is_Some() {
+pub open spec fn handle_update_request(req: UpdateRequest, s: ApiServerState) -> (ApiServerState, UpdateResponse) {
+    if update_request_admission_check(req, s).is_Some() {
         // Update fails.
-        (s, UpdateResponse{res: Err(update_request_admission_check::<K>(req, s).get_Some_0())})
+        (s, UpdateResponse{res: Err(update_request_admission_check(req, s).get_Some_0())})
     } else {
         let old_obj = s.resources[req.key()];
         let updated_obj = updated_object(req, old_obj);
@@ -409,9 +409,9 @@ pub open spec fn handle_update_request<K: CustomResourceView>(req: UpdateRequest
             // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
-            if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
+            if updated_object_validity_check(updated_obj_with_new_rv, old_obj, s.installed_types).is_Some() {
                 // Update fails.
-                (s, UpdateResponse{res: Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0())})
+                (s, UpdateResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, s.installed_types).get_Some_0())})
             } else {
                 // Update succeeds.
                 if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
@@ -452,8 +452,8 @@ pub open spec fn handle_update_request<K: CustomResourceView>(req: UpdateRequest
     }
 }
 
-pub open spec fn update_status_request_admission_check<K: CustomResourceView>(req: UpdateStatusRequest, s: ApiServerState) -> Option<APIError> {
-    update_request_admission_check_helper::<K>(req.name, req.namespace, req.obj, s)
+pub open spec fn update_status_request_admission_check(req: UpdateStatusRequest, s: ApiServerState) -> Option<APIError> {
+    update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
 pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
@@ -467,10 +467,10 @@ pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: Dynami
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_status_request<K: CustomResourceView>(req: UpdateStatusRequest, s: ApiServerState) -> (ApiServerState, UpdateStatusResponse) {
-    if update_status_request_admission_check::<K>(req, s).is_Some() {
+pub open spec fn handle_update_status_request(req: UpdateStatusRequest, s: ApiServerState) -> (ApiServerState, UpdateStatusResponse) {
+    if update_status_request_admission_check(req, s).is_Some() {
         // UpdateStatus fails.
-        (s, UpdateStatusResponse{res: Err(update_status_request_admission_check::<K>(req, s).get_Some_0())})
+        (s, UpdateStatusResponse{res: Err(update_status_request_admission_check(req, s).get_Some_0())})
     } else {
         let old_obj = s.resources[req.key()];
         let updated_obj = status_updated_object(req, old_obj);
@@ -483,9 +483,9 @@ pub open spec fn handle_update_status_request<K: CustomResourceView>(req: Update
             // UpdateStatus changes something in the object (in status), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
-            if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
+            if updated_object_validity_check(updated_obj_with_new_rv, old_obj, s.installed_types).is_Some() {
                 // UpdateStatus fails.
-                (s, UpdateStatusResponse{res: Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0())})
+                (s, UpdateStatusResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, s.installed_types).get_Some_0())})
             } else {
                 // UpdateStatus succeeds.
                 (ApiServerState {
@@ -498,9 +498,7 @@ pub open spec fn handle_update_status_request<K: CustomResourceView>(req: Update
     }
 }
 
-impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
-
-pub open spec fn handle_get_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn handle_get_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_get_request(),
 {
@@ -508,7 +506,7 @@ pub open spec fn handle_get_request_msg(msg: MsgType<E>, s: ApiServerState) -> (
     (s, Message::form_get_resp_msg(msg, handle_get_request(req, s)))
 }
 
-pub open spec fn handle_list_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn handle_list_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_list_request(),
 {
@@ -516,16 +514,16 @@ pub open spec fn handle_list_request_msg(msg: MsgType<E>, s: ApiServerState) -> 
     (s, Message::form_list_resp_msg(msg, handle_list_request(req, s)))
 }
 
-pub open spec fn handle_create_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn handle_create_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    let (s_prime, resp) = handle_create_request::<K>(req, s);
+    let (s_prime, resp) = handle_create_request(req, s);
     (s_prime, Message::form_create_resp_msg(msg, resp))
 }
 
-pub open spec fn handle_delete_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn handle_delete_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_delete_request(),
 {
@@ -534,48 +532,48 @@ pub open spec fn handle_delete_request_msg(msg: MsgType<E>, s: ApiServerState) -
     (s_prime, Message::form_delete_resp_msg(msg, resp))
 }
 
-pub open spec fn handle_update_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn handle_update_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_update_request(),
 {
     let req = msg.content.get_update_request();
-    let (s_prime, resp) = handle_update_request::<K>(req, s);
+    let (s_prime, resp) = handle_update_request(req, s);
     (s_prime, Message::form_update_resp_msg(msg, resp))
 }
 
-pub open spec fn handle_update_status_request_msg(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn handle_update_status_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_update_status_request(),
 {
     let req = msg.content.get_update_status_request();
-    let (s_prime, resp) = handle_update_status_request::<K>(req, s);
+    let (s_prime, resp) = handle_update_status_request(req, s);
     (s_prime, Message::form_update_status_resp_msg(msg, resp))
 }
 
 // etcd is modeled as a centralized map that handles get/list/create/delete/update
-pub open spec fn transition_by_etcd(msg: MsgType<E>, s: ApiServerState) -> (ApiServerState, MsgType<E>)
+pub open spec fn transition_by_etcd(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
     recommends
         msg.content.is_APIRequest(),
 {
     match msg.content.get_APIRequest_0() {
-        APIRequest::GetRequest(_) => Self::handle_get_request_msg(msg, s),
-        APIRequest::ListRequest(_) => Self::handle_list_request_msg(msg, s),
-        APIRequest::CreateRequest(_) => Self::handle_create_request_msg(msg, s),
-        APIRequest::DeleteRequest(_) => Self::handle_delete_request_msg(msg, s),
-        APIRequest::UpdateRequest(_) => Self::handle_update_request_msg(msg, s),
-        APIRequest::UpdateStatusRequest(_) => Self::handle_update_status_request_msg(msg, s),
+        APIRequest::GetRequest(_) => handle_get_request_msg(msg, s),
+        APIRequest::ListRequest(_) => handle_list_request_msg(msg, s),
+        APIRequest::CreateRequest(_) => handle_create_request_msg(msg, s),
+        APIRequest::DeleteRequest(_) => handle_delete_request_msg(msg, s),
+        APIRequest::UpdateRequest(_) => handle_update_request_msg(msg, s),
+        APIRequest::UpdateStatusRequest(_) => handle_update_status_request_msg(msg, s),
     }
 }
 
-pub open spec fn handle_request() -> ApiServerAction<E::Input, E::Output> {
+pub open spec fn handle_request() -> ApiServerAction {
     Action {
-        precondition: |input: ApiServerActionInput<E::Input, E::Output>, s: ApiServerState| {
+        precondition: |input: ApiServerActionInput, s: ApiServerState| {
             &&& input.recv.is_Some()
             &&& input.recv.get_Some_0().content.is_APIRequest()
             // This dst check is redundant since the compound state machine has checked it
             &&& input.recv.get_Some_0().dst == HostId::ApiServer
         },
-        transition: |input: ApiServerActionInput<E::Input, E::Output>, s: ApiServerState| {
+        transition: |input: ApiServerActionInput, s: ApiServerState| {
             // This transition describes how Kubernetes API server handles requests,
             // which consists of multiple steps in reality:
             //
@@ -595,7 +593,7 @@ pub open spec fn handle_request() -> ApiServerAction<E::Input, E::Output> {
             // Here we simplify step (1) ~ (5) by omitting the process that state changes are streamed
             // to built-in controllers and activate their reconciliation.
             // Built-in controllers will be specified as actions of the top level cluster state machine.
-            let (s_prime, etcd_resp) = Self::transition_by_etcd(input.recv.get_Some_0(), s);
+            let (s_prime, etcd_resp) = transition_by_etcd(input.recv.get_Some_0(), s);
             (s_prime, ApiServerActionOutput {
                 send: Multiset::singleton(etcd_resp)
             })
@@ -603,24 +601,23 @@ pub open spec fn handle_request() -> ApiServerAction<E::Input, E::Output> {
     }
 }
 
-pub open spec fn kubernetes_api() -> ApiServerStateMachine<E::Input, E::Output> {
+pub open spec fn kubernetes_api(installed_types: InstalledTypes) -> ApiServerStateMachine {
     StateMachine {
         init: |s: ApiServerState| {
             &&& s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
             &&& s.stable_resources == Set::<ObjectRef>::empty()
+            &&& s.installed_types == installed_types
         },
-        actions: set![Self::handle_request()],
+        actions: set![handle_request()],
         step_to_action: |step: ApiServerStep| {
             match step {
-                ApiServerStep::HandleRequest => Self::handle_request(),
+                ApiServerStep::HandleRequest => handle_request(),
             }
         },
-        action_input: |step: ApiServerStep, input: ApiServerActionInput<E::Input, E::Output>| {
+        action_input: |step: ApiServerStep, input: ApiServerActionInput| {
             input
         }
     }
-}
-
 }
 
 }
