@@ -232,6 +232,55 @@ impl Cluster {
         }
     }
 
+
+    /// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
+    /// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
+    /// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
+    /// action allow us to prove reconcile is always eventually scheduled.
+    ///
+    /// This action abstracts away a lot of implementation details in the Kubernetes API and kube framework,
+    /// such as the list-then-watch pattern.
+    ///
+    /// In general, this action assumes the following key behavior:
+    /// (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
+    ///   -- so the first creation event will schedule a reconcile
+    /// (2) The shim layer always re-queues `reconcile_with` unless the corresponding cr object does not exist,
+    /// and the kube library always eventually invokes the re-queued `reconcile_with`
+    ///   -- so as long as the cr still exists, the reconcile will still be scheduled over and over again
+    /// (3) The shim layer always performs a quorum read to etcd to get the cr object and passes it to `reconcile_core`
+    ///   -- so the reconcile is scheduled with the most recent view of the cr object when this action happens
+    /// (4) The shim layer never invokes `reconcile_core` if the cr object does not exist
+    ///   -- this is not assumed by `schedule_controller_reconcile` because it never talks about what should happen if the
+    ///   cr object does not exist, but it is still important because `schedule_controller_reconcile` is the only
+    ///   action that can schedule a reconcile in our state machine.
+    pub open spec fn schedule_controller_reconcile(self) -> Action<ClusterState, (int, ObjectRef), ()> {
+        Action {
+            precondition: |input: (int, ObjectRef), s: ClusterState| {
+                let controller_id = input.0;
+                let object_key = input.1;
+                &&& s.resources().contains_key(object_key)
+                &&& self.controller_models.contains_key(controller_id)
+                &&& object_key.kind == self.controller_models[controller_id].reconcile_model.kind
+            },
+            transition: |input: (int, ObjectRef), s: ClusterState| {
+                let controller_id = input.0;
+                let object_key = input.1;
+                let controller_and_external_state = s.controller_and_externals[controller_id];
+                let controller_and_external_state_prime = ControllerAndExternalState {
+                    controller: ControllerState {
+                        scheduled_reconciles: controller_and_external_state.controller.scheduled_reconciles.insert(object_key, s.resources()[object_key]),
+                        ..controller_and_external_state.controller
+                    },
+                    ..controller_and_external_state
+                };
+                (ClusterState {
+                    controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
+                    ..s
+                }, ())
+            }
+        }
+    }
+
     /// external_next models the behavior of some external system that handles the requests from the controller.
     /// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
     /// It delivers an external request message to the external system, runs E::transition, and puts the response message
@@ -303,45 +352,6 @@ impl Cluster {
     }
 }
 
-
-// /// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
-// /// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
-// /// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
-// /// action allow us to prove reconcile is always eventually scheduled.
-// ///
-// /// This action abstracts away a lot of implementation details in the Kubernetes API and kube framework,
-// /// such as the list-then-watch pattern.
-// ///
-// /// In general, this action assumes the following key behavior:
-// /// (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
-// ///   -- so the first creation event will schedule a reconcile
-// /// (2) The shim layer always re-queues `reconcile_with` unless the corresponding cr object does not exist,
-// /// and the kube library always eventually invokes the re-queued `reconcile_with`
-// ///   -- so as long as the cr still exists, the reconcile will still be scheduled over and over again
-// /// (3) The shim layer always performs a quorum read to etcd to get the cr object and passes it to `reconcile_core`
-// ///   -- so the reconcile is scheduled with the most recent view of the cr object when this action happens
-// /// (4) The shim layer never invokes `reconcile_core` if the cr object does not exist
-// ///   -- this is not assumed by `schedule_controller_reconcile` because it never talks about what should happen if the
-// ///   cr object does not exist, but it is still important because `schedule_controller_reconcile` is the only
-// ///   action that can schedule a reconcile in our state machine.
-// pub open spec fn schedule_controller_reconcile() -> Action<Self, ObjectRef, ()> {
-//     Action {
-//         precondition: |input: ObjectRef, s: Self| {
-//             &&& s.resources().contains_key(input)
-//             &&& input.kind.is_CustomResourceKind()
-//             &&& K::unmarshal(s.resources()[input]).is_Ok()
-//         },
-//         transition: |input: ObjectRef, s: Self| {
-//             (Self {
-//                 controller_state: ControllerState {
-//                     scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::unmarshal(s.resources()[input]).get_Ok_0()),
-//                     ..s.controller_state
-//                 },
-//                 ..s
-//             }, ())
-//         }
-//     }
-// }
 
 // /// This action restarts the crashed controller.
 // pub open spec fn restart_controller() -> Action<Self, (), ()> {
