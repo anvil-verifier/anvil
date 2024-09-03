@@ -94,7 +94,7 @@ impl Cluster {
                 ==> {
                     let model = self.controller_models[key];
                     &&& s.controller_and_externals.contains_key(key)
-                    &&& (controller(model.cr_kind, model.reconcile_model).init)(s.controller_and_externals[key].controller)
+                    &&& (controller(model.cr_kind, model.reconcile_model, key).init)(s.controller_and_externals[key].controller)
                     &&& model.external_model.is_Some()
                         ==> {
                             &&& s.controller_and_externals[key].external.is_Some()
@@ -179,6 +179,62 @@ impl Cluster {
         }
     }
 
+    pub open spec fn controllers_next(self) -> Action<ClusterState, (int, Option<Message>, Option<ObjectRef>), ()> {
+        Action {
+            precondition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
+                let controller_id = input.0;
+                let cr_kind = self.controller_models[controller_id].cr_kind;
+                let reconcile_model = self.controller_models[controller_id].reconcile_model;
+                let chosen_action = self.chosen_controller_next(cr_kind, reconcile_model, controller_id);
+                &&& self.controller_models.contains_key(input.0)
+                &&& (chosen_action.precondition)((input.1, input.2), s)
+            },
+            transition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
+                let controller_id = input.0;
+                let cr_kind = self.controller_models[controller_id].cr_kind;
+                let reconcile_model = self.controller_models[controller_id].reconcile_model;
+                let chosen_action = self.chosen_controller_next(cr_kind, reconcile_model, controller_id);
+                (chosen_action.transition)((input.1, input.2), s)
+            },
+        }
+    }
+
+    pub open spec fn chosen_controller_next(self, cr_kind: Kind, reconcile_model: ReconcileModel, controller_id: int) -> Action<ClusterState, (Option<Message>, Option<ObjectRef>), ()> {
+        let result = |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
+            let host_result = controller(cr_kind, reconcile_model, controller_id).next_result(
+                ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
+                s.controller_and_externals[controller_id].controller
+            );
+            let msg_ops = MessageOps {
+                recv: input.0,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            (host_result, network_result)
+        };
+        Action {
+            precondition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
+                &&& received_msg_destined_for(input.0, HostId::Controller(controller_id))
+                &&& result(input, s).0.is_Enabled()
+                &&& result(input, s).1.is_Enabled()
+            },
+            transition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
+                let (host_result, network_result) = result(input, s);
+                let controller_and_external_state_prime = ControllerAndExternalState {
+                    controller: host_result.get_Enabled_0(),
+                    ..s.controller_and_externals[controller_id]
+                };
+                (ClusterState {
+                    controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
+                    network: network_result.get_Enabled_0(),
+                    rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                    ..s
+                }, ())
+            },
+        }
+    }
+
     pub open spec fn stutter() -> Action<ClusterState, (), ()> {
         Action {
             precondition: |input: (), s: ClusterState| {
@@ -230,37 +286,6 @@ impl Cluster {
 //     }
 // }
 
-// pub open spec fn controller_next() -> Action<Self, (Option<Message>, Option<ObjectRef>), ()> {
-//     let result = |input: (Option<Message>, Option<ObjectRef>), s: Self| {
-//         let host_result = Self::controller().next_result(
-//             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
-//             s.controller_state
-//         );
-//         let msg_ops = MessageOps {
-//             recv: input.0,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         (host_result, network_result)
-//     };
-//     Action {
-//         precondition: |input: (Option<Message>, Option<ObjectRef>), s: Self| {
-//             &&& received_msg_destined_for(input.0, HostId::CustomController)
-//             &&& result(input, s).0.is_Enabled()
-//             &&& result(input, s).1.is_Enabled()
-//         },
-//         transition: |input: (Option<Message>, Option<ObjectRef>), s: Self| {
-//             let (host_result, network_result) = result(input, s);
-//             (Self {
-//                 controller_state: host_result.get_Enabled_0(),
-//                 network: network_result.get_Enabled_0(),
-//                 rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
-//                 ..s
-//             }, ())
-//         },
-//     }
-// }
 
 // /// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
 // /// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
@@ -387,7 +412,7 @@ impl Cluster {
 //     match step {
 //         Step::ApiServerStep(input) => Self::api_server_next().forward(input)(s, s_prime),
 //         Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
-//         Step::ControllerStep(input) => Self::controller_next().forward(input)(s, s_prime),
+//         Step::ControllerStep(input) => Self::controllers_next().forward(input)(s, s_prime),
 //         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
 //         Step::ExternalAPIStep(input) => Self::external_api_next().forward(input)(s, s_prime),
 //         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
@@ -413,7 +438,7 @@ impl Cluster {
 // pub open spec fn sm_wf_spec() -> TempPred<Self> {
 //     tla_forall(|input| Self::api_server_next().weak_fairness(input))
 //     .and(tla_forall(|input| Self::builtin_controllers_next().weak_fairness(input)))
-//     .and(tla_forall(|input| Self::controller_next().weak_fairness(input)))
+//     .and(tla_forall(|input| Self::controllers_next().weak_fairness(input)))
 //     .and(tla_forall(|input| Self::external_api_next().weak_fairness(input)))
 //     .and(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)))
 //     .and(Self::disable_crash().weak_fairness(()))

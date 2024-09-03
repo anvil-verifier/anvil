@@ -51,7 +51,6 @@ pub struct ControllerActionInput {
     pub recv: Option<Message>,
     pub scheduled_cr_key: Option<ObjectRef>,
     pub rest_id_allocator: RestIdAllocator,
-    pub controller_id: int,
 }
 
 pub struct ControllerActionOutput {

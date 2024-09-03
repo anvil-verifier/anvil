@@ -40,7 +40,7 @@ pub open spec fn run_scheduled_reconcile(cr_kind: Kind, model: ReconcileModel) -
     }
 }
 
-pub open spec fn continue_reconcile(cr_kind: Kind, model: ReconcileModel) -> ControllerAction {
+pub open spec fn continue_reconcile(cr_kind: Kind, model: ReconcileModel, controller_id: int) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             if input.scheduled_cr_key.is_Some() {
@@ -77,10 +77,10 @@ pub open spec fn continue_reconcile(cr_kind: Kind, model: ReconcileModel) -> Con
             let (pending_req_msg, send, rest_id_allocator_prime) = if req_o.is_Some() {
                 let pending_req_msg = match req_o.get_Some_0() {
                     RequestContent::KubernetesRequest(req) => {
-                        Some(Message::controller_req_msg(input.controller_id, input.rest_id_allocator.allocate().1, req))
+                        Some(Message::controller_req_msg(controller_id, input.rest_id_allocator.allocate().1, req))
                     },
                     RequestContent::ExternalRequest(req) => {
-                        Some(Message::controller_external_req_msg(input.controller_id, input.rest_id_allocator.allocate().1, req))
+                        Some(Message::controller_external_req_msg(controller_id, input.rest_id_allocator.allocate().1, req))
                     }
                 };
                 (pending_req_msg, Multiset::singleton(pending_req_msg.get_Some_0()), input.rest_id_allocator.allocate().0)
@@ -135,7 +135,7 @@ pub open spec fn end_reconcile(cr_kind: Kind, model: ReconcileModel) -> Controll
     }
 }
 
-pub open spec fn controller(cr_kind: Kind, model: ReconcileModel) -> ControllerStateMachine {
+pub open spec fn controller(cr_kind: Kind, model: ReconcileModel, controller_id: int) -> ControllerStateMachine {
     StateMachine {
         init: |s: ControllerState| {
             &&& s.ongoing_reconciles == Map::<ObjectRef, OngoingReconcile>::empty()
@@ -143,13 +143,13 @@ pub open spec fn controller(cr_kind: Kind, model: ReconcileModel) -> ControllerS
         },
         actions: set![
             run_scheduled_reconcile(cr_kind, model),
-            continue_reconcile(cr_kind, model),
+            continue_reconcile(cr_kind, model, controller_id),
             end_reconcile(cr_kind, model)
         ],
         step_to_action: |step: ControllerStep| {
             match step {
                 ControllerStep::RunScheduledReconcile => run_scheduled_reconcile(cr_kind, model),
-                ControllerStep::ContinueReconcile => continue_reconcile(cr_kind, model),
+                ControllerStep::ContinueReconcile => continue_reconcile(cr_kind, model, controller_id),
                 ControllerStep::EndReconcile => end_reconcile(cr_kind, model),
             }
         },
