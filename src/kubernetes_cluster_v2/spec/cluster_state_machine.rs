@@ -139,47 +139,58 @@ impl Cluster {
             },
         }
     }
+
+    /// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
+    /// The cluster state machine chooses which built-in controller to run and which object to reconcile.
+    /// The behavior of each built-in controller is modeled as a function that takes the current cluster state
+    /// (objects stored in the key-value store) and returns request(s) to update the cluster state.
+    pub open spec fn builtin_controllers_next(self) -> Action<ClusterState, (BuiltinControllerChoice, ObjectRef), ()> {
+        let result = |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
+            let host_result = builtin_controllers().next_result(
+                BuiltinControllersActionInput {
+                    choice: input.0,
+                    key: input.1,
+                    rest_id_allocator: s.rest_id_allocator,
+                },
+                s.api_server
+            );
+            let msg_ops = MessageOps {
+                recv: None,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            (host_result, network_result)
+        };
+        Action {
+            precondition: |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
+                &&& result(input, s).0.is_Enabled()
+                &&& result(input, s).1.is_Enabled()
+            },
+            transition: |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
+                let (host_result, network_result) = result(input, s);
+                (ClusterState {
+                    api_server: host_result.get_Enabled_0(),
+                    network: network_result.get_Enabled_0(),
+                    rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                    ..s
+                }, ())
+            },
+        }
+    }
+
+    pub open spec fn stutter() -> Action<ClusterState, (), ()> {
+        Action {
+            precondition: |input: (), s: ClusterState| {
+                true
+            },
+            transition: |input: (), s: ClusterState| {
+                (s, ())
+            },
+        }
+    }
 }
 
-
-// /// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
-// /// The cluster state machine chooses which built-in controller to run and which object to reconcile.
-// /// The behavior of each built-in controller is modeled as a function that takes the current cluster state
-// /// (objects stored in the key-value store) and returns request(s) to update the cluster state.
-// pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerChoice, ObjectRef), ()> {
-//     let result = |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
-//         let host_result = Self::builtin_controllers().next_result(
-//             BuiltinControllersActionInput {
-//                 choice: input.0,
-//                 key: input.1,
-//                 rest_id_allocator: s.rest_id_allocator,
-//             },
-//             s.api_server
-//         );
-//         let msg_ops = MessageOps {
-//             recv: None,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         (host_result, network_result)
-//     };
-//     Action {
-//         precondition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
-//             &&& result(input, s).0.is_Enabled()
-//             &&& result(input, s).1.is_Enabled()
-//         },
-//         transition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
-//             let (host_result, network_result) = result(input, s);
-//             (Self {
-//                 api_server: host_result.get_Enabled_0(),
-//                 network: network_result.get_Enabled_0(),
-//                 rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
-//                 ..s
-//             }, ())
-//         },
-//     }
-// }
 
 // /// external_api_next models the behavior of some external system that handles the requests from the controller.
 // /// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
@@ -369,17 +380,6 @@ impl Cluster {
 //                 ..s
 //             }, ())
 //         }
-//     }
-// }
-
-// pub open spec fn stutter() -> Action<Self, (), ()> {
-//     Action {
-//         precondition: |input: (), s: Self| {
-//             true
-//         },
-//         transition: |input: (), s: Self| {
-//             (s, ())
-//         },
 //     }
 // }
 
