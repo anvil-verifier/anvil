@@ -80,7 +80,28 @@ pub open spec fn pending_req_in_flight_at_after_list_pods_step(
         let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::ApiServer
+        &&& msg.content.is_APIRequest()
+        &&& request.is_ListRequest()
+        &&& request.get_ListRequest_0() == ListRequest {
+            kind: PodView::kind(),
+            namespace: vrs.metadata.namespace.unwrap(),
+        }
+    }
+}
+
+pub open spec fn req_msg_is_the_in_flight_list_req_at_after_list_pods_step(
+    vrs: VReplicaSetView, req_msg: VRSMessage
+) -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        let step = VReplicaSetReconcileStep::AfterListPods;
+        let msg = req_msg;
+        let request = msg.content.get_APIRequest_0();
+        &&& at_vrs_step_with_vrs(vrs, step)(s)
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
@@ -101,8 +122,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
         let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
-        &&& s.in_flight().contains(msg)
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
         &&& msg.content.is_APIRequest()
@@ -118,13 +138,12 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 // The response must give back all the pods in the replicaset's namespace.
-                resp_objs.to_set() == s.resources().values().filter(
+                resp_objs == s.resources().values().filter(
                     |o: DynamicObjectView| {
-                        &&& o.kind == PodView::kind()
-                        &&& o.metadata.namespace.is_Some()
-                        &&& o.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                        &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                        &&& o.object_ref().kind == PodView::kind()
                     }
-                )
+                ).to_seq()
             }
         }
     }
@@ -138,7 +157,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
         &&& msg.content.is_APIRequest()
@@ -153,13 +172,12 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         &&& {
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             // The response must give back all the pods in the replicaset's namespace.
-            resp_objs.to_set() == s.resources().values().filter(
+            resp_objs == s.resources().values().filter(
                 |o: DynamicObjectView| {
-                    &&& o.kind == PodView::kind()
-                    &&& o.metadata.namespace.is_Some()
-                    &&& o.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                    &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                    &&& o.object_ref().kind == PodView::kind()
                 }
-            )
+            ).to_seq()
         }
     }
 }
