@@ -145,11 +145,11 @@ impl Cluster {
         }
     }
 
-    /// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
+    /// builtin_controller_next models the behavior that one of the built-in controllers reconciles one object.
     /// The cluster state machine chooses which built-in controller to run and which object to reconcile.
     /// The behavior of each built-in controller is modeled as a function that takes the current cluster state
     /// (objects stored in the key-value store) and returns request(s) to update the cluster state.
-    pub open spec fn builtin_controllers_next(self) -> Action<ClusterState, (BuiltinControllerChoice, ObjectRef), ()> {
+    pub open spec fn builtin_controller_next(self) -> Action<ClusterState, (BuiltinControllerChoice, ObjectRef), ()> {
         let result = |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
             let host_result = builtin_controllers().next_result(
                 BuiltinControllersActionInput {
@@ -184,7 +184,7 @@ impl Cluster {
         }
     }
 
-    pub open spec fn controllers_next(self) -> Action<ClusterState, (int, Option<Message>, Option<ObjectRef>), ()> {
+    pub open spec fn controller_next(self) -> Action<ClusterState, (int, Option<Message>, Option<ObjectRef>), ()> {
         Action {
             precondition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 let controller_id = input.0;
@@ -387,7 +387,7 @@ impl Cluster {
     /// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
     /// It delivers an external request message to the external system, runs E::transition, and puts the response message
     /// into the network.
-    pub open spec fn externals_next(self) -> Action<ClusterState, (int, Option<Message>), ()> {
+    pub open spec fn external_next(self) -> Action<ClusterState, (int, Option<Message>), ()> {
         Action {
             precondition: |input: (int, Option<Message>), s: ClusterState| {
                 let controller_id = input.0;
@@ -441,7 +441,7 @@ impl Cluster {
         }
     }
 
-    pub open spec fn stutter() -> Action<ClusterState, (), ()> {
+    pub open spec fn stutter(self) -> Action<ClusterState, (), ()> {
         Action {
             precondition: |input: (), s: ClusterState| {
                 true
@@ -451,45 +451,29 @@ impl Cluster {
             },
         }
     }
+
+    pub open spec fn next_step(self, s: ClusterState, s_prime: ClusterState, step: Step) -> bool {
+        match step {
+            Step::APIServerStep(input) => self.api_server_next().forward(input)(s, s_prime),
+            Step::BuiltinControllersStep(input) => self.builtin_controller_next().forward(input)(s, s_prime),
+            Step::ControllerStep(input) => self.controller_next().forward(input)(s, s_prime),
+            Step::ScheduleControllerReconcileStep(input) => self.schedule_controller_reconcile().forward(input)(s, s_prime),
+            Step::RestartControllerStep(input) => self.restart_controller().forward(input)(s, s_prime),
+            Step::DisableCrashStep(input) => self.disable_crash().forward(input)(s, s_prime),
+            Step::DropReqStep(input) => self.drop_req().forward(input)(s, s_prime),
+            Step::DisableReqDropStep() => self.disable_req_drop().forward(())(s, s_prime),
+            Step::ExternalStep(input) => self.external_next().forward(input)(s, s_prime),
+            Step::StutterStep() => self.stutter().forward(())(s, s_prime),
+        }
+    }
+
+    /// `next` chooses:
+    /// * which host to take the next action (`Step`)
+    /// * what input to feed to the chosen action
+    pub open spec fn next(self) -> ActionPred<ClusterState> {
+        |s, s_prime: ClusterState| exists |step: Step| self.next_step(s, s_prime, step)
+    }
 }
-
-
-// pub open spec fn next_step(s: Self, s_prime: Self, step: Step<Message>) -> bool {
-//     match step {
-//         Step::APIServerStep(input) => Self::api_server_next().forward(input)(s, s_prime),
-//         Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
-//         Step::ControllerStep(input) => Self::controllers_next().forward(input)(s, s_prime),
-//         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
-//         Step::ExternalStep(input) => Self::external_api_next().forward(input)(s, s_prime),
-//         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
-//         Step::RestartControllerStep() => Self::restart_controller().forward(())(s, s_prime),
-//         Step::DisableCrashStep() => Self::disable_crash().forward(())(s, s_prime),
-//         Step::DropReqStep(input) => Self::fail_request_transiently().forward(input)(s, s_prime),
-//         Step::DisableReqDropStep() => Self::disable_transient_failure().forward(())(s, s_prime),
-//         Step::StutterStep() => Self::stutter().forward(())(s, s_prime),
-//     }
-// }
-
-// /// `next` chooses:
-// /// * which host to take the next action (`Step`)
-// /// * what input to feed to the chosen action
-// pub open spec fn next() -> ActionPred<Self> {
-//     |s: Self, s_prime: Self| exists |step: Step<Message>| Self::next_step(s, s_prime, step)
-// }
-
-// pub open spec fn sm_spec() -> TempPred<Self> {
-//     lift_state(Self::init()).and(always(lift_action(Self::next()))).and(Self::sm_wf_spec())
-// }
-
-// pub open spec fn sm_wf_spec() -> TempPred<Self> {
-//     tla_forall(|input| Self::api_server_next().weak_fairness(input))
-//     .and(tla_forall(|input| Self::builtin_controllers_next().weak_fairness(input)))
-//     .and(tla_forall(|input| Self::controllers_next().weak_fairness(input)))
-//     .and(tla_forall(|input| Self::external_api_next().weak_fairness(input)))
-//     .and(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)))
-//     .and(Self::disable_crash().weak_fairness(()))
-//     .and(Self::disable_transient_failure().weak_fairness(()))
-// }
 
 // pub open spec fn api_server_action_pre(action: APIServerAction<E::Input, E::Output>, input: Option<Message>) -> StatePred<Self> {
 //     |s: Self| {
