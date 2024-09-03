@@ -10,11 +10,11 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub open spec fn run_scheduled_reconcile(cr_kind: Kind, model: ReconcileModel) -> ControllerAction {
+pub open spec fn run_scheduled_reconcile(model: ReconcileModel) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             &&& input.scheduled_cr_key.is_Some()
-            &&& input.scheduled_cr_key.get_Some_0().kind == cr_kind
+            &&& input.scheduled_cr_key.get_Some_0().kind == model.kind
             &&& s.scheduled_reconciles.contains_key(input.scheduled_cr_key.get_Some_0())
             &&& input.recv.is_None()
             &&& !s.ongoing_reconciles.contains_key(input.scheduled_cr_key.get_Some_0())
@@ -40,13 +40,13 @@ pub open spec fn run_scheduled_reconcile(cr_kind: Kind, model: ReconcileModel) -
     }
 }
 
-pub open spec fn continue_reconcile(cr_kind: Kind, model: ReconcileModel, controller_id: int) -> ControllerAction {
+pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
-                &&& cr_key.kind == cr_kind
+                &&& cr_key.kind == model.kind
                 &&& s.ongoing_reconciles.contains_key(cr_key)
                 &&& !(model.done)(s.ongoing_reconciles[cr_key].local_state)
                 &&& !(model.error)(s.ongoing_reconciles[cr_key].local_state)
@@ -106,13 +106,13 @@ pub open spec fn continue_reconcile(cr_kind: Kind, model: ReconcileModel, contro
     }
 }
 
-pub open spec fn end_reconcile(cr_kind: Kind, model: ReconcileModel) -> ControllerAction {
+pub open spec fn end_reconcile(model: ReconcileModel) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
-                &&& cr_key.kind == cr_kind
+                &&& cr_key.kind == model.kind
                 &&& s.ongoing_reconciles.contains_key(cr_key)
                 &&& (model.done)(s.ongoing_reconciles[cr_key].local_state) || (model.error)(s.ongoing_reconciles[cr_key].local_state)
                 &&& input.recv.is_None()
@@ -135,22 +135,22 @@ pub open spec fn end_reconcile(cr_kind: Kind, model: ReconcileModel) -> Controll
     }
 }
 
-pub open spec fn controller(cr_kind: Kind, model: ReconcileModel, controller_id: int) -> ControllerStateMachine {
+pub open spec fn controller(model: ReconcileModel, controller_id: int) -> ControllerStateMachine {
     StateMachine {
         init: |s: ControllerState| {
             &&& s.ongoing_reconciles == Map::<ObjectRef, OngoingReconcile>::empty()
             &&& s.scheduled_reconciles == Map::<ObjectRef, DynamicObjectView>::empty()
         },
         actions: set![
-            run_scheduled_reconcile(cr_kind, model),
-            continue_reconcile(cr_kind, model, controller_id),
-            end_reconcile(cr_kind, model)
+            run_scheduled_reconcile(model),
+            continue_reconcile(model, controller_id),
+            end_reconcile(model)
         ],
         step_to_action: |step: ControllerStep| {
             match step {
-                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile(cr_kind, model),
-                ControllerStep::ContinueReconcile => continue_reconcile(cr_kind, model, controller_id),
-                ControllerStep::EndReconcile => end_reconcile(cr_kind, model),
+                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile(model),
+                ControllerStep::ContinueReconcile => continue_reconcile(model, controller_id),
+                ControllerStep::EndReconcile => end_reconcile(model),
             }
         },
         action_input: |step: ControllerStep, input: ControllerActionInput| {

@@ -28,6 +28,7 @@ pub enum ResponseContent {
 }
 
 pub struct ReconcileModel {
+    pub kind: Kind,
     pub init: spec_fn() -> ReconcileLocalState,
     pub transition: spec_fn(DynamicObjectView, Option<ResponseContent>, ReconcileLocalState) -> (ReconcileLocalState, Option<RequestContent>),
     pub done: spec_fn(ReconcileLocalState) -> bool,

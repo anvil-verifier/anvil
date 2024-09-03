@@ -76,7 +76,6 @@ pub struct Cluster {
 }
 
 pub struct ControllerModel {
-    pub cr_kind: Kind,
     pub reconcile_model: ReconcileModel,
     pub external_model: Option<ExternalModel>,
 }
@@ -94,7 +93,7 @@ impl Cluster {
                 ==> {
                     let model = self.controller_models[key];
                     &&& s.controller_and_externals.contains_key(key)
-                    &&& (controller(model.cr_kind, model.reconcile_model, key).init)(s.controller_and_externals[key].controller)
+                    &&& (controller(model.reconcile_model, key).init)(s.controller_and_externals[key].controller)
                     &&& model.external_model.is_Some()
                         ==> {
                             &&& s.controller_and_externals[key].external.is_Some()
@@ -183,25 +182,23 @@ impl Cluster {
         Action {
             precondition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 let controller_id = input.0;
-                let cr_kind = self.controller_models[controller_id].cr_kind;
                 let reconcile_model = self.controller_models[controller_id].reconcile_model;
-                let chosen_action = self.chosen_controller_next(cr_kind, reconcile_model, controller_id);
+                let chosen_action = self.chosen_controller_next(reconcile_model, controller_id);
                 &&& self.controller_models.contains_key(input.0)
                 &&& (chosen_action.precondition)((input.1, input.2), s)
             },
             transition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 let controller_id = input.0;
-                let cr_kind = self.controller_models[controller_id].cr_kind;
                 let reconcile_model = self.controller_models[controller_id].reconcile_model;
-                let chosen_action = self.chosen_controller_next(cr_kind, reconcile_model, controller_id);
+                let chosen_action = self.chosen_controller_next(reconcile_model, controller_id);
                 (chosen_action.transition)((input.1, input.2), s)
             },
         }
     }
 
-    pub open spec fn chosen_controller_next(self, cr_kind: Kind, reconcile_model: ReconcileModel, controller_id: int) -> Action<ClusterState, (Option<Message>, Option<ObjectRef>), ()> {
+    pub open spec fn chosen_controller_next(self, reconcile_model: ReconcileModel, controller_id: int) -> Action<ClusterState, (Option<Message>, Option<ObjectRef>), ()> {
         let result = |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
-            let host_result = controller(cr_kind, reconcile_model, controller_id).next_result(
+            let host_result = controller(reconcile_model, controller_id).next_result(
                 ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
                 s.controller_and_externals[controller_id].controller
             );
