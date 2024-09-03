@@ -135,11 +135,17 @@ pub open spec fn end_reconcile(model: ReconcileModel) -> ControllerAction {
     }
 }
 
+pub open spec fn init_controller_state() -> ControllerState {
+    ControllerState {
+        ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+        scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
+    }
+}
+
 pub open spec fn controller(model: ReconcileModel, controller_id: int) -> ControllerStateMachine {
     StateMachine {
         init: |s: ControllerState| {
-            &&& s.ongoing_reconciles == Map::<ObjectRef, OngoingReconcile>::empty()
-            &&& s.scheduled_reconciles == Map::<ObjectRef, DynamicObjectView>::empty()
+            s == init_controller_state()
         },
         actions: set![
             run_scheduled_reconcile(model),

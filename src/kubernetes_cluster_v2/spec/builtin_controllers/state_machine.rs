@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster_v2::spec::{
-    api_server::types::ApiServerState,
+    api_server::types::APIServerState,
     builtin_controllers::{garbage_collector::*, types::*},
     message::*,
 };
@@ -16,7 +16,7 @@ verus! {
 
 pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine {
     StateMachine {
-        init: |s: ApiServerState| {
+        init: |s: APIServerState| {
             true
         },
         actions: set![

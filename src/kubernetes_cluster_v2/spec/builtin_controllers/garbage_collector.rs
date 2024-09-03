@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster_v2::spec::{
-    api_server::types::ApiServerState, builtin_controllers::types::*, message::*,
+    api_server::types::APIServerState, builtin_controllers::types::*, message::*,
 };
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -18,7 +18,7 @@ verus! {
 
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
     Action {
-        precondition: |input: BuiltinControllersActionInput, s: ApiServerState| {
+        precondition: |input: BuiltinControllersActionInput, s: APIServerState| {
             let resources = s.resources;
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
@@ -39,7 +39,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
                 ||| resources[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
             }
         },
-        transition: |input: BuiltinControllersActionInput, s: ApiServerState| {
+        transition: |input: BuiltinControllersActionInput, s: APIServerState| {
             let delete_req_msg = Message::built_in_controller_req_msg(
                 input.rest_id_allocator.allocate().1, Message::delete_req_msg_content(input.key)
             );

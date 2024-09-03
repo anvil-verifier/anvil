@@ -12,7 +12,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct ApiServerState {
+pub struct APIServerState {
     pub resources: StoredState,
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
@@ -27,20 +27,20 @@ pub struct InstalledTypes {
     pub marshalled_default_status: spec_fn(Kind) -> Value,
 }
 
-pub enum ApiServerStep {
+pub enum APIServerStep {
     HandleRequest,
 }
 
-pub struct ApiServerActionInput {
+pub struct APIServerActionInput {
     pub recv: Option<Message>,
 }
 
-pub struct ApiServerActionOutput {
+pub struct APIServerActionOutput {
     pub send: Multiset<Message>
 }
 
-pub type ApiServerStateMachine = StateMachine<ApiServerState, ApiServerActionInput, ApiServerActionInput, ApiServerActionOutput, ApiServerStep>;
+pub type APIServerStateMachine = StateMachine<APIServerState, APIServerActionInput, APIServerActionInput, APIServerActionOutput, APIServerStep>;
 
-pub type ApiServerAction = Action<ApiServerState, ApiServerActionInput, ApiServerActionOutput>;
+pub type APIServerAction = Action<APIServerState, APIServerActionInput, APIServerActionOutput>;
 
 }

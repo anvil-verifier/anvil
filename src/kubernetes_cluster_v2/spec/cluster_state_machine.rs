@@ -4,10 +4,17 @@
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster_v2::spec::{
-    api_server::state_machine::api_server, api_server::types::*,
-    builtin_controllers::state_machine::builtin_controllers, builtin_controllers::types::*,
-    controller::state_machine::controller, controller::types::*, external::state_machine::external,
-    external::types::*, message::*, network::state_machine::network, network::types::*,
+    api_server::state_machine::api_server,
+    api_server::types::*,
+    builtin_controllers::state_machine::builtin_controllers,
+    builtin_controllers::types::*,
+    controller::state_machine::{controller, init_controller_state},
+    controller::types::*,
+    external::state_machine::external,
+    external::types::*,
+    message::*,
+    network::state_machine::network,
+    network::types::*,
 };
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -16,17 +23,17 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 pub struct ClusterState {
-    pub api_server: ApiServerState,
+    pub api_server: APIServerState,
     pub controller_and_externals: Map<int, ControllerAndExternalState>,
     pub network: NetworkState,
     pub rest_id_allocator: RestIdAllocator,
-    pub crash_enabled: bool,
-    pub transient_failure_enabled: bool,
+    pub req_drop_enabled: bool,
 }
 
 pub struct ControllerAndExternalState {
     pub controller: ControllerState,
     pub external: Option<ExternalState>,
+    pub crash_enabled: bool,
 }
 
 impl ClusterState {
@@ -55,20 +62,19 @@ impl ClusterState {
     }
 }
 
-// #[is_variant]
-// pub enum Step {
-//     ApiServerStep(Option<Message>),
-//     BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
-//     ControllerStep((Option<Message>, Option<ObjectRef>)),
-//     ClientStep(),
-//     ExternalStep(Option<Message>),
-//     ScheduleControllerReconcileStep(ObjectRef),
-//     RestartController(),
-//     DisableCrash(),
-//     FailTransientlyStep((Message, APIError)),
-//     DisableTransientFailure(),
-//     StutterStep(),
-// }
+#[is_variant]
+pub enum Step {
+    APIServerStep(Option<Message>),
+    BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
+    ControllerStep((int, Option<Message>, Option<ObjectRef>)),
+    ScheduleControllerReconcileStep((int, ObjectRef)),
+    RestartControllerStep(int),
+    DisableCrashStep(int),
+    DropReqStep((Message, APIError)),
+    DisableReqDropStep(),
+    ExternalStep((int, Option<Message>)),
+    StutterStep(),
+}
 
 pub struct Cluster {
     pub installed_types: InstalledTypes,
@@ -87,13 +93,13 @@ impl Cluster {
             &&& (api_server(self.installed_types).init)(s.api_server)
             &&& (builtin_controllers().init)(s.api_server)
             &&& (network().init)(s.network)
-            &&& s.crash_enabled
-            &&& s.transient_failure_enabled
+            &&& s.req_drop_enabled
             &&& forall |key| self.controller_models.contains_key(key)
                 ==> {
                     let model = self.controller_models[key];
                     &&& s.controller_and_externals.contains_key(key)
                     &&& (controller(model.reconcile_model, key).init)(s.controller_and_externals[key].controller)
+                    &&& s.controller_and_externals[key].crash_enabled
                     &&& model.external_model.is_Some()
                         ==> {
                             &&& s.controller_and_externals[key].external.is_Some()
@@ -111,7 +117,7 @@ impl Cluster {
     pub open spec fn api_server_next(self) -> Action<ClusterState, Option<Message>, ()> {
         let result = |input: Option<Message>, s: ClusterState| {
             let host_result = api_server(self.installed_types).next_result(
-                ApiServerActionInput{ recv: input },
+                APIServerActionInput{ recv: input },
                 s.api_server
             );
             let msg_ops = MessageOps {
@@ -124,7 +130,7 @@ impl Cluster {
         };
         Action {
             precondition: |input: Option<Message>, s: ClusterState| {
-                &&& received_msg_destined_for(input, HostId::ApiServer)
+                &&& received_msg_destined_for(input, HostId::APIServer)
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
             },
@@ -232,7 +238,6 @@ impl Cluster {
         }
     }
 
-
     /// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
     /// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
     /// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
@@ -275,6 +280,103 @@ impl Cluster {
                 };
                 (ClusterState {
                     controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
+                    ..s
+                }, ())
+            }
+        }
+    }
+
+    /// This action restarts the crashed controller.
+    pub open spec fn restart_controller(self) -> Action<ClusterState, int, ()> {
+        Action {
+            precondition: |input: int, s: ClusterState| {
+                let controller_id = input;
+                &&& self.controller_models.contains_key(controller_id)
+                &&& s.controller_and_externals[controller_id].crash_enabled
+            },
+            transition: |input: int, s: ClusterState| {
+                let controller_id = input;
+                let controller_and_external_state = s.controller_and_externals[controller_id];
+                let controller_and_external_state_prime = ControllerAndExternalState {
+                    controller: init_controller_state(),
+                    ..controller_and_external_state
+                };
+                (ClusterState {
+                    controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
+                    ..s
+                }, ())
+            },
+        }
+    }
+
+    /// This action disallows the controller to crash from this point.
+    /// This is used to constraint the crash behavior for liveness proof:
+    /// the controller eventually stops crashing.
+    pub open spec fn disable_crash(self) -> Action<ClusterState, int, ()> {
+        Action {
+            precondition: |input: int, s: ClusterState| {
+                let controller_id = input;
+                self.controller_models.contains_key(controller_id)
+            },
+            transition: |input: int, s: ClusterState| {
+                let controller_id = input;
+                let controller_and_external_state = s.controller_and_externals[controller_id];
+                let controller_and_external_state_prime = ControllerAndExternalState {
+                    crash_enabled: false,
+                    ..controller_and_external_state
+                };
+                (ClusterState {
+                    controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
+                    ..s
+                }, ())
+            },
+        }
+    }
+
+    /// This action fails a request sent to the Kubernetes API in a transient way:
+    /// the request fails with timeout error or conflict error (caused by resource version conflicts).
+    pub open spec fn drop_req(self) -> Action<ClusterState, (Message, APIError), ()> {
+        let result = |input: (Message, APIError), s: ClusterState| {
+            let req_msg = input.0;
+            let api_err = input.1;
+            let resp = Message::form_matched_err_resp_msg(req_msg, api_err);
+            let msg_ops = MessageOps {
+                recv: Some(req_msg),
+                send: Multiset::singleton(resp),
+            };
+            let result = network().next_result(msg_ops, s.network);
+            result
+        };
+        Action {
+            precondition: |input: (Message, APIError), s: ClusterState| {
+                let req_msg = input.0;
+                let api_err = input.1;
+                &&& s.req_drop_enabled
+                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.content.is_APIRequest()
+                &&& api_err.is_Timeout() || api_err.is_ServerTimeout()
+                &&& result(input, s).is_Enabled()
+            },
+            transition: |input: (Message, APIError), s: ClusterState| {
+                (ClusterState {
+                    network: result(input, s).get_Enabled_0(),
+                    ..s
+                }, ())
+            }
+        }
+    }
+
+    /// This action disallows the Kubernetes API to have transient failure from this point.
+    /// This is used to constraint the transient error of Kubernetes APIs for liveness proof:
+    /// the requests from the controller eventually stop being rejected by transient error.
+    pub open spec fn disable_req_drop(self) -> Action<ClusterState, (), ()> {
+        Action {
+            precondition: |input:(), s: ClusterState| {
+                true
+            },
+            transition: |input: (), s: ClusterState| {
+                (ClusterState {
+                    req_drop_enabled: false,
                     ..s
                 }, ())
             }
@@ -339,7 +441,6 @@ impl Cluster {
         }
     }
 
-
     pub open spec fn stutter() -> Action<ClusterState, (), ()> {
         Action {
             precondition: |input: (), s: ClusterState| {
@@ -353,100 +454,18 @@ impl Cluster {
 }
 
 
-// /// This action restarts the crashed controller.
-// pub open spec fn restart_controller() -> Action<Self, (), ()> {
-//     Action {
-//         precondition: |input: (), s: Self| {
-//             s.crash_enabled
-//         },
-//         transition: |input: (), s: Self| {
-//             (Self {
-//                 controller_state: Self::init_controller_state(),
-//                 ..s
-//             }, ())
-//         },
-//     }
-// }
-
-// /// This action disallows the controller to crash from this point.
-// /// This is used to constraint the crash behavior for liveness proof:
-// /// the controller eventually stops crashing.
-// pub open spec fn disable_crash() -> Action<Self, (), ()> {
-//     Action {
-//         precondition: |input: (), s: Self| {
-//             true
-//         },
-//         transition: |input: (), s: Self| {
-//             (Self {
-//                 crash_enabled: false,
-//                 ..s
-//             }, ())
-//         },
-//     }
-// }
-
-// /// This action fails a request sent to the Kubernetes API in a transient way:
-// /// the request fails with timeout error or conflict error (caused by resource version conflicts).
-// pub open spec fn fail_request_transiently() -> Action<Self, (Message, APIError), ()> {
-//     let result = |input: (Message, APIError), s: Self| {
-//         let req_msg = input.0;
-//         let api_err = input.1;
-//         let resp = Message::form_matched_err_resp_msg(req_msg, api_err);
-//         let msg_ops = MessageOps {
-//             recv: Some(req_msg),
-//             send: Multiset::singleton(resp),
-//         };
-//         let result = Self::network().next_result(msg_ops, s.network);
-//         result
-//     };
-//     Action {
-//         precondition: |input: (Message, APIError), s: Self| {
-//             let req_msg = input.0;
-//             let api_err = input.1;
-//             &&& s.transient_failure_enabled
-//             &&& req_msg.dst.is_ApiServer()
-//             &&& req_msg.content.is_APIRequest()
-//             &&& (api_err.is_Timeout() || api_err.is_ServerTimeout() || api_err.is_Conflict())
-//             &&& result(input, s).is_Enabled()
-//         },
-//         transition: |input: (Message, APIError), s: Self| {
-//             (Self {
-//                 network: result(input, s).get_Enabled_0(),
-//                 ..s
-//             }, ())
-//         }
-//     }
-// }
-
-// /// This action disallows the Kubernetes API to have transient failure from this point.
-// /// This is used to constraint the transient error of Kubernetes APIs for liveness proof:
-// /// the requests from the controller eventually stop being rejected by transient error.
-// pub open spec fn disable_transient_failure() -> Action<Self, (), ()> {
-//     Action {
-//         precondition: |input:(), s: Self| {
-//             true
-//         },
-//         transition: |input: (), s: Self| {
-//             (Self {
-//                 transient_failure_enabled: false,
-//                 ..s
-//             }, ())
-//         }
-//     }
-// }
-
 // pub open spec fn next_step(s: Self, s_prime: Self, step: Step<Message>) -> bool {
 //     match step {
-//         Step::ApiServerStep(input) => Self::api_server_next().forward(input)(s, s_prime),
+//         Step::APIServerStep(input) => Self::api_server_next().forward(input)(s, s_prime),
 //         Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
 //         Step::ControllerStep(input) => Self::controllers_next().forward(input)(s, s_prime),
 //         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
 //         Step::ExternalStep(input) => Self::external_api_next().forward(input)(s, s_prime),
 //         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
-//         Step::RestartController() => Self::restart_controller().forward(())(s, s_prime),
-//         Step::DisableCrash() => Self::disable_crash().forward(())(s, s_prime),
-//         Step::FailTransientlyStep(input) => Self::fail_request_transiently().forward(input)(s, s_prime),
-//         Step::DisableTransientFailure() => Self::disable_transient_failure().forward(())(s, s_prime),
+//         Step::RestartControllerStep() => Self::restart_controller().forward(())(s, s_prime),
+//         Step::DisableCrashStep() => Self::disable_crash().forward(())(s, s_prime),
+//         Step::DropReqStep(input) => Self::fail_request_transiently().forward(input)(s, s_prime),
+//         Step::DisableReqDropStep() => Self::disable_transient_failure().forward(())(s, s_prime),
 //         Step::StutterStep() => Self::stutter().forward(())(s, s_prime),
 //     }
 // }
@@ -472,11 +491,11 @@ impl Cluster {
 //     .and(Self::disable_transient_failure().weak_fairness(()))
 // }
 
-// pub open spec fn api_server_action_pre(action: ApiServerAction<E::Input, E::Output>, input: Option<Message>) -> StatePred<Self> {
+// pub open spec fn api_server_action_pre(action: APIServerAction<E::Input, E::Output>, input: Option<Message>) -> StatePred<Self> {
 //     |s: Self| {
 //         let host_result = Self::api_server().next_action_result(
 //             action,
-//             ApiServerActionInput{recv: input},
+//             APIServerActionInput{recv: input},
 //             s.api_server
 //         );
 //         let msg_ops = MessageOps {
@@ -485,7 +504,7 @@ impl Cluster {
 //         };
 //         let network_result = Self::network().next_result(msg_ops, s.network);
 
-//         &&& received_msg_destined_for(input, HostId::ApiServer)
+//         &&& received_msg_destined_for(input, HostId::APIServer)
 //         &&& host_result.is_Enabled()
 //         &&& network_result.is_Enabled()
 //     }
@@ -557,7 +576,7 @@ impl Cluster {
 
 // // TODO: rename it!
 // pub open spec fn busy_disabled() -> StatePred<Self> {
-//     |s: Self| !s.transient_failure_enabled
+//     |s: Self| !s.req_drop_enabled
 // }
 
 // pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {

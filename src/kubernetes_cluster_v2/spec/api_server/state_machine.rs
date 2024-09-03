@@ -145,7 +145,7 @@ pub open spec fn marshalled_default_status(kind: Kind, installed_types: Installe
 }
 
 #[verifier(inline)]
-pub open spec fn handle_get_request(req: GetRequest, s: ApiServerState) -> GetResponse {
+pub open spec fn handle_get_request(req: GetRequest, s: APIServerState) -> GetResponse {
     if !s.resources.contains_key(req.key) {
         // Get fails
         GetResponse{res: Err(APIError::ObjectNotFound)}
@@ -156,7 +156,7 @@ pub open spec fn handle_get_request(req: GetRequest, s: ApiServerState) -> GetRe
 }
 
 #[verifier(inline)]
-pub open spec fn handle_list_request(req: ListRequest, s: ApiServerState) -> ListResponse {
+pub open spec fn handle_list_request(req: ListRequest, s: APIServerState) -> ListResponse {
     // TODO: List should consider other fields
     let selector = |o: DynamicObjectView| {
         &&& o.object_ref().namespace == req.namespace
@@ -165,7 +165,7 @@ pub open spec fn handle_list_request(req: ListRequest, s: ApiServerState) -> Lis
     ListResponse{res: Ok(map_to_seq(s.resources, selector))}
 }
 
-pub open spec fn create_request_admission_check(installed_types: InstalledTypes, req: CreateRequest, s: ApiServerState) -> Option<APIError> {
+pub open spec fn create_request_admission_check(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> Option<APIError> {
     if req.obj.metadata.name.is_None() && req.obj.metadata.generate_name.is_None() {
         // Creation fails because neither the name nor the generate_name of the provided object is provided
         Some(APIError::Invalid)
@@ -193,16 +193,16 @@ pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, i
     }
 }
 
-pub closed spec fn generate_name(s: ApiServerState) -> StringView;
+pub closed spec fn generate_name(s: APIServerState) -> StringView;
 
 // TODO: This should be a spec ensures of the generate_name above
 #[verifier(external_body)]
-pub proof fn generated_name_is_unique(s: ApiServerState)
+pub proof fn generated_name_is_unique(s: APIServerState)
     ensures forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s)
 {}
 
 #[verifier(inline)]
-pub open spec fn handle_create_request(installed_types: InstalledTypes, req: CreateRequest, s: ApiServerState) -> (ApiServerState, CreateResponse) {
+pub open spec fn handle_create_request(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> (APIServerState, CreateResponse) {
     if create_request_admission_check(installed_types, req, s).is_Some() {
         // Creation fails.
         (s, CreateResponse{res: Err(create_request_admission_check(installed_types, req, s).get_Some_0())})
@@ -244,7 +244,7 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
             (s, CreateResponse{res: Err(created_object_validity_check(created_obj, installed_types).get_Some_0())})
         } else {
             // Creation succeeds.
-            (ApiServerState {
+            (APIServerState {
                 resources: s.resources.insert(created_obj.object_ref(), created_obj),
                 // The object just gets created so it is not stable yet: built-in controller might update it
                 stable_resources: s.stable_resources.remove(created_obj.object_ref()),
@@ -266,7 +266,7 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
 // modeling and proof much easier compared to modelling the real clock.
 pub closed spec fn deletion_timestamp() -> StringView;
 
-pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) -> (ApiServerState, DeleteResponse) {
+pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) -> (APIServerState, DeleteResponse) {
     if !s.resources.contains_key(req.key) {
         // Deletion fails.
         (s, DeleteResponse{res: Err(APIError::ObjectNotFound)})
@@ -282,7 +282,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
             } else {
                 let stamped_obj_with_new_rv = obj.set_deletion_timestamp(deletion_timestamp())
                                                     .set_resource_version(s.resource_version_counter);
-                (ApiServerState {
+                (APIServerState {
                     // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
                     // This is intended because using stamped_obj.object_ref() will require us to use
                     // the invariant each_object_in_etcd_is_well_formed a lot more frequently:
@@ -295,7 +295,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
             }
         } else {
             // The object can be immediately removed from the key-value store.
-            (ApiServerState {
+            (APIServerState {
                 resources: s.resources.remove(req.key),
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
@@ -314,7 +314,7 @@ pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
     }
 }
 
-pub open spec fn update_request_admission_check_helper(installed_types: InstalledTypes, name: StringView, namespace: StringView, obj: DynamicObjectView, s: ApiServerState) -> Option<APIError> {
+pub open spec fn update_request_admission_check_helper(installed_types: InstalledTypes, name: StringView, namespace: StringView, obj: DynamicObjectView, s: APIServerState) -> Option<APIError> {
     let key = ObjectRef {
         kind: obj.kind,
         namespace: namespace,
@@ -358,7 +358,7 @@ pub open spec fn update_request_admission_check_helper(installed_types: Installe
     }
 }
 
-pub open spec fn update_request_admission_check(installed_types: InstalledTypes, req: UpdateRequest, s: ApiServerState) -> Option<APIError> {
+pub open spec fn update_request_admission_check(installed_types: InstalledTypes, req: UpdateRequest, s: APIServerState) -> Option<APIError> {
     update_request_admission_check_helper(installed_types, req.name, req.namespace, req.obj, s)
 }
 
@@ -393,7 +393,7 @@ pub open spec fn updated_object_validity_check(updated_obj: DynamicObjectView, o
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_request(installed_types: InstalledTypes, req: UpdateRequest, s: ApiServerState) -> (ApiServerState, UpdateResponse) {
+pub open spec fn handle_update_request(installed_types: InstalledTypes, req: UpdateRequest, s: APIServerState) -> (APIServerState, UpdateResponse) {
     if update_request_admission_check(installed_types, req, s).is_Some() {
         // Update fails.
         (s, UpdateResponse{res: Err(update_request_admission_check(installed_types, req, s).get_Some_0())})
@@ -420,7 +420,7 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
                 {
                     // The regular update case, where the object has no deletion timestamp set
                     // or has at least one finalizer.
-                    (ApiServerState {
+                    (APIServerState {
                         resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
                         // The object just gets updated so it is not stable yet: built-in controller might update it
                         stable_resources: s.stable_resources.remove(req.key()),
@@ -441,7 +441,7 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
                     // because the controller that issues the update request in an non-async manner will not observe
                     // this intermediate state within the short window.
                     // When the update request returns, the object has been deleted anyway.
-                    (ApiServerState {
+                    (APIServerState {
                         resources: s.resources.remove(updated_obj_with_new_rv.object_ref()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                         ..s
@@ -452,7 +452,7 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
     }
 }
 
-pub open spec fn update_status_request_admission_check(installed_types: InstalledTypes, req: UpdateStatusRequest, s: ApiServerState) -> Option<APIError> {
+pub open spec fn update_status_request_admission_check(installed_types: InstalledTypes, req: UpdateStatusRequest, s: APIServerState) -> Option<APIError> {
     update_request_admission_check_helper(installed_types, req.name, req.namespace, req.obj, s)
 }
 
@@ -467,7 +467,7 @@ pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: Dynami
 }
 
 #[verifier(inline)]
-pub open spec fn handle_update_status_request(installed_types: InstalledTypes, req: UpdateStatusRequest, s: ApiServerState) -> (ApiServerState, UpdateStatusResponse) {
+pub open spec fn handle_update_status_request(installed_types: InstalledTypes, req: UpdateStatusRequest, s: APIServerState) -> (APIServerState, UpdateStatusResponse) {
     if update_status_request_admission_check(installed_types, req, s).is_Some() {
         // UpdateStatus fails.
         (s, UpdateStatusResponse{res: Err(update_status_request_admission_check(installed_types, req, s).get_Some_0())})
@@ -488,7 +488,7 @@ pub open spec fn handle_update_status_request(installed_types: InstalledTypes, r
                 (s, UpdateStatusResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types).get_Some_0())})
             } else {
                 // UpdateStatus succeeds.
-                (ApiServerState {
+                (APIServerState {
                     resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
                     resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                     ..s
@@ -498,7 +498,7 @@ pub open spec fn handle_update_status_request(installed_types: InstalledTypes, r
     }
 }
 
-pub open spec fn handle_get_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn handle_get_request_msg(msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_get_request(),
 {
@@ -506,7 +506,7 @@ pub open spec fn handle_get_request_msg(msg: Message, s: ApiServerState) -> (Api
     (s, Message::form_get_resp_msg(msg, handle_get_request(req, s)))
 }
 
-pub open spec fn handle_list_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn handle_list_request_msg(msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_list_request(),
 {
@@ -514,7 +514,7 @@ pub open spec fn handle_list_request_msg(msg: Message, s: ApiServerState) -> (Ap
     (s, Message::form_list_resp_msg(msg, handle_list_request(req, s)))
 }
 
-pub open spec fn handle_create_request_msg(installed_types: InstalledTypes, msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn handle_create_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_create_request(),
 {
@@ -523,7 +523,7 @@ pub open spec fn handle_create_request_msg(installed_types: InstalledTypes, msg:
     (s_prime, Message::form_create_resp_msg(msg, resp))
 }
 
-pub open spec fn handle_delete_request_msg(msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn handle_delete_request_msg(msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_delete_request(),
 {
@@ -532,7 +532,7 @@ pub open spec fn handle_delete_request_msg(msg: Message, s: ApiServerState) -> (
     (s_prime, Message::form_delete_resp_msg(msg, resp))
 }
 
-pub open spec fn handle_update_request_msg(installed_types: InstalledTypes, msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn handle_update_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_update_request(),
 {
@@ -541,7 +541,7 @@ pub open spec fn handle_update_request_msg(installed_types: InstalledTypes, msg:
     (s_prime, Message::form_update_resp_msg(msg, resp))
 }
 
-pub open spec fn handle_update_status_request_msg(installed_types: InstalledTypes, msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn handle_update_status_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_update_status_request(),
 {
@@ -551,7 +551,7 @@ pub open spec fn handle_update_status_request_msg(installed_types: InstalledType
 }
 
 // etcd is modeled as a centralized map that handles get/list/create/delete/update
-pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Message, s: ApiServerState) -> (ApiServerState, Message)
+pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_APIRequest(),
 {
@@ -565,13 +565,13 @@ pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Messag
     }
 }
 
-pub open spec fn handle_request(installed_types: InstalledTypes) -> ApiServerAction {
+pub open spec fn handle_request(installed_types: InstalledTypes) -> APIServerAction {
     Action {
-        precondition: |input: ApiServerActionInput, s: ApiServerState| {
+        precondition: |input: APIServerActionInput, s: APIServerState| {
             &&& input.recv.is_Some()
             &&& input.recv.get_Some_0().content.is_APIRequest()
         },
-        transition: |input: ApiServerActionInput, s: ApiServerState| {
+        transition: |input: APIServerActionInput, s: APIServerState| {
             // This transition describes how Kubernetes API server handles requests,
             // which consists of multiple steps in reality:
             //
@@ -592,26 +592,26 @@ pub open spec fn handle_request(installed_types: InstalledTypes) -> ApiServerAct
             // to built-in controllers and activate their reconciliation.
             // Built-in controllers will be specified as actions of the top level cluster state machine.
             let (s_prime, etcd_resp) = transition_by_etcd(installed_types, input.recv.get_Some_0(), s);
-            (s_prime, ApiServerActionOutput {
+            (s_prime, APIServerActionOutput {
                 send: Multiset::singleton(etcd_resp)
             })
         },
     }
 }
 
-pub open spec fn api_server(installed_types: InstalledTypes) -> ApiServerStateMachine {
+pub open spec fn api_server(installed_types: InstalledTypes) -> APIServerStateMachine {
     StateMachine {
-        init: |s: ApiServerState| {
+        init: |s: APIServerState| {
             &&& s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
             &&& s.stable_resources == Set::<ObjectRef>::empty()
         },
         actions: set![handle_request(installed_types)],
-        step_to_action: |step: ApiServerStep| {
+        step_to_action: |step: APIServerStep| {
             match step {
-                ApiServerStep::HandleRequest => handle_request(installed_types),
+                APIServerStep::HandleRequest => handle_request(installed_types),
             }
         },
-        action_input: |step: ApiServerStep, input: ApiServerActionInput| {
+        action_input: |step: APIServerStep, input: APIServerActionInput| {
             input
         }
     }
