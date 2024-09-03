@@ -61,7 +61,7 @@ impl ClusterState {
 //     BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
 //     ControllerStep((Option<Message>, Option<ObjectRef>)),
 //     ClientStep(),
-//     ExternalAPIStep(Option<Message>),
+//     ExternalStep(Option<Message>),
 //     ScheduleControllerReconcileStep(ObjectRef),
 //     RestartController(),
 //     DisableCrash(),
@@ -232,6 +232,65 @@ impl Cluster {
         }
     }
 
+    /// external_next models the behavior of some external system that handles the requests from the controller.
+    /// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
+    /// It delivers an external request message to the external system, runs E::transition, and puts the response message
+    /// into the network.
+    pub open spec fn externals_next(self) -> Action<ClusterState, (int, Option<Message>), ()> {
+        Action {
+            precondition: |input: (int, Option<Message>), s: ClusterState| {
+                let controller_id = input.0;
+                let external_model = self.controller_models[controller_id].external_model;
+                let chosen_action = self.chosen_external_next(external_model.get_Some_0(), controller_id);
+                &&& self.controller_models.contains_key(input.0)
+                &&& external_model.is_Some()
+                &&& (chosen_action.precondition)((input.1), s)
+            },
+            transition: |input: (int, Option<Message>), s: ClusterState| {
+                let controller_id = input.0;
+                let external_model = self.controller_models[controller_id].external_model;
+                let chosen_action = self.chosen_external_next(external_model.get_Some_0(), controller_id);
+                (chosen_action.transition)((input.1), s)
+            },
+        }
+    }
+
+    pub open spec fn chosen_external_next(self, external_model: ExternalModel, controller_id: int) -> Action<ClusterState, Option<Message>, ()> {
+        let result = |input: Option<Message>, s: ClusterState| {
+            let host_result = external(external_model).next_result(
+                ExternalActionInput{recv: input, resources: s.api_server.resources},
+                s.controller_and_externals[controller_id].external.get_Some_0()
+            );
+            let msg_ops = MessageOps {
+                recv: input,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            (host_result, network_result)
+        };
+        Action {
+            precondition: |input: Option<Message>, s: ClusterState| {
+                &&& received_msg_destined_for(input, HostId::External(controller_id))
+                &&& result(input, s).0.is_Enabled()
+                &&& result(input, s).1.is_Enabled()
+            },
+            transition: |input: Option<Message>, s: ClusterState| {
+                let (host_result, network_result) = result(input, s);
+                let controller_and_external_state_prime = ControllerAndExternalState {
+                    external: Some(host_result.get_Enabled_0()),
+                    ..s.controller_and_externals[controller_id]
+                };
+                (ClusterState {
+                    controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
+                    network: network_result.get_Enabled_0(),
+                    ..s
+                }, ())
+            },
+        }
+    }
+
+
     pub open spec fn stutter() -> Action<ClusterState, (), ()> {
         Action {
             precondition: |input: (), s: ClusterState| {
@@ -243,45 +302,6 @@ impl Cluster {
         }
     }
 }
-
-
-// /// external_api_next models the behavior of some external system that handles the requests from the controller.
-// /// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
-// /// It delivers an external request message to the external system, runs E::transition, and puts the response message
-// /// into the network.
-// pub open spec fn external_api_next() -> Action<Self, Option<Message>, ()> {
-//     let result = |input: Option<Message>, s: Self| {
-//         let host_result = Self::external_api().next_result(
-//             ExternalAPIActionInput {
-//                 recv: input,
-//                 resources: s.api_server.resources,
-//             },
-//             s.external_api_state
-//         );
-//         let msg_ops = MessageOps {
-//             recv: input,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         (host_result, network_result)
-//     };
-//     Action {
-//         precondition: |input: Option<Message>, s: Self| {
-//             &&& received_msg_destined_for(input, HostId::ExternalAPI)
-//             &&& result(input, s).0.is_Enabled()
-//             &&& result(input, s).1.is_Enabled()
-//         },
-//         transition: |input: Option<Message>, s: Self| {
-//             let (host_result, network_result) = result(input, s);
-//             (Self {
-//                 external_api_state: host_result.get_Enabled_0(),
-//                 network: network_result.get_Enabled_0(),
-//                 ..s
-//             }, ())
-//         },
-//     }
-// }
 
 
 // /// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
@@ -411,7 +431,7 @@ impl Cluster {
 //         Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
 //         Step::ControllerStep(input) => Self::controllers_next().forward(input)(s, s_prime),
 //         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
-//         Step::ExternalAPIStep(input) => Self::external_api_next().forward(input)(s, s_prime),
+//         Step::ExternalStep(input) => Self::external_api_next().forward(input)(s, s_prime),
 //         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
 //         Step::RestartController() => Self::restart_controller().forward(())(s, s_prime),
 //         Step::DisableCrash() => Self::disable_crash().forward(())(s, s_prime),
@@ -461,11 +481,11 @@ impl Cluster {
 //     }
 // }
 
-// pub open spec fn external_api_action_pre(action: ExternalAPIAction<E>, input: Option<Message>) -> StatePred<Self> {
+// pub open spec fn external_api_action_pre(action: ExternalAction<E>, input: Option<Message>) -> StatePred<Self> {
 //     |s: Self| {
 //         let host_result = Self::external_api().next_action_result(
 //             action,
-//             ExternalAPIActionInput{recv: input, resources: s.api_server.resources},
+//             ExternalActionInput{recv: input, resources: s.api_server.resources},
 //             s.external_api_state
 //         );
 //         let msg_ops = MessageOps {
@@ -474,7 +494,7 @@ impl Cluster {
 //         };
 //         let network_result = Self::network().next_result(msg_ops, s.network);
 
-//         &&& received_msg_destined_for(input, HostId::ExternalAPI)
+//         &&& received_msg_destined_for(input, HostId::External)
 //         &&& host_result.is_Enabled()
 //         &&& network_result.is_Enabled()
 //     }
