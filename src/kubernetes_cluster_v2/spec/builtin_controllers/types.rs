@@ -9,8 +9,6 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type StoredState = Map<ObjectRef, DynamicObjectView>;
-
 #[is_variant]
 pub enum BuiltinControllersStep {
     RunGarbageCollector,

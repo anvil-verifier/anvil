@@ -16,6 +16,10 @@ pub type ExternalLocalState = Opaque;
 
 pub struct ExternalState {
     pub state: ExternalLocalState,
+}
+
+pub struct ExternalModel {
+    pub init: spec_fn() -> ExternalLocalState,
     pub transition: spec_fn(ExternalMessageContent, ExternalLocalState, StoredState) -> (ExternalLocalState, ExternalMessageContent),
 }
 

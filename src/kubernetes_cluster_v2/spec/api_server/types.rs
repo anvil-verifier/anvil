@@ -17,7 +17,6 @@ pub struct ApiServerState {
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
     pub stable_resources: Set<ObjectRef>,
-    pub installed_types: InstalledTypes,
 }
 
 pub struct InstalledTypes {

@@ -13,8 +13,6 @@ verus! {
 pub struct ControllerState {
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile>,
     pub scheduled_reconciles: Map<ObjectRef, DynamicObjectView>,
-    pub reconcile: Reconcile,
-    pub cr_kind: Kind,
 }
 
 pub type ReconcileLocalState = Opaque;
@@ -29,7 +27,7 @@ pub enum ResponseContent {
     ExternalResponse(ExternalMessageContent),
 }
 
-pub struct Reconcile {
+pub struct ReconcileModel {
     pub init: spec_fn() -> ReconcileLocalState,
     pub transition: spec_fn(DynamicObjectView, Option<ResponseContent>, ReconcileLocalState) -> (ReconcileLocalState, Option<RequestContent>),
     pub done: spec_fn(ReconcileLocalState) -> bool,

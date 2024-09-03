@@ -8,7 +8,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub open spec fn handle_external_request() -> ExternalAction {
+pub open spec fn handle_external_request(model: ExternalModel) -> ExternalAction {
     Action {
         precondition: |input: ExternalActionInput, s: ExternalState| {
             &&& input.recv.is_Some()
@@ -17,7 +17,7 @@ pub open spec fn handle_external_request() -> ExternalAction {
         transition: |input: ExternalActionInput, s: ExternalState| {
             let req_msg = input.recv.get_Some_0();
             let resources = input.resources;
-            let (inner_s_prime, resp) = (s.transition)(req_msg.content.get_ExternalRequest_0(), s.state, resources);
+            let (inner_s_prime, resp) = (model.transition)(req_msg.content.get_ExternalRequest_0(), s.state, resources);
             let s_prime = ExternalState {
                 state: inner_s_prime,
                 ..s
@@ -30,15 +30,15 @@ pub open spec fn handle_external_request() -> ExternalAction {
     }
 }
 
-pub open spec fn external(init_state: ExternalState) -> ExternalStateMachine {
+pub open spec fn external(model: ExternalModel) -> ExternalStateMachine {
     StateMachine {
         init: |s: ExternalState| {
-            s == init_state
+            s.state == (model.init)()
         },
-        actions: set![handle_external_request()],
+        actions: set![handle_external_request(model)],
         step_to_action: |step: ExternalStep| {
             match step {
-                ExternalStep::HandleExternalRequest => handle_external_request(),
+                ExternalStep::HandleExternalRequest => handle_external_request(model),
             }
         },
         action_input: |step: ExternalStep, input: ExternalActionInput| {
