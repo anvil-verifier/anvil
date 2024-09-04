@@ -62,6 +62,22 @@ impl ClusterState {
     }
 }
 
+pub open spec fn crash_disabled(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| !s.controller_and_externals[controller_id].crash_enabled
+}
+
+pub open spec fn req_drop_disable() -> StatePred<ClusterState> {
+    |s: ClusterState| !s.req_drop_enabled
+}
+
+pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| s.rest_id_allocator.rest_id_counter == rest_id
+}
+
+pub open spec fn rest_id_counter_is_no_smaller_than(rest_id: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| s.rest_id_allocator.rest_id_counter >= rest_id
+}
+
 #[is_variant]
 pub enum Step {
     APIServerStep(Option<Message>),
@@ -473,102 +489,92 @@ impl Cluster {
     pub open spec fn next(self) -> ActionPred<ClusterState> {
         |s, s_prime: ClusterState| exists |step: Step| self.next_step(s, s_prime, step)
     }
+
+    pub open spec fn api_server_action_pre(self, action: APIServerAction, input: Option<Message>) -> StatePred<ClusterState> {
+        |s: ClusterState| {
+            let host_result = api_server(self.installed_types).next_action_result(
+                action,
+                APIServerActionInput{recv: input},
+                s.api_server
+            );
+            let msg_ops = MessageOps {
+                recv: input,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            &&& received_msg_destined_for(input, HostId::APIServer)
+            &&& host_result.is_Enabled()
+            &&& network_result.is_Enabled()
+        }
+    }
+
+    pub open spec fn builtin_controllers_action_pre(self, action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<ClusterState> {
+        |s: ClusterState| {
+            let host_result = builtin_controllers().next_action_result(
+                action,
+                BuiltinControllersActionInput{
+                    choice: input.0,
+                    key: input.1,
+                    rest_id_allocator: s.rest_id_allocator
+                },
+                s.api_server
+            );
+            let msg_ops = MessageOps {
+                recv: None,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            &&& host_result.is_Enabled()
+            &&& network_result.is_Enabled()
+        }
+    }
+
+    pub open spec fn controller_action_pre(self, action: ControllerAction, input: (int, Option<Message>, Option<ObjectRef>)) -> StatePred<ClusterState> {
+        |s: ClusterState| {
+            let controller_id = input.0;
+            let reconcile_model = self.controller_models[controller_id].reconcile_model;
+            let host_result = controller(reconcile_model, controller_id).next_action_result(
+                action,
+                ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rest_id_allocator: s.rest_id_allocator},
+                s.controller_and_externals[controller_id].controller
+            );
+            let msg_ops = MessageOps {
+                recv: input.1,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            &&& self.controller_models.contains_key(input.0)
+            &&& received_msg_destined_for(input.1, HostId::Controller(controller_id))
+            &&& host_result.is_Enabled()
+            &&& network_result.is_Enabled()
+        }
+    }
+
+    pub open spec fn external_action_pre(self, action: ExternalAction, input: (int, Option<Message>)) -> StatePred<ClusterState> {
+        |s: ClusterState| {
+            let controller_id = input.0;
+            let external_model = self.controller_models[controller_id].external_model;
+            let host_result = external(external_model.get_Some_0()).next_action_result(
+                action,
+                ExternalActionInput{recv: input.1, resources: s.api_server.resources},
+                s.controller_and_externals[controller_id].external.get_Some_0()
+            );
+            let msg_ops = MessageOps {
+                recv: input.1,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            &&& self.controller_models.contains_key(input.0)
+            &&& external_model.is_Some()
+            &&& received_msg_destined_for(input.1, HostId::External(controller_id))
+            &&& host_result.is_Enabled()
+            &&& network_result.is_Enabled()
+        }
+    }
 }
-
-// pub open spec fn api_server_action_pre(action: APIServerAction<E::Input, E::Output>, input: Option<Message>) -> StatePred<Self> {
-//     |s: Self| {
-//         let host_result = Self::api_server().next_action_result(
-//             action,
-//             APIServerActionInput{recv: input},
-//             s.api_server
-//         );
-//         let msg_ops = MessageOps {
-//             recv: input,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         &&& received_msg_destined_for(input, HostId::APIServer)
-//         &&& host_result.is_Enabled()
-//         &&& network_result.is_Enabled()
-//     }
-// }
-
-// pub open spec fn external_api_action_pre(action: ExternalAction<E>, input: Option<Message>) -> StatePred<Self> {
-//     |s: Self| {
-//         let host_result = Self::external_api().next_action_result(
-//             action,
-//             ExternalActionInput{recv: input, resources: s.api_server.resources},
-//             s.external_api_state
-//         );
-//         let msg_ops = MessageOps {
-//             recv: input,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         &&& received_msg_destined_for(input, HostId::External)
-//         &&& host_result.is_Enabled()
-//         &&& network_result.is_Enabled()
-//     }
-// }
-
-// pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction<E::Input, E::Output>, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<Self> {
-//     |s: Self| {
-//         let host_result = Self::builtin_controllers().next_action_result(
-//             action,
-//             BuiltinControllersActionInput{
-//                 choice: input.0,
-//                 key: input.1,
-//                 rest_id_allocator: s.rest_id_allocator
-//             },
-//             s.api_server
-//         );
-//         let msg_ops = MessageOps {
-//             recv: None,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         &&& host_result.is_Enabled()
-//         &&& network_result.is_Enabled()
-//     }
-// }
-
-// pub open spec fn controller_action_pre(action: ControllerAction, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<Self> {
-//     |s: Self| {
-//         let host_result = Self::controller().next_action_result(
-//             action,
-//             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
-//             s.controller_state
-//         );
-//         let msg_ops = MessageOps {
-//             recv: input.0,
-//             send: host_result.get_Enabled_1().send,
-//         };
-//         let network_result = Self::network().next_result(msg_ops, s.network);
-
-//         &&& received_msg_destined_for(input.0, HostId::CustomController)
-//         &&& host_result.is_Enabled()
-//         &&& network_result.is_Enabled()
-//     }
-// }
-
-// pub open spec fn crash_disabled() -> StatePred<Self> {
-//     |s: Self| !s.crash_enabled
-// }
-
-// // TODO: rename it!
-// pub open spec fn busy_disabled() -> StatePred<Self> {
-//     |s: Self| !s.req_drop_enabled
-// }
-
-// pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {
-//     |s: Self| s.rest_id_allocator.rest_id_counter == rest_id
-// }
-
-// pub open spec fn rest_id_counter_is_no_smaller_than(rest_id: nat) -> StatePred<Self> {
-//     |s: Self| s.rest_id_allocator.rest_id_counter >= rest_id
-// }
 
 }
