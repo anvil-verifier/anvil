@@ -12,7 +12,9 @@ verus! {
 
 pub type RPCId = nat;
 
-pub type ExternalMessageContent = Opaque;
+pub type ExternalRequest = Opaque;
+
+pub type ExternalResponse = Opaque;
 
 pub struct MessageOps {
     pub recv: Option<Message>,
@@ -35,7 +37,7 @@ pub enum HostId {
 }
 
 // RPCIdAllocator allocates unique RPCId for each request sent by the controller.
-// The Kubernetes API state machine ensures the response will carry the same RPCId.
+// The API server state machine ensures the response will carry the same RPCId.
 pub struct RPCIdAllocator {
     pub rpc_id_counter: RPCId,
 }
@@ -44,10 +46,9 @@ impl RPCIdAllocator {
     // Allocate a RPCId which is the current rpc_id_counter
     // and also returns a new RPCIdAllocator with a different rpc_id_counter.
     //
-    // An important assumption of RPCIdAllocator is that the user (i.e., state machine)
-    // after allocating one RPCId, will use the returned new RPCIdAllocator
-    // to allocate the next RPCId.
-    // With this assumption, the user of RPCIdAllocator always gets a RPCId
+    // The user (i.e., state machine) after allocating one RPCId, should use
+    // the returned new RPCIdAllocator to allocate the next RPCId.
+    // By doing so, the user of RPCIdAllocator always gets a RPCId
     // which differs from all the RPCIds allocated before because the
     // returned RPCIdAllocator has a incremented rpc_id_counter.
     //
@@ -65,8 +66,8 @@ impl RPCIdAllocator {
 pub enum MessageContent {
     APIRequest(APIRequest),
     APIResponse(APIResponse),
-    ExternalRequest(ExternalMessageContent),
-    ExternalResponse(ExternalMessageContent),
+    ExternalRequest(ExternalRequest),
+    ExternalResponse(ExternalResponse),
 }
 
 // Some handy methods for pattern matching and retrieving information from MessageContent
@@ -239,7 +240,7 @@ pub open spec fn controller_req_msg(controller_id: int, req_id: RPCId, req: APIR
     Message::form_msg(HostId::Controller(controller_id), HostId::APIServer, req_id, MessageContent::APIRequest(req))
 }
 
-pub open spec fn controller_external_req_msg(controller_id: int, req_id: RPCId, req: ExternalMessageContent) -> Message {
+pub open spec fn controller_external_req_msg(controller_id: int, req_id: RPCId, req: ExternalRequest) -> Message {
     Message::form_msg(HostId::Controller(controller_id), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
 }
 
@@ -330,7 +331,7 @@ pub open spec fn form_update_status_resp_msg(req_msg: Message, resp: UpdateStatu
     Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
 }
 
-pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalMessageContent) -> Message
+pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalResponse) -> Message
     recommends req_msg.content.is_ExternalRequest(),
 {
     Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::ExternalResponse(resp))

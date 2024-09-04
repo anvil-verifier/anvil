@@ -19,12 +19,12 @@ pub type ReconcileLocalState = Opaque;
 
 pub enum RequestContent {
     KubernetesRequest(APIRequest),
-    ExternalRequest(ExternalMessageContent),
+    ExternalRequest(ExternalRequest),
 }
 
 pub enum ResponseContent {
     KubernetesResponse(APIResponse),
-    ExternalResponse(ExternalMessageContent),
+    ExternalResponse(ExternalResponse),
 }
 
 pub struct ReconcileModel {

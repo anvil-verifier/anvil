@@ -20,7 +20,7 @@ pub struct ExternalState {
 
 pub struct ExternalModel {
     pub init: spec_fn() -> ExternalLocalState,
-    pub transition: spec_fn(ExternalMessageContent, ExternalLocalState, StoredState) -> (ExternalLocalState, ExternalMessageContent),
+    pub transition: spec_fn(ExternalRequest, ExternalLocalState, StoredState) -> (ExternalLocalState, ExternalResponse),
 }
 
 pub enum ExternalStep {
