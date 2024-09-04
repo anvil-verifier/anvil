@@ -10,7 +10,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type RestId = nat;
+pub type RPCId = nat;
 
 pub type ExternalMessageContent = Opaque;
 
@@ -22,7 +22,7 @@ pub struct MessageOps {
 pub struct Message {
     pub src: HostId,
     pub dst: HostId,
-    pub rest_id: RestId,
+    pub rpc_id: RPCId,
     pub content: MessageContent,
 }
 
@@ -34,33 +34,33 @@ pub enum HostId {
     External(int),
 }
 
-// RestIdAllocator allocates unique RestId for each request sent by the controller.
-// The Kubernetes API state machine ensures the response will carry the same RestId.
-pub struct RestIdAllocator {
-    pub rest_id_counter: RestId,
+// RPCIdAllocator allocates unique RPCId for each request sent by the controller.
+// The Kubernetes API state machine ensures the response will carry the same RPCId.
+pub struct RPCIdAllocator {
+    pub rpc_id_counter: RPCId,
 }
 
-impl RestIdAllocator {
-    // Allocate a RestId which is the current rest_id_counter
-    // and also returns a new RestIdAllocator with a different rest_id_counter.
+impl RPCIdAllocator {
+    // Allocate a RPCId which is the current rpc_id_counter
+    // and also returns a new RPCIdAllocator with a different rpc_id_counter.
     //
-    // An important assumption of RestIdAllocator is that the user (i.e., state machine)
-    // after allocating one RestId, will use the returned new RestIdAllocator
-    // to allocate the next RestId.
-    // With this assumption, the user of RestIdAllocator always gets a RestId
-    // which differs from all the RestIds allocated before because the
-    // returned RestIdAllocator has a incremented rest_id_counter.
+    // An important assumption of RPCIdAllocator is that the user (i.e., state machine)
+    // after allocating one RPCId, will use the returned new RPCIdAllocator
+    // to allocate the next RPCId.
+    // With this assumption, the user of RPCIdAllocator always gets a RPCId
+    // which differs from all the RPCIds allocated before because the
+    // returned RPCIdAllocator has a incremented rpc_id_counter.
     //
-    // Besides the uniqueness, the allocated RestId can also serve as a timestamp
-    // if we need to say some Rest messages are sent before the others.
-    pub open spec fn allocate(self) -> (Self, RestId) {
-        (RestIdAllocator {
-            rest_id_counter: self.rest_id_counter + 1,
-        }, self.rest_id_counter)
+    // Besides the uniqueness, the allocated RPCId can also serve as a timestamp
+    // if we need to say some RPC messages are sent before the others.
+    pub open spec fn allocate(self) -> (Self, RPCId) {
+        (RPCIdAllocator {
+            rpc_id_counter: self.rpc_id_counter + 1,
+        }, self.rpc_id_counter)
     }
 }
 
-// Each MessageContent is a request/response and a rest id
+// Each MessageContent is a request/response.
 #[is_variant]
 pub enum MessageContent {
     APIRequest(APIRequest),
@@ -235,16 +235,16 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
 
 impl Message {
 
-pub open spec fn controller_req_msg(controller_id: int, req_id: RestId, req: APIRequest) -> Message {
+pub open spec fn controller_req_msg(controller_id: int, req_id: RPCId, req: APIRequest) -> Message {
     Message::form_msg(HostId::Controller(controller_id), HostId::APIServer, req_id, MessageContent::APIRequest(req))
 }
 
-pub open spec fn controller_external_req_msg(controller_id: int, req_id: RestId, req: ExternalMessageContent) -> Message {
+pub open spec fn controller_external_req_msg(controller_id: int, req_id: RPCId, req: ExternalMessageContent) -> Message {
     Message::form_msg(HostId::Controller(controller_id), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
 }
 
-pub open spec fn built_in_controller_req_msg(rest_id: RestId, msg_content: MessageContent) -> Message {
-    Message::form_msg(HostId::BuiltinController, HostId::APIServer, rest_id, msg_content)
+pub open spec fn built_in_controller_req_msg(rpc_id: RPCId, msg_content: MessageContent) -> Message {
+    Message::form_msg(HostId::BuiltinController, HostId::APIServer, rpc_id, msg_content)
 }
 
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
@@ -253,7 +253,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
         &&& req_msg.content.is_APIRequest()
         &&& resp_msg.dst == req_msg.src
         &&& resp_msg.src == req_msg.dst
-        &&& resp_msg.rest_id == req_msg.rest_id
+        &&& resp_msg.rpc_id == req_msg.rpc_id
         &&& match resp_msg.content.get_APIResponse_0() {
             APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
             APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
@@ -268,7 +268,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
         &&& req_msg.content.is_ExternalRequest()
         &&& resp_msg.dst == req_msg.src
         &&& resp_msg.src == req_msg.dst
-        &&& resp_msg.rest_id == req_msg.rest_id
+        &&& resp_msg.rpc_id == req_msg.rpc_id
     }
 }
 
@@ -285,11 +285,11 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message, err: APIError) -> M
     }
 }
 
-pub open spec fn form_msg(src: HostId, dst: HostId, rest_id: RestId, msg_content: MessageContent) -> Message {
+pub open spec fn form_msg(src: HostId, dst: HostId, rpc_id: RPCId, msg_content: MessageContent) -> Message {
     Message {
         src: src,
         dst: dst,
-        rest_id: rest_id,
+        rpc_id: rpc_id,
         content: msg_content,
     }
 }
@@ -297,43 +297,43 @@ pub open spec fn form_msg(src: HostId, dst: HostId, rest_id: RestId, msg_content
 pub open spec fn form_get_resp_msg(req_msg: Message, resp: GetResponse) -> Message
     recommends req_msg.content.is_get_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
 }
 
 pub open spec fn form_list_resp_msg(req_msg: Message, resp: ListResponse) -> Message
     recommends req_msg.content.is_list_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
 }
 
 pub open spec fn form_create_resp_msg(req_msg: Message, resp: CreateResponse) -> Message
     recommends req_msg.content.is_create_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
 }
 
 pub open spec fn form_delete_resp_msg(req_msg: Message, resp: DeleteResponse) -> Message
     recommends req_msg.content.is_delete_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
 }
 
 pub open spec fn form_update_resp_msg(req_msg: Message, resp: UpdateResponse) -> Message
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
 }
 
 pub open spec fn form_update_status_resp_msg(req_msg: Message, resp: UpdateStatusResponse) -> Message
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
 }
 
 pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalMessageContent) -> Message
     recommends req_msg.content.is_ExternalRequest(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rest_id, MessageContent::ExternalResponse(resp))
+    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::ExternalResponse(resp))
 }
 
 pub open spec fn get_req_msg_content(key: ObjectRef) -> MessageContent {
@@ -380,9 +380,9 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
 
 }
 
-pub open spec fn api_request_msg_before(rest_id: RestId) -> spec_fn(Message) -> bool {
+pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {
     |msg: Message| {
-        &&& msg.rest_id < rest_id
+        &&& msg.rpc_id < rpc_id
         &&& {
             ||| msg.dst.is_APIServer() && msg.content.is_APIRequest()
             ||| msg.dst.is_External() && msg.content.is_ExternalRequest()

@@ -41,11 +41,11 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
         },
         transition: |input: BuiltinControllersActionInput, s: ()| {
             let delete_req_msg = Message::built_in_controller_req_msg(
-                input.rest_id_allocator.allocate().1, Message::delete_req_msg_content(input.key)
+                input.rpc_id_allocator.allocate().1, Message::delete_req_msg_content(input.key)
             );
             let output = BuiltinControllersActionOutput {
                 send: Multiset::singleton(delete_req_msg),
-                rest_id_allocator: input.rest_id_allocator.allocate().0,
+                rpc_id_allocator: input.rpc_id_allocator.allocate().0,
             };
             ((), output)
         },

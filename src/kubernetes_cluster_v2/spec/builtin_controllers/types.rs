@@ -22,13 +22,13 @@ pub enum BuiltinControllerChoice {
 pub struct BuiltinControllersActionInput {
     pub choice: BuiltinControllerChoice,
     pub key: ObjectRef,
-    pub rest_id_allocator: RestIdAllocator,
+    pub rpc_id_allocator: RPCIdAllocator,
     pub resources: StoredState,
 }
 
 pub struct BuiltinControllersActionOutput {
     pub send: Multiset<Message>,
-    pub rest_id_allocator: RestIdAllocator,
+    pub rpc_id_allocator: RPCIdAllocator,
 }
 
 pub type BuiltinControllersStateMachine = StateMachine<(),

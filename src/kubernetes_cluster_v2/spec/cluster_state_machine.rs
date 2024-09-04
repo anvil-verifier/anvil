@@ -25,13 +25,13 @@ verus! {
 // The ClusterState includes the state of the api_server (including the key-value store),
 // the states of each controller running in the cluster (and the associated external system if exists),
 // the state of the network (the pending messages).
-// It also has a global rest_id_allocator that assign a unique id to each RPC call,
+// It also has a global rpc_id_allocator that assign a unique id to each RPC call,
 // and a req_drop_enabled to enable/disable network message drop.
 pub struct ClusterState {
     pub api_server: APIServerState,
     pub controller_and_externals: Map<int, ControllerAndExternalState>,
     pub network: NetworkState,
-    pub rest_id_allocator: RestIdAllocator,
+    pub rpc_id_allocator: RPCIdAllocator,
     pub req_drop_enabled: bool,
 }
 
@@ -65,8 +65,8 @@ impl ClusterState {
         self.controller_and_externals[key].controller.scheduled_reconciles
     }
 
-    pub open spec fn has_rest_id_counter_no_smaller_than(self, rest_id: nat) -> bool {
-        self.rest_id_allocator.rest_id_counter >= rest_id
+    pub open spec fn has_rpc_id_counter_no_smaller_than(self, rpc_id: nat) -> bool {
+        self.rpc_id_allocator.rpc_id_counter >= rpc_id
     }
 }
 
@@ -78,12 +78,12 @@ pub open spec fn req_drop_disable() -> StatePred<ClusterState> {
     |s: ClusterState| !s.req_drop_enabled
 }
 
-pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| s.rest_id_allocator.rest_id_counter == rest_id
+pub open spec fn rpc_id_counter_is(rpc_id: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| s.rpc_id_allocator.rpc_id_counter == rpc_id
 }
 
-pub open spec fn rest_id_counter_is_no_smaller_than(rest_id: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| s.rest_id_allocator.rest_id_counter >= rest_id
+pub open spec fn rpc_id_counter_is_no_smaller_than(rpc_id: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| s.rpc_id_allocator.rpc_id_counter >= rpc_id
 }
 
 #[is_variant]
@@ -221,7 +221,7 @@ impl Cluster {
                 BuiltinControllersActionInput {
                     choice: input.0,
                     key: input.1,
-                    rest_id_allocator: s.rest_id_allocator,
+                    rpc_id_allocator: s.rpc_id_allocator,
                     resources: s.api_server.resources,
                 },
                 ()
@@ -243,7 +243,7 @@ impl Cluster {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
                     network: network_result.get_Enabled_0(),
-                    rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                    rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
                     ..s
                 }, ())
             },
@@ -274,7 +274,7 @@ impl Cluster {
         let result = |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
             let reconcile_model = self.controller_models[controller_id].reconcile_model;
             let host_result = controller(reconcile_model, controller_id).next_result(
-                ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
+                ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rpc_id_allocator: s.rpc_id_allocator},
                 s.controller_and_externals[controller_id].controller
             );
             let msg_ops = MessageOps {
@@ -300,7 +300,7 @@ impl Cluster {
                 (ClusterState {
                     controller_and_externals: s.controller_and_externals.insert(controller_id, controller_and_external_state_prime),
                     network: network_result.get_Enabled_0(),
-                    rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                    rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
                     ..s
                 }, ())
             },
@@ -592,7 +592,7 @@ impl Cluster {
                 BuiltinControllersActionInput{
                     choice: input.0,
                     key: input.1,
-                    rest_id_allocator: s.rest_id_allocator,
+                    rpc_id_allocator: s.rpc_id_allocator,
                     resources: s.api_server.resources,
                 },
                 ()
@@ -614,7 +614,7 @@ impl Cluster {
             let reconcile_model = self.controller_models[controller_id].reconcile_model;
             let host_result = controller(reconcile_model, controller_id).next_action_result(
                 action,
-                ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rest_id_allocator: s.rest_id_allocator},
+                ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator},
                 s.controller_and_externals[controller_id].controller
             );
             let msg_ops = MessageOps {

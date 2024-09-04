@@ -51,12 +51,12 @@ pub enum ControllerStep {
 pub struct ControllerActionInput {
     pub recv: Option<Message>,
     pub scheduled_cr_key: Option<ObjectRef>,
-    pub rest_id_allocator: RestIdAllocator,
+    pub rpc_id_allocator: RPCIdAllocator,
 }
 
 pub struct ControllerActionOutput {
     pub send: Multiset<Message>,
-    pub rest_id_allocator: RestIdAllocator,
+    pub rpc_id_allocator: RPCIdAllocator,
 }
 
 pub type ControllerStateMachine = StateMachine<ControllerState, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;

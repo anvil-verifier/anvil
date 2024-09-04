@@ -33,7 +33,7 @@ pub open spec fn run_scheduled_reconcile(model: ReconcileModel) -> ControllerAct
             };
             let output = ControllerActionOutput {
                 send: Multiset::empty(),
-                rest_id_allocator: input.rest_id_allocator,
+                rpc_id_allocator: input.rpc_id_allocator,
             };
             (s_prime, output)
         },
@@ -74,18 +74,18 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
                 None
             };
             let (local_state_prime, req_o) = (model.transition)(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
-            let (pending_req_msg, send, rest_id_allocator_prime) = if req_o.is_Some() {
+            let (pending_req_msg, send, rpc_id_allocator_prime) = if req_o.is_Some() {
                 let pending_req_msg = match req_o.get_Some_0() {
                     RequestContent::KubernetesRequest(req) => {
-                        Some(Message::controller_req_msg(controller_id, input.rest_id_allocator.allocate().1, req))
+                        Some(Message::controller_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
                     },
                     RequestContent::ExternalRequest(req) => {
-                        Some(Message::controller_external_req_msg(controller_id, input.rest_id_allocator.allocate().1, req))
+                        Some(Message::controller_external_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
                     }
                 };
-                (pending_req_msg, Multiset::singleton(pending_req_msg.get_Some_0()), input.rest_id_allocator.allocate().0)
+                (pending_req_msg, Multiset::singleton(pending_req_msg.get_Some_0()), input.rpc_id_allocator.allocate().0)
             } else {
-                (None, Multiset::empty(), input.rest_id_allocator)
+                (None, Multiset::empty(), input.rpc_id_allocator)
             };
 
             let reconcile_state_prime = OngoingReconcile {
@@ -99,7 +99,7 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
             };
             let output = ControllerActionOutput {
                 send: send,
-                rest_id_allocator: rest_id_allocator_prime,
+                rpc_id_allocator: rpc_id_allocator_prime,
             };
             (s_prime, output)
         }
@@ -128,7 +128,7 @@ pub open spec fn end_reconcile(model: ReconcileModel) -> ControllerAction {
             };
             let output = ControllerActionOutput {
                 send: Multiset::empty(),
-                rest_id_allocator: input.rest_id_allocator,
+                rpc_id_allocator: input.rpc_id_allocator,
             };
             (s_prime, output)
         }
