@@ -137,13 +137,9 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
             &&& resp_msg.content.get_list_response().res.is_Ok()
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                // The response must give back all the pods in the replicaset's namespace.
-                resp_objs == s.resources().values().filter(
-                    |o: DynamicObjectView| {
-                        &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                        &&& o.object_ref().kind == PodView::kind()
-                    }
-                ).to_seq()
+                // The matching pods must be a subset of the response.
+                &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+                &&& objects_to_pods(resp_objs).is_Some()
             }
         }
     }
@@ -171,13 +167,9 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         &&& resp_msg.content.get_list_response().res.is_Ok()
         &&& {
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            // The response must give back all the pods in the replicaset's namespace.
-            resp_objs == s.resources().values().filter(
-                |o: DynamicObjectView| {
-                    &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                    &&& o.object_ref().kind == PodView::kind()
-                }
-            ).to_seq()
+            // The matching pods must be a subset of the response.
+            &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+            &&& objects_to_pods(resp_objs).is_Some()
         }
     }
 }

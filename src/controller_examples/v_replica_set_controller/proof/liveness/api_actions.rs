@@ -24,6 +24,14 @@ use vstd::{prelude::*, string::*, map::*, map_lib::*, math::abs};
 
 verus! {
 
+pub open spec fn owned_selector_match_is_1(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
+    &&& obj.kind == PodView::kind()
+    &&& obj.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+    &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
+    &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
+    &&& obj.metadata.deletion_timestamp.is_None()
+}
+
 pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
     s: VRSCluster, s_prime: VRSCluster, vrs: VReplicaSetView, diff: int, msg: VRSMessage,
 )
@@ -33,7 +41,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         VRSCluster::busy_disabled()(s),
         VRSCluster::every_in_flight_msg_has_unique_id()(s),
         VRSCluster::each_object_in_etcd_is_well_formed()(s),
-        helper_invariants::every_create_request_has_an_empty_deletion_timestamp()(s),
+        helper_invariants::every_create_request_is_well_formed()(s),
         helper_invariants::no_pending_update_or_update_status_request_on_pods()(s),
         helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)(s),
         helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)(s),

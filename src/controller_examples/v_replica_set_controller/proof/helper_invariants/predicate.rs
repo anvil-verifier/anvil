@@ -28,7 +28,7 @@ pub open spec fn cluster_resources_is_finite() -> StatePred<VRSCluster> {
     |s: VRSCluster| s.resources().dom().finite()
 } 
 
-pub open spec fn every_create_request_has_an_empty_deletion_timestamp() -> StatePred<VRSCluster> {
+pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> {
     |s: VRSCluster| {
         forall |msg: VRSMessage| #![trigger msg.dst.is_ApiServer(), msg.content.is_APIRequest()] {
             let content = msg.content;
@@ -41,6 +41,7 @@ pub open spec fn every_create_request_has_an_empty_deletion_timestamp() -> State
             let content = msg.content;
             let obj = content.get_create_request().obj;
             &&& obj.metadata.deletion_timestamp.is_None()
+            &&& content.get_create_request().namespace == obj.metadata.namespace.unwrap()
         }
     }
 }
