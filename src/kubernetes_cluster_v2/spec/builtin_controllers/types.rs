@@ -23,6 +23,7 @@ pub struct BuiltinControllersActionInput {
     pub choice: BuiltinControllerChoice,
     pub key: ObjectRef,
     pub rest_id_allocator: RestIdAllocator,
+    pub resources: StoredState,
 }
 
 pub struct BuiltinControllersActionOutput {
@@ -30,13 +31,13 @@ pub struct BuiltinControllersActionOutput {
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type BuiltinControllersStateMachine = StateMachine<APIServerState,
+pub type BuiltinControllersStateMachine = StateMachine<(),
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionOutput,
                                             BuiltinControllersStep>;
 
-pub type BuiltinControllersAction = Action<APIServerState,
+pub type BuiltinControllersAction = Action<(),
                                         BuiltinControllersActionInput,
                                         BuiltinControllersActionOutput>;
 

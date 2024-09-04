@@ -107,7 +107,7 @@ impl Cluster {
     pub open spec fn init(self) -> StatePred<ClusterState> {
         |s: ClusterState| {
             &&& (api_server(self.installed_types).init)(s.api_server)
-            &&& (builtin_controllers().init)(s.api_server)
+            &&& (builtin_controllers().init)(())
             &&& (network().init)(s.network)
             &&& s.req_drop_enabled
             &&& forall |key| self.controller_models.contains_key(key)
@@ -172,8 +172,9 @@ impl Cluster {
                     choice: input.0,
                     key: input.1,
                     rest_id_allocator: s.rest_id_allocator,
+                    resources: s.api_server.resources,
                 },
-                s.api_server
+                ()
             );
             let msg_ops = MessageOps {
                 recv: None,
@@ -191,7 +192,6 @@ impl Cluster {
             transition: |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
                 let (host_result, network_result) = result(input, s);
                 (ClusterState {
-                    api_server: host_result.get_Enabled_0(),
                     network: network_result.get_Enabled_0(),
                     rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
                     ..s
@@ -508,16 +508,17 @@ impl Cluster {
         }
     }
 
-    pub open spec fn builtin_controllers_action_pre(self, action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<ClusterState> {
+    pub open spec fn builtin_controller_action_pre(self, action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<ClusterState> {
         |s: ClusterState| {
             let host_result = builtin_controllers().next_action_result(
                 action,
                 BuiltinControllersActionInput{
                     choice: input.0,
                     key: input.1,
-                    rest_id_allocator: s.rest_id_allocator
+                    rest_id_allocator: s.rest_id_allocator,
+                    resources: s.api_server.resources,
                 },
-                s.api_server
+                ()
             );
             let msg_ops = MessageOps {
                 recv: None,

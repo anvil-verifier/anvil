@@ -18,8 +18,8 @@ verus! {
 
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
     Action {
-        precondition: |input: BuiltinControllersActionInput, s: APIServerState| {
-            let resources = s.resources;
+        precondition: |input: BuiltinControllersActionInput, s: ()| {
+            let resources = input.resources;
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
             // The garbage collector is chosen by the top level state machine
@@ -39,16 +39,15 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
                 ||| resources[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
             }
         },
-        transition: |input: BuiltinControllersActionInput, s: APIServerState| {
+        transition: |input: BuiltinControllersActionInput, s: ()| {
             let delete_req_msg = Message::built_in_controller_req_msg(
                 input.rest_id_allocator.allocate().1, Message::delete_req_msg_content(input.key)
             );
-            let s_prime = s;
             let output = BuiltinControllersActionOutput {
                 send: Multiset::singleton(delete_req_msg),
                 rest_id_allocator: input.rest_id_allocator.allocate().0,
             };
-            (s_prime, output)
+            ((), output)
         },
     }
 }

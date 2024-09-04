@@ -13,10 +13,9 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-
 pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine {
     StateMachine {
-        init: |s: APIServerState| {
+        init: |s: ()| {
             true
         },
         actions: set![
