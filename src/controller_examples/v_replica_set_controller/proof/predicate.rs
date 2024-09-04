@@ -183,7 +183,7 @@ pub open spec fn pending_req_in_flight_at_after_create_pod_step(
         let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
@@ -203,7 +203,7 @@ pub open spec fn req_msg_is_the_in_flight_create_request_at_after_create_pod_ste
         let step = VReplicaSetReconcileStep::AfterCreatePod(diff as usize);
         let request = req_msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& req_msg.dst == HostId::ApiServer

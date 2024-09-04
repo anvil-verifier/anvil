@@ -24,14 +24,6 @@ use vstd::{prelude::*, string::*, map::*, map_lib::*, math::abs};
 
 verus! {
 
-pub open spec fn owned_selector_match_is_1(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
-    &&& obj.kind == PodView::kind()
-    &&& obj.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
-    &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
-    &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-    &&& obj.metadata.deletion_timestamp.is_None()
-}
-
 pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
     s: VRSCluster, s_prime: VRSCluster, vrs: VReplicaSetView, diff: int, msg: VRSMessage,
 )

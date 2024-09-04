@@ -28,6 +28,31 @@ pub open spec fn cluster_resources_is_finite() -> StatePred<VRSCluster> {
     |s: VRSCluster| s.resources().dom().finite()
 } 
 
+// The proof will probabily involve more changes elsewhere.
+pub open spec fn vrs_replicas_bounded_above(
+    vrs: VReplicaSetView
+) -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
+    }
+}
+
+pub open spec fn vrs_selector_matches_template_labels(
+    vrs: VReplicaSetView
+) -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        let match_value = 
+            if vrs.spec.template.is_none()
+            || vrs.spec.template.unwrap().metadata.is_none()
+            || vrs.spec.template.unwrap().metadata.unwrap().labels.is_none() {
+                Map::empty()
+            } else {
+                vrs.spec.template.unwrap().metadata.unwrap().labels.unwrap()
+            };
+        vrs.spec.selector.matches(match_value)
+    }
+}
+
 pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> {
     |s: VRSCluster| {
         forall |msg: VRSMessage| #![trigger msg.dst.is_ApiServer(), msg.content.is_APIRequest()] {
