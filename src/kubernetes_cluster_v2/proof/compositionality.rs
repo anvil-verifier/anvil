@@ -209,8 +209,8 @@ pub trait BaseComposition: Sized {
             spec.entails(lift_state(cluster.init())),
             spec.entails(always(lift_action(cluster.next()))),
             // The cluster starts with the initial state of the consumer().
-            forall |s| cluster.init()(s)
-                ==> #[trigger] (controller(Self::consumer().controller.reconcile_model, consumer_id).init)(s.controller_and_externals[consumer_id].controller),
+            forall |s| #[trigger] cluster.init()(s)
+                ==> (controller(Self::consumer().controller.reconcile_model, consumer_id).init)(s.controller_and_externals[consumer_id].controller),
             // The fairness condition is enough to say that the consumer runs as part of the cluster's next transition.
             spec.entails(tla_forall(|input| cluster.chosen_controller_next(consumer_id).weak_fairness(input))),
             // The next two preconditions say that no controller (except the consumer itself) interferes with this consumer().
@@ -232,8 +232,8 @@ pub trait BaseComposition: Sized {
             spec.entails(lift_state(cluster.init())),
             spec.entails(always(lift_action(cluster.next()))),
             // The cluster starts with the initial state of the producer.
-            forall |s| cluster.init()(s)
-                ==> #[trigger] (controller(Self::producers()[p_index].controller.reconcile_model, producer_id).init)(s.controller_and_externals[producer_id].controller),
+            forall |s| #[trigger] cluster.init()(s)
+                ==> (controller(Self::producers()[p_index].controller.reconcile_model, producer_id).init)(s.controller_and_externals[producer_id].controller),
             // The fairness condition is enough to say that the producer runs as part of the cluster's next transition.
             spec.entails(tla_forall(|input| cluster.chosen_controller_next(producer_id).weak_fairness(input))),
             // The next two preconditions say that no controller (except the producer itself) interferes with this producer.
@@ -301,8 +301,8 @@ pub trait IncrementalComposition: Sized {
             spec.entails(lift_state(cluster.init())),
             spec.entails(always(lift_action(cluster.next()))),
             // The cluster starts with the initial state of the consumer().
-            forall |s| cluster.init()(s)
-                ==> #[trigger] (controller(Self::consumer().controller.reconcile_model, consumer_id).init)(s.controller_and_externals[consumer_id].controller),
+            forall |s| #[trigger] cluster.init()(s)
+                ==> (controller(Self::consumer().controller.reconcile_model, consumer_id).init)(s.controller_and_externals[consumer_id].controller),
             // The fairness condition is enough to say that the consumer runs as part of the cluster's next transition.
             spec.entails(tla_forall(|input| cluster.chosen_controller_next(consumer_id).weak_fairness(input))),
             // The next two preconditions say that no controller (except the consumer itself) interferes with this consumer().
