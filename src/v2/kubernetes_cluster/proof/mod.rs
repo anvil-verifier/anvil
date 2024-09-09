@@ -14,5 +14,5 @@
 // pub mod message;
 // pub mod stateful_set_controller;
 // pub mod validation_rule;
-// pub mod wf1_assistant;
 pub mod compositionality;
+pub mod wf1_helpers;
