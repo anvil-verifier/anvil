@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_cluster_v2::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;

@@ -164,7 +164,7 @@ impl Cluster {
     pub open spec fn next_step(self, s: ClusterState, s_prime: ClusterState, step: Step) -> bool {
         match step {
             Step::APIServerStep(input) => self.api_server_next().forward(input)(s, s_prime),
-            Step::BuiltinControllersStep(input) => self.builtin_controller_next().forward(input)(s, s_prime),
+            Step::BuiltinControllersStep(input) => self.builtin_controllers_next().forward(input)(s, s_prime),
             Step::ControllerStep(input) => self.controller_next().forward(input)(s, s_prime),
             Step::ScheduleControllerReconcileStep(input) => self.schedule_controller_reconcile().forward(input)(s, s_prime),
             Step::RestartControllerStep(input) => self.restart_controller().forward(input)(s, s_prime),
@@ -181,7 +181,7 @@ impl Cluster {
     // The Kubernetes cluster state stored in the key-value store is modeled as a Map called resources.
     pub open spec fn api_server_next(self) -> Action<ClusterState, Option<Message>, ()> {
         let result = |input: Option<Message>, s: ClusterState| {
-            let host_result = api_server(self.installed_types).next_result(
+            let host_result = self.api_server().next_result(
                 APIServerActionInput{ recv: input },
                 s.api_server
             );
@@ -210,14 +210,14 @@ impl Cluster {
         }
     }
 
-    // The builtin_controller_next models the built-in controllers that come with Kubernetes.
+    // The builtin_controllers_next models the built-in controllers that come with Kubernetes.
     // For now, it only models the garbage collector.
     // To keep things simple, instead of modeling how the built-in controllers sends get/list
     // requests to read the cluster state, the Kubernetes cluster state (i.e., resources) is
     // directly passed to the built-in controller.
-    pub open spec fn builtin_controller_next(self) -> Action<ClusterState, (BuiltinControllerChoice, ObjectRef), ()> {
+    pub open spec fn builtin_controllers_next(self) -> Action<ClusterState, (BuiltinControllerChoice, ObjectRef), ()> {
         let result = |input: (BuiltinControllerChoice, ObjectRef), s: ClusterState| {
-            let host_result = builtin_controllers().next_result(
+            let host_result = self.builtin_controllers().next_result(
                 BuiltinControllersActionInput {
                     choice: input.0,
                     key: input.1,
@@ -272,8 +272,7 @@ impl Cluster {
     // It models the controller that is indexed by controller_id.
     pub open spec fn chosen_controller_next(self, controller_id: int) -> Action<ClusterState, (Option<Message>, Option<ObjectRef>), ()> {
         let result = |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
-            let reconcile_model = self.controller_models[controller_id].reconcile_model;
-            let host_result = controller(reconcile_model, controller_id).next_result(
+            let host_result = self.controller(controller_id).next_result(
                 ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rpc_id_allocator: s.rpc_id_allocator},
                 s.controller_and_externals[controller_id].controller
             );
@@ -486,16 +485,14 @@ impl Cluster {
         Action {
             precondition: |input: (int, Option<Message>), s: ClusterState| {
                 let controller_id = input.0;
-                let external_model = self.controller_models[controller_id].external_model;
-                let chosen_action = self.chosen_external_next(external_model.get_Some_0(), controller_id);
+                let chosen_action = self.chosen_external_next(controller_id);
                 &&& self.controller_models.contains_key(input.0)
-                &&& external_model.is_Some()
+                &&& self.controller_models[controller_id].external_model.is_Some()
                 &&& (chosen_action.precondition)((input.1), s)
             },
             transition: |input: (int, Option<Message>), s: ClusterState| {
                 let controller_id = input.0;
-                let external_model = self.controller_models[controller_id].external_model;
-                let chosen_action = self.chosen_external_next(external_model.get_Some_0(), controller_id);
+                let chosen_action = self.chosen_external_next(controller_id);
                 (chosen_action.transition)((input.1), s)
             },
         }
@@ -503,9 +500,9 @@ impl Cluster {
 
     // The chosen_external_next is called by external_next.
     // It models the external system that is indexed by controller_id.
-    pub open spec fn chosen_external_next(self, external_model: ExternalModel, controller_id: int) -> Action<ClusterState, Option<Message>, ()> {
+    pub open spec fn chosen_external_next(self, controller_id: int) -> Action<ClusterState, Option<Message>, ()> {
         let result = |input: Option<Message>, s: ClusterState| {
-            let host_result = external(external_model).next_result(
+            let host_result = self.external(controller_id).next_result(
                 ExternalActionInput{recv: input, resources: s.api_server.resources},
                 s.controller_and_externals[controller_id].external.get_Some_0()
             );
@@ -566,10 +563,10 @@ impl Cluster {
     // tedious witness proof. Concretely, we can first prove X_action_pre ==> enabled(A)
     // as a lemma and then when proving P ~> Q using wf1 one can directly prove p ~> X_action_pre.
 
-    pub open spec fn api_server_action_pre(self, action: APIServerAction, input: Option<Message>) -> StatePred<ClusterState> {
+    pub open spec fn api_server_action_pre(self, step: APIServerStep, input: Option<Message>) -> StatePred<ClusterState> {
         |s: ClusterState| {
-            let host_result = api_server(self.installed_types).next_action_result(
-                action,
+            let host_result = self.api_server().next_action_result(
+                (self.api_server().step_to_action)(step),
                 APIServerActionInput{recv: input},
                 s.api_server
             );
@@ -585,10 +582,10 @@ impl Cluster {
         }
     }
 
-    pub open spec fn builtin_controller_action_pre(self, action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<ClusterState> {
+    pub open spec fn builtin_controllers_action_pre(self, step: BuiltinControllersStep, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<ClusterState> {
         |s: ClusterState| {
-            let host_result = builtin_controllers().next_action_result(
-                action,
+            let host_result = self.builtin_controllers().next_action_result(
+                (self.builtin_controllers().step_to_action)(step),
                 BuiltinControllersActionInput{
                     choice: input.0,
                     key: input.1,
@@ -608,12 +605,11 @@ impl Cluster {
         }
     }
 
-    pub open spec fn controller_action_pre(self, action: ControllerAction, input: (int, Option<Message>, Option<ObjectRef>)) -> StatePred<ClusterState> {
+    pub open spec fn controller_action_pre(self, step: ControllerStep, input: (int, Option<Message>, Option<ObjectRef>)) -> StatePred<ClusterState> {
         |s: ClusterState| {
             let controller_id = input.0;
-            let reconcile_model = self.controller_models[controller_id].reconcile_model;
-            let host_result = controller(reconcile_model, controller_id).next_action_result(
-                action,
+            let host_result = self.controller(controller_id).next_action_result(
+                (self.controller(controller_id).step_to_action)(step),
                 ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator},
                 s.controller_and_externals[controller_id].controller
             );
@@ -630,12 +626,11 @@ impl Cluster {
         }
     }
 
-    pub open spec fn external_action_pre(self, action: ExternalAction, input: (int, Option<Message>)) -> StatePred<ClusterState> {
+    pub open spec fn external_action_pre(self, step: ExternalStep, input: (int, Option<Message>)) -> StatePred<ClusterState> {
         |s: ClusterState| {
             let controller_id = input.0;
-            let external_model = self.controller_models[controller_id].external_model;
-            let host_result = external(external_model.get_Some_0()).next_action_result(
-                action,
+            let host_result = self.external(controller_id).next_action_result(
+                (self.external(controller_id).step_to_action)(step),
                 ExternalActionInput{recv: input.1, resources: s.api_server.resources},
                 s.controller_and_externals[controller_id].external.get_Some_0()
             );
@@ -646,11 +641,27 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
-            &&& external_model.is_Some()
+            &&& self.controller_models[controller_id].external_model.is_Some()
             &&& received_msg_destined_for(input.1, HostId::External(controller_id))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
         }
+    }
+
+    pub open spec fn api_server(self) -> APIServerStateMachine {
+        api_server(self.installed_types)
+    }
+
+    pub open spec fn builtin_controllers(self) -> BuiltinControllersStateMachine {
+        builtin_controllers()
+    }
+
+    pub open spec fn controller(self, controller_id: int) -> ControllerStateMachine {
+        controller(self.controller_models[controller_id].reconcile_model, controller_id)
+    }
+
+    pub open spec fn external(self, controller_id: int) -> ExternalStateMachine {
+        external(self.controller_models[controller_id].external_model.get_Some_0())
     }
 }
 
