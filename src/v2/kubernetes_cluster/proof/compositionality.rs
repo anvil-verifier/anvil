@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_cluster_v2::spec::{
+use crate::v2::kubernetes_cluster::spec::{
     cluster_state_machine::*, controller::state_machine::controller,
 };
 use crate::temporal_logic::defs::*;
