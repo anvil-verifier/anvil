@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generate_name,
+    api_server::state_machine::*,
     builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
@@ -20,7 +20,7 @@ use crate::v_replica_set_controller::{
     proof::{helper_invariants, predicate::*, liveness::api_actions::*},
     trusted::{spec_types::*, step::*, liveness_theorem::*},
 };
-use vstd::{prelude::*, set_lib::*, string::*, map::*, map_lib::*, math::abs};
+use vstd::{prelude::*, seq::*, seq_lib::*, set_lib::*, string::*, map::*, map_lib::*, math::abs};
 
 verus! {
 
@@ -41,6 +41,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded_above(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
@@ -69,6 +70,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
             vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init))))
         &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
         &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded_above(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
         &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
         &&& spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
         &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
@@ -575,6 +577,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded_above(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
@@ -609,6 +612,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
         &&& spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref()))))
         &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
         &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded_above(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
         &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
         &&& spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
         &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
@@ -711,7 +715,23 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
 pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, diff: int
 )
-    requires 
+    requires
+        spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(VRSCluster::crash_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
+        spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded_above(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)))),
         diff < 0,
     ensures
         spec.entails(
@@ -730,6 +750,24 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
             )
         ),
 {
+    let invariants = {
+        &&& spec.entails(always(lift_action(VRSCluster::next())))
+        &&& spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i)))
+        &&& spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i)))
+        &&& spec.entails(always(lift_state(VRSCluster::crash_disabled())))
+        &&& spec.entails(always(lift_state(VRSCluster::busy_disabled())))
+        &&& spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id())))
+        &&& spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed())))
+        &&& spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
+        &&& spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref()))))
+        &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded_above(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
+        &&& spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
+        &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
+    };
     let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
         &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
         &&& num_diff_pods_is(vrs, diff)(s)
@@ -933,18 +971,18 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, req_msg: VRSMessage, diff: int
 )
     requires 
-        // spec.entails(always(lift_action(VRSCluster::next()))),
-        // spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i))),
-        // spec.entails(always(lift_state(VRSCluster::crash_disabled()))),
-        // spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
-        // spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
-        // spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
-        // spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        // spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
-        // spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
-        // spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
-        // spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
-        // spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)))),
+        spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(VRSCluster::crash_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
+        spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs)))),
         diff < 0,
     ensures
         spec.entails(
@@ -963,7 +1001,6 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
             )
         ),
 {
-    assume(false);
     let pre = |s: VRSCluster| {
         &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
         &&& num_diff_pods_is(vrs, diff)(s)
@@ -1008,103 +1045,103 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                 let msg = input.get_Some_0();
                 // Case 1: We're processing the create request
                 if msg == req_msg {
-                    let debug_osm_is = |obj: DynamicObjectView| {
-                        &&& obj.kind == PodView::kind()
-                        //bad &&& obj.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
-                        //&&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
-                        &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-                        //bad &&& obj.metadata.deletion_timestamp.is_None()
-                    };
-                    let debug_osm_is_on_podview = |obj: PodView| {
-                        //&&& obj.kind == PodView::kind()
-                        //bad &&& obj.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
-                        &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
-                       // &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
-                        //bad &&& obj.metadata.deletion_timestamp.is_None()
-                    };
                     let resp_msg = VRSCluster::handle_create_request_msg(req_msg, s.kubernetes_api_state).1;
-                    let resp = resp_msg.content.get_create_response();
                     let req = req_msg.content.get_create_request();
-                    assert(!(req.obj.metadata.name.is_None() && req.obj.metadata.generate_name.is_None()));
-                    assert(!(req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0()));
-                    assert(crate::kubernetes_cluster::spec::api_server::state_machine::create_request_admission_check::<VReplicaSetView>(req_msg.content.get_create_request(), s.kubernetes_api_state).is_none());
-                    assert(req.obj == make_pod(vrs).marshal());
-                    assert(make_pod(vrs).metadata.owner_references.unwrap()[0] == vrs.controller_owner_ref());
-                    assert(debug_osm_is(make_pod(vrs).marshal()));
-                    let key = ObjectRef{
+                    let created_obj = DynamicObjectView {
                         kind: req.obj.kind,
-                        name: if req.obj.metadata.name.is_Some() {
-                            req.obj.metadata.name.unwrap()
-                        } else {
-                            generate_name(s.kubernetes_api_state)
+                        metadata: ObjectMetaView {
+                            // Set name for new object if name is not provided, here we generate
+                            // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+                            name: if req.obj.metadata.name.is_Some() {
+                                req.obj.metadata.name
+                            } else {
+                                Some(generate_name(s.kubernetes_api_state))
+                            },
+                            namespace: Some(req.namespace), // Set namespace for new object
+                            resource_version: Some(s.kubernetes_api_state.resource_version_counter), // Set rv for new object
+                            uid: Some(s.kubernetes_api_state.uid_counter), // Set uid for new object
+                            deletion_timestamp: None, // Unset deletion timestamp for new object
+                            ..req.obj.metadata
                         },
-                        namespace: req.namespace,
+                        spec: req.obj.spec,
+                        status: marshalled_default_status::<VReplicaSetView>(req.obj.kind), // Overwrite the status with the default one
                     };
-                    assert_maps_equal!(s.resources().remove(key) == s_prime.resources().remove(key));
-                    assert(s_prime.resources().contains_key(key));
-                    assert(owned_selector_match_is(vrs, s_prime.resources()[key]));
-                    assert(post(s_prime));
+                    let key = created_obj.object_ref();
+
+                    // Asserts properties about the response message
+                    generated_name_is_unique(s.kubernetes_api_state);
+                    assert({
+                        &&& s_prime.in_flight().contains(resp_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+                        &&& resp_msg.content.get_create_response().res.is_Ok()
+                    });
+
+                    // Asserts properties about the newly inserted object.
+                    assert_maps_equal!(s.resources().insert(key, created_obj) == s_prime.resources());
+                    assert(s.resources().len() + 1 == s_prime.resources().len());
+                    assert(created_obj.metadata.owner_references.unwrap()[0] == vrs.controller_owner_ref());
+                    assert(owned_selector_match_is(vrs, created_obj));
+
+                    // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is increased.
+                    a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
+                    assert(matching_pod_entries(vrs, s.resources()).insert(key, created_obj) == matching_pod_entries(vrs, s_prime.resources()));
                 } else {
-                    assume(false);
-                }
+                    a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
+                    lemma_api_request_not_on_matching_pods_maintains_matching_pods(
+                        s, s_prime, vrs, diff, msg, req_msg,
+                    );
+                    assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));                }
             },
             _ => {}
         }
     }
 
-    assume(false);
+    assert forall |s, s_prime: VRSCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && VRSCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
+        let resp_msg = VRSCluster::handle_create_request_msg(req_msg, s.kubernetes_api_state).1;
+        let req = req_msg.content.get_create_request();
+        let created_obj = DynamicObjectView {
+            kind: req.obj.kind,
+            metadata: ObjectMetaView {
+                // Set name for new object if name is not provided, here we generate
+                // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+                name: if req.obj.metadata.name.is_Some() {
+                    req.obj.metadata.name
+                } else {
+                    Some(generate_name(s.kubernetes_api_state))
+                },
+                namespace: Some(req.namespace), // Set namespace for new object
+                resource_version: Some(s.kubernetes_api_state.resource_version_counter), // Set rv for new object
+                uid: Some(s.kubernetes_api_state.uid_counter), // Set uid for new object
+                deletion_timestamp: None, // Unset deletion timestamp for new object
+                ..req.obj.metadata
+            },
+            spec: req.obj.spec,
+            status: marshalled_default_status::<VReplicaSetView>(req.obj.kind), // Overwrite the status with the default one
+        };
+        let key = created_obj.object_ref();
 
-    // assert forall |s, s_prime: VRSCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && VRSCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
-    //     let resp_msg = VRSCluster::handle_list_request_msg(req_msg, s.kubernetes_api_state).1;
-    //     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        // Asserts properties about the response message
+        generated_name_is_unique(s.kubernetes_api_state);
+        assert({
+            &&& s_prime.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.get_create_response().res.is_Ok()
+        });
 
-    //     assert forall |o: DynamicObjectView| #![auto] 
-    //     pre(s) && matching_pod_entries(vrs, s_prime.resources()).values().contains(o)
-    //     implies resp_objs.to_set().contains(o) by {
-    //         // Tricky reasoning about .to_seq
-    //         let selector = |o: DynamicObjectView| {
-    //             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-    //             &&& o.object_ref().kind == PodView::kind()
-    //         };
-    //         let selected_elements = s.resources().values().filter(selector);
-    //         assert(selected_elements.contains(o));
-    //         lemma_values_finite(s.resources());
-    //         finite_set_to_seq_contains_all_set_elements(selected_elements);
-    //     }
+        // Asserts properties about the newly inserted object.
+        assert_maps_equal!(s.resources().insert(key, created_obj) == s_prime.resources());
+        assert(s.resources().len() + 1 == s_prime.resources().len());
+        assert(created_obj.metadata.owner_references.unwrap()[0] == vrs.controller_owner_ref());
+        assert(owned_selector_match_is(vrs, created_obj));
 
-    //     assert forall |o: DynamicObjectView| #![auto] 
-    //     pre(s) && resp_objs.contains(o)
-    //     implies !PodView::unmarshal(o).is_err() by {
-    //         // Tricky reasoning about .to_seq
-    //         let selector = |o: DynamicObjectView| {
-    //             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-    //             &&& o.object_ref().kind == PodView::kind()
-    //         };
-    //         let selected_elements = s.resources().values().filter(selector);
-    //         lemma_values_finite(s.resources());
-    //         finite_set_to_seq_contains_all_set_elements(selected_elements);
-    //         assert(resp_objs == selected_elements.to_seq());
-    //         assert(selected_elements.contains(o));
-    //     }
-    //     seq_pred_false_on_all_elements_implies_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
+        // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is increased.
+        a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
+        assert(matching_pod_entries(vrs, s.resources()).insert(key, created_obj) == matching_pod_entries(vrs, s_prime.resources()));
+    }
 
-    //     assert({
-    //         &&& s_prime.in_flight().contains(resp_msg)
-    //         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-    //         &&& resp_msg.content.get_list_response().res.is_Ok()
-    //         &&& {
-    //             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    //             // The matching pods must be a subset of the response.
-    //             &&& matching_pod_entries(vrs, s_prime.resources()).values().subset_of(resp_objs.to_set())
-    //             &&& objects_to_pods(resp_objs).is_Some()
-    //         }
-    //     });
-    //     assert(post(s_prime));
-    // }
-
-    // VRSCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-    //     spec, input, stronger_next, VRSCluster::handle_request(), pre, post
-    // );
+    VRSCluster::lemma_pre_leads_to_post_by_kubernetes_api(
+        spec, input, stronger_next, VRSCluster::handle_request(), pre, post
+    );
 }
 
 #[verifier(external_body)]

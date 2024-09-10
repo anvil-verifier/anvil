@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::spec::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
+    api_server::state_machine::*,
     cluster::*,
     cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
@@ -64,9 +65,31 @@ pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> 
             &&& content.is_create_request()
         } ==> {
             let content = msg.content;
-            let obj = content.get_create_request().obj;
+            let req = content.get_create_request();
+            let obj = req.obj;
+            let created_obj = DynamicObjectView {
+                kind: req.obj.kind,
+                metadata: ObjectMetaView {
+                    // Set name for new object if name is not provided, here we generate
+                    // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+                    name: if req.obj.metadata.name.is_Some() {
+                        req.obj.metadata.name
+                    } else {
+                        Some(generate_name(s.kubernetes_api_state))
+                    },
+                    namespace: Some(req.namespace), // Set namespace for new object
+                    resource_version: Some(s.kubernetes_api_state.resource_version_counter), // Set rv for new object
+                    uid: Some(s.kubernetes_api_state.uid_counter), // Set uid for new object
+                    deletion_timestamp: None, // Unset deletion timestamp for new object
+                    ..req.obj.metadata
+                },
+                spec: req.obj.spec,
+                status: marshalled_default_status::<VReplicaSetView>(req.obj.kind), // Overwrite the status with the default one
+            };
             &&& obj.metadata.deletion_timestamp.is_None()
             &&& content.get_create_request().namespace == obj.metadata.namespace.unwrap()
+            &&& unmarshallable_object::<VReplicaSetView>(obj)
+            &&& created_object_validity_check::<VReplicaSetView>(created_obj).is_none()
         }
     }
 }
