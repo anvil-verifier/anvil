@@ -42,6 +42,7 @@ pub open spec fn the_object_in_schedule_satisfies_state_validation() -> StatePre
         forall |key: ObjectRef|
         #[trigger] s.scheduled_reconciles().contains_key(key)
         && key.kind.is_CustomResourceKind()
+        && key.kind == RabbitmqClusterView::kind()
         ==> s.scheduled_reconciles()[key].state_validation()
     }
 }
@@ -52,6 +53,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<RMQC
         forall |key: ObjectRef|
         #[trigger] s.resources().contains_key(key)
         && key.kind.is_CustomResourceKind()
+        && key.kind == RabbitmqClusterView::kind()
         ==> RabbitmqClusterView::unmarshal(s.resources()[key]).is_Ok()
             && RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
     }

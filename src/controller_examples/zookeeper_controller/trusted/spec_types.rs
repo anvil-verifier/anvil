@@ -70,7 +70,7 @@ impl ResourceView for ZookeeperClusterView {
 
     open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind { Kind::CustomResourceKind }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind("zookeeper"@) }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
