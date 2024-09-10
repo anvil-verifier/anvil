@@ -3,6 +3,7 @@
 pub mod affinity;
 pub mod api_method;
 pub mod api_resource;
+pub mod common;
 pub mod config_map;
 pub mod container;
 pub mod daemon_set;

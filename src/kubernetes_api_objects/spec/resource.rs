@@ -100,7 +100,7 @@ pub open spec fn empty_status() -> EmptyStatusView {
 
 pub trait CustomResourceView: ResourceView {
     proof fn kind_is_custom_resource()
-        ensures Self::kind() == Kind::CustomResourceKind;
+        ensures Self::kind().is_CustomResourceKind();
 }
 
 }

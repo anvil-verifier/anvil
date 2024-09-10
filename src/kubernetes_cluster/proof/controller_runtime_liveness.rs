@@ -85,6 +85,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle(spec: TempPred<Self>, 
     requires
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
+        K::kind() == cr_key.kind,
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
     ensures spec.entails(lift_state(Self::reconciler_reconcile_done(cr_key)).leads_to(lift_state(|s: Self| { !s.ongoing_reconciles().contains_key(cr_key)}))),
@@ -105,6 +106,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
     requires
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
+        K::kind() == cr_key.kind,
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
     ensures spec.entails(lift_state(Self::reconciler_reconcile_error(cr_key)).leads_to(lift_state(|s: Self| { !s.ongoing_reconciles().contains_key(cr_key) }))),
@@ -123,6 +125,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
     requires
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
+        K::kind() == cr_key.kind,
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),

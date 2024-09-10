@@ -63,21 +63,23 @@ fn metadata_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObje
 }
 
 fn valid_object(obj: &DynamicObject) -> (ret: bool)
-    requires model::unmarshallable_object::<K::V>(obj@)
+    requires
+        model::unmarshallable_object::<K::V>(obj@),
+        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
     ensures ret == model::valid_object::<K::V>(obj@)
 {
     match obj.kind() {
-        Kind::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::PodKind => Pod::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::RoleKind => Role::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::SecretKind => Secret::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::ServiceKind => Service::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().state_validation(),
-        Kind::CustomResourceKind => {
+        KindExec::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::PodKind => Pod::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::RoleKind => Role::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::SecretKind => Secret::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::ServiceKind => Service::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().state_validation(),
+        KindExec::CustomResourceKind(_) => {
             proof {
                 K::V::unmarshal_result_determined_by_unmarshal_spec_and_status();
                 K::V::kind_is_custom_resource();
@@ -88,7 +90,9 @@ fn valid_object(obj: &DynamicObject) -> (ret: bool)
 }
 
 fn object_validity_check(obj: &DynamicObject) -> (ret: Option<APIError>)
-    requires model::unmarshallable_object::<K::V>(obj@)
+    requires
+        model::unmarshallable_object::<K::V>(obj@),
+        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
     ensures ret == model::object_validity_check::<K::V>(obj@)
 {
     if !Self::valid_object(obj) {
@@ -105,20 +109,21 @@ fn valid_transition(obj: &DynamicObject, old_obj: &DynamicObject) -> (ret: bool)
         old_obj@.kind == obj@.kind,
         model::valid_object::<K::V>(obj@),
         model::valid_object::<K::V>(old_obj@),
+        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
     ensures ret == model::valid_transition::<K::V>(obj@, old_obj@)
 {
     match obj.kind() {
-        Kind::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().transition_validation(&ConfigMap::unmarshal(old_obj.clone()).unwrap()),
-        Kind::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().transition_validation(&DaemonSet::unmarshal(old_obj.clone()).unwrap()),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().transition_validation(&PersistentVolumeClaim::unmarshal(old_obj.clone()).unwrap()),
-        Kind::PodKind => Pod::unmarshal(obj.clone()).unwrap().transition_validation(&Pod::unmarshal(old_obj.clone()).unwrap()),
-        Kind::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().transition_validation(&RoleBinding::unmarshal(old_obj.clone()).unwrap()),
-        Kind::RoleKind => Role::unmarshal(obj.clone()).unwrap().transition_validation(&Role::unmarshal(old_obj.clone()).unwrap()),
-        Kind::SecretKind => Secret::unmarshal(obj.clone()).unwrap().transition_validation(&Secret::unmarshal(old_obj.clone()).unwrap()),
-        Kind::ServiceKind => Service::unmarshal(obj.clone()).unwrap().transition_validation(&Service::unmarshal(old_obj.clone()).unwrap()),
-        Kind::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().transition_validation(&StatefulSet::unmarshal(old_obj.clone()).unwrap()),
-        Kind::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().transition_validation(&ServiceAccount::unmarshal(old_obj.clone()).unwrap()),
-        Kind::CustomResourceKind => {
+        KindExec::ConfigMapKind => ConfigMap::unmarshal(obj.clone()).unwrap().transition_validation(&ConfigMap::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::DaemonSetKind => DaemonSet::unmarshal(obj.clone()).unwrap().transition_validation(&DaemonSet::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::PersistentVolumeClaimKind => PersistentVolumeClaim::unmarshal(obj.clone()).unwrap().transition_validation(&PersistentVolumeClaim::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::PodKind => Pod::unmarshal(obj.clone()).unwrap().transition_validation(&Pod::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::RoleBindingKind => RoleBinding::unmarshal(obj.clone()).unwrap().transition_validation(&RoleBinding::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::RoleKind => Role::unmarshal(obj.clone()).unwrap().transition_validation(&Role::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::SecretKind => Secret::unmarshal(obj.clone()).unwrap().transition_validation(&Secret::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::ServiceKind => Service::unmarshal(obj.clone()).unwrap().transition_validation(&Service::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::StatefulSetKind => StatefulSet::unmarshal(obj.clone()).unwrap().transition_validation(&StatefulSet::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::ServiceAccountKind => ServiceAccount::unmarshal(obj.clone()).unwrap().transition_validation(&ServiceAccount::unmarshal(old_obj.clone()).unwrap()),
+        KindExec::CustomResourceKind(_) => {
             proof {
                 K::V::unmarshal_result_determined_by_unmarshal_spec_and_status();
                 K::V::kind_is_custom_resource();
@@ -135,6 +140,7 @@ fn object_transition_validity_check(obj: &DynamicObject, old_obj: &DynamicObject
         old_obj@.kind == obj@.kind,
         model::valid_object::<K::V>(obj@),
         model::valid_object::<K::V>(old_obj@),
+        obj@.kind.is_CustomResourceKind() ==> obj@.kind == K::V::kind(),
     ensures ret == model::object_transition_validity_check::<K::V>(obj@, old_obj@)
 {
     if !Self::valid_transition(obj, old_obj) {
@@ -180,7 +186,9 @@ fn create_request_admission_check(req: &KubeCreateRequest, s: &ApiServerState) -
 }
 
 fn created_object_validity_check(created_obj: &DynamicObject) -> (ret: Option<APIError>)
-    requires model::unmarshallable_object::<K::V>(created_obj@)
+    requires
+        model::unmarshallable_object::<K::V>(created_obj@),
+        created_obj@.kind.is_CustomResourceKind() ==> created_obj@.kind == K::V::kind(),
     ensures ret == model::created_object_validity_check::<K::V>(created_obj@)
 {
     if Self::metadata_validity_check(created_obj).is_some() {
@@ -206,6 +214,7 @@ pub fn handle_create_request(req: &KubeCreateRequest, s: &mut ApiServerState) ->
         // No integer overflow
         old(s).resource_version_counter < i64::MAX,
         old(s).uid_counter < i64::MAX,
+        req@.obj.kind.is_CustomResourceKind() ==> req@.obj.kind == K::V::kind(),
     ensures (s@, ret@) == model::handle_create_request::<K::V>(req@, old(s)@)
 {
     // TODO: use if-let?
@@ -269,11 +278,11 @@ pub fn handle_delete_request(req: &KubeDeleteRequest, s: &mut ApiServerState) ->
     }
 }
 
-fn allow_unconditional_update(kind: &Kind) -> (ret: bool)
-    ensures ret == model::allow_unconditional_update(*kind)
+fn allow_unconditional_update(kind: &KindExec) -> (ret: bool)
+    ensures ret == model::allow_unconditional_update(kind@)
 {
     match kind {
-        Kind::CustomResourceKind => false,
+        KindExec::CustomResourceKind(_) => false,
         _ => true,
     }
 }
@@ -335,6 +344,7 @@ fn updated_object_validity_check(updated_obj: &DynamicObject, old_obj: &DynamicO
         model::unmarshallable_object::<K::V>(old_obj@),
         old_obj@.kind == updated_obj@.kind,
         model::valid_object::<K::V>(old_obj@),
+        updated_obj@.kind.is_CustomResourceKind() ==> updated_obj@.kind == K::V::kind(),
     ensures ret == model::updated_object_validity_check::<K::V>(updated_obj@, old_obj@)
 {
     if Self::metadata_validity_check(updated_obj).is_some() {
@@ -361,6 +371,7 @@ pub fn handle_update_request(req: &KubeUpdateRequest, s: &mut ApiServerState) ->
         // The old version has the right key (name, namespace, kind)
         old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
         // All the three preconditions above are proved by the invariant lemma_always_each_object_in_etcd_is_well_formed
+        req@.obj.kind.is_CustomResourceKind() ==> req@.obj.kind == K::V::kind(),
     ensures (s@, ret@) == model::handle_update_request::<K::V>(req@, old(s)@)
 {
     let request_check_error = Self::update_request_admission_check(req, s);
@@ -427,6 +438,7 @@ pub fn handle_update_status_request(req: &KubeUpdateStatusRequest, s: &mut ApiSe
         // The old version has the right key (name, namespace, kind)
         old(s)@.resources.contains_key(req@.key()) ==> old(s)@.resources[req@.key()].object_ref() == req@.key(),
         // All the three preconditions above are proved by the invariant lemma_always_each_object_in_etcd_is_well_formed
+        req@.obj.kind.is_CustomResourceKind() ==> req@.obj.kind == K::V::kind(),
     ensures (s@, ret@) == model::handle_update_status_request::<K::V>(req@, old(s)@)
 {
     let request_check_error = Self::update_status_request_admission_check(req, s);
