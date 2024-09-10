@@ -51,7 +51,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr
 
 pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec: TempPred<Self>, cr: K)
     requires
-        K::kind() == Kind::CustomResourceKind,
+        K::kind().is_CustomResourceKind(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
         Self::is_reflexive_and_transitive(),
@@ -81,7 +81,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> Stat
 
 proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: TempPred<Self>, cr: K)
     requires
-        K::kind() == Kind::CustomResourceKind,
+        K::kind().is_CustomResourceKind(),
         Self::is_reflexive_and_transitive(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
@@ -174,7 +174,7 @@ pub open spec fn transition_rule_applies_to_scheduled_and_triggering_cr(cr: K) -
 
 proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr: K)
     requires
-        K::kind() == Kind::CustomResourceKind,
+        K::kind().is_CustomResourceKind(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
         Self::is_reflexive_and_transitive(),

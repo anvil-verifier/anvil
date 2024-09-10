@@ -20,10 +20,9 @@ pub type GenerateNameCounter = int;
 // TODO: make CustomResourceKind take a string so that we
 // can differentiate between different custom resources
 #[is_variant]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Kind {
     ConfigMapKind,
-    CustomResourceKind,
+    CustomResourceKind(StringView),
     DaemonSetKind,
     PersistentVolumeClaimKind,
     PodKind,
@@ -33,15 +32,6 @@ pub enum Kind {
     ServiceKind,
     ServiceAccountKind,
     SecretKind,
-}
-
-impl std::marker::Copy for Kind {}
-
-impl std::clone::Clone for Kind {
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: Self)
-        ensures result == self
-    { *self }
 }
 
 pub struct ObjectRef {

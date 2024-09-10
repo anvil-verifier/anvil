@@ -18,41 +18,43 @@ use vstd::string::*;
 #[derive(Debug, Clone)]
 enum GeneratedRequest {
     Get {
-        kind: Kind,
+        kind: KindExec,
         name: std::string::String,
     },
     Create {
-        kind: Kind,
+        kind: KindExec,
         name: std::string::String,
     },
 }
 
-impl Kind {
+impl KindExec {
     fn to_api_resource(&self) -> ApiResource {
         match self {
-            Kind::ConfigMapKind => {
+            KindExec::ConfigMapKind => {
                 ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<
                     deps_hack::k8s_openapi::api::core::v1::ConfigMap,
                 >(&()))
             }
-            Kind::SecretKind => ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<
-                deps_hack::k8s_openapi::api::core::v1::Secret,
-            >(&())),
+            KindExec::SecretKind => {
+                ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<
+                    deps_hack::k8s_openapi::api::core::v1::Secret,
+                >(&()))
+            }
             _ => panic!(),
         }
     }
 
     fn to_default_dynamic_object(&self) -> DynamicObject {
         match self {
-            Kind::ConfigMapKind => ConfigMap::default().marshal(),
-            Kind::SecretKind => Secret::default().marshal(),
+            KindExec::ConfigMapKind => ConfigMap::default().marshal(),
+            KindExec::SecretKind => Secret::default().marshal(),
             _ => panic!(),
         }
     }
 }
 
-fn kind_strategy() -> BoxedStrategy<Kind> {
-    prop_oneof![Just(Kind::ConfigMapKind), Just(Kind::SecretKind),].boxed()
+fn kind_strategy() -> BoxedStrategy<KindExec> {
+    prop_oneof![Just(KindExec::ConfigMapKind), Just(KindExec::SecretKind),].boxed()
 }
 
 prop_compose! {

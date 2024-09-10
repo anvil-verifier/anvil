@@ -15,7 +15,7 @@ use vstd::string::*;
 // because it internally uses vstd::string::String, which does not implement such traits.
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct ExternalObjectRef {
-    pub kind: Kind,
+    pub kind: KindExec,
     pub name: std::string::String,
     pub namespace: std::string::String,
 }
@@ -33,7 +33,7 @@ impl KubeObjectRef {
 verus! {
 
 pub struct KubeObjectRef {
-    pub kind: Kind,
+    pub kind: KindExec,
     pub name: String,
     pub namespace: String,
 }
@@ -42,7 +42,7 @@ impl View for KubeObjectRef {
     type V = ObjectRef;
     open spec fn view(&self) -> ObjectRef {
         ObjectRef {
-            kind: self.kind,
+            kind: self.kind@,
             name: self.name@,
             namespace: self.namespace@,
         }
@@ -64,20 +64,20 @@ impl std::clone::Clone for KubeObjectRef {
 impl ApiResource {
     // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
+    pub fn kind(&self) -> (kind: KindExec)
+        ensures kind@ == self@.kind,
     {
         match self.as_kube_ref().kind.as_str() {
-            "ConfigMap" => Kind::ConfigMapKind,
-            "DaemonSet" => Kind::DaemonSetKind,
-            "PersistentVolumeClaim" => Kind::PersistentVolumeClaimKind,
-            "Pod" => Kind::PodKind,
-            "Role" => Kind::RoleKind,
-            "RoleBinding" => Kind::RoleBindingKind,
-            "StatefulSet" => Kind::StatefulSetKind,
-            "Service" => Kind::ServiceKind,
-            "ServiceAccount" => Kind::ServiceAccountKind,
-            "Secret" => Kind::SecretKind,
+            "ConfigMap" => KindExec::ConfigMapKind,
+            "DaemonSet" => KindExec::DaemonSetKind,
+            "PersistentVolumeClaim" => KindExec::PersistentVolumeClaimKind,
+            "Pod" => KindExec::PodKind,
+            "Role" => KindExec::RoleKind,
+            "RoleBinding" => KindExec::RoleBindingKind,
+            "StatefulSet" => KindExec::StatefulSetKind,
+            "Service" => KindExec::ServiceKind,
+            "ServiceAccount" => KindExec::ServiceAccountKind,
+            "Secret" => KindExec::SecretKind,
             _ => panic!(), // We assume the DynamicObject won't be a custom object
         }
     }
@@ -154,23 +154,23 @@ impl DynamicObjectView {
 impl DynamicObject {
     // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
+    pub fn kind(&self) -> (kind: KindExec)
+        ensures kind@ == self@.kind,
     {
         if self.as_kube_ref().types.is_none() {
             panic!();
         }
         match self.as_kube_ref().types.as_ref().unwrap().kind.as_str() {
-            "ConfigMap" => Kind::ConfigMapKind,
-            "DaemonSet" => Kind::DaemonSetKind,
-            "PersistentVolumeClaim" => Kind::PersistentVolumeClaimKind,
-            "Pod" => Kind::PodKind,
-            "Role" => Kind::RoleKind,
-            "RoleBinding" => Kind::RoleBindingKind,
-            "StatefulSet" => Kind::StatefulSetKind,
-            "Service" => Kind::ServiceKind,
-            "ServiceAccount" => Kind::ServiceAccountKind,
-            "Secret" => Kind::SecretKind,
+            "ConfigMap" => KindExec::ConfigMapKind,
+            "DaemonSet" => KindExec::DaemonSetKind,
+            "PersistentVolumeClaim" => KindExec::PersistentVolumeClaimKind,
+            "Pod" => KindExec::PodKind,
+            "Role" => KindExec::RoleKind,
+            "RoleBinding" => KindExec::RoleBindingKind,
+            "StatefulSet" => KindExec::StatefulSetKind,
+            "Service" => KindExec::ServiceKind,
+            "ServiceAccount" => KindExec::ServiceAccountKind,
+            "Secret" => KindExec::SecretKind,
             _ => panic!(), // We assume the DynamicObject won't be a custom object
         }
     }
@@ -539,7 +539,7 @@ impl ResourceView for SimpleCRView {
 
     open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind { Kind::CustomResourceKind }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind("simple"@) }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {

@@ -35,7 +35,7 @@ pub open spec fn unmarshallable_spec<K: CustomResourceView>(obj: DynamicObjectVi
         Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::CustomResourceKind => K::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::CustomResourceKind(_) => K::unmarshal_spec(obj.spec).is_Ok(),
     }
 }
 
@@ -52,7 +52,7 @@ pub open spec fn unmarshallable_status<K: CustomResourceView>(obj: DynamicObject
         Kind::ServiceKind => ServiceView::unmarshal_status(obj.status).is_Ok(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status).is_Ok(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
-        Kind::CustomResourceKind => K::unmarshal_status(obj.status).is_Ok(),
+        Kind::CustomResourceKind(_) => K::unmarshal_status(obj.status).is_Ok(),
     }
 }
 
@@ -92,7 +92,7 @@ pub open spec fn valid_object<K: CustomResourceView>(obj: DynamicObjectView) -> 
         Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::CustomResourceKind => K::unmarshal(obj).get_Ok_0().state_validation(),
+        Kind::CustomResourceKind(_) => K::unmarshal(obj).get_Ok_0().state_validation(),
     }
 }
 
@@ -116,7 +116,7 @@ pub open spec fn valid_transition<K: CustomResourceView>(obj: DynamicObjectView,
         Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0()),
         Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0()),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0()),
-        Kind::CustomResourceKind => K::unmarshal(obj).get_Ok_0().transition_validation(K::unmarshal(old_obj).get_Ok_0()),
+        Kind::CustomResourceKind(_) => K::unmarshal(obj).get_Ok_0().transition_validation(K::unmarshal(old_obj).get_Ok_0()),
     }
 }
 
@@ -140,7 +140,7 @@ pub open spec fn marshalled_default_status<K: CustomResourceView>(kind: Kind) ->
         Kind::ServiceKind => ServiceView::marshal_status(ServiceView::default().status()),
         Kind::StatefulSetKind => StatefulSetView::marshal_status(StatefulSetView::default().status()),
         Kind::ServiceAccountKind => ServiceAccountView::marshal_status(ServiceAccountView::default().status()),
-        Kind::CustomResourceKind => K::marshal_status(K::default().status()),
+        Kind::CustomResourceKind(_) => K::marshal_status(K::default().status()),
     }
 }
 
@@ -309,7 +309,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
 // Note that if the resource version is provided, it has to be the correct one.
 pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
     match kind {
-        Kind::CustomResourceKind => false,
+        Kind::CustomResourceKind(_) => false,
         _ => true,
     }
 }
