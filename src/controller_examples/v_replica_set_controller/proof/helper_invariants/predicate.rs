@@ -30,11 +30,11 @@ pub open spec fn cluster_resources_is_finite() -> StatePred<VRSCluster> {
 } 
 
 // The proof will probabily involve more changes elsewhere.
-pub open spec fn vrs_replicas_bounded_above(
+pub open spec fn vrs_replicas_bounded(
     vrs: VReplicaSetView
 ) -> StatePred<VRSCluster> {
     |s: VRSCluster| {
-        vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
+        0 <= vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
     }
 }
 
@@ -144,6 +144,27 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
         } ==> {
             &&& exists |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
             &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
+        }
+    }
+}
+
+pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
+    vrs: VReplicaSetView
+) -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        forall |diff: usize| {
+            #[trigger] at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
+        } ==> {
+            let state = s.ongoing_reconciles()[vrs.object_ref()].local_state; 
+            let filtered_pods = state.filtered_pods.unwrap();
+            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+            &&& s.ongoing_reconciles().contains_key(vrs.object_ref())
+            &&& state.filtered_pods.is_Some()
+            &&& diff <= filtered_pod_keys.len()
+            &&& filtered_pod_keys.no_duplicates()
+            &&& forall |i| #![auto] 0 <= i < diff ==> {
+                &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
+            }
         }
     }
 }

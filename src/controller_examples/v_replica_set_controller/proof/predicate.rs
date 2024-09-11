@@ -266,17 +266,14 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
 
 // Pod deletion predicates
 
-// Placeholder predicate constraining the delete request
-// We'll probably need something here ensuring we only delete the
-// appropriate keys: this will facilitate modifications by a search-and-replace.
+// The delete request must be on a matching pod.
 pub open spec fn delete_constraint(
     vrs: VReplicaSetView, req: DeleteRequest
 ) -> StatePred<VRSCluster> {
     |s: VRSCluster| {
-        true // placeholder
+        matching_pod_entries(vrs, s.resources()).contains_key(req.key)
     }
 }
-
 
 pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
     vrs: VReplicaSetView, diff: nat
@@ -286,7 +283,7 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
         let msg = s.ongoing_reconciles()[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& msg.dst == HostId::ApiServer
@@ -303,7 +300,7 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
         let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
         let request = req_msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, step)(s)
-        &&& VRSCluster::has_pending_k8s_api_req_msg(s, vrs.object_ref())
+        &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& req_msg.dst == HostId::ApiServer
