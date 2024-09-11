@@ -24,30 +24,4 @@ impl std::clone::Clone for VReplicaSetReconcileStep {
     { *self }
 }
 
-impl View for VReplicaSetReconcileStep {
-    type V = VReplicaSetReconcileStepView;
-
-    open spec fn view(&self) -> VReplicaSetReconcileStepView {
-        match self {
-            VReplicaSetReconcileStep::Init => VReplicaSetReconcileStepView::Init,
-            VReplicaSetReconcileStep::AfterListPods => VReplicaSetReconcileStepView::AfterListPods,
-            VReplicaSetReconcileStep::AfterCreatePod(i) => VReplicaSetReconcileStepView::AfterCreatePod(*i as nat),
-            VReplicaSetReconcileStep::AfterDeletePod(i) => VReplicaSetReconcileStepView::AfterDeletePod(*i as nat),
-            VReplicaSetReconcileStep::Done => VReplicaSetReconcileStepView::Done,
-            VReplicaSetReconcileStep::Error => VReplicaSetReconcileStepView::Error,
-        }
-    }
-}
-
-#[is_variant]
-pub enum VReplicaSetReconcileStepView {
-    Init,
-    AfterListPods,
-    AfterCreatePod(nat),
-    AfterDeletePod(nat),
-    Done,
-    Error,
-}
-
-
 }

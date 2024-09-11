@@ -27,15 +27,17 @@ pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<VRSClu
 }
 
 pub open spec fn resource_state_matches(vrs: VReplicaSetView, resources: StoredState) -> bool {
-    let pods: Set<ObjectRef> = Set::new(|k: ObjectRef| owned_selector_match_is(vrs, resources, k));
-    &&& pods.finite()
+    let pods: Set<ObjectRef> = Set::new(|key: ObjectRef| {
+        let obj = resources[key];
+        &&& resources.contains_key(key)
+        &&& owned_selector_match_is(vrs, obj)
+    });
     &&& pods.len() == vrs.spec.replicas.unwrap_or(0)
 }
 
-pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, resources: StoredState, key: ObjectRef) -> bool {
-    let obj = resources[key];
-    &&& resources.contains_key(key)
+pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
     &&& obj.kind == PodView::kind()
+    &&& obj.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
     &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
     &&& obj.metadata.deletion_timestamp.is_None()
