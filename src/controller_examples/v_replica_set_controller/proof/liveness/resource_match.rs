@@ -20,7 +20,10 @@ use crate::v_replica_set_controller::{
     proof::{helper_invariants, predicate::*, liveness::api_actions::*},
     trusted::{spec_types::*, step::*, liveness_theorem::*},
 };
-use vstd::{prelude::*, seq::*, seq_lib::*, set_lib::*, string::*, map::*, map_lib::*, math::abs};
+use vstd::{
+    prelude::*, seq::*, seq_lib::*, set_lib::*,
+    string::*, map::*, map_lib::*, math::abs
+};
 
 verus! {
 
@@ -37,8 +40,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
-        spec.entails(always(lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(
-            vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::matching_pods_bounded(vrs)))),
@@ -68,8 +69,6 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         &&& spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed())))
         &&& spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
         &&& spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref()))))
-        &&& spec.entails(always(lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(
-            vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init))))
         &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
         &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs))))
         &&& spec.entails(always(lift_state(helper_invariants::matching_pods_bounded(vrs))))
@@ -302,8 +301,6 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
         spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(
-            vrs.object_ref(), |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
@@ -340,8 +337,6 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         &&& VRSCluster::busy_disabled()(s)
         &&& VRSCluster::every_in_flight_msg_has_unique_id()(s)
         &&& VRSCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& VRSCluster::no_pending_req_msg_at_reconcile_state(vrs.object_ref(), 
-                |s: VReplicaSetReconcileState| s.reconcile_step == VReplicaSetReconcileStep::Init)(s)
         &&& helper_invariants::every_create_request_is_well_formed()(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)(s)
@@ -355,7 +350,6 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         lift_state(VRSCluster::busy_disabled()),
         lift_state(VRSCluster::every_in_flight_msg_has_unique_id()),
         lift_state(VRSCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(VRSCluster::no_pending_req_msg_at_reconcile_state(vrs.object_ref(), state_is_init)),
         lift_state(helper_invariants::every_create_request_is_well_formed()),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)),
@@ -604,24 +598,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
             )
         ),
 {
-    let invariants = {
-        &&& spec.entails(always(lift_action(VRSCluster::next())))
-        &&& spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i)))
-        &&& spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i)))
-        &&& spec.entails(always(lift_state(VRSCluster::crash_disabled())))
-        &&& spec.entails(always(lift_state(VRSCluster::busy_disabled())))
-        &&& spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id())))
-        &&& spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed())))
-        &&& spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
-        &&& spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref()))))
-        &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
-        &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs))))
-        &&& spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
-        &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
-        &&& spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
-        &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
-        &&& spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
-    };
     let list_resp = |diff: int| lift_state(
         |s: VRSCluster| {
             &&& exists_resp_in_flight_at_after_list_pods_step(vrs)(s)
@@ -754,24 +730,6 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
             )
         ),
 {
-    let invariants = {
-        &&& spec.entails(always(lift_action(VRSCluster::next())))
-        &&& spec.entails(tla_forall(|i| VRSCluster::controller_next().weak_fairness(i)))
-        &&& spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i)))
-        &&& spec.entails(always(lift_state(VRSCluster::crash_disabled())))
-        &&& spec.entails(always(lift_state(VRSCluster::busy_disabled())))
-        &&& spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id())))
-        &&& spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed())))
-        &&& spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
-        &&& spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref()))))
-        &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
-        &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs))))
-        &&& spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
-        &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
-        &&& spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
-        &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
-        &&& spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
-    };
     let create_req_msg = |req_msg: VRSMessage, diff: int| lift_state(|s: VRSCluster| {
         &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, req_msg, (abs(diff) - 1) as nat)(s)
         &&& num_diff_pods_is(vrs, diff)(s)
@@ -963,11 +921,11 @@ pub proof fn lemma_filtered_pods_len_equals_matching_pods_len(
         }),
 {}
 //
-// @Xudong Sun take a look.
+// TODO: Prove this.
 //
 // filter_pods filters pods in a very similar way to matching_pods, but the former
 // works on a sequence of PodViews, while the latter works on the key-value store directly.
-// I'll probably come back to this soon.
+// I need to do some manual effort to make the two representations work together.
 //
 
 
@@ -1091,7 +1049,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                     assert(matching_pod_entries(vrs, s.resources()).insert(key, created_obj) == matching_pod_entries(vrs, s_prime.resources()));
                 } else {
                     a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
-                    lemma_api_request_not_on_matching_pods_maintains_matching_pods(
+                    lemma_api_request_not_made_by_vrs_maintains_matching_pods(
                         s, s_prime, vrs, diff, msg, req_msg,
                     );
                     assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));                }
@@ -1618,7 +1576,14 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         }),
 {}
 //
-// This might actually be slightly trickier than the previous one.
+// TODO: Prove this.
+//
+// filter_pods filters pods in a very similar way to matching_pods, but the former
+// works on a sequence of PodViews, while the latter works on the key-value store directly.
+// I need to do some manual effort to make the two representations work together.
+// 
+// Once proven, this will supplant the earlier lemma
+// lemma_filtered_pods_len_equals_matching_pods_len.
 //
 
 
@@ -1716,7 +1681,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                     assert(matching_pod_entries(vrs, s.resources()).remove(key) == matching_pod_entries(vrs, s_prime.resources()));
                 } else {
                     a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
-                    lemma_api_request_not_on_matching_pods_maintains_matching_pods(
+                    lemma_api_request_not_made_by_vrs_maintains_matching_pods(
                         s, s_prime, vrs, diff, msg, req_msg,
                     );
                     assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
@@ -1849,9 +1814,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     );
 }
 
-// Ensures that once we've reconciled, we stay reconciled.
-
-// This is actually trickier than I thought it'd be...
 #[verifier(external_body)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView, p: TempPred<VRSCluster>
@@ -1903,5 +1865,11 @@ pub proof fn lemma_current_state_matches_is_stable(
 
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
 }
+//
+// TODO: Prove this.
+//
+// The earlier controllers only created resources and never deleted them, so stability of reconciliation
+// was trivial, while it seems more difficult here since the controller can delete resources.
+//
 
 }

@@ -17,9 +17,9 @@ pub proof fn a_submap_of_a_finite_map_is_finite<K, V>(m1: Map<K, V>, m2: Map<K, 
         m2.dom().finite(),
     ensures m1.dom().finite();
 //
-// @Xudong Sun take a look.
-// 
-// A submap of a finite map is finite -- prove this by showing m1.dom() <= m2.dom().
+// TODO: Prove this -- Trivial.
+//
+// A submap of a finite map is in turn finite.
 //
 
 

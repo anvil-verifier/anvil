@@ -108,8 +108,8 @@ pub proof fn seq_pred_false_on_all_elements_implies_empty_filter<A>(s: Seq<A>, p
     requires forall |e: A| #![auto] s.contains(e) ==> !pred(e),
     ensures s.filter(pred).len() == 0;
 //
-// @Xudong Sun take a look.
-// 
+// TODO: Prove this -- Trivial.
+//
 // If `pred` is false on every element, filter will return an empty sequence.
 //
 

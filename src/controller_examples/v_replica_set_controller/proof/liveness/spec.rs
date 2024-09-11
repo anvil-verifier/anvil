@@ -77,6 +77,11 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetV
         forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs))),
 {
 }
+//
+// TODO: Prove this.
+//
+// Main body for showing invariant stability.
+//
 
 // Next and all the wf conditions.
 pub open spec fn next_with_wf() -> TempPred<VRSCluster> {
@@ -165,5 +170,10 @@ pub proof fn sm_spec_entails_all_invariants(vrs: VReplicaSetView)
     ensures cluster_spec().entails(derived_invariants_since_beginning(vrs)),
 {
 }
+//
+// TODO: Prove this.
+//
+// Main body for showing that invariants hold.
+//
 
 }

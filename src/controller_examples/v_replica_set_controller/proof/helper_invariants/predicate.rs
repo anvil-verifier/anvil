@@ -29,7 +29,6 @@ pub open spec fn cluster_resources_is_finite() -> StatePred<VRSCluster> {
     |s: VRSCluster| s.resources().dom().finite()
 } 
 
-// The proof will probabily involve more changes elsewhere.
 pub open spec fn vrs_replicas_bounded(
     vrs: VReplicaSetView
 ) -> StatePred<VRSCluster> {
@@ -37,6 +36,11 @@ pub open spec fn vrs_replicas_bounded(
         0 <= vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
     }
 }
+//
+// TODO: Prove this.
+//
+// This should be easy to enforce with state validation.
+//
 
 pub open spec fn matching_pods_bounded(
     vrs: VReplicaSetView
@@ -45,6 +49,11 @@ pub open spec fn matching_pods_bounded(
         0 <= matching_pod_entries(vrs, s.resources()).len() <= i32::MAX // As allowed by the previous invariant.
     }
 }
+//
+// TODO: Prove this.
+//
+// This should be easy to enforce with state validation.
+//
 
 pub open spec fn vrs_selector_matches_template_labels(
     vrs: VReplicaSetView
@@ -61,6 +70,11 @@ pub open spec fn vrs_selector_matches_template_labels(
         vrs.spec.selector.matches(match_value)
     }
 }
+//
+// TODO: Prove this.
+//
+// This should be easy to enforce with state validation.
+//
 
 pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> {
     |s: VRSCluster| {
@@ -101,6 +115,12 @@ pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> 
         }
     }
 }
+//
+// TODO: Prove this.
+//
+// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
+// proof for other state machines within the compound state machine.
+//
 
 pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePred<VRSCluster> {
     |s: VRSCluster| {
@@ -114,7 +134,12 @@ pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePr
         }
     }
 }
-
+//
+// TODO: Prove this.
+//
+// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
+// proof for other state machines within the compound state machine.
+//
 
 pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_step(
     vrs: VReplicaSetView
@@ -134,6 +159,12 @@ pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_s
         }
     }
 }
+//
+// TODO: Prove this.
+//
+// We know that if VReplicaSet sends a create matching pod request, that it's at an `AfterCreatePod` state.
+// We show this for the other state machines by showing they don't create matching pods.
+//
 
 pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_step(
     vrs: VReplicaSetView
@@ -155,6 +186,11 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
         }
     }
 }
+//
+// TODO: Prove this.
+//
+// The proof sketch for this invariant is similar to the above.
+//
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView
@@ -177,5 +213,17 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
         }
     }
 }
+//
+// TODO: Prove this.
+//
+// We prove this by first showing that in the AfterListPods -> AfterDeletePod transition, that
+// the `filtered_pods` variable contains matching pods in etcd. Next, we show that for
+// AfterDeletePod(diff) => AfterDeletePod(diff - 1), that the pods `filtered_pods[i]`, for
+// i = 1..diff - 2 are unaffected, since `filtered_pods[diff - 1]` is deleted, and the invariant 
+// will hold after `diff` is decreased.
+// 
+// This invariant may have to be moved to a later phase, since I think this invariant will rely
+// on other invariants.
+//
 
 }
