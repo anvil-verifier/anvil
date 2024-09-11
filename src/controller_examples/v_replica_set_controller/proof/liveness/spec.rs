@@ -69,13 +69,13 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView) -> TempPred<V
     }
 }
 
+#[verifier(external_body)]
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vrs))),
         valid(stable(invariants(vrs))),
         forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs))),
 {
-    assume(false)
 }
 
 // Next and all the wf conditions.
@@ -115,11 +115,13 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
     .and(always(tla_forall(|k : usize| lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterDeletePod(k)))))))
     .and(always(lift_state(helper_invariants::cluster_resources_is_finite())))
     .and(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs))))
+    .and(always(lift_state(helper_invariants::matching_pods_bounded(vrs))))
     .and(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
     .and(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
     .and(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
     .and(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
     .and(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
+    .and(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs))))
 }
 
 /// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
@@ -158,10 +160,10 @@ pub open spec fn invariants_since_phase_vii(vrs: VReplicaSetView) -> TempPred<VR
     true_pred()
 }
 
+#[verifier(external_body)]
 pub proof fn sm_spec_entails_all_invariants(vrs: VReplicaSetView)
     ensures cluster_spec().entails(derived_invariants_since_beginning(vrs)),
 {
-    assume(false);
 }
 
 }

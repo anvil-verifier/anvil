@@ -29,9 +29,6 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
 )
     requires
         VRSCluster::next_step(s, s_prime, Step::ApiServerStep(Some(msg))),
-        VRSCluster::crash_disabled()(s),
-        VRSCluster::busy_disabled()(s),
-        VRSCluster::every_in_flight_msg_has_unique_id()(s),
         VRSCluster::each_object_in_etcd_is_well_formed()(s),
         helper_invariants::every_create_request_is_well_formed()(s),
         helper_invariants::no_pending_update_or_update_status_request_on_pods()(s),

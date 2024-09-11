@@ -67,6 +67,7 @@ proof fn liveness_proof(vrs: VReplicaSetView)
     simplify_predicate(cluster_spec(), derived_invariants_since_beginning(vrs));
 }
 
+#[verifier(external_body)]
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, vrs: VReplicaSetView)
     requires
         1 <= i <= 7,
@@ -74,7 +75,6 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
         spec_before_phase_n(i + 1, vrs).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs)))))
     ensures spec_before_phase_n(i, vrs).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
-    assume(false);
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView)

@@ -38,6 +38,14 @@ pub open spec fn vrs_replicas_bounded(
     }
 }
 
+pub open spec fn matching_pods_bounded(
+    vrs: VReplicaSetView
+) -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        0 <= matching_pod_entries(vrs, s.resources()).len() <= i32::MAX // As allowed by the previous invariant.
+    }
+}
+
 pub open spec fn vrs_selector_matches_template_labels(
     vrs: VReplicaSetView
 ) -> StatePred<VRSCluster> {
@@ -152,8 +160,8 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
     vrs: VReplicaSetView
 ) -> StatePred<VRSCluster> {
     |s: VRSCluster| {
-        forall |diff: usize| {
-            #[trigger] at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
+        forall |diff: nat| {
+            #[trigger] at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterDeletePod(diff as usize))(s)
         } ==> {
             let state = s.ongoing_reconciles()[vrs.object_ref()].local_state; 
             let filtered_pods = state.filtered_pods.unwrap();
@@ -164,6 +172,7 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
             &&& filtered_pod_keys.no_duplicates()
             &&& forall |i| #![auto] 0 <= i < diff ==> {
                 &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
+                &&& matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
             }
         }
     }
