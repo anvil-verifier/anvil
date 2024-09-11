@@ -323,7 +323,6 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
         &&& msg.dst == HostId::ApiServer
         &&& msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
-        &&& delete_constraint(vrs, request.get_DeleteRequest_0())(s)
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
@@ -345,7 +344,6 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
         &&& msg.dst == HostId::ApiServer
         &&& msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
-        &&& delete_constraint(vrs, request.get_DeleteRequest_0())(s)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_delete_response().res.is_Ok()
