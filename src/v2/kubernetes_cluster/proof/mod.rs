@@ -14,5 +14,9 @@
 // pub mod message;
 // pub mod stateful_set_controller;
 // pub mod validation_rule;
+pub mod cluster;
 pub mod compositionality;
+pub mod data_store;
+pub mod network;
+pub mod req_resp;
 pub mod wf1_helpers;

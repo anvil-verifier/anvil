@@ -486,4 +486,43 @@ pub open spec fn resource_delete_request_msg(key: ObjectRef) -> spec_fn(Message)
         && msg.content.get_delete_request().key == key
 }
 
+pub open spec fn is_ok_get_response_msg() -> spec_fn(Message) -> bool {
+    |msg: Message|
+        msg.src.is_APIServer()
+        && msg.content.is_get_response()
+        && msg.content.get_get_response().res.is_Ok()
+}
+
+pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
+    |msg: Message|
+        is_ok_get_response_msg()(msg)
+        && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
+}
+
+pub open spec fn is_ok_update_response_msg() -> spec_fn(Message) -> bool {
+    |msg: Message|
+        msg.src.is_APIServer()
+        && msg.content.is_update_response()
+        && msg.content.get_update_response().res.is_Ok()
+}
+
+pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
+    |msg: Message|
+        is_ok_update_response_msg()(msg)
+        && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
+}
+
+pub open spec fn is_ok_create_response_msg() -> spec_fn(Message) -> bool {
+    |msg: Message|
+        msg.src.is_APIServer()
+        && msg.content.is_create_response()
+        && msg.content.get_create_response().res.is_Ok()
+}
+
+pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
+    |msg: Message|
+        is_ok_create_response_msg()(msg)
+        && msg.content.get_create_response().res.get_Ok_0().object_ref() == key
+}
+
 }
