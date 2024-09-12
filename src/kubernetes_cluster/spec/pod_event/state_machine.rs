@@ -18,7 +18,6 @@ impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, 
 pub open spec fn create_pod() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& s.enabled
             &&& input.obj.metadata.name.is_Some()
             &&& input.obj.metadata.namespace.is_Some()
             &&& input.obj.kind == PodView::kind()
@@ -44,7 +43,6 @@ pub open spec fn create_pod() -> PodEventAction<E::Input, E::Output> {
 pub open spec fn delete_pod() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& s.enabled
             &&& input.obj.metadata.name.is_Some()
             &&& input.obj.metadata.namespace.is_Some()
             &&& input.obj.kind == PodView::kind()
@@ -70,7 +68,6 @@ pub open spec fn delete_pod() -> PodEventAction<E::Input, E::Output> {
 pub open spec fn update_pod() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& s.enabled
             &&& input.obj.metadata.name.is_Some()
             &&& input.obj.metadata.namespace.is_Some()
             &&& input.obj.kind == PodView::kind()
@@ -94,7 +91,7 @@ pub open spec fn update_pod() -> PodEventAction<E::Input, E::Output> {
 pub open spec fn pod_event() -> PodEventStateMachine<E::Input, E::Output> {
     StateMachine {
         init: |s: PodEventState| {
-            s.enabled
+            true
         },
         actions: set![Self::create_pod(), Self::delete_pod(), Self::update_pod()],
         step_to_action: |step: Step| {

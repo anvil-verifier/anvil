@@ -36,6 +36,7 @@ pub struct Cluster<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
     pub transient_failure_enabled: bool,
+    pub pod_event_enabled: bool,
 }
 
 impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
@@ -71,11 +72,6 @@ impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R
 
     pub open spec fn has_rest_id_counter_no_smaller_than(self, rest_id: nat) -> bool {
         self.rest_id_allocator.rest_id_counter >= rest_id
-    }
-
-    #[verifier(inline)]
-    pub open spec fn pod_event_enabled(self) -> bool {
-        self.pod_event_state.enabled
     }
 }
 

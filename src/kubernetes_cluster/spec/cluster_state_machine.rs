@@ -55,6 +55,7 @@ pub open spec fn init() -> StatePred<Self> {
         &&& (Self::pod_event().init)(s.pod_event_state)
         &&& s.crash_enabled
         &&& s.transient_failure_enabled
+        &&& s.pod_event_enabled
     }
 }
 
@@ -371,6 +372,7 @@ pub open spec fn pod_event_next() -> Action<Self, (), ()> {
     };
     Action {
         precondition: |input: (), s: Self| {
+            &&& s.pod_event_enabled
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
@@ -393,9 +395,7 @@ pub open spec fn disable_pod_event() -> Action<Self, (), ()> {
         },
         transition: |input: (), s: Self| {
             (Self {
-                pod_event_state: PodEventState{
-                    enabled: false,
-                },
+                pod_event_enabled: false,
                 ..s
             }, ())
         }
@@ -542,7 +542,7 @@ pub open spec fn busy_disabled() -> StatePred<Self> {
 }
 
 pub open spec fn pod_event_disabled() -> StatePred<Self> {
-    |s: Self| !s.pod_event_state.enabled
+    |s: Self| !s.pod_event_enabled
 }
 
 pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {
