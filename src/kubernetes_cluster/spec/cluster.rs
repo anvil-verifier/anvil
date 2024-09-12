@@ -10,6 +10,7 @@ use crate::kubernetes_cluster::spec::{
     external_api::types::ExternalAPIState,
     message::*,
     network::types::NetworkState,
+    pod_event::types::PodEventState,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use vstd::{multiset::*, prelude::*};
@@ -31,6 +32,7 @@ pub struct Cluster<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub client_state: ClientState,
     pub network_state: NetworkState<E::Input, E::Output>,
     pub external_api_state: ExternalAPIState<E>,
+    pub pod_event_state: PodEventState,
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
     pub transient_failure_enabled: bool,
@@ -69,6 +71,11 @@ impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R
 
     pub open spec fn has_rest_id_counter_no_smaller_than(self, rest_id: nat) -> bool {
         self.rest_id_allocator.rest_id_counter >= rest_id
+    }
+
+    #[verifier(inline)]
+    pub open spec fn pod_event_enabled(self) -> bool {
+        self.pod_event_state.enabled
     }
 }
 
