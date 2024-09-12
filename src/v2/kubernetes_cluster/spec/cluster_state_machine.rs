@@ -56,34 +56,18 @@ impl ClusterState {
     }
 
     #[verifier(inline)]
-    pub open spec fn ongoing_reconciles(self, key: int) -> Map<ObjectRef, OngoingReconcile> {
-        self.controller_and_externals[key].controller.ongoing_reconciles
+    pub open spec fn ongoing_reconciles(self, controller_id: int) -> Map<ObjectRef, OngoingReconcile> {
+        self.controller_and_externals[controller_id].controller.ongoing_reconciles
     }
 
     #[verifier(inline)]
-    pub open spec fn scheduled_reconciles(self, key: int) -> Map<ObjectRef, DynamicObjectView> {
-        self.controller_and_externals[key].controller.scheduled_reconciles
+    pub open spec fn scheduled_reconciles(self, controller_id: int) -> Map<ObjectRef, DynamicObjectView> {
+        self.controller_and_externals[controller_id].controller.scheduled_reconciles
     }
 
     pub open spec fn has_rpc_id_counter_no_smaller_than(self, rpc_id: nat) -> bool {
         self.rpc_id_allocator.rpc_id_counter >= rpc_id
     }
-}
-
-pub open spec fn crash_disabled(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| !s.controller_and_externals[controller_id].crash_enabled
-}
-
-pub open spec fn req_drop_disable() -> StatePred<ClusterState> {
-    |s: ClusterState| !s.req_drop_enabled
-}
-
-pub open spec fn rpc_id_counter_is(rpc_id: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| s.rpc_id_allocator.rpc_id_counter == rpc_id
-}
-
-pub open spec fn rpc_id_counter_is_no_smaller_than(rpc_id: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| s.rpc_id_allocator.rpc_id_counter >= rpc_id
 }
 
 #[is_variant]
@@ -131,7 +115,7 @@ impl Cluster {
             // and message drop is enabled...
             &&& s.req_drop_enabled
             // and for each controller...
-            &&& forall |key| self.controller_models.contains_key(key)
+            &&& forall |key| #[trigger] self.controller_models.contains_key(key)
                 ==> {
                     let model = self.controller_models[key];
                     // its internal state exists...
@@ -663,6 +647,22 @@ impl Cluster {
     pub open spec fn external(self, controller_id: int) -> ExternalStateMachine {
         external(self.controller_models[controller_id].external_model.get_Some_0())
     }
+}
+
+impl Cluster {
+
+pub open spec fn controller_exists(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| s.controller_and_externals.contains_key(controller_id)
+}
+
+pub open spec fn crash_disabled(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| !s.controller_and_externals[controller_id].crash_enabled
+}
+
+pub open spec fn req_drop_disable() -> StatePred<ClusterState> {
+    |s: ClusterState| !s.req_drop_enabled
+}
+
 }
 
 }
