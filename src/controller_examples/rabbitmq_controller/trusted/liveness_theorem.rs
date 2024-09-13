@@ -91,7 +91,7 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             &&& resources.contains_key(key)
             &&& ConfigMapView::unmarshal(obj).is_Ok()
             &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == M::make_server_config_map(rabbitmq).data
-            &&& obj.spec == ConfigMapView::marshal_spec((M::make_server_config_map(rabbitmq).data, ()))
+            &&& obj.spec == ConfigMapView::marshal_spec(M::make_server_config_map(rabbitmq).data)
             &&& obj.metadata.labels == M::make_server_config_map(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_server_config_map(rabbitmq).metadata.annotations
         },

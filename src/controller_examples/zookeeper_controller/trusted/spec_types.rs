@@ -152,6 +152,16 @@ impl ResourceView for ZookeeperClusterView {
 
 impl CustomResourceView for ZookeeperClusterView {
     proof fn kind_is_custom_resource() {}
+
+    open spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool {
+        &&& obj_spec.replicas >= 3
+        &&& obj_spec.conf.sync_limit >= 1
+        &&& obj_spec.conf.min_session_timeout <= obj_spec.conf.max_session_timeout
+    }
+
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status())
+    {}
 }
 
 pub struct ZookeeperClusterSpecView {

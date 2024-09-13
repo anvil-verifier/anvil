@@ -15,7 +15,7 @@ pub struct SecretView {
     pub data: Option<Map<StringView, StringView>>, // For view, <String, String> map is used instead of <String, Bytestring> map for now.
 }
 
-type SecretSpecView = (Option<Map<StringView, StringView>>, ());
+type SecretSpecView = Option<Map<StringView, StringView>>;
 
 impl SecretView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> SecretView {
@@ -61,7 +61,7 @@ impl ResourceView for SecretView {
     }
 
     open spec fn spec(self) -> SecretSpecView {
-        (self.data, ())
+        self.data
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -74,7 +74,7 @@ impl ResourceView for SecretView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: SecretView::marshal_spec((self.data, ())),
+            spec: SecretView::marshal_spec(self.data),
             status: SecretView::marshal_status(empty_status()),
         }
     }
@@ -89,7 +89,7 @@ impl ResourceView for SecretView {
         } else {
             Ok(SecretView {
                 metadata: obj.metadata,
-                data: SecretView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                data: SecretView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

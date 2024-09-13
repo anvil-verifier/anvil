@@ -18,7 +18,7 @@ pub struct ServiceAccountView {
     pub automount_service_account_token: Option<bool>,
 }
 
-type ServiceAccountSpecView = (Option<bool>, ());
+type ServiceAccountSpecView = Option<bool>;
 
 impl ServiceAccountView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceAccountView {
@@ -59,7 +59,7 @@ impl ResourceView for ServiceAccountView {
     proof fn object_ref_is_well_formed() {}
 
     open spec fn spec(self) -> ServiceAccountSpecView {
-        (self.automount_service_account_token, ())
+        self.automount_service_account_token
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -70,7 +70,7 @@ impl ResourceView for ServiceAccountView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: ServiceAccountView::marshal_spec((self.automount_service_account_token, ())),
+            spec: ServiceAccountView::marshal_spec(self.automount_service_account_token),
             status: ServiceAccountView::marshal_status(empty_status()),
         }
     }
@@ -85,7 +85,7 @@ impl ResourceView for ServiceAccountView {
             } else {
                 Ok(ServiceAccountView {
                     metadata: obj.metadata,
-                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0(),
                 })
             }
     }
