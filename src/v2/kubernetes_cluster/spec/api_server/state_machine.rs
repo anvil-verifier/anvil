@@ -34,7 +34,7 @@ pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: In
         Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::CustomResourceKind(_) => (installed_types.unmarshallable_spec)(obj),
+        Kind::CustomResourceKind(string) => (installed_types[string].unmarshallable_spec)(obj.spec),
     }
 }
 
@@ -51,7 +51,7 @@ pub open spec fn unmarshallable_status(obj: DynamicObjectView, installed_types: 
         Kind::ServiceKind => ServiceView::unmarshal_status(obj.status).is_Ok(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status).is_Ok(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
-        Kind::CustomResourceKind(_) => (installed_types.unmarshallable_status)(obj),
+        Kind::CustomResourceKind(string) => (installed_types[string].unmarshallable_status)(obj.status),
     }
 }
 
@@ -91,7 +91,7 @@ pub open spec fn valid_object(obj: DynamicObjectView, installed_types: Installed
         Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().state_validation(),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::CustomResourceKind(_) => (installed_types.valid_object)(obj),
+        Kind::CustomResourceKind(string) => (installed_types[string].valid_object)(obj),
     }
 }
 
@@ -115,7 +115,7 @@ pub open spec fn valid_transition(obj: DynamicObjectView, old_obj: DynamicObject
         Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0()),
         Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0()),
         Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0()),
-        Kind::CustomResourceKind(_) => (installed_types.valid_transition)(obj, old_obj),
+        Kind::CustomResourceKind(string) => (installed_types[string].valid_transition)(obj, old_obj),
     }
 }
 
@@ -139,7 +139,7 @@ pub open spec fn marshalled_default_status(kind: Kind, installed_types: Installe
         Kind::ServiceKind => ServiceView::marshal_status(ServiceView::default().status()),
         Kind::StatefulSetKind => StatefulSetView::marshal_status(StatefulSetView::default().status()),
         Kind::ServiceAccountKind => ServiceAccountView::marshal_status(ServiceAccountView::default().status()),
-        Kind::CustomResourceKind(_) => (installed_types.marshalled_default_status)(kind),
+        Kind::CustomResourceKind(string) => (installed_types[string].marshalled_default_status)(),
     }
 }
 
