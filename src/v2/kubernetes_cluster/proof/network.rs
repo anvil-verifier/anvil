@@ -93,10 +93,10 @@ pub proof fn lemma_always_every_pending_req_msg_has_lower_id_than_allocator(self
     self.lemma_always_there_is_the_controller_state(spec, controller_id);
     let next = |s, s_prime| {
         &&& self.next()(s, s_prime)
-        &&& Self::controller_exists(controller_id)(s)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
     };
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(self.next()), lift_state(Self::controller_exists(controller_id))
+        spec, lift_action(next), lift_action(self.next()), lift_state(Self::there_is_the_controller_state(controller_id))
     );
     init_invariant::<ClusterState>(spec, self.init(), next, invariant);
 }
@@ -127,13 +127,13 @@ pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(self, spec
     let next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id)(s)
-        &&& Self::controller_exists(controller_id)(s)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
     };
     self.lemma_always_there_is_the_controller_state(spec, controller_id);
     self.lemma_always_every_pending_req_msg_has_lower_id_than_allocator(spec, controller_id);
     combine_spec_entails_always_n!(
         spec, lift_action(next),
-        lift_action(self.next()), lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id)), lift_state(Self::controller_exists(controller_id))
+        lift_action(self.next()), lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id)), lift_state(Self::there_is_the_controller_state(controller_id))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if s_prime.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
@@ -194,7 +194,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
     let invariant = Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key);
     let stronger_next = |s, s_prime| {
         self.next()(s, s_prime)
-        && Self::controller_exists(controller_id)(s)
+        && Self::there_is_the_controller_state(controller_id)(s)
         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
         && Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id)(s)
     };
@@ -204,7 +204,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
-        lift_state(Self::controller_exists(controller_id)),
+        lift_state(Self::there_is_the_controller_state(controller_id)),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id))
     );
