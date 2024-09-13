@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::spec::{dynamic::*, resource::*};
+use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -13,13 +13,14 @@ verus! {
 pub struct PodEventState {}
 
 pub enum Step {
-    CreatePod(DynamicObjectView),
-    UpdatePod(DynamicObjectView),
-    DeletePod(DynamicObjectView),
+    CreatePod(PodView),
+    UpdatePod(PodView),
+    UpdatePodStatus(PodView),
+    DeletePod(PodView),
 }
 
 pub struct PodEventActionInput {
-    pub obj: DynamicObjectView,
+    pub pod: PodView,
     pub rest_id_allocator: RestIdAllocator,
 }
 
