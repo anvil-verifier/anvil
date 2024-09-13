@@ -82,8 +82,10 @@ pub trait ResourceView: Sized {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status()
         ensures
+            // unmarshal is OK iff unmarshal_spec and unmarshaml_status are OK
             forall |obj: DynamicObjectView| obj.kind == Self::kind()
                 ==> #[trigger] Self::unmarshal(obj).is_Ok() == (Self::unmarshal_spec(obj.spec).is_Ok() && Self::unmarshal_status(obj.status).is_Ok()),
+            // if unmarshal is OK then unmarshalling the spec (status) gives you the spec (status) of the unmarshalled object
             forall |obj: DynamicObjectView| #[trigger] Self::unmarshal(obj).is_Ok()
                 ==> Self::unmarshal_spec(obj.spec).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().spec()
                     && Self::unmarshal_status(obj.status).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().status();
@@ -96,7 +98,6 @@ pub trait ResourceView: Sized {
 
 }
 
-// TODO: use an unit here
 pub type EmptyStatusView = ();
 
 pub open spec fn empty_status() -> EmptyStatusView {
@@ -106,6 +107,10 @@ pub open spec fn empty_status() -> EmptyStatusView {
 pub trait CustomResourceView: ResourceView {
     proof fn kind_is_custom_resource()
         ensures Self::kind().is_CustomResourceKind();
+
+    // The following spec and proof state that validation is only determined by spec and status.
+    // That is, validation is not affected by the metadata.
+    // TODO: promote this to ResourceView.
 
     spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool;
 
