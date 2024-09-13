@@ -138,6 +138,12 @@ impl ResourceView for FluentBitConfigView {
 
 impl CustomResourceView for FluentBitConfigView {
     proof fn kind_is_custom_resource() {}
+
+    open spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool { true }
+
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status())
+    {}
 }
 
 pub struct FluentBitConfigSpecView {

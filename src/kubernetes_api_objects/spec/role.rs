@@ -19,7 +19,7 @@ pub struct RoleView {
     pub policy_rules: Option<Seq<PolicyRuleView>>,
 }
 
-type RoleSpecView = (Option<Seq<PolicyRuleView>>, ());
+type RoleSpecView = Option<Seq<PolicyRuleView>>;
 
 impl RoleView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> RoleView {
@@ -67,7 +67,7 @@ impl ResourceView for RoleView {
     proof fn object_ref_is_well_formed() {}
 
     open spec fn spec(self) -> RoleSpecView {
-        (self.policy_rules, ())
+        self.policy_rules
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -78,7 +78,7 @@ impl ResourceView for RoleView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: RoleView::marshal_spec((self.policy_rules, ())),
+            spec: RoleView::marshal_spec(self.policy_rules),
             status: RoleView::marshal_status(empty_status()),
         }
     }
@@ -93,7 +93,7 @@ impl ResourceView for RoleView {
         } else {
             Ok(RoleView {
                 metadata: obj.metadata,
-                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

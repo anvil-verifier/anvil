@@ -25,7 +25,7 @@ pub struct ConfigMapView {
 ///
 /// We use a unit type in the tuple because there has to be at least two members in a tuple.
 /// The unit type will be replaced once we support other fields than data.
-type ConfigMapSpecView = (Option<Map<StringView, StringView>>, ());
+type ConfigMapSpecView = Option<Map<StringView, StringView>>;
 
 impl ConfigMapView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
@@ -73,7 +73,7 @@ impl ResourceView for ConfigMapView {
     proof fn object_ref_is_well_formed() {}
 
     open spec fn spec(self) -> ConfigMapSpecView {
-        (self.data, ())
+        self.data
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -84,7 +84,7 @@ impl ResourceView for ConfigMapView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: ConfigMapView::marshal_spec((self.data, ())),
+            spec: ConfigMapView::marshal_spec(self.data),
             status: ConfigMapView::marshal_status(empty_status()),
         }
     }
@@ -99,7 +99,7 @@ impl ResourceView for ConfigMapView {
         } else {
             Ok(ConfigMapView {
                 metadata: obj.metadata,
-                data: ConfigMapView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                data: ConfigMapView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

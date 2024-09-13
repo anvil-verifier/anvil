@@ -79,7 +79,7 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             &&& resources.contains_key(key)
             &&& ConfigMapView::unmarshal(obj).is_Ok()
             &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == M::make_config_map(zookeeper).data
-            &&& obj.spec == ConfigMapView::marshal_spec((M::make_config_map(zookeeper).data, ()))
+            &&& obj.spec == ConfigMapView::marshal_spec(M::make_config_map(zookeeper).data)
             &&& obj.metadata.labels == M::make_config_map(zookeeper).metadata.labels
             &&& obj.metadata.annotations == M::make_config_map(zookeeper).metadata.annotations
         },

@@ -81,7 +81,14 @@ pub trait ResourceView: Sized {
         ensures forall |s: Self::Status| Self::unmarshal_status(#[trigger] Self::marshal_status(s)).is_Ok() && s == Self::unmarshal_status(Self::marshal_status(s)).get_Ok_0();
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status()
-        ensures forall |obj: DynamicObjectView| obj.kind == Self::kind() ==> #[trigger] Self::unmarshal(obj).is_Ok() == (Self::unmarshal_spec(obj.spec).is_Ok() && Self::unmarshal_status(obj.status).is_Ok());
+        ensures
+            // unmarshal is OK iff unmarshal_spec and unmarshaml_status are OK
+            forall |obj: DynamicObjectView| obj.kind == Self::kind()
+                ==> #[trigger] Self::unmarshal(obj).is_Ok() == (Self::unmarshal_spec(obj.spec).is_Ok() && Self::unmarshal_status(obj.status).is_Ok()),
+            // if unmarshal is OK then unmarshalling the spec (status) gives you the spec (status) of the unmarshalled object
+            forall |obj: DynamicObjectView| #[trigger] Self::unmarshal(obj).is_Ok()
+                ==> Self::unmarshal_spec(obj.spec).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().spec()
+                    && Self::unmarshal_status(obj.status).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().status();
 
     /// This method specifies the validation rule that only checks the new object.
     spec fn state_validation(self) -> bool;
@@ -91,16 +98,26 @@ pub trait ResourceView: Sized {
 
 }
 
-// TODO: use an unit here
-pub struct EmptyStatusView {}
+pub type EmptyStatusView = ();
 
 pub open spec fn empty_status() -> EmptyStatusView {
-    EmptyStatusView {}
+    ()
 }
 
 pub trait CustomResourceView: ResourceView {
     proof fn kind_is_custom_resource()
         ensures Self::kind().is_CustomResourceKind();
+
+    // The following spec and proof state that validation is only determined by spec and status.
+    // That is, validation is not affected by the metadata.
+    // TODO: promote this to ResourceView.
+
+    spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool;
+
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status());
 }
+
+
 
 }

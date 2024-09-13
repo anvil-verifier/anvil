@@ -3,11 +3,11 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, marshal::*};
-use crate::v2::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
-
 use crate::temporal_logic::defs::*;
+use crate::v2::kubernetes_cluster::spec::message::*;
+use crate::vstd_ext::string_view::StringView;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
@@ -19,12 +19,18 @@ pub struct APIServerState {
     pub stable_resources: Set<ObjectRef>,
 }
 
-pub struct InstalledTypes {
-    pub unmarshallable_spec: spec_fn(DynamicObjectView) -> bool,
-    pub unmarshallable_status: spec_fn(DynamicObjectView) -> bool,
+pub type InstalledTypes = Map<StringView, InstalledType>;
+
+pub struct InstalledType {
+    pub unmarshallable_spec: spec_fn(Value) -> bool,
+    pub unmarshallable_status: spec_fn(Value) -> bool,
     pub valid_object: spec_fn(DynamicObjectView) -> bool,
     pub valid_transition: spec_fn(DynamicObjectView, DynamicObjectView) -> bool,
-    pub marshalled_default_status: spec_fn(Kind) -> Value,
+    pub marshalled_default_status: spec_fn() -> Value,
+}
+
+pub struct Foo {
+    pub bar: Map<Kind, spec_fn(Value) -> bool>,
 }
 
 pub enum APIServerStep {
