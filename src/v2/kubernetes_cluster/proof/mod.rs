@@ -16,6 +16,7 @@
 // pub mod validation_rule;
 pub mod cluster;
 pub mod compositionality;
+pub mod failures;
 pub mod network;
 pub mod objects_in_reconcile;
 pub mod objects_in_store;
