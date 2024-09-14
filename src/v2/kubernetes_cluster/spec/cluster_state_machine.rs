@@ -651,10 +651,6 @@ impl Cluster {
 
 impl Cluster {
 
-pub open spec fn controller_exists(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| s.controller_and_externals.contains_key(controller_id)
-}
-
 pub open spec fn crash_disabled(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| !s.controller_and_externals[controller_id].crash_enabled
 }
