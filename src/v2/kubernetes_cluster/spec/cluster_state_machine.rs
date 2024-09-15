@@ -241,8 +241,7 @@ impl Cluster {
             precondition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 let controller_id = input.0;
                 let chosen_action = self.chosen_controller_next(controller_id);
-                &&& self.controller_models.contains_key(input.0)
-                &&& (chosen_action.precondition)((input.1, input.2), s)
+                (chosen_action.precondition)((input.1, input.2), s)
             },
             transition: |input: (int, Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 let controller_id = input.0;
@@ -270,6 +269,7 @@ impl Cluster {
         };
         Action {
             precondition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
+                &&& self.controller_models.contains_key(controller_id)
                 &&& received_msg_destined_for(input.0, HostId::Controller(controller_id))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
@@ -470,9 +470,7 @@ impl Cluster {
             precondition: |input: (int, Option<Message>), s: ClusterState| {
                 let controller_id = input.0;
                 let chosen_action = self.chosen_external_next(controller_id);
-                &&& self.controller_models.contains_key(input.0)
-                &&& self.controller_models[controller_id].external_model.is_Some()
-                &&& (chosen_action.precondition)((input.1), s)
+                (chosen_action.precondition)((input.1), s)
             },
             transition: |input: (int, Option<Message>), s: ClusterState| {
                 let controller_id = input.0;
@@ -500,6 +498,8 @@ impl Cluster {
         };
         Action {
             precondition: |input: Option<Message>, s: ClusterState| {
+                &&& self.controller_models.contains_key(controller_id)
+                &&& self.controller_models[controller_id].external_model.is_Some()
                 &&& received_msg_destined_for(input, HostId::External(controller_id))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
