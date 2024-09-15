@@ -14,11 +14,15 @@
 // pub mod message;
 // pub mod stateful_set_controller;
 // pub mod validation_rule;
+pub mod api_server_liveness;
 pub mod cluster;
 pub mod compositionality;
-pub mod failures;
+pub mod external_liveness;
+pub mod failures_liveness;
 pub mod network;
+pub mod network_liveness;
 pub mod objects_in_reconcile;
 pub mod objects_in_store;
 pub mod req_resp;
+pub mod stability;
 pub mod wf1_helpers;
