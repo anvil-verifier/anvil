@@ -380,10 +380,7 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
 pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {
     |msg: Message| {
         &&& msg.rpc_id < rpc_id
-        &&& {
-            ||| msg.dst.is_APIServer() && msg.content.is_APIRequest()
-            ||| msg.dst.is_External() && msg.content.is_ExternalRequest()
-        }
+        &&& msg.dst.is_APIServer() && msg.content.is_APIRequest()
     }
 }
 
