@@ -1,9 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::v2::kubernetes_cluster::spec::{external::types::*, message::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
+use crate::v2::kubernetes_cluster::spec::{external::types::*, message::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
@@ -22,7 +22,7 @@ pub open spec fn handle_external_request(model: ExternalModel) -> ExternalAction
                 state: inner_s_prime,
                 ..s
             };
-            let resp_msg = Message::form_external_resp_msg(req_msg, resp);
+            let resp_msg = form_external_resp_msg(req_msg, resp);
             (s_prime, ExternalActionOutput {
                 send: Multiset::singleton(resp_msg),
             })

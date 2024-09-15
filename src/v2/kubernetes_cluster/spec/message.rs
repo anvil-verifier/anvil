@@ -234,18 +234,16 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     }
 }
 
-impl Message {
-
 pub open spec fn controller_req_msg(controller_id: int, req_id: RPCId, req: APIRequest) -> Message {
-    Message::form_msg(HostId::Controller(controller_id), HostId::APIServer, req_id, MessageContent::APIRequest(req))
+    form_msg(HostId::Controller(controller_id), HostId::APIServer, req_id, MessageContent::APIRequest(req))
 }
 
 pub open spec fn controller_external_req_msg(controller_id: int, req_id: RPCId, req: ExternalRequest) -> Message {
-    Message::form_msg(HostId::Controller(controller_id), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
+    form_msg(HostId::Controller(controller_id), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
 }
 
 pub open spec fn built_in_controller_req_msg(rpc_id: RPCId, msg_content: MessageContent) -> Message {
-    Message::form_msg(HostId::BuiltinController, HostId::APIServer, rpc_id, msg_content)
+    form_msg(HostId::BuiltinController, HostId::APIServer, rpc_id, msg_content)
 }
 
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
@@ -277,12 +275,12 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message, err: APIError) -> M
     recommends req_msg.content.is_APIRequest(),
 {
     match req_msg.content.get_APIRequest_0() {
-        APIRequest::GetRequest(_) => Self::form_get_resp_msg(req_msg, GetResponse{res: Err(err)}),
-        APIRequest::ListRequest(_) => Self::form_list_resp_msg(req_msg, ListResponse{res: Err(err)}),
-        APIRequest::CreateRequest(_) => Self::form_create_resp_msg(req_msg, CreateResponse{res: Err(err)}),
-        APIRequest::DeleteRequest(_) => Self::form_delete_resp_msg(req_msg, DeleteResponse{res: Err(err)}),
-        APIRequest::UpdateRequest(_) => Self::form_update_resp_msg(req_msg, UpdateResponse{res: Err(err)}),
-        APIRequest::UpdateStatusRequest(_) => Self::form_update_status_resp_msg(req_msg, UpdateStatusResponse{res: Err(err)}),
+        APIRequest::GetRequest(_) => form_get_resp_msg(req_msg, GetResponse{res: Err(err)}),
+        APIRequest::ListRequest(_) => form_list_resp_msg(req_msg, ListResponse{res: Err(err)}),
+        APIRequest::CreateRequest(_) => form_create_resp_msg(req_msg, CreateResponse{res: Err(err)}),
+        APIRequest::DeleteRequest(_) => form_delete_resp_msg(req_msg, DeleteResponse{res: Err(err)}),
+        APIRequest::UpdateRequest(_) => form_update_resp_msg(req_msg, UpdateResponse{res: Err(err)}),
+        APIRequest::UpdateStatusRequest(_) => form_update_status_resp_msg(req_msg, UpdateStatusResponse{res: Err(err)}),
     }
 }
 
@@ -298,43 +296,43 @@ pub open spec fn form_msg(src: HostId, dst: HostId, rpc_id: RPCId, msg_content: 
 pub open spec fn form_get_resp_msg(req_msg: Message, resp: GetResponse) -> Message
     recommends req_msg.content.is_get_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
 }
 
 pub open spec fn form_list_resp_msg(req_msg: Message, resp: ListResponse) -> Message
     recommends req_msg.content.is_list_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
 }
 
 pub open spec fn form_create_resp_msg(req_msg: Message, resp: CreateResponse) -> Message
     recommends req_msg.content.is_create_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
 }
 
 pub open spec fn form_delete_resp_msg(req_msg: Message, resp: DeleteResponse) -> Message
     recommends req_msg.content.is_delete_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
 }
 
 pub open spec fn form_update_resp_msg(req_msg: Message, resp: UpdateResponse) -> Message
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
 }
 
 pub open spec fn form_update_status_resp_msg(req_msg: Message, resp: UpdateStatusResponse) -> Message
     recommends req_msg.content.is_update_request(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
 }
 
 pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalResponse) -> Message
     recommends req_msg.content.is_ExternalRequest(),
 {
-    Self::form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::ExternalResponse(resp))
+    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::ExternalResponse(resp))
 }
 
 pub open spec fn get_req_msg_content(key: ObjectRef) -> MessageContent {
@@ -377,8 +375,6 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
         name: name,
         obj: obj,
     }))
-}
-
 }
 
 pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {

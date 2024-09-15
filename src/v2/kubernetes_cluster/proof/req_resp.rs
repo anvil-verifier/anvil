@@ -144,7 +144,7 @@ pub open spec fn key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_
             && is_ok_get_response_msg()(msg)
             && s.ongoing_reconciles(controller_id).contains_key(key)
             && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
+            && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
             ==> is_ok_get_response_msg_and_matches_key(s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().content.get_get_request().key)(msg)
     }
 }
@@ -183,7 +183,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
             && is_ok_get_response_msg()(msg)
             && s_prime.ongoing_reconciles(controller_id).contains_key(key)
             && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
+            && resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
         implies
             is_ok_get_response_msg_and_matches_key(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().content.get_get_request().key)(msg)
         by {
@@ -250,7 +250,7 @@ pub open spec fn key_of_object_in_matched_ok_update_resp_message_is_same_as_key_
             && is_ok_update_response_msg()(msg)
             && s.ongoing_reconciles(controller_id).contains_key(key)
             && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, pending_req)
+            && resp_msg_matches_req_msg(msg, pending_req)
             ==> is_ok_update_response_msg_and_matches_key(update_req.key())(msg)
     }
 }
@@ -288,7 +288,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
             && is_ok_update_response_msg()(msg) && s_prime.ongoing_reconciles(controller_id).contains_key(key)
             && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
+            && resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
         implies
             is_ok_update_response_msg_and_matches_key(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().content.get_update_request().key())(msg)
         by {
@@ -355,7 +355,7 @@ pub open spec fn key_of_object_in_matched_ok_create_resp_message_is_same_as_key_
             && is_ok_create_response_msg()(msg)
             && s.ongoing_reconciles(controller_id).contains_key(key)
             && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            && #[trigger] Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
+            && #[trigger] resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
             && create_req.obj.metadata.name.is_Some()
             ==> is_ok_create_response_msg_and_matches_key(create_req.key())(msg)
     }
@@ -395,7 +395,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
             && is_ok_create_response_msg()(msg) && s_prime.ongoing_reconciles(controller_id).contains_key(key)
             && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
+            && resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0())
             && create_req.obj.metadata.name.is_Some()
         implies
             is_ok_create_response_msg_and_matches_key(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().content.get_create_request().key())(msg)
