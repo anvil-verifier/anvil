@@ -6,8 +6,6 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::v2::kubernetes_cluster::spec::{
     api_server::types::*, cluster_state_machine::*, message::*,
 };
-// use crate::vstd_ext::multiset_lib::*;
-// use vstd::assert_multisets_equal;
 use vstd::prelude::*;
 
 verus! {
