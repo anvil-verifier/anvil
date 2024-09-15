@@ -649,16 +649,4 @@ impl Cluster {
     }
 }
 
-impl Cluster {
-
-pub open spec fn crash_disabled(controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| !s.controller_and_externals[controller_id].crash_enabled
-}
-
-pub open spec fn req_drop_disable() -> StatePred<ClusterState> {
-    |s: ClusterState| !s.req_drop_enabled
-}
-
-}
-
 }

@@ -75,19 +75,6 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
     leads_to_stable_temp::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
 }
 
-pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
-    spec: TempPred<Self>, any_pred: TempPred<Self>
-)
-    requires
-        spec.entails(always(lift_action(Self::next()))),
-        spec.entails(Self::disable_crash().weak_fairness(())),
-    ensures spec.entails(any_pred.leads_to(always(lift_state(Self::crash_disabled())))),
-{
-    valid_implies_implies_leads_to::<Self>(spec, any_pred, true_pred());
-    Self::lemma_true_leads_to_crash_always_disabled(spec);
-    leads_to_trans_temp::<Self>(spec, any_pred, true_pred(), always(lift_state(Self::crash_disabled())));
-}
-
 // This desired_state_is specifies the desired state (described in the cr object)
 // Informally, it says that given the cr object, the object's key exists in the etcd,
 // and the corresponding object in etcd has the same spec and uid of the given cr object.
