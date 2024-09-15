@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::v2::kubernetes_cluster::spec::{controller::types::*, message::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
+use crate::v2::kubernetes_cluster::spec::{controller::types::*, message::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
@@ -53,7 +53,7 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
                 &&& if s.ongoing_reconciles[cr_key].pending_req_msg.is_Some() {
                     &&& input.recv.is_Some()
                     &&& (input.recv.get_Some_0().content.is_APIResponse() || input.recv.get_Some_0().content.is_ExternalResponse())
-                    &&& Message::resp_msg_matches_req_msg(input.recv.get_Some_0(), s.ongoing_reconciles[cr_key].pending_req_msg.get_Some_0())
+                    &&& resp_msg_matches_req_msg(input.recv.get_Some_0(), s.ongoing_reconciles[cr_key].pending_req_msg.get_Some_0())
                 } else {
                     input.recv.is_None()
                 }
@@ -77,10 +77,10 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
             let (pending_req_msg, send, rpc_id_allocator_prime) = if req_o.is_Some() {
                 let pending_req_msg = match req_o.get_Some_0() {
                     RequestContent::KubernetesRequest(req) => {
-                        Some(Message::controller_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
+                        Some(controller_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
                     },
                     RequestContent::ExternalRequest(req) => {
-                        Some(Message::controller_external_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
+                        Some(controller_external_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
                     }
                 };
                 (pending_req_msg, Multiset::singleton(pending_req_msg.get_Some_0()), input.rpc_id_allocator.allocate().0)

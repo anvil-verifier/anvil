@@ -502,7 +502,7 @@ pub open spec fn handle_get_request_msg(msg: Message, s: APIServerState) -> (API
         msg.content.is_get_request(),
 {
     let req = msg.content.get_get_request();
-    (s, Message::form_get_resp_msg(msg, handle_get_request(req, s)))
+    (s, form_get_resp_msg(msg, handle_get_request(req, s)))
 }
 
 pub open spec fn handle_list_request_msg(msg: Message, s: APIServerState) -> (APIServerState, Message)
@@ -510,7 +510,7 @@ pub open spec fn handle_list_request_msg(msg: Message, s: APIServerState) -> (AP
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    (s, Message::form_list_resp_msg(msg, handle_list_request(req, s)))
+    (s, form_list_resp_msg(msg, handle_list_request(req, s)))
 }
 
 pub open spec fn handle_create_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
@@ -519,7 +519,7 @@ pub open spec fn handle_create_request_msg(installed_types: InstalledTypes, msg:
 {
     let req = msg.content.get_create_request();
     let (s_prime, resp) = handle_create_request(installed_types, req, s);
-    (s_prime, Message::form_create_resp_msg(msg, resp))
+    (s_prime, form_create_resp_msg(msg, resp))
 }
 
 pub open spec fn handle_delete_request_msg(msg: Message, s: APIServerState) -> (APIServerState, Message)
@@ -528,7 +528,7 @@ pub open spec fn handle_delete_request_msg(msg: Message, s: APIServerState) -> (
 {
     let req = msg.content.get_delete_request();
     let (s_prime, resp) = handle_delete_request(req, s);
-    (s_prime, Message::form_delete_resp_msg(msg, resp))
+    (s_prime, form_delete_resp_msg(msg, resp))
 }
 
 pub open spec fn handle_update_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
@@ -537,7 +537,7 @@ pub open spec fn handle_update_request_msg(installed_types: InstalledTypes, msg:
 {
     let req = msg.content.get_update_request();
     let (s_prime, resp) = handle_update_request(installed_types, req, s);
-    (s_prime, Message::form_update_resp_msg(msg, resp))
+    (s_prime, form_update_resp_msg(msg, resp))
 }
 
 pub open spec fn handle_update_status_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
@@ -546,7 +546,7 @@ pub open spec fn handle_update_status_request_msg(installed_types: InstalledType
 {
     let req = msg.content.get_update_status_request();
     let (s_prime, resp) = handle_update_status_request(installed_types, req, s);
-    (s_prime, Message::form_update_status_resp_msg(msg, resp))
+    (s_prime, form_update_status_resp_msg(msg, resp))
 }
 
 // etcd is modeled as a centralized map that handles get/list/create/delete/update

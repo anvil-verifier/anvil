@@ -418,7 +418,7 @@ impl Cluster {
         let result = |input: (Message, APIError), s: ClusterState| {
             let req_msg = input.0;
             let api_err = input.1;
-            let resp = Message::form_matched_err_resp_msg(req_msg, api_err);
+            let resp = form_matched_err_resp_msg(req_msg, api_err);
             let msg_ops = MessageOps {
                 recv: Some(req_msg),
                 send: Multiset::singleton(resp),
