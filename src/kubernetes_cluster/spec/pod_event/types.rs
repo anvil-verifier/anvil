@@ -10,7 +10,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct PodEventState {}
+pub type PodEventState = ();
 
 pub enum Step {
     CreatePod(PodView),
