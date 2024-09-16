@@ -18,8 +18,7 @@ impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, 
 pub open spec fn create_pod() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& input.pod.metadata.name.is_Some()
-            &&& input.pod.metadata.namespace.is_Some()
+            true
         },
         transition: |input: PodEventActionInput, s: PodEventState| {
             let create_req_msg = Message::pod_event_req_msg(Message::create_req_msg_content(
@@ -41,8 +40,7 @@ pub open spec fn create_pod() -> PodEventAction<E::Input, E::Output> {
 pub open spec fn delete_pod() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& input.pod.metadata.name.is_Some()
-            &&& input.pod.metadata.namespace.is_Some()
+            true
         },
         transition: |input: PodEventActionInput, s: PodEventState| {
             let delete_req_msg = Message::pod_event_req_msg(Message::delete_req_msg_content(
@@ -62,8 +60,7 @@ pub open spec fn delete_pod() -> PodEventAction<E::Input, E::Output> {
 pub open spec fn update_pod() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& input.pod.metadata.name.is_Some()
-            &&& input.pod.metadata.namespace.is_Some()
+            true
         },
         transition: |input: PodEventActionInput, s: PodEventState| {
             let update_req_msg = Message::pod_event_req_msg(Message::update_req_msg_content(
@@ -83,8 +80,7 @@ pub open spec fn update_pod() -> PodEventAction<E::Input, E::Output> {
 pub open spec fn update_pod_status() -> PodEventAction<E::Input, E::Output> {
     Action {
         precondition: |input: PodEventActionInput, s: PodEventState| {
-            &&& input.pod.metadata.name.is_Some()
-            &&& input.pod.metadata.namespace.is_Some()
+            true
         },
         transition: |input: PodEventActionInput, s: PodEventState| {
             let update_status_req_msg = Message::pod_event_req_msg(Message::update_status_req_msg_content(
