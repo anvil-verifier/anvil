@@ -3,6 +3,7 @@
 pub mod cluster;
 pub mod compositionality;
 pub mod failures_liveness;
+pub mod garbage_collector;
 pub mod network;
 pub mod network_liveness;
 pub mod objects_in_reconcile;
