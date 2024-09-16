@@ -10,7 +10,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct ClientState {}
+pub type ClientState = ();
 
 pub enum Step {
     CreateCustomResource(DynamicObjectView),

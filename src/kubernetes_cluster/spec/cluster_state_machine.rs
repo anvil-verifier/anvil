@@ -15,6 +15,7 @@ use crate::kubernetes_cluster::spec::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     external_api::types::{ExternalAPIAction, ExternalAPIActionInput},
+    pod_event::types::{PodEventActionInput, PodEventState},
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -31,11 +32,13 @@ pub enum Step<Msg> {
     ControllerStep((Option<Msg>, Option<ObjectRef>)),
     ClientStep(),
     ExternalAPIStep(Option<Msg>),
+    PodEventStep(),
     ScheduleControllerReconcileStep(ObjectRef),
     RestartController(),
     DisableCrash(),
     FailTransientlyStep((Msg, APIError)),
     DisableTransientFailure(),
+    DisablePodEvent(),
     StutterStep(),
 }
 
@@ -49,8 +52,10 @@ pub open spec fn init() -> StatePred<Self> {
         &&& (Self::client().init)(s.client_state)
         &&& (Self::network().init)(s.network_state)
         &&& (Self::external_api().init)(s.external_api_state)
+        &&& (Self::pod_event().init)(s.pod_event_state)
         &&& s.crash_enabled
         &&& s.transient_failure_enabled
+        &&& s.pod_event_enabled
     }
 }
 
@@ -351,6 +356,52 @@ pub open spec fn client_next() -> Action<Self, (), ()> {
     }
 }
 
+pub open spec fn pod_event_next() -> Action<Self, (), ()> {
+    let result = |input: (), s: Self| {
+        let host_result = Self::pod_event().next_result(
+            s.rest_id_allocator,
+            s.pod_event_state
+        );
+        let msg_ops = MessageOps {
+            recv: None,
+            send: host_result.get_Enabled_1().send,
+        };
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
+
+        (host_result, network_result)
+    };
+    Action {
+        precondition: |input: (), s: Self| {
+            &&& s.pod_event_enabled
+            &&& result(input, s).0.is_Enabled()
+            &&& result(input, s).1.is_Enabled()
+        },
+        transition: |input: (), s: Self| {
+            let (host_result, network_result) = result(input, s);
+            (Self {
+                pod_event_state: host_result.get_Enabled_0(),
+                network_state: network_result.get_Enabled_0(),
+                rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                ..s
+            }, ())
+        },
+    }
+}
+
+pub open spec fn disable_pod_event() -> Action<Self, (), ()> {
+    Action {
+        precondition: |input:(), s: Self| {
+            true
+        },
+        transition: |input: (), s: Self| {
+            (Self {
+                pod_event_enabled: false,
+                ..s
+            }, ())
+        }
+    }
+}
+
 pub open spec fn stutter() -> Action<Self, (), ()> {
     Action {
         precondition: |input: (), s: Self| {
@@ -369,11 +420,13 @@ pub open spec fn next_step(s: Self, s_prime: Self, step: Step<MsgType<E>>) -> bo
         Step::ControllerStep(input) => Self::controller_next().forward(input)(s, s_prime),
         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
         Step::ExternalAPIStep(input) => Self::external_api_next().forward(input)(s, s_prime),
+        Step::PodEventStep() => Self::pod_event_next().forward(())(s, s_prime),
         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => Self::restart_controller().forward(())(s, s_prime),
         Step::DisableCrash() => Self::disable_crash().forward(())(s, s_prime),
         Step::FailTransientlyStep(input) => Self::fail_request_transiently().forward(input)(s, s_prime),
         Step::DisableTransientFailure() => Self::disable_transient_failure().forward(())(s, s_prime),
+        Step::DisablePodEvent() => Self::disable_pod_event().forward(())(s, s_prime),
         Step::StutterStep() => Self::stutter().forward(())(s, s_prime),
     }
 }
@@ -397,6 +450,7 @@ pub open spec fn sm_wf_spec() -> TempPred<Self> {
     .and(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)))
     .and(Self::disable_crash().weak_fairness(()))
     .and(Self::disable_transient_failure().weak_fairness(()))
+    .and(Self::disable_pod_event().weak_fairness(()))
 }
 
 pub open spec fn kubernetes_api_action_pre(action: ApiServerAction<E::Input, E::Output>, input: Option<MsgType<E>>) -> StatePred<Self> {
@@ -485,6 +539,10 @@ pub open spec fn crash_disabled() -> StatePred<Self> {
 // TODO: rename it!
 pub open spec fn busy_disabled() -> StatePred<Self> {
     |s: Self| !s.transient_failure_enabled
+}
+
+pub open spec fn pod_event_disabled() -> StatePred<Self> {
+    |s: Self| !s.pod_event_enabled
 }
 
 pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {
