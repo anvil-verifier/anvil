@@ -63,11 +63,6 @@ impl<T> TempPred<T> {
         TempPred::new(|ex: Execution<T>| self.satisfied_by(ex) ==> other.satisfied_by(ex))
     }
 
-    /// `<=>` for temporal predicates in TLA+ (i.e., `<==>` in Verus).
-    pub open spec fn equals(self, other: Self) -> Self {
-        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex) <==> other.satisfied_by(ex))
-    }
-
     /// `~>` for temporal predicates in TLA+.
     /// Returns a temporal predicate that is satisfied
     /// iff it is always the case that `self` getting satisfied implies `other` eventually getting satisfied.
@@ -178,7 +173,7 @@ pub open spec fn true_pred<T>() -> TempPred<T> {
 }
 
 pub open spec fn false_pred<T>() -> TempPred<T> {
-    lift_state(|s: T| false)
+    not(true_pred())
 }
 
 }

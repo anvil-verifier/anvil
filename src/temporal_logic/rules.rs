@@ -97,13 +97,6 @@ proof fn implies_contraposition_apply<T>(ex: Execution<T>, p: TempPred<T>, q: Te
     ensures not(p).satisfied_by(ex),
 {}
 
-proof fn equals_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.equals(q).satisfied_by(ex),
-        p.satisfied_by(ex),
-    ensures q.satisfied_by(ex),
-{}
-
 proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         always(p.implies(q)).satisfied_by(ex),
@@ -121,15 +114,6 @@ proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     ensures q.satisfied_by(ex),
 {
     implies_apply::<T>(ex, p, q);
-}
-
-proof fn entails_apply_auto<T>()
-    ensures forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>| #[trigger] p.entails(q) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
-{
-    assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
-    #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
-        entails_apply(ex, p, q);
-    };
 }
 
 proof fn not_proved_by_contraposition<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
@@ -202,57 +186,12 @@ spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     witness
 }
 
-proof fn equals_to_implies<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires p.equals(q).satisfied_by(ex),
-    ensures
-        p.implies(q).satisfied_by(ex),
-        q.implies(p).satisfied_by(ex),
-{}
-
-proof fn implies_to_equals<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.implies(q).satisfied_by(ex),
-        q.implies(p).satisfied_by(ex),
-    ensures p.equals(q).satisfied_by(ex),
-{}
-
-proof fn valid_equals_to_valid_implies<T>(p: TempPred<T>, q: TempPred<T>)
-    requires valid(p.equals(q)),
-    ensures
-        valid(p.implies(q)),
-        valid(q.implies(p)),
-{
-    assert forall |ex| p.implies(q).satisfied_by(ex) && q.implies(p).satisfied_by(ex) by {
-        equals_to_implies::<T>(ex, p, q);
-    };
-}
-
-proof fn valid_implies_to_valid_equals<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.implies(q)),
-        valid(q.implies(p)),
-    ensures valid(p.equals(q)),
-{
-    assert forall |ex| p.equals(q).satisfied_by(ex) by {
-        implies_to_equals(ex, p, q);
-    };
-}
-
 proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
     requires valid(p),
     ensures valid(always(p)),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) by {
         assert(forall |i| #[trigger] p.satisfied_by(ex.suffix(i)));
-    };
-}
-
-proof fn always_implies_current<T>(p: TempPred<T>)
-    ensures valid(always(p).implies(p)),
-{
-    assert forall |ex| always(p).satisfied_by(ex) implies #[trigger] p.satisfied_by(ex) by {
-        always_unfold(ex, p);
-        execution_equality::<T>(ex, ex.suffix(0));
     };
 }
 
@@ -346,59 +285,6 @@ proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: TempPred<T>, inv: Tem
     }
 }
 
-proof fn p_is_preserved_before_t<T>(ex: Execution<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, t: nat, i: nat)
-    requires
-        i <= t,
-        p.satisfied_by(ex),
-        forall |idx: nat| next.satisfied_by(#[trigger] ex.suffix(idx)),
-        forall |idx: nat| idx < t ==> !q.satisfied_by(#[trigger] ex.suffix(idx)),
-        forall |idx: nat| p.satisfied_by(ex.suffix(idx)) && !q.satisfied_by(ex.suffix(idx)) && next.satisfied_by(#[trigger] ex.suffix(idx))
-            ==> p.satisfied_by(ex.suffix(idx + 1)),
-    ensures p.satisfied_by(ex.suffix(i)),
-    decreases i,
-{
-    if i == 0 {
-        execution_equality::<T>(ex, ex.suffix(0));
-    } else {
-        p_is_preserved_before_t::<T>(ex, next, p, q, t, (i-1) as nat);
-    }
-}
-
-proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, i: nat)
-    requires
-        p.satisfied_by(ex),
-        q.satisfied_by(ex.suffix(i)),
-        always(p.and(not(q)).and(next).implies(later(p))).satisfied_by(ex),
-        always(next).satisfied_by(ex),
-    ensures exists |idx: nat| p.and(q).satisfied_by(#[trigger] ex.suffix(idx)),
-    decreases i,
-{
-    if i == 0 {
-        execution_equality::<T>(ex, ex.suffix(0));
-        assert(p.and(q).satisfied_by(ex.suffix(0)));
-    } else {
-        if exists |j: nat| {
-            &&& j < i
-            &&& q.satisfied_by(#[trigger] ex.suffix(j))
-        } {
-            let t = choose |j: nat| {
-                &&& j < i
-                &&& q.satisfied_by(#[trigger] ex.suffix(j))
-            };
-            confluence_at_some_point::<T>(ex, next, p, q, t);
-        } else {
-            assert forall |idx: nat| p.satisfied_by(ex.suffix(idx)) && !q.satisfied_by(ex.suffix(idx)) && next.satisfied_by(#[trigger] ex.suffix(idx))
-            implies p.satisfied_by(ex.suffix(idx + 1)) by {
-                always_unfold::<T>(ex, p.and(not(q)).and(next).implies(later(p)));
-                implies_apply::<T>(ex.suffix(idx), p.and(not(q)).and(next), later(p));
-                execution_equality::<T>(ex.suffix(idx).suffix(1), ex.suffix(idx + 1));
-            };
-            p_is_preserved_before_t::<T>(ex, next, p, q, i, i);
-            assert(p.and(q).satisfied_by(ex.suffix(i)));
-        }
-    }
-}
-
 proof fn instantiate_entailed_always<T>(ex: Execution<T>, i: nat, spec: TempPred<T>, p: TempPred<T>)
     requires
         spec.satisfied_by(ex),
@@ -446,11 +332,12 @@ pub proof fn execution_equality<T>(ex1: Execution<T>, ex2: Execution<T>)
 }
 
 pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
-    requires valid(p.equals(q)),
+    requires
+        p.entails(q),
+        q.entails(p),
     ensures p == q,
 {
     assert forall |ex: Execution<T>| #[trigger] (p.pred)(ex) == (q.pred)(ex) by {
-        valid_equals_to_valid_implies::<T>(p, q);
         if (p.pred)(ex) {
             implies_apply::<T>(ex, p, q);
         } else {
@@ -538,7 +425,7 @@ proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
 }
 
 proof fn a_to_temp_pred_equality<T, A>(p: spec_fn(A) -> TempPred<T>, q: spec_fn(A) -> TempPred<T>)
-    requires forall |a: A| #[trigger] valid(p(a).equals(q(a))),
+    requires forall |a: A| #[trigger] p(a).entails(q(a)) && q(a).entails(p(a)),
     ensures p == q,
 {
     assert forall |a: A| #[trigger] p(a) == q(a) by {
@@ -598,7 +485,7 @@ pub proof fn tla_forall_always_equality<T, A>(a_to_p: spec_fn(A) -> TempPred<T>)
 }
 
 pub proof fn tla_forall_always_equality_variant<T, A>(a_to_always: spec_fn(A) -> TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>)
-    requires forall |a: A| #![trigger a_to_always(a)] valid(a_to_always(a).equals((|a: A| always(a_to_p(a)))(a))),
+    requires forall |a: A| #![trigger a_to_always(a)] a_to_always(a).entails((|a: A| always(a_to_p(a)))(a)) && ((|a: A| always(a_to_p(a)))(a)).entails(a_to_always(a)),
     ensures tla_forall(a_to_always) == always(tla_forall(a_to_p)),
 {
     a_to_temp_pred_equality::<T, A>(a_to_always, |a: A| always(a_to_p(a)));
@@ -796,8 +683,8 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempP
     requires spec.entails(tla_forall(a_to_p)),
     ensures spec.entails(a_to_p(a)),
 {
-    entails_apply_auto::<T>();
-    assert forall |ex: Execution<T>| #[trigger] spec.implies(a_to_p(a)).satisfied_by(ex) by {
+    assert forall |ex: Execution<T>| #[trigger] spec.satisfied_by(ex) implies (a_to_p(a)).satisfied_by(ex) by {
+        entails_apply(ex, spec, tla_forall(a_to_p));
         assert(spec.implies(tla_forall(a_to_p)).satisfied_by(ex));
     };
 }
@@ -1280,7 +1167,8 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
     requires
         spec.entails(always(lift_action(next))),
         spec.entails(always(lift_state(inv))),
-        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv)))),
+        lift_action(next_and_inv).entails(lift_action(next).and(lift_state(inv))),
+        lift_action(next).and(lift_state(inv)).entails(lift_action(next_and_inv)),
     ensures spec.entails(always(lift_action(next_and_inv))),
 {
     entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
