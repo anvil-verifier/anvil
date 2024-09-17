@@ -2005,6 +2005,12 @@ proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usiz
     }
 }
 
+/// Proving p leads to q vacuously.
+/// pre:
+///     spec |= []r
+///     p /\ r == false
+/// post:
+///     spec |= p ~> q
 pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         spec.entails(always(r)),
