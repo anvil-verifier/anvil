@@ -201,7 +201,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
     });
 
@@ -262,7 +262,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                 }
                 temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
             });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+            entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
             leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
         });
     }
@@ -375,7 +375,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
     });
 
@@ -433,7 +433,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
             }
             temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
         });
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+        entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
         leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
     });
 }

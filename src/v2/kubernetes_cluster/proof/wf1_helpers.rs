@@ -38,7 +38,7 @@ pub proof fn lemma_pre_leads_to_post_by_api_server(
 {
     use_tla_forall::<ClusterState, Option<Message>>(spec, |i| self.api_server_next().weak_fairness(i), input);
     self.api_server_action_pre_implies_next_pre(step, input);
-    valid_implies_trans::<ClusterState>(
+    entails_trans::<ClusterState>(
         lift_state(pre),
         lift_state(self.api_server_action_pre(step, input)),
         lift_state(self.api_server_next().pre(input))
@@ -60,7 +60,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
 {
     use_tla_forall::<ClusterState, (BuiltinControllerChoice, ObjectRef)>(spec, |i| self.builtin_controllers_next().weak_fairness(i), input);
     self.builtin_controllers_action_pre_implies_next_pre(step, input);
-    valid_implies_trans::<ClusterState>(
+    entails_trans::<ClusterState>(
         lift_state(pre),
         lift_state(self.builtin_controllers_action_pre(step, input)),
         lift_state(self.builtin_controllers_next().pre(input))
@@ -82,7 +82,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller(
 {
     use_tla_forall::<ClusterState, (Option<Message>, Option<ObjectRef>)>(spec, |i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)), input);
     self.controller_action_pre_implies_next_pre(step, (controller_id, input.0, input.1));
-    valid_implies_trans(
+    entails_trans(
         lift_state(pre),
         lift_state(self.controller_action_pre(step, (controller_id, input.0, input.1))),
         lift_state(self.controller_next().pre((controller_id, input.0, input.1)))
@@ -120,7 +120,7 @@ pub proof fn lemma_pre_leads_to_post_by_external(
 {
     use_tla_forall::<ClusterState, Option<Message>>(spec, |i| self.external_next().weak_fairness((controller_id, i)), input);
     self.external_action_pre_implies_next_pre(step, (controller_id, input));
-    valid_implies_trans::<ClusterState>(
+    entails_trans::<ClusterState>(
         lift_state(pre),
         lift_state(self.external_action_pre(step, (controller_id, input))),
         lift_state(self.external_next().pre((controller_id, input)))

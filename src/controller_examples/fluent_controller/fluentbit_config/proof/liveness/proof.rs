@@ -55,7 +55,7 @@ proof fn liveness_proof(fbc: FluentBitConfigView)
     unpack_conditions_from_spec(invariants(fbc), assumption, true_pred(), always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
-    valid_implies_trans(
+    entails_trans(
         cluster_spec().and(derived_invariants_since_beginning(fbc)), invariants(fbc),
         always(lift_state(desired_state_is(fbc))).leads_to(always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))))
     );
@@ -148,7 +148,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCCluster>, fbc:
     };
     let input = fbc.object_ref();
     FBCCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, FBCCluster::next(), desired_state_is(fbc), pre, post);
-    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
+    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: FBCCluster| {!s.ongoing_reconciles().contains_key(fbc.object_ref())}));
 }

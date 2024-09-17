@@ -41,7 +41,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<VRSCluster>, vrs: VR
         spec.entails(always(tla_forall(|diff: usize| lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterDeletePod(diff))
             ))))),
-        
+
     ensures spec.entails(true_pred().leads_to(lift_state(|s: VRSCluster| !s.ongoing_reconciles().contains_key(vrs.object_ref())))),
 {
     assert forall |diff: usize| #![auto]
@@ -73,7 +73,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<VRSCluster>, vrs: VR
     VRSCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, vrs.object_ref());
     temp_pred_equality(lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Done)), lift_state(VRSCluster::reconciler_reconcile_done(vrs.object_ref())));
     temp_pred_equality(lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Error)), lift_state(VRSCluster::reconciler_reconcile_error(vrs.object_ref())));
-    valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
+    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that after_create_pod_rank(0) \/ after_delete_pod_rank(0) ~> reconcile_idle.
     lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(spec, vrs);
@@ -89,22 +89,22 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<VRSCluster>, vrs: VR
         }
         leads_to_rank_step_one_usize(spec, |n| lift_state(after_create_pod_rank(vrs, n)));
 
-        implies_to_leads_to(
-            spec, 
+        always_implies_to_leads_to(
+            spec,
             lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterCreatePod(n))),
             lift_state(after_create_pod_rank(vrs, n))
         );
         assert(spec.entails((|n| lift_state(after_create_pod_rank(vrs, n)))(n)
                                 .leads_to((|n| lift_state(after_create_pod_rank(vrs, n)))(0))));
         leads_to_trans_n!(
-            spec, 
+            spec,
             lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterCreatePod(n))),
-            lift_state(after_create_pod_rank(vrs, n)), 
-            lift_state(after_create_pod_rank(vrs, 0)), 
+            lift_state(after_create_pod_rank(vrs, n)),
+            lift_state(after_create_pod_rank(vrs, 0)),
             lift_state(reconcile_idle)
         );
     }
-    
+
     // Similarly prove for all n that AfterDeletePod(n) ~> reconcile_idle.
     assert forall |n: usize| #![auto]
         spec.entails(lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterDeletePod(n)))
@@ -115,9 +115,9 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<VRSCluster>, vrs: VR
             lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(spec, vrs, n);
         }
         leads_to_rank_step_one_usize(spec, |n| lift_state(after_delete_pod_rank(vrs, n)));
-        
-        implies_to_leads_to(
-            spec, 
+
+        always_implies_to_leads_to(
+            spec,
             lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterDeletePod(n))),
             lift_state(after_delete_pod_rank(vrs, n))
         );
@@ -138,15 +138,15 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<VRSCluster>, vrs: VR
     // Fifth, prove that reconcile init state can reach AfterListPods.
     VRSCluster::lemma_from_init_state_to_next_state_to_reconcile_idle(
         spec, vrs, at_step_closure(VReplicaSetReconcileStep::Init), at_step_closure(VReplicaSetReconcileStep::AfterListPods));
-    
+
     // Finally, combine all cases
     leads_to_exists_intro(
-        spec, 
+        spec,
         |n| lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterCreatePod(n))),
         lift_state(reconcile_idle)
     );
     leads_to_exists_intro(
-        spec, 
+        spec,
         |n| lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterDeletePod(n))),
         lift_state(reconcile_idle)
     );
@@ -274,23 +274,23 @@ proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
         || s.reconcile_step == VReplicaSetReconcileStep::Error
     };
 
-    valid_implies_implies_leads_to(
-        spec, 
-        lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Error)), 
+    entails_implies_leads_to(
+        spec,
+        lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Error)),
         lift_state(after_create_pod_rank(vrs, (n - 1) as usize))
     );
-    
+
     VRSCluster::lemma_from_some_state_to_arbitrary_next_state(spec, vrs, at_step_closure(VReplicaSetReconcileStep::AfterCreatePod(n)), state_after_create);
 
-    implies_to_leads_to(
-        spec, 
-        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_create)), 
+    always_implies_to_leads_to(
+        spec,
+        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_create)),
         lift_state(after_create_pod_rank(vrs, (n - 1) as usize))
     );
     leads_to_trans_n!(
         spec,
         lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterCreatePod(n))),
-        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_create)), 
+        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_create)),
         lift_state(after_create_pod_rank(vrs, (n - 1) as usize))
     );
 
@@ -327,23 +327,23 @@ proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
         || s.reconcile_step == VReplicaSetReconcileStep::Error
     };
 
-    valid_implies_implies_leads_to(
-        spec, 
-        lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Error)), 
+    entails_implies_leads_to(
+        spec,
+        lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Error)),
         lift_state(after_delete_pod_rank(vrs, (n - 1) as usize))
     );
-    
+
     VRSCluster::lemma_from_some_state_to_arbitrary_next_state(spec, vrs, at_step_closure(VReplicaSetReconcileStep::AfterDeletePod(n)), state_after_delete);
 
-    implies_to_leads_to(
-        spec, 
-        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_delete)), 
+    always_implies_to_leads_to(
+        spec,
+        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_delete)),
         lift_state(after_delete_pod_rank(vrs, (n - 1) as usize))
     );
     leads_to_trans_n!(
         spec,
         lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterDeletePod(n))),
-        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_delete)), 
+        lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), state_after_delete)),
         lift_state(after_delete_pod_rank(vrs, (n - 1) as usize))
     );
 
@@ -392,12 +392,12 @@ proof fn lemma_from_after_list_pods_to_reconcile_idle(
         ||| s.reconcile_step == VReplicaSetReconcileStep::Error
     };
     leads_to_exists_intro(
-        spec, 
+        spec,
         |n| lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterCreatePod(n))),
         lift_state(|s: VRSCluster| !s.ongoing_reconciles().contains_key(vrs.object_ref()))
     );
     leads_to_exists_intro(
-        spec, 
+        spec,
         |n| lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterDeletePod(n))),
         lift_state(|s: VRSCluster| !s.ongoing_reconciles().contains_key(vrs.object_ref()))
     );
@@ -413,9 +413,9 @@ proof fn lemma_from_after_list_pods_to_reconcile_idle(
         lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), |s: VReplicaSetReconcileState|
         exists |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterCreatePod(n))),
         {
-            assert forall |ex| #![auto] 
+            assert forall |ex| #![auto]
             lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), |s: VReplicaSetReconcileState|
-            exists |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterCreatePod(n))).satisfied_by(ex) implies 
+            exists |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterCreatePod(n))).satisfied_by(ex) implies
             tla_exists(at_after_create_pod).satisfied_by(ex) by {
                 let s = ex.head().ongoing_reconciles()[vrs.object_ref()].local_state;
                 let witness_n = choose |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterCreatePod(n);
@@ -434,9 +434,9 @@ proof fn lemma_from_after_list_pods_to_reconcile_idle(
         lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), |s: VReplicaSetReconcileState|
         exists |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterDeletePod(n))),
         {
-            assert forall |ex| #![auto] 
+            assert forall |ex| #![auto]
             lift_state(VRSCluster::at_expected_reconcile_states(vrs.object_ref(), |s: VReplicaSetReconcileState|
-            exists |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterDeletePod(n))).satisfied_by(ex) implies 
+            exists |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterDeletePod(n))).satisfied_by(ex) implies
             tla_exists(at_after_delete_pod).satisfied_by(ex) by {
                 let s = ex.head().ongoing_reconciles()[vrs.object_ref()].local_state;
                 let witness_n = choose |n: usize| s.reconcile_step == VReplicaSetReconcileStep::AfterDeletePod(n);
@@ -461,7 +461,7 @@ proof fn lemma_from_after_list_pods_to_reconcile_idle(
 
 
     VRSCluster::lemma_from_some_state_to_arbitrary_next_state(spec, vrs, at_step_closure(VReplicaSetReconcileStep::AfterListPods), state_after_list_pods);
-    
+
     leads_to_trans_n!(
         spec,
         lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterListPods)),
@@ -471,7 +471,7 @@ proof fn lemma_from_after_list_pods_to_reconcile_idle(
 }
 
 proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView)
-    ensures true_pred::<VRSCluster>() 
+    ensures true_pred::<VRSCluster>()
                 == lift_state(|s: VRSCluster| { !s.ongoing_reconciles().contains_key(vrs.object_ref()) })
                     .or(lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::Init)))
                     .or(lift_state(at_step_state_pred(vrs, VReplicaSetReconcileStep::AfterListPods)))

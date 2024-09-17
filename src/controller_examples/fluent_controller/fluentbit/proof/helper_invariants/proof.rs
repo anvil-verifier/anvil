@@ -1012,7 +1012,7 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
         lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)),
         lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn))
     );
-    valid_implies_trans(
+    entails_trans(
         spec,
         always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb))),
         always(lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn)))

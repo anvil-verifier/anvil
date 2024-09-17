@@ -65,7 +65,7 @@ proof fn liveness_proof(zookeeper: ZookeeperClusterView)
     unpack_conditions_from_spec(invariants(zookeeper), assumption, true_pred(), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
-    valid_implies_trans(
+    entails_trans(
         cluster_spec().and(derived_invariants_since_beginning(zookeeper)), invariants(zookeeper),
         always(lift_state(ZKCluster::desired_state_is(zookeeper))).leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))
     );
@@ -295,7 +295,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ZKCluster>, zooke
     };
     let input = zookeeper.object_ref();
     ZKCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, ZKCluster::next(), ZKCluster::desired_state_is(zookeeper), pre, post);
-    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
+    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ZKCluster| {!s.ongoing_reconciles().contains_key(zookeeper.object_ref())}));
 }

@@ -33,7 +33,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
+    entails_trans::<Self>(
         lift_state(pre),
         lift_state(Self::kubernetes_api_action_pre(action, input)),
         lift_state(Self::kubernetes_api_next().pre(input))
@@ -55,7 +55,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
 {
     use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
     Self::builtin_controllers_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
+    entails_trans::<Self>(
         lift_state(pre),
         lift_state(Self::builtin_controllers_action_pre(action, input)),
         lift_state(Self::builtin_controllers_next().pre(input))
@@ -243,7 +243,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
                 lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))
                 .implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
             );
-            valid_implies_trans(
+            entails_trans(
                 spec_with_rest_id, always(lift_state(invariant)),
                 always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)).implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
             );
@@ -262,7 +262,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
     );
     temp_pred_equality(true_pred().and(lift_state(Self::rest_id_counter_is(rest_id))), lift_state(Self::rest_id_counter_is(rest_id)));
-    valid_implies_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
+    entails_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
 }
 
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
@@ -357,7 +357,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec: T
                 }
             }
         });
-        valid_implies_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
+        entails_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
     } else {
         // The induction step:
         // If we already have "there are msg_num-1 such requests" ~> "all such requests are gone" (the inductive hypothesis),

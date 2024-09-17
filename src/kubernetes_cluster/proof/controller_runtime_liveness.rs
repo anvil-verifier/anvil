@@ -36,7 +36,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller(
     );
 
     Self::controller_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
+    entails_trans::<Self>(
         lift_state(pre),
         lift_state(Self::controller_action_pre(action, input)),
         lift_state(Self::controller_next().pre(input))
@@ -261,7 +261,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(
         })
     };
     temp_pred_equality::<Self>(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)), lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
-    implies_to_leads_to::<Self>(spec, lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
+    always_implies_to_leads_to::<Self>(spec, lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
 
     let req_in_flight = Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state);
     let resp_in_flight = Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state);
@@ -310,7 +310,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
         lift_state(Self::no_pending_req_msg_at_reconcile_state(cr.object_ref(), init_state)),
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), init_state)).implies(lift_state(no_pending_req))
     );
-    implies_to_leads_to(
+    always_implies_to_leads_to(
         spec,
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), init_state)),
         lift_state(no_pending_req)
@@ -569,7 +569,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         && Self::no_pending_req_msg(s, cr.object_ref())
     };
     temp_pred_equality(lift_state(Self::no_pending_req_msg_at_reconcile_state(cr.object_ref(), state)), lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(no_req_at_state)));
-    implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)), lift_state(no_req_at_state));
+    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)), lift_state(no_req_at_state));
 
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)

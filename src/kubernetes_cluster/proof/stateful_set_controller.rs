@@ -276,7 +276,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
                 }
             }
         });
-        valid_implies_implies_leads_to(spec, lift_state(pre), lift_state(post));
+        entails_implies_leads_to(spec, lift_state(pre), lift_state(post));
     } else {
         let pre_concrete_msg = |msg: MsgType<E>| lift_state(|s: Self| {
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num

@@ -153,7 +153,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
     });
 }
@@ -242,7 +242,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, fbc)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, fbc)));
     });
 }

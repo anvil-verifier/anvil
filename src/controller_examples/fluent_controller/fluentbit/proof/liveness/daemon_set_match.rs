@@ -106,7 +106,7 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
     let post = lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb));
 
     assert_by(spec.entails(daemon_set_matches.leads_to(post)), {
-        valid_implies_implies_leads_to(spec, daemon_set_matches, post);
+        entails_implies_leads_to(spec, daemon_set_matches, post);
     });
 
     assert_by(spec.entails(daemon_set_not_matches.leads_to(post)), {

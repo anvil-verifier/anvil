@@ -64,7 +64,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     unpack_conditions_from_spec(invariants(rabbitmq), assumption, true_pred(), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
-    valid_implies_trans(
+    entails_trans(
         cluster_spec().and(derived_invariants_since_beginning(rabbitmq)), invariants(rabbitmq),
         always(lift_state(RMQCluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))))
     );
@@ -303,7 +303,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<RMQCluster>, rabb
     };
     let input = rabbitmq.object_ref();
     RMQCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, RMQCluster::next(), RMQCluster::desired_state_is(rabbitmq), pre, post);
-    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
+    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: RMQCluster| {!s.ongoing_reconciles().contains_key(rabbitmq.object_ref())}));
 }

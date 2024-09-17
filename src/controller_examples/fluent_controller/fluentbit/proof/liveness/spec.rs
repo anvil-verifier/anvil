@@ -76,7 +76,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, f
     let spec = spec_before_phase_n(i, fb);
     reveal_with_fuel(spec_before_phase_n, 8);
     implies_preserved_by_always_temp(lift_state(desired_state_is(fb)), lift_state(FBCluster::desired_state_is(fb)));
-    valid_implies_trans(spec, always(lift_state(desired_state_is(fb))), always(lift_state(FBCluster::desired_state_is(fb))));
+    entails_trans(spec, always(lift_state(desired_state_is(fb))), always(lift_state(FBCluster::desired_state_is(fb))));
     if i == 1 {
         FBCluster::lemma_true_leads_to_crash_always_disabled(spec);
         FBCluster::lemma_true_leads_to_busy_always_disabled(spec);
