@@ -230,7 +230,7 @@ pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_t
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, rabbitmq);
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     always_to_always_later(spec, lift_state(resource_well_formed));
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     RMQCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);

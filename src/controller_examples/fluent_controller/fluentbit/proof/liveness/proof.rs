@@ -84,7 +84,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     spec_of_previous_phases_entails_eventually_new_invariants(i, fb);
     unpack_conditions_from_spec(spec_before_phase_n(i, fb), invariants_since_phase_n(i, fb), true_pred(), always(lift_state(current_state_matches::<FluentBitMaker>(fb))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, fb)), invariants_since_phase_n(i, fb));
-    leads_to_trans_temp(spec_before_phase_n(i, fb), true_pred(), invariants_since_phase_n(i, fb), always(lift_state(current_state_matches::<FluentBitMaker>(fb))));
+    leads_to_trans(spec_before_phase_n(i, fb), true_pred(), invariants_since_phase_n(i, fb), always(lift_state(current_state_matches::<FluentBitMaker>(fb))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(fb: FluentBitView)
@@ -160,13 +160,13 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_resources(fb: FluentBi
         if sub_resource != SubResource::DaemonSet {
             let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
             lemma_from_after_get_resource_step_to_resource_matches(spec, fb, sub_resource, next_resource);
-            leads_to_trans_temp(
+            leads_to_trans(
                 spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fb)),
                 lift_state(sub_resource_state_matches(sub_resource, fb))
             );
         } else {
             lemma_from_after_get_daemon_set_step_to_daemon_set_matches(spec, fb);
-            leads_to_trans_temp(
+            leads_to_trans(
                 spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb)),
                 lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb))
             );
@@ -209,7 +209,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCluster>, fb: F
     let input = fb.object_ref();
     FBCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, FBCluster::next(), desired_state_is(fb), pre, post);
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
+    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: FBCluster| {!s.ongoing_reconciles().contains_key(fb.object_ref())}));
 }
 

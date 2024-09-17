@@ -238,7 +238,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed<T: CustomResourceVi
     };
     entails_always_and_n!(spec, lift_state(p1), lift_state(p2));
     temp_pred_equality(lift_state(p1).and(lift_state(p2)), lift_state(p));
-    always_weaken_temp::<ClusterState>(spec, lift_state(p), lift_state(invariant));
+    always_weaken::<ClusterState>(spec, lift_state(p), lift_state(invariant));
 }
 
 }

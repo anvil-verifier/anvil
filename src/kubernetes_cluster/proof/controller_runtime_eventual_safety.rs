@@ -49,7 +49,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
     Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
         spec, input, stronger_next, Self::desired_state_is(cr), pre, post
     );
-    leads_to_stable_temp(spec, lift_action(stronger_next), lift_state(pre), lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), lift_state(pre), lift_state(post));
 }
 
 pub open spec fn the_object_in_reconcile_has_spec_and_uid_as(cr: K) -> StatePred<Self> {
@@ -107,7 +107,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
             );
         }
     );
-    leads_to_trans_temp(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
+    leads_to_trans(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
     let not_reconcile = |s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref());
 
     or_leads_to_combine_and_equality!(
@@ -115,11 +115,11 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
         lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr))
     );
 
-    leads_to_trans_temp(
+    leads_to_trans(
         spec, true_pred(), lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())),
         lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr))
     );
-    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
 }
 
 }

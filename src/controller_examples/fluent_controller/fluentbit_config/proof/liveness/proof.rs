@@ -75,7 +75,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     spec_of_previous_phases_entails_eventually_new_invariants(i, fbc);
     unpack_conditions_from_spec(spec_before_phase_n(i, fbc), invariants_since_phase_n(i, fbc), true_pred(), always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, fbc)), invariants_since_phase_n(i, fbc));
-    leads_to_trans_temp(spec_before_phase_n(i, fbc), true_pred(), invariants_since_phase_n(i, fbc), always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))));
+    leads_to_trans(spec_before_phase_n(i, fbc), true_pred(), invariants_since_phase_n(i, fbc), always(lift_state(current_state_matches::<FluentBitConfigMaker>(fbc))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(fbc: FluentBitConfigView)
@@ -149,7 +149,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCCluster>, fbc:
     let input = fbc.object_ref();
     FBCCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, FBCCluster::next(), desired_state_is(fbc), pre, post);
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
+    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: FBCCluster| {!s.ongoing_reconciles().contains_key(fbc.object_ref())}));
 }
 

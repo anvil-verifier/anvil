@@ -53,7 +53,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(spec: TempPr
         &&& s.resources().contains_key(get_request(sub_resource, fbc).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, fbc)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, fbc)));
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, fbc))
     );
@@ -712,7 +712,7 @@ pub proof fn lemma_resource_object_is_stable(
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

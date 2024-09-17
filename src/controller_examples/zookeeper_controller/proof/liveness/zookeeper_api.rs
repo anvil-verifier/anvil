@@ -65,7 +65,7 @@ pub proof fn lemma_from_after_exists_stateful_set_step_to_after_get_stateful_set
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
         &&& pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)));
     temp_pred_equality(key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper)));
 }
 
@@ -230,7 +230,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             temp_pred_equality(tla_exists(after_exists_stateful_set_step_resp_msg), after_exists_stateful_set_step_waiting);
         });
 
-        leads_to_trans_temp(spec, pre, after_exists_stateful_set_step_waiting, after_exists_zk_node_step_pending);
+        leads_to_trans(spec, pre, after_exists_stateful_set_step_waiting, after_exists_zk_node_step_pending);
     });
 
     assert_by(spec.entails(after_exists_zk_node_step_pending.leads_to(post)) , {
@@ -483,10 +483,10 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             );
         });
 
-        or_leads_to_combine_temp(spec, addr_exists_and_after_exists_zk_node_step_pending, addr_not_exists_and_after_exists_zk_node_step_pending, post);
+        or_leads_to_combine(spec, addr_exists_and_after_exists_zk_node_step_pending, addr_not_exists_and_after_exists_zk_node_step_pending, post);
         temp_pred_equality(addr_exists_and_after_exists_zk_node_step_pending.or(addr_not_exists_and_after_exists_zk_node_step_pending), after_exists_zk_node_step_pending);
     });
-    leads_to_trans_temp(spec, pre, after_exists_zk_node_step_pending, post);
+    leads_to_trans(spec, pre, after_exists_zk_node_step_pending, post);
 }
 
 proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_stateful_set_step(spec: TempPred<ZKCluster>, zookeeper: ZookeeperClusterView, req_msg: ZKMessage)

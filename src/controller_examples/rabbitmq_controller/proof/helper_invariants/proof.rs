@@ -144,7 +144,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         &&& object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
     };
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     always_to_always_later(spec, lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
@@ -155,7 +155,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
         lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
     );
-    leads_to_weaken_temp(
+    leads_to_weaken(
         spec, true_pred(), lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())),
         true_pred(), lift_state(inv)
     );
@@ -183,7 +183,7 @@ proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updat
             }
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(
@@ -257,7 +257,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq))
     );
-    leads_to_weaken_temp(
+    leads_to_weaken(
         spec, true_pred(), lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())),
         true_pred(), lift_state(inv)
     );
@@ -295,7 +295,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_create_resource_ste
             }
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 #[verifier(spinoff_prover)]
@@ -440,7 +440,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq))
     );
-    leads_to_weaken_temp(
+    leads_to_weaken(
         spec, true_pred(), lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())),
         true_pred(), lift_state(inv)
     );
@@ -476,7 +476,7 @@ proof fn lemma_eventually_always_object_in_response_at_after_update_resource_ste
             object_in_response_at_after_update_resource_step_is_same_as_etcd_helper(s, s_prime, rabbitmq);
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 #[verifier(spinoff_prover)]
@@ -1555,7 +1555,7 @@ proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: 
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& resource_well_formed(s)
     };
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: RMQMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1648,9 +1648,9 @@ proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointi
 {
     let key = get_request(sub_resource, rabbitmq).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
-    always_weaken_temp(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)), lift_state(RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken_temp(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)), lift_state(RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken_temp(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(RMQCluster::object_has_no_finalizers(key)));
+    always_weaken(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)), lift_state(RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)), lift_state(RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)), lift_state(RMQCluster::object_has_no_finalizers(key)));
 
     let state = |s: RMQCluster| {
         RMQCluster::desired_state_is(rabbitmq)(s)

@@ -84,7 +84,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     spec_of_previous_phases_entails_eventually_new_invariants(i, rabbitmq);
     unpack_conditions_from_spec(spec_before_phase_n(i, rabbitmq), invariants_since_phase_n(i, rabbitmq), true_pred(), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, rabbitmq)), invariants_since_phase_n(i, rabbitmq));
-    leads_to_trans_temp(spec_before_phase_n(i, rabbitmq), true_pred(), invariants_since_phase_n(i, rabbitmq), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
+    leads_to_trans(spec_before_phase_n(i, rabbitmq), true_pred(), invariants_since_phase_n(i, rabbitmq), always(lift_state(current_state_matches::<RabbitmqMaker>(rabbitmq))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClusterView)
@@ -178,7 +178,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(rabbi
         always_tla_forall_apply_for_sub_resource(spec, sub_resource, rabbitmq);
         let next_resource = next_resource_after(sub_resource).get_AfterKRequestStep_1();
         lemma_from_after_get_resource_step_to_resource_matches(spec, rabbitmq, sub_resource, next_resource);
-        leads_to_trans_temp(
+        leads_to_trans(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)),
             lift_state(sub_resource_state_matches(sub_resource, rabbitmq))
         );
@@ -259,7 +259,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
         );
         // We then prove pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq) ~> sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)
         lemma_from_after_get_stateful_set_step_to_stateful_set_matches(spec, rabbitmq);
-        leads_to_trans_temp(
+        leads_to_trans(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)),
             lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))
         );
@@ -271,13 +271,13 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
         unpack_conditions_from_spec(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
         temp_pred_equality(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), true_pred().and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)))));
         helper_invariants::lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(spec2, rabbitmq);
-        leads_to_trans_temp(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+        leads_to_trans(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
     });
 
     assert_by(spec1.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))), {
         unpack_conditions_from_spec(spec1, always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
         temp_pred_equality(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred().and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)))));
-        leads_to_trans_temp(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+        leads_to_trans(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
     });
 }
 
@@ -304,7 +304,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<RMQCluster>, rabb
     let input = rabbitmq.object_ref();
     RMQCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, RMQCluster::next(), RMQCluster::desired_state_is(rabbitmq), pre, post);
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
+    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: RMQCluster| {!s.ongoing_reconciles().contains_key(rabbitmq.object_ref())}));
 }
 

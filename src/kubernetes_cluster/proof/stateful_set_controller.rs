@@ -184,7 +184,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
 proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView)
@@ -236,12 +236,12 @@ proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pendin
         });
         temp_pred_equality(lift_state(|s: Self| s.stable_resources().contains(key)).or(lift_state(key_not_exists)), lift_state(key_not_exists_or_stable));
         temp_pred_equality(lift_state(post).or(lift_state(key_not_exists)), lift_state(post));
-        sandwich_leads_to_by_or_temp(spec, lift_state(|s: Self| s.stable_resources().contains(key)), lift_state(post), lift_state(key_not_exists));
-        leads_to_trans_temp(spec, lift_state(key_exists), lift_state(key_not_exists_or_stable), lift_state(post));
+        leads_to_framed_by_or(spec, lift_state(|s: Self| s.stable_resources().contains(key)), lift_state(post), lift_state(key_not_exists));
+        leads_to_trans(spec, lift_state(key_exists), lift_state(key_not_exists_or_stable), lift_state(post));
     });
     temp_pred_equality(lift_state(key_exists).or(lift_state(key_not_exists)), true_pred());
     temp_pred_equality(lift_state(post).or(lift_state(key_not_exists)), lift_state(post));
-    sandwich_leads_to_by_or_temp(spec, lift_state(key_exists), lift_state(post), lift_state(key_not_exists));
+    leads_to_framed_by_or(spec, lift_state(key_exists), lift_state(post), lift_state(key_not_exists));
 }
 
 proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(

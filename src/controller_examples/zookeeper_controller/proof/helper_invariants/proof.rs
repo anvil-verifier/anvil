@@ -158,7 +158,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
         lift_state(object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, zookeeper)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper))
     );
-    leads_to_weaken_temp(
+    leads_to_weaken(
         spec, true_pred(), lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())),
         true_pred(), lift_state(inv)
     );
@@ -176,7 +176,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
             }
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(
@@ -254,7 +254,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper))
     );
-    leads_to_weaken_temp(
+    leads_to_weaken(
         spec, true_pred(), lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())),
         true_pred(), lift_state(inv)
     );
@@ -327,7 +327,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
             }
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd_forall(
@@ -405,7 +405,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ConfigMap, zookeeper)),
         lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ConfigMap, zookeeper))
     );
-    leads_to_weaken_temp(
+    leads_to_weaken(
         spec, true_pred(), lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zookeeper.object_ref())),
         true_pred(), lift_state(inv)
     );
@@ -479,7 +479,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
             }
         }
     }
-    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+    leads_to_stable(spec, lift_action(next), true_pred(), lift_state(inv));
 }
 
 #[verifier(spinoff_prover)]
@@ -1347,7 +1347,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(sp
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, zookeeper)(s)
         &&& resource_well_formed(s)
     };
-    always_weaken_temp(spec, lift_state(ZKCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(ZKCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     assert forall |s: ZKCluster, s_prime: ZKCluster| #[trigger] stronger_next(s, s_prime) implies ZKCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: ZKMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
@@ -1436,9 +1436,9 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 {
     let key = get_request(sub_resource, zookeeper).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![zookeeper.controller_owner_ref()])};
-    always_weaken_temp(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)), lift_state(ZKCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken_temp(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)), lift_state(ZKCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken_temp(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper)), lift_state(ZKCluster::object_has_no_finalizers(key)));
+    always_weaken(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, zookeeper)), lift_state(ZKCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, zookeeper)), lift_state(ZKCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, zookeeper)), lift_state(ZKCluster::object_has_no_finalizers(key)));
 
     let state = |s: ZKCluster| {
         ZKCluster::desired_state_is(zookeeper)(s)

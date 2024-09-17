@@ -58,7 +58,7 @@ pub proof fn lemma_from_after_get_daemon_set_step_to_daemon_set_matches(spec: Te
         &&& s.resources().contains_key(get_request(SubResource::DaemonSet, fb).key)
         &&& pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(SubResource::DaemonSet, fb)));
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::DaemonSet, fb))
     );
@@ -177,7 +177,7 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
         leads_to_trans_n!(spec, daemon_set_not_matches, post1, post2, post);
     });
 
-    or_leads_to_combine_temp(spec, daemon_set_matches, daemon_set_not_matches, post);
+    or_leads_to_combine(spec, daemon_set_matches, daemon_set_not_matches, post);
     temp_pred_equality(daemon_set_matches.or(daemon_set_not_matches), pre);
 }
 
@@ -402,7 +402,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::DaemonSet, fb)(s)
         &&& helper_invariants::daemon_set_in_etcd_satisfies_unchangeable(fb)(s)
     };
-    always_weaken_temp(spec, lift_state(FBCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(FBCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(FBCluster::next()),
@@ -483,7 +483,7 @@ pub proof fn lemma_daemon_set_is_stable(spec: TempPred<FBCluster>, fb: FluentBit
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

@@ -1860,7 +1860,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 //
 // TODO: Prove this.

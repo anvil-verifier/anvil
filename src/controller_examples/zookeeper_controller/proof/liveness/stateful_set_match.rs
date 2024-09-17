@@ -62,7 +62,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
         &&& pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper)));
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper))
     );
@@ -188,7 +188,7 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         leads_to_trans_n!(spec, stateful_set_not_matches, post1, post2, post);
     });
 
-    or_leads_to_combine_temp(spec, stateful_set_matches, stateful_set_not_matches, post);
+    or_leads_to_combine(spec, stateful_set_matches, stateful_set_not_matches, post);
     temp_pred_equality(stateful_set_matches.or(stateful_set_not_matches), pre);
 }
 
@@ -526,7 +526,7 @@ pub proof fn lemma_stateful_set_is_stable(
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

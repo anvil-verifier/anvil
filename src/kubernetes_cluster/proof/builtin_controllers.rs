@@ -208,7 +208,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
             leads_to_trans_n!(spec, lift_state(pre), lift_state(delete_msg_in_flight), lift_state(post));
 
             temp_pred_equality(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(pre)));
-            leads_to_weaken_temp(spec, lift_state(pre), lift_state(post), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post));
+            leads_to_weaken(spec, lift_state(pre), lift_state(post), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post));
         }
     );
 
@@ -227,7 +227,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
 proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
