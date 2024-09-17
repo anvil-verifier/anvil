@@ -39,16 +39,27 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
     let pre = |s: Self| true;
     let post = Self::the_object_in_schedule_has_spec_and_uid_as(cr);
     let input = cr.object_ref();
-    let stronger_next = |s, s_prime: Self| {
-        &&& Self::next()(s, s_prime)
-        &&& Self::desired_state_is(cr)(s)
-    };
-    combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::desired_state_is(cr)));
 
     K::object_ref_is_well_formed();
-    Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
-        spec, input, stronger_next, Self::desired_state_is(cr), pre, post
+
+    let stronger_pre = |s| {
+        &&& pre(s)
+        &&& Self::desired_state_is(cr)(s)
+    };
+    let stronger_next = |s, s_prime| {
+        &&& Self::next()(s, s_prime)
+        &&& Self::desired_state_is(cr)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(Self::desired_state_is(cr)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Self::next()),
+        later(lift_state(Self::desired_state_is(cr)))
     );
+    Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, stronger_next, stronger_pre, post);
+    temp_pred_equality(lift_state(pre).and(lift_state(Self::desired_state_is(cr))), lift_state(stronger_pre));
+    leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(Self::desired_state_is(cr)));
+
     leads_to_stable(spec, lift_action(stronger_next), lift_state(pre), lift_state(post));
 }
 
@@ -91,9 +102,27 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
         {
             let input = cr.object_ref();
             K::object_ref_is_well_formed();
-            Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
-                spec, input, stronger_next, Self::desired_state_is(cr), not_scheduled_or_reconcile, scheduled_and_not_reconcile
+
+            let pre = not_scheduled_or_reconcile;
+            let post = scheduled_and_not_reconcile;
+            let stronger_pre = |s| {
+                &&& pre(s)
+                &&& Self::desired_state_is(cr)(s)
+            };
+            let even_stronger_next = |s, s_prime| {
+                &&& stronger_next(s, s_prime)
+                &&& Self::desired_state_is(cr)(s_prime)
+            };
+            always_to_always_later(spec, lift_state(Self::desired_state_is(cr)));
+            combine_spec_entails_always_n!(
+                spec, lift_action(even_stronger_next),
+                lift_action(stronger_next),
+                later(lift_state(Self::desired_state_is(cr)))
             );
+            Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, even_stronger_next, stronger_pre, post);
+            temp_pred_equality(lift_state(pre).and(lift_state(Self::desired_state_is(cr))), lift_state(stronger_pre));
+            leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(Self::desired_state_is(cr)));
+
         }
     );
     assert_by(

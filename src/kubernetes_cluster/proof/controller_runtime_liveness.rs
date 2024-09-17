@@ -63,24 +63,6 @@ pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile(
     Self::schedule_controller_reconcile().wf1(input, spec, next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
-    spec: TempPred<Self>, input: ObjectRef, next: ActionPred<Self>, c: StatePred<Self>, pre: StatePred<Self>, post: StatePred<Self>
-)
-    requires
-        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) && Self::schedule_controller_reconcile().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: Self| #[trigger] pre(s) && c(s) ==> Self::schedule_controller_reconcile().pre(input)(s),
-        spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
-        spec.entails(always(lift_state(c))),
-    ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
-{
-    use_tla_forall::<Self, ObjectRef>(
-        spec, |i| Self::schedule_controller_reconcile().weak_fairness(i), input
-    );
-    Self::schedule_controller_reconcile().wf1_borrow_from_spec(input, spec, next, c, pre, post);
-}
-
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle(spec: TempPred<Self>, cr_key: ObjectRef)
     requires
         K::kind().is_CustomResourceKind(),

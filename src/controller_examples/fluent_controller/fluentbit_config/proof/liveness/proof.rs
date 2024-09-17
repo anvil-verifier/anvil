@@ -147,7 +147,23 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<FBCCluster>, fbc:
         &&& s.scheduled_reconciles().contains_key(fbc.object_ref())
     };
     let input = fbc.object_ref();
-    FBCCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, FBCCluster::next(), desired_state_is(fbc), pre, post);
+    let stronger_pre = |s| {
+        &&& pre(s)
+        &&& desired_state_is(fbc)(s)
+    };
+    let stronger_next = |s, s_prime| {
+        &&& FBCCluster::next()(s, s_prime)
+        &&& desired_state_is(fbc)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(desired_state_is(fbc)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(FBCCluster::next()),
+        later(lift_state(desired_state_is(fbc)))
+    );
+    FBCCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, stronger_next, stronger_pre, post);
+    temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(fbc))), lift_state(stronger_pre));
+    leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(fbc)));
     entails_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: FBCCluster| {!s.ongoing_reconciles().contains_key(fbc.object_ref())}));

@@ -654,7 +654,7 @@ pub proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A)
     };
 }
 
-proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
+pub proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
     requires forall |a: A| #[trigger] spec.entails(always(p.implies(a_to_q(a)))),
     ensures spec.entails(always(p.implies(tla_forall(a_to_q)))),
 {
@@ -716,26 +716,6 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
         implies_apply(ex, spec, always(p));
         execution_equality(ex, ex.suffix(0));
     }
-}
-
-proof fn stable_spec_entails_always_p<T>(spec: TempPred<T>, p: TempPred<T>)
-    requires
-        valid(stable(spec)),
-        spec.entails(p),
-    ensures spec.entails(always(p)),
-{
-    assert_by(
-        spec.entails(always(spec)),
-        {
-            assert forall |ex| #[trigger] spec.implies(always(spec)).satisfied_by(ex) by {
-                assert(valid(stable(spec)));
-                assert(stable(spec).satisfied_by(ex));
-                stable_unfold::<T>(ex, spec);
-            }
-        }
-    );
-    entails_preserved_by_always(spec, p);
-    entails_trans(spec, always(spec), always(p));
 }
 
 /// Entails p and q if entails each of them.
@@ -1082,21 +1062,6 @@ pub proof fn unpack_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
     };
 }
 
-proof fn borrow_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p.and(c).leads_to(q)),
-        spec.entails(always(c)),
-    ensures spec.entails(p.leads_to(q)),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
-        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
-            implies_apply(ex, spec, always(c));
-            implies_apply(ex, spec, p.and(c).leads_to(q));
-            implies_apply(ex.suffix(i), p.and(c), eventually(q));
-        }
-    }
-}
-
 /// Pack the conditions from the right to the left side of |=
 /// pre:
 ///     spec |= p /\ c ~> q
@@ -1119,15 +1084,19 @@ proof fn pack_conditions_to_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPr
 /// This lemma is used to make the predicate as concise as possible.
 /// Similar to the first-order logic where p equals p /\ q when p -> q is satisfied,
 /// we can reduce the size of predicate when some part of it implies the rest.
-pub proof fn simplify_predicate<T>(simpler: TempPred<T>, redundant: TempPred<T>)
-    requires simpler.entails(redundant),
-    ensures simpler == simpler.and(redundant),
+/// pre:
+///     p |= q
+/// post:
+///     p == p /\ q
+pub proof fn simplify_predicate<T>(p: TempPred<T>, q: TempPred<T>)
+    requires p.entails(q),
+    ensures p == p.and(q),
 {
-    assert forall |ex| #[trigger] simpler.satisfied_by(ex) implies simpler.and(redundant).satisfied_by(ex) by {
-        entails_and_temp::<T>(simpler, simpler, redundant);
-        entails_apply::<T>(ex, simpler, simpler.and(redundant));
+    assert forall |ex| #[trigger] p.satisfied_by(ex) implies p.and(q).satisfied_by(ex) by {
+        entails_and_temp::<T>(p, p, q);
+        entails_apply::<T>(ex, p, p.and(q));
     };
-    temp_pred_equality::<T>(simpler, simpler.and(redundant));
+    temp_pred_equality::<T>(p, p.and(q));
 }
 
 /// Prove safety by induction.
@@ -1216,33 +1185,6 @@ pub proof fn wf1_variant_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: 
             }
         }
     }
-}
-
-pub proof fn wf1_variant_borrow_from_spec_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(p.and(c).and(next).implies(later(p).or(later(q))))),
-        spec.entails(always(p.and(c).and(next).and(forward).implies(later(q)))),
-        spec.entails(always(next)),
-        spec.entails(always(p.and(c)).leads_to(forward)),
-        spec.entails(always(c)),
-    ensures spec.entails(p.leads_to(q)),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p.and(c).and(next).implies(later(p.and(c)).or(later(q)))).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p.and(c).and(next).implies(later(p).or(later(q)))));
-        implies_apply::<T>(ex, spec, always(c));
-        always_unfold(ex, p.and(c).and(next).implies(later(p).or(later(q))));
-        always_unfold(ex, c);
-        assert forall |i| #[trigger] p.and(c).and(next).satisfied_by(ex.suffix(i))
-        implies later(p.and(c)).or(later(q)).satisfied_by(ex.suffix(i)) by {
-            implies_apply(ex.suffix(i), p.and(c).and(next), later(p).or(later(q)));
-            execution_equality(ex.suffix(i).suffix(1), ex.suffix(i + 1));
-            temp_pred_equality(later(p.and(c)), later(p).and(later(c)));
-        }
-    }
-
-    wf1_variant_temp(spec, next, forward, p.and(c), q);
-    borrow_conditions_from_spec(spec, c, p, q);
 }
 
 /// Get the initial leads_to with a stronger wf assumption than wf1_variant.
@@ -1897,6 +1839,27 @@ pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
                     assert(p.and(r) != false_pred::<T>());
                 }
             });
+        }
+    }
+}
+
+/// Proving p leads to q by borrowing the inv.
+/// pre:
+///     spec |= p /\ inv ~> q
+///     spec |= []inv
+/// post:
+///     spec |= p ~> q
+pub proof fn leads_to_by_borrowing_inv<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, inv: TempPred<T>)
+    requires
+        spec.entails(p.and(inv).leads_to(q)),
+        spec.entails(always(inv)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            instantiate_entailed_always(ex, i, spec, inv);
+            instantiate_entailed_leads_to(ex, i, spec, p.and(inv), q);
         }
     }
 }
