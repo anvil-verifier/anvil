@@ -177,4 +177,8 @@ pub open spec fn true_pred<T>() -> TempPred<T> {
     lift_state(|s: T| true)
 }
 
+pub open spec fn false_pred<T>() -> TempPred<T> {
+    lift_state(|s: T| false)
+}
+
 }
