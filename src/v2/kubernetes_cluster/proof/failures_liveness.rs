@@ -33,7 +33,7 @@ pub proof fn lemma_true_leads_to_crash_always_disabled(self, spec: TempPred<Clus
         spec, lift_action(stronger_next), lift_action(self.next()),
         lift_state(Self::there_is_the_controller_state(controller_id))
     );
-    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(Self::crash_disabled(controller_id)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(Self::crash_disabled(controller_id)));
 }
 
 pub open spec fn req_drop_disabled() -> StatePred<ClusterState> {
@@ -48,7 +48,7 @@ pub proof fn lemma_true_leads_to_req_drop_always_disabled(self, spec: TempPred<C
 {
     let true_state = |s: ClusterState| true;
     self.disable_req_drop().wf1((), spec, self.next(), true_state, Self::req_drop_disabled());
-    leads_to_stable_temp(spec, lift_action(self.next()), true_pred(), lift_state(Self::req_drop_disabled()));
+    leads_to_stable(spec, lift_action(self.next()), true_pred(), lift_state(Self::req_drop_disabled()));
 }
 
 }

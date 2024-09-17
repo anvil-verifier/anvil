@@ -961,9 +961,9 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
 {
     let key = get_request(sub_resource, fb).key;
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![fb.controller_owner_ref()])};
-    always_weaken_temp(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fb)), lift_state(FBCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken_temp(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)), lift_state(FBCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
-    always_weaken_temp(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb)), lift_state(FBCluster::object_has_no_finalizers(key)));
+    always_weaken(spec, lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, fb)), lift_state(FBCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken(spec, lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, fb)), lift_state(FBCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)));
+    always_weaken(spec, lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, fb)), lift_state(FBCluster::object_has_no_finalizers(key)));
 
     let state = |s: FBCluster| {
         desired_state_is(fb)(s)
@@ -1008,11 +1008,11 @@ pub proof fn lemma_eventually_always_daemon_set_not_exists_or_matches_or_no_more
 {
     let ds_key = get_request(SubResource::DaemonSet, fb).key;
     let make_fn = || make_daemon_set(fb);
-    implies_preserved_by_always_temp(
+    entails_preserved_by_always(
         lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb)),
         lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn))
     );
-    valid_implies_trans(
+    entails_trans(
         spec,
         always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(SubResource::DaemonSet, fb))),
         always(lift_state(FBCluster::every_in_flight_create_req_msg_for_this_ds_matches(ds_key, make_fn)))

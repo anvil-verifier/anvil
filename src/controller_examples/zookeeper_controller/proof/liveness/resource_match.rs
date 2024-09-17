@@ -72,7 +72,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         &&& s.resources().contains_key(get_request(sub_resource, zookeeper).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper))
     );
@@ -82,7 +82,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     } else {
         pending_req_in_flight_at_after_exists_stateful_set_step(zookeeper) // ConfigMap is a bit different since its next step is not a SubResource type
     };
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(next_state));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(next_state));
 }
 
 pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
@@ -201,7 +201,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
     });
 
@@ -262,7 +262,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                 }
                 temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
             });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+            entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
             leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
         });
     }
@@ -375,7 +375,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, zookeeper)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, zookeeper)));
     });
 
@@ -433,7 +433,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
             }
             temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
         });
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+        entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
         leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
     });
 }
@@ -1005,7 +1005,7 @@ pub proof fn lemma_resource_object_is_stable(spec: TempPred<ZKCluster>, sub_reso
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

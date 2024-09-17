@@ -156,7 +156,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<Z
         object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource, zookeeper, s, s_prime);
     }
     init_invariant(spec, ZKCluster::init(), next, inv);
-    always_weaken_temp(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)));
+    always_weaken(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, zookeeper)));
 }
 
 pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, zookeeper: ZookeeperClusterView, s: ZKCluster, s_prime: ZKCluster)

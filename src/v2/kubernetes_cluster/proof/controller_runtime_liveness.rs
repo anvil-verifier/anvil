@@ -298,7 +298,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
             })
     };
     temp_pred_equality(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
-    implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
+    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
 
     let req_in_flight = Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state);
     let resp_in_flight = Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state);
@@ -306,7 +306,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
     self.lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(spec, controller_id, cr, current_state, next_state);
     self.lemma_from_pending_req_in_flight_at_some_state_to_next_state(spec, controller_id, cr, current_state, next_state);
 
-    or_leads_to_combine_temp(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)));
+    or_leads_to_combine(spec, lift_state(req_in_flight), lift_state(resp_in_flight), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), next_state)));
     temp_pred_equality(lift_state(req_in_flight).or(lift_state(resp_in_flight)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
     leads_to_trans_n!(
         spec,
@@ -336,7 +336,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: T
         &&& Self::no_pending_req_msg(controller_id, s, cr.object_ref())
     };
     temp_pred_equality(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, cr.object_ref(), init_state)), lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)).implies(lift_state(no_pending_req)));
-    implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)), lift_state(no_pending_req));
+    always_implies_to_leads_to(spec, lift_state(Self::at_expected_reconcile_states(controller_id, cr.object_ref(), init_state)), lift_state(no_pending_req));
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::crash_disabled(controller_id)(s)

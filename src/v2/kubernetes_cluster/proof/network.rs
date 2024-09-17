@@ -404,7 +404,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(self, spec: TempPred
         assert forall |msg1, msg2| #[trigger] s.in_flight().contains(msg1) && #[trigger] s.in_flight().contains(msg2) && msg1 != msg2
         implies msg1.rpc_id != msg2.rpc_id by {}
     };
-    always_weaken_temp::<ClusterState>(spec, lift_state(Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()), lift_state(Self::every_in_flight_msg_has_unique_id()));
+    always_weaken::<ClusterState>(spec, lift_state(Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()), lift_state(Self::every_in_flight_msg_has_unique_id()));
 }
 
 }

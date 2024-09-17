@@ -65,7 +65,7 @@ proof fn liveness_proof(zookeeper: ZookeeperClusterView)
     unpack_conditions_from_spec(invariants(zookeeper), assumption, true_pred(), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
-    valid_implies_trans(
+    entails_trans(
         cluster_spec().and(derived_invariants_since_beginning(zookeeper)), invariants(zookeeper),
         always(lift_state(ZKCluster::desired_state_is(zookeeper))).leads_to(always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))))
     );
@@ -85,7 +85,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     spec_of_previous_phases_entails_eventually_new_invariants(i, zookeeper);
     unpack_conditions_from_spec(spec_before_phase_n(i, zookeeper), invariants_since_phase_n(i, zookeeper), true_pred(), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
     temp_pred_equality(true_pred().and(invariants_since_phase_n(i, zookeeper)), invariants_since_phase_n(i, zookeeper));
-    leads_to_trans_temp(spec_before_phase_n(i, zookeeper), true_pred(), invariants_since_phase_n(i, zookeeper), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
+    leads_to_trans(spec_before_phase_n(i, zookeeper), true_pred(), invariants_since_phase_n(i, zookeeper), always(lift_state(current_state_matches::<ZookeeperMaker>(zookeeper))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(zookeeper: ZookeeperClusterView)
@@ -173,7 +173,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_all_but_stateful_set(zooke
     ) by {
         always_tla_forall_apply_for_sub_resource(spec, sub_resource, zookeeper);
         lemma_from_after_get_resource_step_to_resource_matches(spec, zookeeper, sub_resource);
-        leads_to_trans_temp(
+        leads_to_trans(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, zookeeper)),
             lift_state(sub_resource_state_matches(sub_resource, zookeeper))
         );
@@ -251,7 +251,7 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper: Zo
 
         // We then prove pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper) ~> sub_resource_state_matches(SubResource::StatefulSet, zookeeper)
         lemma_from_after_get_stateful_set_step_to_stateful_set_matches(spec, zookeeper);
-        leads_to_trans_temp(
+        leads_to_trans(
             spec, true_pred(), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)),
             lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))
         );
@@ -263,13 +263,13 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(zookeeper: Zo
         unpack_conditions_from_spec(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
         temp_pred_equality(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), true_pred().and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper)))));
         helper_invariants::lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(spec2, zookeeper);
-        leads_to_trans_temp(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
+        leads_to_trans(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
     });
 
     assert_by(spec1.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))))), {
         unpack_conditions_from_spec(spec1, always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
         temp_pred_equality(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), true_pred().and(always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper)))));
-        leads_to_trans_temp(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
+        leads_to_trans(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ConfigMap, zookeeper))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, zookeeper))));
     });
 }
 
@@ -294,9 +294,25 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ZKCluster>, zooke
         &&& s.scheduled_reconciles().contains_key(zookeeper.object_ref())
     };
     let input = zookeeper.object_ref();
-    ZKCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, ZKCluster::next(), ZKCluster::desired_state_is(zookeeper), pre, post);
-    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
+    let stronger_pre = |s| {
+        &&& pre(s)
+        &&& desired_state_is(zookeeper)(s)
+    };
+    let stronger_next = |s, s_prime| {
+        &&& ZKCluster::next()(s, s_prime)
+        &&& desired_state_is(zookeeper)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(desired_state_is(zookeeper)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(ZKCluster::next()),
+        later(lift_state(desired_state_is(zookeeper)))
+    );
+    ZKCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, stronger_next, stronger_pre, post);
+    temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(zookeeper))), lift_state(stronger_pre));
+    leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(zookeeper)));
+    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
+    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ZKCluster| {!s.ongoing_reconciles().contains_key(zookeeper.object_ref())}));
 }
 

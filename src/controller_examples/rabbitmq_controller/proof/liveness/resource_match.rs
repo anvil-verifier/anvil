@@ -73,12 +73,12 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
     );
     if next_resource_after(sub_resource) == after_get_k_request_step(next_resource) {
-        or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq)));
+        or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource, rabbitmq)));
     }
 }
 
@@ -186,7 +186,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
     });
 
@@ -247,7 +247,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
                 }
                 temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
             });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+            entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
             leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
         });
     }
@@ -349,7 +349,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
 
     assert_by(spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))), {
-        valid_implies_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
+        entails_implies_leads_to(spec, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
         leads_to_trans_n!(spec, pre, match_and_ok_resp, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
     });
 
@@ -412,7 +412,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 }
                 temp_pred_equality(tla_exists(known_ok_resp), exists_ok_resp);
             });
-            valid_implies_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
+            entails_implies_leads_to(spec, match_and_ok_resp, exists_ok_resp);
             leads_to_trans_n!(spec, pre, match_and_ok_resp, exists_ok_resp, lift_state(next_state));
         });
     }
@@ -562,7 +562,7 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(
         &&& helper_invariants::no_create_resource_request_msg_without_name_in_flight(sub_resource, rabbitmq)(s)
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
     };
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()), lift_state(consistent_key));
+    always_weaken(spec, lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()), lift_state(consistent_key));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
@@ -919,7 +919,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
     };
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
 
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1013,7 +1013,7 @@ pub proof fn lemma_resource_object_is_stable(
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

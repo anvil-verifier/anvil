@@ -61,7 +61,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zookeepe
     ZKCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, zookeeper.object_ref());
     temp_pred_equality(lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Done)), lift_state(ZKCluster::reconciler_reconcile_done(zookeeper.object_ref())));
     temp_pred_equality(lift_state(at_step_state_pred(zookeeper, ZookeeperReconcileStep::Error)), lift_state(ZKCluster::reconciler_reconcile_error(zookeeper.object_ref())));
-    valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
+    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     or_leads_to_combine_and_equality!(spec,
         lift_state(at_step1_or_step2_state_pred(zookeeper, ZookeeperReconcileStep::Done, ZookeeperReconcileStep::Error)),

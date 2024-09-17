@@ -32,7 +32,7 @@ pub proof fn lemma_pre_leads_to_post_by_external_api(
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::external_api_next().weak_fairness(i), input);
     Self::external_api_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
+    entails_trans::<Self>(
         lift_state(pre),
         lift_state(Self::external_api_action_pre(action, input)),
         lift_state(Self::external_api_next().pre(input))

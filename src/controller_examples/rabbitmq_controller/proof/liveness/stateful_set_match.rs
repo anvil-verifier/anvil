@@ -67,7 +67,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_stateful_set_matches(
         &&& s.resources().contains_key(get_request(SubResource::StatefulSet, rabbitmq).key)
         &&& pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)(s)
     });
-    or_leads_to_combine_temp(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)));
+    or_leads_to_combine(spec, key_not_exists, key_exists, lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)));
     temp_pred_equality(
         key_not_exists.or(key_exists), lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq))
     );
@@ -119,7 +119,7 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
     let post = lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq));
 
     assert_by(spec.entails(stateful_set_matches.leads_to(post)), {
-        valid_implies_implies_leads_to(spec, stateful_set_matches, post);
+        entails_implies_leads_to(spec, stateful_set_matches, post);
     });
 
     assert_by(spec.entails(stateful_set_not_matches.leads_to(post)), {
@@ -190,7 +190,7 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
         leads_to_trans_n!(spec, stateful_set_not_matches, post1, post2, post);
     });
 
-    or_leads_to_combine_temp(spec, stateful_set_matches, stateful_set_not_matches, post);
+    or_leads_to_combine(spec, stateful_set_matches, stateful_set_not_matches, post);
     temp_pred_equality(stateful_set_matches.or(stateful_set_not_matches), pre);
 }
 
@@ -438,7 +438,7 @@ proof fn lemma_stateful_set_state_matches_at_after_update_stateful_set_step(spec
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
     };
-    always_weaken_temp(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
+    always_weaken(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()), lift_state(resource_well_formed));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
@@ -526,7 +526,7 @@ pub proof fn lemma_stateful_set_is_stable(spec: TempPred<RMQCluster>, rabbitmq: 
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+    leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

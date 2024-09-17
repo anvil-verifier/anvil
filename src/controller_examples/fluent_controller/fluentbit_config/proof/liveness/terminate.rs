@@ -55,7 +55,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<FBCCluster>, fbc: Fl
     FBCCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, fbc.object_ref());
     temp_pred_equality(lift_state(at_step_state_pred(fbc, FluentBitConfigReconcileStep::Done)), lift_state(FBCCluster::reconciler_reconcile_done(fbc.object_ref())));
     temp_pred_equality(lift_state(at_step_state_pred(fbc, FluentBitConfigReconcileStep::Error)), lift_state(FBCCluster::reconciler_reconcile_error(fbc.object_ref())));
-    valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
+    entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
 
     // Second, prove that the sub resource that every intermediate steps can lead to reconcile idle.
     lemma_from_after_get_resource_step_to_after_get_next_resource_step_to_reconcile_idle(spec, fbc, SubResource::Secret, FluentBitConfigReconcileStep::Done);

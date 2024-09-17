@@ -151,7 +151,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<F
         object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource, fb, s, s_prime);
     }
     init_invariant(spec, FBCluster::init(), next, inv);
-    always_weaken_temp(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, fb)));
+    always_weaken(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, fb)));
 }
 
 pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, fb: FluentBitView, s: FBCluster, s_prime: FBCluster)

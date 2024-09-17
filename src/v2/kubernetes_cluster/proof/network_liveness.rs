@@ -177,17 +177,17 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
 
             self.lemma_true_leads_to_always_no_req_before_rpc_id_is_in_flight(spec_with_rpc_id, rpc_id);
 
-            implies_preserved_by_always_temp(
+            entails_preserved_by_always(
                 lift_state(invariant),
                 lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id))
                 .implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
             );
-            valid_implies_trans(
+            entails_trans(
                 spec_with_rpc_id, always(lift_state(invariant)),
                 always(lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)).implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
             );
-            always_implies_preserved_by_always_temp(spec_with_rpc_id, lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)), lift_state(Self::every_in_flight_req_msg_satisfies(requirements)));
-            leads_to_weaken_temp(
+            always_implies_preserved_by_always(spec_with_rpc_id, lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)), lift_state(Self::every_in_flight_req_msg_satisfies(requirements)));
+            leads_to_weaken(
                 spec_with_rpc_id,
                 true_pred(), always(lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id))),
                 true_pred(), always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
@@ -201,7 +201,7 @@ pub proof fn lemma_some_rpc_id_leads_to_always_every_in_flight_req_msg_satisfies
         always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
     );
     temp_pred_equality(true_pred().and(lift_state(Self::rpc_id_counter_is(rpc_id))), lift_state(Self::rpc_id_counter_is(rpc_id)));
-    valid_implies_trans(spec, stable_spec, lift_state(Self::rpc_id_counter_is(rpc_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
+    entails_trans(spec, stable_spec, lift_state(Self::rpc_id_counter_is(rpc_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
 }
 
 // All the APIRequest messages with a smaller id than rpc_id will eventually leave the network.
@@ -231,7 +231,7 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rpc_id_is_in_flight(self, 
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(Self::no_req_before_rpc_id_is_in_flight(rpc_id)));
 }
 
 pub proof fn lemma_eventually_no_req_before_rpc_id_is_in_flight(self, spec: TempPred<ClusterState>, rpc_id: RPCId)
@@ -294,7 +294,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(self, s
                 }
             }
         });
-        valid_implies_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
+        entails_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
     } else {
         // The induction step:
         // If we already have "there are msg_num-1 such requests" ~> "all such requests are gone" (the inductive hypothesis),
@@ -343,7 +343,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(self, s
         self.lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
             spec, rpc_id, (msg_num - 1) as nat
         );
-        leads_to_trans_temp(
+        leads_to_trans(
             spec, pending_requests_num_is_msg_num, pending_requests_num_is_msg_num_minus_1, no_more_pending_requests
         );
     }

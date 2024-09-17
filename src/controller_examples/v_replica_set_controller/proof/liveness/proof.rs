@@ -13,20 +13,16 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::vstd_ext::{map_lib::*, string_view::*};
 use crate::v_replica_set_controller::{
-    model::{reconciler::*},
+    model::reconciler::*,
     proof::{
         helper_invariants,
-        liveness::{
-            spec::*,
-            resource_match::*,
-            terminate,
-        },
+        liveness::{resource_match::*, spec::*, terminate},
         predicate::*,
     },
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
+use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{prelude::*, string::*};
 
 verus! {
@@ -34,7 +30,7 @@ verus! {
 // We prove init /\ []next /\ []wf |= []VReplicaSet::desired_state_is(vrs) ~> []current_state_matches(vrs) holds for each vrs.
 proof fn liveness_proof_forall_vrs()
    ensures liveness_theorem(),
-{	
+{
     assert forall |vrs: VReplicaSetView| #[trigger] cluster_spec().entails(liveness(vrs)) by {
         liveness_proof(vrs);
     };
@@ -59,7 +55,7 @@ proof fn liveness_proof(vrs: VReplicaSetView)
     unpack_conditions_from_spec(invariants(vrs), assumption, true_pred(), always(lift_state(current_state_matches(vrs))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
-    valid_implies_trans(
+    entails_trans(
         cluster_spec().and(derived_invariants_since_beginning(vrs)), invariants(vrs),
         always(lift_state(VRSCluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches(vrs))))
     );
@@ -94,7 +90,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView)
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
-        
+
     // The use of termination property ensures spec |= true ~> reconcile_idle.
     terminate::reconcile_eventually_terminates(spec, vrs);
     // Then we can continue to show that spec |= reconcile_idle ~> []current_state_matches(vrs).
@@ -113,7 +109,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView)
             let diff = pods.len() - vrs.spec.replicas.unwrap_or(0);
 
             // Instantiate exists statement.
-            assert((|diff| lift_state(num_diff_pods_is(vrs, diff)))(diff).satisfied_by(ex));        
+            assert((|diff| lift_state(num_diff_pods_is(vrs, diff)))(diff).satisfied_by(ex));
         }
         assert(valid(true_pred::<VRSCluster>().implies(exists_num_diff_pods_is)));
         temp_pred_equality(true_pred::<VRSCluster>(), tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))));
@@ -127,7 +123,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView)
             let diff = choose |diff| lift_state(#[trigger] num_diff_pods_is(vrs, diff)).satisfied_by(ex);
             assert(diff_at_init(diff).satisfied_by(ex));
         }
-        implies_to_leads_to(spec, at_init, tla_exists(diff_at_init));
+        always_implies_to_leads_to(spec, at_init, tla_exists(diff_at_init));
     });
 
     // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
@@ -172,9 +168,25 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<VRSCluster>, vrs:
         &&& s.scheduled_reconciles().contains_key(vrs.object_ref())
     };
     let input = vrs.object_ref();
-    VRSCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(spec, input, VRSCluster::next(), VRSCluster::desired_state_is(vrs), pre, post);
-    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
-    or_leads_to_combine_temp(spec, lift_state(pre), lift_state(post), lift_state(post));
+    let stronger_pre = |s| {
+        &&& pre(s)
+        &&& desired_state_is(vrs)(s)
+    };
+    let stronger_next = |s, s_prime| {
+        &&& VRSCluster::next()(s, s_prime)
+        &&& desired_state_is(vrs)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(desired_state_is(vrs)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(VRSCluster::next()),
+        later(lift_state(desired_state_is(vrs)))
+    );
+    VRSCluster::lemma_pre_leads_to_post_by_schedule_controller_reconcile(spec, input, stronger_next, stronger_pre, post);
+    temp_pred_equality(lift_state(pre).and(lift_state(desired_state_is(vrs))), lift_state(stronger_pre));
+    leads_to_by_borrowing_inv(spec, lift_state(pre), lift_state(post), lift_state(desired_state_is(vrs)));
+    entails_implies_leads_to(spec, lift_state(post), lift_state(post));
+    or_leads_to_combine(spec, lift_state(pre), lift_state(post), lift_state(post));
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: VRSCluster| {!s.ongoing_reconciles().contains_key(vrs.object_ref())}));
 }
 
