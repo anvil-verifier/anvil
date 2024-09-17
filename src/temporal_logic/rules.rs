@@ -2005,4 +2005,25 @@ proof fn leads_to_rank_step_one_usize_help<T>(spec: TempPred<T>, p: spec_fn(usiz
     }
 }
 
+pub proof fn vacuous_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(always(r)),
+        p.and(r) == false_pred::<T>(),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            assert_by(!p.satisfied_by(ex.suffix(i)), {
+                implies_apply::<T>(ex, spec, always(r));
+                assert(r.satisfied_by(ex.suffix(i)));
+                if p.satisfied_by(ex.suffix(i)) {
+                    assert(p.and(r).satisfied_by(ex.suffix(i)));
+                    assert(p.and(r) != false_pred::<T>());
+                }
+            });
+        }
+    }
+}
+
 }
