@@ -3,6 +3,7 @@
 pub mod cluster;
 pub mod compositionality;
 pub mod controller_runtime_liveness;
+pub mod controller_runtime_safety;
 pub mod failures_liveness;
 pub mod garbage_collector;
 pub mod network;
