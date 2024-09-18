@@ -30,7 +30,7 @@ pub open spec fn marshal_preserves_status() -> bool {
 }
 
 /// The relexitivity allows the metadata to be different.
-pub open spec fn is_reflexive_and_transitive() -> bool {
+pub open spec fn transition_validation_is_reflexive_and_transitive() -> bool {
     &&& forall |x: K, y: K|  (x.spec() == y.spec() && x.status() == y.status()) ==> #[trigger] K::transition_validation(x, y)
     &&& forall |x: K, y: K, z: K| #![trigger K::transition_validation(x, y), K::transition_validation(y, z)]
         K::transition_validation(x, y) && K::transition_validation(y, z) ==> K::transition_validation(x, z)
@@ -54,7 +54,7 @@ pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_trig
         K::kind().is_CustomResourceKind(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
-        Self::is_reflexive_and_transitive(),
+        Self::transition_validation_is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr)))),
@@ -82,7 +82,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> Stat
 proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: TempPred<Self>, cr: K)
     requires
         K::kind().is_CustomResourceKind(),
-        Self::is_reflexive_and_transitive(),
+        Self::transition_validation_is_reflexive_and_transitive(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
         spec.entails(lift_state(Self::init())),
@@ -177,7 +177,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         K::kind().is_CustomResourceKind(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
-        Self::is_reflexive_and_transitive(),
+        Self::transition_validation_is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures

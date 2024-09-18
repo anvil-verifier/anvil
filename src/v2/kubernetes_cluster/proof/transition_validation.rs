@@ -15,7 +15,7 @@ verus! {
 
 impl Cluster {
 
-pub open spec fn is_reflexive_and_transitive<T: CustomResourceView>() -> bool {
+pub open spec fn transition_validation_is_reflexive_and_transitive<T: CustomResourceView>() -> bool {
     &&& forall |x: T, y: T|
         (x.spec() == y.spec() && x.status() == y.status()) ==> #[trigger] T::transition_validation(x, y)
     &&& forall |x: T, y: T, z: T| #![trigger T::transition_validation(x, y), T::transition_validation(y, z)]
@@ -70,9 +70,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr<T: Custom
         self.controller_models.contains_key(controller_id),
         self.controller_models[controller_id].reconcile_model.kind == T::kind(),
         self.type_is_installed_in_cluster::<T>(),
-        Self::is_reflexive_and_transitive::<T>(),
-        // Self::marshal_preserves_spec(),
-        // Self::marshal_preserves_status(),
+        Self::transition_validation_is_reflexive_and_transitive::<T>(),
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_cr(controller_id, cr)))),
@@ -97,7 +95,6 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr<T: Custom
         lift_state(Self::there_is_the_controller_state(controller_id))
     );
     let key = cr.object_ref();
-    // let string = T::kind().get_CustomResourceKind_0();
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if s_prime.scheduled_reconciles(controller_id).contains_key(key)
         && s_prime.resources().contains_key(key)
@@ -143,7 +140,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
         self.controller_models.contains_key(controller_id),
         self.controller_models[controller_id].reconcile_model.kind == T::kind(),
         self.type_is_installed_in_cluster::<T>(),
-        Self::is_reflexive_and_transitive::<T>(),
+        Self::transition_validation_is_reflexive_and_transitive::<T>(),
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
     ensures
@@ -242,7 +239,7 @@ pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_trig
         self.controller_models.contains_key(controller_id),
         self.controller_models[controller_id].reconcile_model.kind == T::kind(),
         self.type_is_installed_in_cluster::<T>(),
-        Self::is_reflexive_and_transitive::<T>(),
+        Self::transition_validation_is_reflexive_and_transitive::<T>(),
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(controller_id, cr)))),
