@@ -177,16 +177,16 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = cr.object_ref();
-        T::object_ref_is_well_formed();
-        T::marshal_preserves_metadata();
-        T::unmarshal_result_determined_by_unmarshal_spec_and_status();
-        T::kind_is_custom_resource();
         let step = choose |step| self.next_step(s, s_prime, step);
         if s_prime.ongoing_reconciles(controller_id).contains_key(key)
         && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.ongoing_reconciles(controller_id)[key].triggering_cr.metadata.uid.get_Some_0() {
             match step {
                 Step::APIServerStep(input) => {
+                    T::object_ref_is_well_formed();
+                    T::marshal_preserves_metadata();
+                    T::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                    T::kind_is_custom_resource();
                     assert(s.ongoing_reconciles(controller_id).contains_key(key) && s.ongoing_reconciles(controller_id)[key].triggering_cr == s_prime.ongoing_reconciles(controller_id)[key].triggering_cr);
                     if !s.resources().contains_key(key) {
                         assert(s_prime.resources()[key].metadata.uid == Some(s.api_server.uid_counter));
@@ -194,23 +194,14 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
                     } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
                             assert(s_prime.resources()[key].spec == s.resources()[key].spec);
-                            assert(T::transition_validation(
-                                T::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                T::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
                         } else if input.get_Some_0().content.is_update_request() {
                             assert(T::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(T::transition_validation(
-                                T::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                T::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
                         } else {
                             assert(input.get_Some_0().content.is_update_status_request());
                             assert(T::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
-                            assert(T::transition_validation(
-                                T::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                T::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
                         }
                     }
                 },
@@ -229,8 +220,8 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
             match step {
                 Step::ScheduleControllerReconcileStep(_) => {
                     if !s.scheduled_reconciles(controller_id).contains_key(key) || s.scheduled_reconciles(controller_id)[key] != s_prime.scheduled_reconciles(controller_id)[key] {
-                        assert(T::transition_validation(T::unmarshal(s_prime.scheduled_reconciles(controller_id)[key]).get_Ok_0(), T::unmarshal(s.resources()[key]).get_Ok_0()));
-                        assert(T::transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0(), T::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).get_Ok_0()));
+                        assert(T::unmarshal(s_prime.scheduled_reconciles(controller_id)[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
+                        assert(T::unmarshal(s.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).get_Ok_0()));
                     }
                     assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(controller_id, cr)(s_prime));
                 },
