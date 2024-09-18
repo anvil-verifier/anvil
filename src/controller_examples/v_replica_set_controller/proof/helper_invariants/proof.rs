@@ -25,14 +25,11 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
     spec: TempPred<VRSCluster>, vrs: VReplicaSetView
 )
     requires
-        spec.entails(always(lift_state(VRSCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
         spec.entails(always(lift_state(VRSCluster::pod_event_disabled()))),
         spec.entails(always(lift_action(VRSCluster::next()))),
         spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| VRSCluster::external_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(VRSCluster::desired_state_is(vrs)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_update_or_update_status_request_on_pods())))),
 {
     let requirements = |msg: VRSMessage, s: VRSCluster| {
@@ -42,8 +39,6 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
 
     let stronger_next = |s: VRSCluster, s_prime: VRSCluster| {
         &&& VRSCluster::next()(s, s_prime)
-        &&& VRSCluster::desired_state_is(vrs)(s)
-        &&& VRSCluster::each_object_in_etcd_is_well_formed()(s)
         &&& VRSCluster::pod_event_disabled()(s)
     };
 
@@ -67,9 +62,7 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
     invariant_n!(
         spec, lift_action(stronger_next), 
         lift_action(VRSCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
-        lift_action(VRSCluster::next()), 
-        lift_state(VRSCluster::desired_state_is(vrs)),
-        lift_state(VRSCluster::each_object_in_etcd_is_well_formed()),
+        lift_action(VRSCluster::next()),
         lift_state(VRSCluster::pod_event_disabled())
     );
 
