@@ -46,7 +46,20 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
     };
 
     assert forall |s: VRSCluster, s_prime: VRSCluster| #[trigger]  #[trigger] stronger_next(s, s_prime) implies VRSCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assume(false);
+        assert forall |msg: VRSMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies requirements(msg, s_prime) by {
+            if s.in_flight().contains(msg) {
+                assert(requirements(msg, s));
+                assert(requirements(msg, s_prime));
+            } else {
+                let step = choose |step| VRSCluster::next_step(s, s_prime, step);
+                match step {
+                    _ => {
+                        assert(requirements(msg, s_prime));
+                    }
+                }
+            }
+        }
     }
 
     invariant_n!(
