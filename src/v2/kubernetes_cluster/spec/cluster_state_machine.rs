@@ -647,6 +647,11 @@ impl Cluster {
     pub open spec fn external(self, controller_id: int) -> ExternalStateMachine {
         external(self.controller_models[controller_id].external_model.get_Some_0())
     }
+
+    #[verifier(inline)]
+    pub open spec fn reconcile_model(self, controller_id: int) -> ReconcileModel {
+        self.controller_models[controller_id].reconcile_model
+    }
 }
 
 }
