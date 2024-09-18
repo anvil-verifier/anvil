@@ -31,6 +31,7 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
         spec.entails(always(lift_state(VRSCluster::pod_event_disabled()))),
         spec.entails(always(lift_action(VRSCluster::next()))),
         spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| VRSCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(VRSCluster::desired_state_is(vrs)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_update_or_update_status_request_on_pods())))),
 {
@@ -43,6 +44,7 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
         &&& VRSCluster::next()(s, s_prime)
         &&& VRSCluster::desired_state_is(vrs)(s)
         &&& VRSCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& VRSCluster::pod_event_disabled()(s)
     };
 
     assert forall |s: VRSCluster, s_prime: VRSCluster| #[trigger]  #[trigger] stronger_next(s, s_prime) implies VRSCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -67,7 +69,8 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
         lift_action(VRSCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(VRSCluster::next()), 
         lift_state(VRSCluster::desired_state_is(vrs)),
-        lift_state(VRSCluster::each_object_in_etcd_is_well_formed())
+        lift_state(VRSCluster::each_object_in_etcd_is_well_formed()),
+        lift_state(VRSCluster::pod_event_disabled())
     );
 
     VRSCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
