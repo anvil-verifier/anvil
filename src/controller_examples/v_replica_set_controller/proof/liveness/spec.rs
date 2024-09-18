@@ -69,6 +69,62 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView) -> TempPred<V
     }
 }
 
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, vrs: VReplicaSetView)
+    requires 1 <= i <= 7,
+    ensures spec_before_phase_n(i, vrs).entails(true_pred().leads_to(invariants_since_phase_n(i, vrs))),
+{
+    let spec = spec_before_phase_n(i, vrs);
+    reveal_with_fuel(spec_before_phase_n, 8);
+    if i == 1 {
+        VRSCluster::lemma_true_leads_to_crash_always_disabled(spec);
+        VRSCluster::lemma_true_leads_to_busy_always_disabled(spec);
+        VRSCluster::lemma_true_leads_to_pod_event_always_disabled(spec);
+        VRSCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, vrs);
+        leads_to_always_combine_n!(
+            spec,
+            true_pred(),
+            lift_state(VRSCluster::crash_disabled()),
+            lift_state(VRSCluster::busy_disabled()),
+            lift_state(VRSCluster::pod_event_disabled()),
+            lift_state(VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs))
+        );
+    } else {
+        assume(false);
+        // terminate::reconcile_eventually_terminates(spec, vrs);
+        // if i == 2 {
+        //     VRSCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, vrs);
+        // } else if i == 3 {
+        //     helper_invariants::lemma_always_vrs_is_well_formed(spec, vrs);
+        //     helper_invariants::lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(spec, vrs);
+        //     helper_invariants::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(spec, vrs);
+        //     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, vrs));
+        //     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, vrs));
+        //     helper_invariants::lemma_eventually_always_every_zk_set_data_request_implies_at_after_update_zk_node_step(spec, vrs);
+        //     helper_invariants::lemma_eventually_always_every_zk_create_node_request_implies_at_after_create_zk_node_step(spec, vrs);
+        //     leads_to_always_combine_n!(
+        //         spec, true_pred(), tla_forall(a_to_p_1), tla_forall(a_to_p_2),
+        //         lift_state(helper_invariants::every_zk_set_data_request_implies_at_after_update_zk_node_step(vrs)),
+        //         lift_state(helper_invariants::every_zk_create_node_request_implies_at_after_create_zk_node_step(vrs))
+        //     );
+        // } else if i == 4 {
+        //     helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(spec, vrs);
+        // } else if i == 5 {
+        //     helper_invariants::lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(spec, vrs);
+        // } else if i == 6 {
+        //     helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(spec, vrs);
+        //     helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(spec, vrs);
+        //     helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd_forall(spec, vrs);
+        //     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, vrs));
+        //     leads_to_always_combine_n!(
+        //         spec, true_pred(),
+        //         tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ConfigMap, vrs)), lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ConfigMap, vrs))
+        //     );
+        // } else if i == 7 {
+        //     helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec, vrs);
+        // }
+    }
+}
+
 #[verifier(external_body)]
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView)
     ensures
@@ -93,6 +149,7 @@ pub open spec fn next_with_wf() -> TempPred<VRSCluster> {
     .and(tla_forall(|input| VRSCluster::builtin_controllers_next().weak_fairness(input)))
     .and(VRSCluster::disable_crash().weak_fairness(()))
     .and(VRSCluster::disable_transient_failure().weak_fairness(()))
+    .and(VRSCluster::disable_pod_event().weak_fairness(()))
 }
 
 /// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
@@ -123,10 +180,6 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
     .and(always(lift_state(helper_invariants::matching_pods_bounded(vrs))))
     .and(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
     .and(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
-    .and(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
-    .and(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
-    .and(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
-    .and(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs))))
 }
 
 /// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
@@ -137,16 +190,19 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
 pub open spec fn invariants_since_phase_i(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
     always(lift_state(VRSCluster::crash_disabled()))
     .and(always(lift_state(VRSCluster::busy_disabled())))
+    .and(always(lift_state(VRSCluster::pod_event_disabled())))
     .and(always(lift_state(VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs))))
 }
 
 // Placeholder invariants -- will develop from the WF1 lemmas.
 pub open spec fn invariants_since_phase_ii(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
-    true_pred()
+    always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))
+    .and(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
+    .and(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
 }
 
 pub open spec fn invariants_since_phase_iii(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
-    true_pred()
+    always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs)))
 }
 
 pub open spec fn invariants_since_phase_iv(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
