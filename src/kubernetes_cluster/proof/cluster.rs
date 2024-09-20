@@ -75,6 +75,19 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
     leads_to_stable::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
 }
 
+pub proof fn lemma_true_leads_to_pod_event_always_disabled(
+    spec: TempPred<Self>,
+)
+    requires
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(Self::disable_pod_event().weak_fairness(())),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::pod_event_disabled())))),
+{
+    let true_state = |s: Self| true;
+    Self::disable_pod_event().wf1((), spec, Self::next(), true_state, Self::pod_event_disabled());
+    leads_to_stable::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::pod_event_disabled()));
+}
+
 // This desired_state_is specifies the desired state (described in the cr object)
 // Informally, it says that given the cr object, the object's key exists in the etcd,
 // and the corresponding object in etcd has the same spec and uid of the given cr object.

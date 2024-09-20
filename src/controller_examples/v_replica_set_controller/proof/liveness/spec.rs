@@ -70,6 +70,37 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView) -> TempPred<V
 }
 
 #[verifier(external_body)]
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, vrs: VReplicaSetView)
+    requires 1 <= i <= 7,
+    ensures spec_before_phase_n(i, vrs).entails(true_pred().leads_to(invariants_since_phase_n(i, vrs))),
+{
+    let spec = spec_before_phase_n(i, vrs);
+    reveal_with_fuel(spec_before_phase_n, 8);
+    if i == 1 {
+        VRSCluster::lemma_true_leads_to_crash_always_disabled(spec);
+        VRSCluster::lemma_true_leads_to_busy_always_disabled(spec);
+        VRSCluster::lemma_true_leads_to_pod_event_always_disabled(spec);
+        VRSCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, vrs);
+        leads_to_always_combine_n!(
+            spec,
+            true_pred(),
+            lift_state(VRSCluster::crash_disabled()),
+            lift_state(VRSCluster::busy_disabled()),
+            lift_state(VRSCluster::pod_event_disabled()),
+            lift_state(VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs))
+        );
+    } else {
+        terminate::reconcile_eventually_terminates(spec, vrs);
+        if i == 2 {
+            assume(false);
+            //
+        } else {
+            assume(false);
+        }
+    }
+}
+
+#[verifier(external_body)]
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vrs))),
@@ -93,6 +124,7 @@ pub open spec fn next_with_wf() -> TempPred<VRSCluster> {
     .and(tla_forall(|input| VRSCluster::builtin_controllers_next().weak_fairness(input)))
     .and(VRSCluster::disable_crash().weak_fairness(()))
     .and(VRSCluster::disable_transient_failure().weak_fairness(()))
+    .and(VRSCluster::disable_pod_event().weak_fairness(()))
 }
 
 /// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
@@ -123,10 +155,6 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
     .and(always(lift_state(helper_invariants::matching_pods_bounded(vrs))))
     .and(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
     .and(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
-    .and(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
-    .and(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
-    .and(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
-    .and(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs))))
 }
 
 /// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
@@ -137,16 +165,19 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
 pub open spec fn invariants_since_phase_i(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
     always(lift_state(VRSCluster::crash_disabled()))
     .and(always(lift_state(VRSCluster::busy_disabled())))
+    .and(always(lift_state(VRSCluster::pod_event_disabled())))
     .and(always(lift_state(VRSCluster::the_object_in_schedule_has_spec_and_uid_as(vrs))))
 }
 
 // Placeholder invariants -- will develop from the WF1 lemmas.
 pub open spec fn invariants_since_phase_ii(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
-    true_pred()
+    always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))
+    .and(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))
+    .and(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs))))
 }
 
 pub open spec fn invariants_since_phase_iii(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
-    true_pred()
+    always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs)))
 }
 
 pub open spec fn invariants_since_phase_iv(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
