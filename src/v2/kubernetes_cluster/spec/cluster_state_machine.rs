@@ -17,6 +17,8 @@ use crate::v2::kubernetes_cluster::spec::{
     message::*,
     network::state_machine::network,
     network::types::*,
+    pod_monkey::state_machine::pod_monkey,
+    pod_monkey::types::*,
 };
 use vstd::{multiset::*, prelude::*};
 
@@ -33,6 +35,7 @@ pub struct ClusterState {
     pub network: NetworkState,
     pub rpc_id_allocator: RPCIdAllocator,
     pub req_drop_enabled: bool,
+    pub pod_monkey_enabled: bool,
 }
 
 // The ControllerAndExternalState includes the controller's internal state,
@@ -79,9 +82,11 @@ pub enum Step {
     RestartControllerStep(int),
     DisableCrashStep(int),
     DropReqStep((Message, APIError)),
-    DisableReqDropStep(),
+    DisableReqDropStep,
+    PodMonkeyStep(PodView),
+    DisablePodMonkeyStep,
     ExternalStep((int, Option<Message>)),
-    StutterStep(),
+    StutterStep,
 }
 
 // The Cluster is customized by the custom resource types installed
@@ -114,6 +119,8 @@ impl Cluster {
             &&& (network().init)(s.network)
             // and message drop is enabled...
             &&& s.req_drop_enabled
+            // and pod monkey is enabled...
+            &&& s.pod_monkey_enabled
             // and for each controller...
             &&& forall |key| #[trigger] self.controller_models.contains_key(key)
                 ==> {
@@ -154,9 +161,11 @@ impl Cluster {
             Step::RestartControllerStep(input) => self.restart_controller().forward(input)(s, s_prime),
             Step::DisableCrashStep(input) => self.disable_crash().forward(input)(s, s_prime),
             Step::DropReqStep(input) => self.drop_req().forward(input)(s, s_prime),
-            Step::DisableReqDropStep() => self.disable_req_drop().forward(())(s, s_prime),
+            Step::DisableReqDropStep => self.disable_req_drop().forward(())(s, s_prime),
+            Step::PodMonkeyStep(input) => self.pod_monkey_next().forward(input)(s, s_prime),
+            Step::DisablePodMonkeyStep => self.disable_pod_monkey().forward(())(s, s_prime),
             Step::ExternalStep(input) => self.external_next().forward(input)(s, s_prime),
-            Step::StutterStep() => self.stutter().forward(())(s, s_prime),
+            Step::StutterStep => self.stutter().forward(())(s, s_prime),
         }
     }
 
@@ -462,6 +471,51 @@ impl Cluster {
         }
     }
 
+    pub open spec fn pod_monkey_next(self) -> Action<ClusterState, PodView, ()> {
+        let result = |input: PodView, s: ClusterState| {
+            let host_result = self.pod_monkey().next_result(
+                PodMonkeyActionInput{pod: input, rpc_id_allocator: s.rpc_id_allocator},
+                ()
+            );
+            let msg_ops = MessageOps {
+                recv: None,
+                send: host_result.get_Enabled_1().send,
+            };
+            let network_result = network().next_result(msg_ops, s.network);
+
+            (host_result, network_result)
+        };
+        Action {
+            precondition: |input: PodView, s: ClusterState| {
+                &&& s.pod_monkey_enabled
+                &&& result(input, s).0.is_Enabled()
+                &&& result(input, s).1.is_Enabled()
+            },
+            transition: |input: PodView, s: ClusterState| {
+                let (host_result, network_result) = result(input, s);
+                (ClusterState {
+                    network: network_result.get_Enabled_0(),
+                    rpc_id_allocator: host_result.get_Enabled_1().rpc_id_allocator,
+                    ..s
+                }, ())
+            },
+        }
+    }
+
+    pub open spec fn disable_pod_monkey(self) -> Action<ClusterState, (), ()> {
+        Action {
+            precondition: |input:(), s: ClusterState| {
+                true
+            },
+            transition: |input: (), s: ClusterState| {
+                (ClusterState {
+                    pod_monkey_enabled: false,
+                    ..s
+                }, ())
+            }
+        }
+    }
+
     // The external_next models the external system that a controller interacts with.
     // The modelling assumes that the interaction is based on RPC.
     // It chooses one external system from controller_models and run it.
@@ -642,6 +696,10 @@ impl Cluster {
 
     pub open spec fn controller(self, controller_id: int) -> ControllerStateMachine {
         controller(self.controller_models[controller_id].reconcile_model, controller_id)
+    }
+
+    pub open spec fn pod_monkey(self) -> PodMonkeyStateMachine {
+        pod_monkey()
     }
 
     pub open spec fn external(self, controller_id: int) -> ExternalStateMachine {

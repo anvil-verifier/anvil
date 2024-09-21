@@ -407,6 +407,9 @@ proof fn pending_requests_num_decreases(self, spec: TempPred<ClusterState>, rpc_
             Step::ControllerStep(input) => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
+            Step::PodMonkeyStep(input) => {
+                assert(pending_req_multiset =~= pending_req_multiset_prime);
+            },
             Step::ExternalStep(input) => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },

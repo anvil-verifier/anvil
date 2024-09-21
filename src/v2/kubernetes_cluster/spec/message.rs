@@ -34,6 +34,7 @@ pub enum HostId {
     BuiltinController,
     Controller(int),
     External(int),
+    PodMonkey,
 }
 
 // RPCIdAllocator allocates unique RPCId for each request sent by the controller.
@@ -244,6 +245,10 @@ pub open spec fn controller_external_req_msg(controller_id: int, req_id: RPCId, 
 
 pub open spec fn built_in_controller_req_msg(rpc_id: RPCId, msg_content: MessageContent) -> Message {
     form_msg(HostId::BuiltinController, HostId::APIServer, rpc_id, msg_content)
+}
+
+pub open spec fn pod_monkey_req_msg(rpc_id: RPCId, msg_content: MessageContent) -> Message {
+    form_msg(HostId::PodMonkey, HostId::APIServer, rpc_id, msg_content)
 }
 
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
