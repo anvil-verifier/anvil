@@ -471,6 +471,12 @@ impl Cluster {
         }
     }
 
+    // The pod_monkey_next randomly creates, updates, or deletes a pod. This is used
+    // to model any event that affects pods but not issued by controllers, including:
+    // app container failures that cause pod termination (deletion), node failures or
+    // maintenance that cause pod migration (deletion and recreation), users manually
+    // modify pods, etc. These events will affect controllers that directly manage pods,
+    // such as the replicaset controller.
     pub open spec fn pod_monkey_next(self) -> Action<ClusterState, PodView, ()> {
         let result = |input: PodView, s: ClusterState| {
             let host_result = self.pod_monkey().next_result(
@@ -502,6 +508,9 @@ impl Cluster {
         }
     }
 
+    // The disable_pod_monkey disables the pod monkey from touching any pod.
+    // This is used to constrain the pod monkey events for proving liveness of
+    // the controllers that directly manage pods.
     pub open spec fn disable_pod_monkey(self) -> Action<ClusterState, (), ()> {
         Action {
             precondition: |input:(), s: ClusterState| {
