@@ -113,6 +113,7 @@ pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> 
                 status: marshalled_default_status::<VReplicaSetView>(req.obj.kind), // Overwrite the status with the default one
             };
             &&& obj.metadata.deletion_timestamp.is_None()
+            &&& obj.metadata.namespace.is_Some()
             &&& content.get_create_request().namespace == obj.metadata.namespace.unwrap()
             &&& unmarshallable_object::<VReplicaSetView>(obj)
             &&& created_object_validity_check::<VReplicaSetView>(created_obj).is_none()

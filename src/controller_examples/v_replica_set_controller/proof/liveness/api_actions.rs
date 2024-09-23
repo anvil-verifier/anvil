@@ -42,6 +42,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
     // Dispatch through all the requests which may mutate the k-v store.
     let mutates_key = if msg.content.is_create_request() {
         let req = msg.content.get_create_request();
+        //assume(false);
         Some(ObjectRef{
             kind: req.obj.kind,
             name: if req.obj.metadata.name.is_Some() {
