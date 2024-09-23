@@ -37,7 +37,8 @@ pub open spec fn resource_state_matches(vrs: VReplicaSetView, resources: StoredS
 
 pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
     &&& obj.kind == PodView::kind()
-    &&& obj.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+    &&& obj.metadata.namespace.is_Some()
+    &&& obj.metadata.namespace == vrs.metadata.namespace
     &&& obj.metadata.owner_references_contains(vrs.controller_owner_ref())
     &&& vrs.spec.selector.matches(obj.metadata.labels.unwrap_or(Map::empty()))
     &&& obj.metadata.deletion_timestamp.is_None()

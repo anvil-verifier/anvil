@@ -136,15 +136,11 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
                 } else {
                     let step = choose |step| VRSCluster::next_step(s, s_prime, step);
                     let cr_key = step.get_ControllerStep_0().1.get_Some_0();
-                    assert(step.is_ControllerStep());
-                    assert(s.ongoing_reconciles().contains_key(cr_key));
                     let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
                     let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
-                    assert(local_step.is_AfterListPods() || local_step.is_AfterCreatePod());
-                    assert(local_step_prime.is_AfterCreatePod());
                     let new_diff = local_step_prime.get_AfterCreatePod_0();
-                    assume(key == cr_key); // How to prove this?
                     assert(at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterCreatePod(new_diff))(s_prime));
+                    assert(requirements(msg, s_prime));
                 }
             }
         }
