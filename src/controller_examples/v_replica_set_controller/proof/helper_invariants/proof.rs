@@ -82,11 +82,15 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         spec.entails(always(lift_state(VRSCluster::busy_disabled()))),
         spec.entails(always(lift_state(VRSCluster::pod_event_disabled()))),
         spec.entails(always(lift_action(VRSCluster::next()))),
+        spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
+        spec.entails(always(lift_state(VRSCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(VRSCluster::the_object_in_reconcile_has_spec_and_uid_as(vrs)))),
         spec.entails(tla_forall(|i| VRSCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| VRSCluster::external_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(VRSCluster::desired_state_is(vrs)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs))))),
 {
+    let key = vrs.object_ref();
     let requirements = |msg: VRSMessage, s: VRSCluster| {
         ({
             let content = msg.content;
@@ -98,6 +102,12 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
             &&& VRSCluster::pending_req_msg_is(s, vrs.object_ref(), msg)
         })
     };
+    let requirements_antecedent = |msg: VRSMessage, s: VRSCluster| {
+        let content = msg.content;
+        let obj = content.get_create_request().obj;
+        &&& content.is_create_request()
+        &&& owned_selector_match_is(vrs, obj)
+    };
 
     let stronger_next = |s: VRSCluster, s_prime: VRSCluster| {
         &&& VRSCluster::next()(s, s_prime)
@@ -105,40 +115,36 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         &&& VRSCluster::busy_disabled()(s)
         &&& VRSCluster::pod_event_disabled()(s)
         &&& VRSCluster::desired_state_is(vrs)(s)
+        &&& VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& VRSCluster::every_in_flight_msg_has_unique_id()(s)
+        &&& VRSCluster::the_object_in_reconcile_has_spec_and_uid_as(vrs)(s)
     };
 
     assert forall |s: VRSCluster, s_prime: VRSCluster| #[trigger]  #[trigger] stronger_next(s, s_prime) implies VRSCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: VRSMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
-            if s.in_flight().contains(msg) {
-                assert(requirements(msg, s));
+            if requirements_antecedent(msg, s) {
+                if s.in_flight().contains(msg) {
+                    assert(requirements(msg, s));
 
-                let content = msg.content;
-                let obj = content.get_create_request().obj;
-                if content.is_create_request() && owned_selector_match_is(vrs, obj) {
                     let diff = choose |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterCreatePod(diff))(s);
-                    let step = choose |step| VRSCluster::next_step(s, s_prime, step);
-                    match step {
-                        Step::ControllerStep(input) => {
-                            assume(false) // DEAL WITH LATER
-                        },
-                        _ => {
-                            assert(at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterCreatePod(diff))(s_prime));
-                            assert(requirements(msg, s_prime));
-                        }
-                    }
-                }
+                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                    assert(at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterCreatePod(diff))(s_prime)
+                        || at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterCreatePod((diff - 1) as usize))(s_prime));
 
-                assert(requirements(msg, s_prime));
-            } else {
-                let step = choose |step| VRSCluster::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(_) => {
-                        assume(false); // DEAL WITH LATER
-                    },
-                    _ => {
-                        assert(requirements(msg, s_prime));
-                    }
+                    assert(requirements(msg, s_prime));
+                } else {
+                    let step = choose |step| VRSCluster::next_step(s, s_prime, step);
+                    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
+                    assert(step.is_ControllerStep());
+                    assert(s.ongoing_reconciles().contains_key(cr_key));
+                    let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+                    let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+                    assert(local_step.is_AfterListPods() || local_step.is_AfterCreatePod());
+                    assert(local_step_prime.is_AfterCreatePod());
+                    let new_diff = local_step_prime.get_AfterCreatePod_0();
+                    assume(key == cr_key); // How to prove this?
+                    assert(at_vrs_step_with_vrs(vrs, VReplicaSetReconcileStep::AfterCreatePod(new_diff))(s_prime));
                 }
             }
         }
@@ -151,7 +157,10 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         lift_state(VRSCluster::crash_disabled()),
         lift_state(VRSCluster::busy_disabled()),
         lift_state(VRSCluster::pod_event_disabled()),
-        lift_state(VRSCluster::desired_state_is(vrs))
+        lift_state(VRSCluster::desired_state_is(vrs)),
+        lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        lift_state(VRSCluster::every_in_flight_msg_has_unique_id()),
+        lift_state(VRSCluster::the_object_in_reconcile_has_spec_and_uid_as(vrs))
     );
 
     VRSCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
