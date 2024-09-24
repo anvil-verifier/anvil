@@ -75,13 +75,13 @@ impl ResourceView for ServiceAccountView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceAccountView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceAccountView, UnmarshalError> {
             if obj.kind != Self::kind() {
-                Err(ParseDynamicObjectError::UnmarshalError)
+                Err(())
             } else if !ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() {
-                Err(ParseDynamicObjectError::UnmarshalError)
+                Err(())
             } else if !ServiceAccountView::unmarshal_status(obj.status).is_Ok() {
-                Err(ParseDynamicObjectError::UnmarshalError)
+                Err(())
             } else {
                 Ok(ServiceAccountView {
                     metadata: obj.metadata,
@@ -101,11 +101,11 @@ impl ResourceView for ServiceAccountView {
 
     closed spec fn marshal_spec(s: ServiceAccountSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

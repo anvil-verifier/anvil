@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit::trusted::step::*;
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::spec::{
     affinity::*, api_resource::*, common::*, container::*, dynamic::*, object_meta::*,
     owner_reference::*, prelude::*, resource::*, resource_requirements::*, toleration::*,
@@ -91,13 +91,13 @@ impl ResourceView for FluentBitView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<FluentBitView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<FluentBitView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !FluentBitView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !FluentBitView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(FluentBitView {
                 metadata: obj.metadata,
@@ -118,11 +118,11 @@ impl ResourceView for FluentBitView {
 
     closed spec fn marshal_spec(s: FluentBitSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<FluentBitStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<FluentBitStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<FluentBitStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

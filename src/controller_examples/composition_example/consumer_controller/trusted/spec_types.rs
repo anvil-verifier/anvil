@@ -87,13 +87,13 @@ impl ResourceView for ConsumerView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ConsumerView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ConsumerView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ConsumerView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ConsumerView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(ConsumerView {
                 metadata: obj.metadata,
@@ -114,11 +114,11 @@ impl ResourceView for ConsumerView {
 
     closed spec fn marshal_spec(s: ConsumerSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ConsumerSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<ConsumerSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<ConsumerStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<ConsumerStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<ConsumerStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

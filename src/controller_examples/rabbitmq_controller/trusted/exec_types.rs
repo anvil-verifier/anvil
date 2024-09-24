@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, dynamic::*, object_meta::*, owner_reference::*, resource::*,
     resource_requirements::*, stateful_set::*, toleration::*,
@@ -104,7 +104,7 @@ impl RabbitmqCluster {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RabbitmqCluster, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RabbitmqCluster, UnmarshalError>)
         ensures
             res.is_Ok() == spec_types::RabbitmqClusterView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == spec_types::RabbitmqClusterView::unmarshal(obj@).get_Ok_0(),
@@ -114,7 +114,7 @@ impl RabbitmqCluster {
             let res = RabbitmqCluster { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

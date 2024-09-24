@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, label_selector::*, object_meta::*, pod_template_spec::*,
     resource::*,
@@ -92,7 +92,7 @@ impl DaemonSet {
 
     /// Convert a DynamicObject to a DaemonSet
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<DaemonSet, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<DaemonSet, UnmarshalError>)
         ensures
             res.is_Ok() == DaemonSetView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == DaemonSetView::unmarshal(obj@).get_Ok_0(),
@@ -102,7 +102,7 @@ impl DaemonSet {
             let res = DaemonSet { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

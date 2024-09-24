@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, label_selector::*, object_meta::*, persistent_volume_claim::*,
     pod_template_spec::*, resource::*,
@@ -118,7 +118,7 @@ impl StatefulSet {
 
     /// Convert a DynamicObject to a StatefulSet
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<StatefulSet, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<StatefulSet, UnmarshalError>)
         ensures
             res.is_Ok() == StatefulSetView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == StatefulSetView::unmarshal(obj@).get_Ok_0(),
@@ -128,7 +128,7 @@ impl StatefulSet {
             let res = StatefulSet { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

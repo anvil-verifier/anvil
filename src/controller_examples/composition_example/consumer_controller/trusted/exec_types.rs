@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::consumer_controller::trusted::{spec_types, step::*};
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
 };
@@ -78,7 +78,7 @@ impl Consumer {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Consumer, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Consumer, UnmarshalError>)
         ensures
             res.is_Ok() == spec_types::ConsumerView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == spec_types::ConsumerView::unmarshal(obj@).get_Ok_0(),
@@ -88,7 +88,7 @@ impl Consumer {
             let res = Consumer { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

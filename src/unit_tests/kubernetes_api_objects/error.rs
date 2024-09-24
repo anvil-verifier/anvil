@@ -35,15 +35,3 @@ pub fn test_apierror_fmt() {
     let error = APIError::Other;
     assert_eq!(format!("{:?}", error), "Other");
 }
-
-#[test]
-pub fn test_parse_dyn_error_fmt() {
-    let error = ParseDynamicObjectError::MissingField;
-    assert_eq!(format!("{:?}", error), "MissingField");
-    let error = ParseDynamicObjectError::UnexpectedType;
-    assert_eq!(format!("{:?}", error), "UnexpectedType");
-    let error = ParseDynamicObjectError::UnmarshalError;
-    assert_eq!(format!("{:?}", error), "UnmarshalError");
-    let error = ParseDynamicObjectError::ExecError;
-    assert_eq!(format!("{:?}", error), "ExecError");
-}

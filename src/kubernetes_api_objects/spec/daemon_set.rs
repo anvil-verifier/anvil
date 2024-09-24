@@ -85,13 +85,13 @@ impl ResourceView for DaemonSetView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !DaemonSetView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(DaemonSetView {
                 metadata: obj.metadata,
@@ -112,11 +112,11 @@ impl ResourceView for DaemonSetView {
 
     closed spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<DaemonSetStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

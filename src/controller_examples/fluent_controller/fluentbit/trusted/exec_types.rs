@@ -3,7 +3,7 @@
 use crate::fluent_controller::fluentbit::trusted::{
     spec_types, spec_types::FluentBitView, step::*,
 };
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, container::*, dynamic::*, object_meta::*, owner_reference::*,
     prelude::*, resource::*, resource_requirements::*, toleration::*, volume::*,
@@ -88,7 +88,7 @@ impl FluentBit {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<FluentBit, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<FluentBit, UnmarshalError>)
         ensures
             res.is_Ok() == FluentBitView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == FluentBitView::unmarshal(obj@).get_Ok_0(),
@@ -98,7 +98,7 @@ impl FluentBit {
             let res = FluentBit { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

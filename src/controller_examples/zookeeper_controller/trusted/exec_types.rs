@@ -119,7 +119,7 @@ impl ZookeeperCluster {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<ZookeeperCluster, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<ZookeeperCluster, UnmarshalError>)
         ensures
             res.is_Ok() == spec_types::ZookeeperClusterView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == spec_types::ZookeeperClusterView::unmarshal(obj@).get_Ok_0(),
@@ -129,7 +129,7 @@ impl ZookeeperCluster {
             let res = ZookeeperCluster { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }
