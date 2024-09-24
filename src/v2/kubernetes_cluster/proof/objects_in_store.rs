@@ -6,6 +6,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::v2::kubernetes_cluster::spec::{
     api_server::state_machine::{deletion_timestamp, unmarshallable_object, valid_object},
     cluster_state_machine::*,
+    install_helpers::*,
     message::*,
 };
 use crate::vstd_ext::string_view::StringView;
@@ -142,11 +143,11 @@ pub open spec fn each_custom_object_in_etcd_is_well_formed<T: CustomResourceView
 pub open spec fn type_is_installed_in_cluster<T: CustomResourceView>(self) -> bool {
     let string = T::kind().get_CustomResourceKind_0();
     &&& self.installed_types.contains_key(string)
-    &&& self.installed_types[string].unmarshallable_spec == |v: Value| T::unmarshal_spec(v).is_Ok()
-    &&& self.installed_types[string].unmarshallable_status == |v: Value| T::unmarshal_status(v).is_Ok()
-    &&& self.installed_types[string].valid_object == |obj: DynamicObjectView| T::unmarshal(obj).get_Ok_0().state_validation()
-    &&& self.installed_types[string].valid_transition == |obj, old_obj: DynamicObjectView| T::unmarshal(obj).get_Ok_0().transition_validation(T::unmarshal(old_obj).get_Ok_0())
-    &&& self.installed_types[string].marshalled_default_status == || T::marshal_status(T::default().status())
+    &&& self.installed_types[string].unmarshallable_spec == |v: Value| InstallTypeHelper::<T>::unmarshal_spec(v)
+    &&& self.installed_types[string].unmarshallable_status == |v: Value| InstallTypeHelper::<T>::unmarshal_status(v)
+    &&& self.installed_types[string].valid_object == |obj: DynamicObjectView| InstallTypeHelper::<T>::valid_object(obj)
+    &&& self.installed_types[string].valid_transition == |obj, old_obj: DynamicObjectView| InstallTypeHelper::<T>::valid_transition(obj, old_obj)
+    &&& self.installed_types[string].marshalled_default_status == || InstallTypeHelper::<T>::marshalled_default_status()
 }
 
 pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomResourceView>(self, spec: TempPred<ClusterState>)

@@ -156,6 +156,13 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                         assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
                     }
                 }
+                Step::PodMonkeyStep(input) => {
+                    if s.in_flight().contains(pending_req_msg) {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+                    } else {
+                        assert(s_prime.in_flight().contains(resp));
+                    }
+                }
                 Step::ExternalStep(input) => {
                     if input.0 == controller_id && input.1 == Some(pending_req_msg) {
                         let resp_msg = transition_by_external(self.controller_models[controller_id].external_model.get_Some_0(), pending_req_msg, s.api_server.resources, s.controller_and_externals[controller_id].external.get_Some_0()).1;

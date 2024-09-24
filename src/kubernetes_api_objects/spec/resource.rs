@@ -5,9 +5,6 @@ use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, marshal::*, obj
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
-use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
-use deps_hack::kube::api::DynamicObject as K8SDynamicObject;
-
 verus! {
 /// This trait defines the methods that each ghost type of Kubernetes resource object should implement
 pub trait ResourceView: Sized {
