@@ -29,10 +29,6 @@ pub struct InstalledType {
     pub marshalled_default_status: spec_fn() -> Value,
 }
 
-pub struct Foo {
-    pub bar: Map<Kind, spec_fn(Value) -> bool>,
-}
-
 pub enum APIServerStep {
     HandleRequest,
 }
