@@ -40,6 +40,7 @@ impl std::fmt::Debug for APIError {
     }
 }
 
+// TODO: remove ParseDynamicObjectError; no longer necessary
 pub enum ParseDynamicObjectError {
     MissingField,
     UnexpectedType,

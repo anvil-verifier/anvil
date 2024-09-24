@@ -3,8 +3,8 @@
 .vscode/
 src/main
 src/tla_examples/main
-src/*-controller
 src/*_controller
+src/*_controller_v2
 src/*.long-type-*.txt
 src/.verus-log/
 reference-controllers/*-controller/target/
