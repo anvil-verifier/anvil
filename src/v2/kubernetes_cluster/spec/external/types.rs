@@ -5,14 +5,14 @@ use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
-use crate::v2::kubernetes_cluster::spec::{message::*, opaque::*};
+use crate::v2::kubernetes_cluster::spec::message::*;
 
 use crate::temporal_logic::defs::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type ExternalLocalState = Opaque;
+pub type ExternalLocalState = Value;
 
 pub struct ExternalState {
     pub state: ExternalLocalState,

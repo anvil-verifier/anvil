@@ -8,5 +8,4 @@ pub mod external;
 pub mod install_helpers;
 pub mod message;
 pub mod network;
-pub mod opaque;
 pub mod pod_monkey;

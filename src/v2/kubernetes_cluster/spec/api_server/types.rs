@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, marshal::*};
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -27,10 +27,6 @@ pub struct InstalledType {
     pub valid_object: spec_fn(DynamicObjectView) -> bool,
     pub valid_transition: spec_fn(DynamicObjectView, DynamicObjectView) -> bool,
     pub marshalled_default_status: spec_fn() -> Value,
-}
-
-pub struct Foo {
-    pub bar: Map<Kind, spec_fn(Value) -> bool>,
 }
 
 pub enum APIServerStep {

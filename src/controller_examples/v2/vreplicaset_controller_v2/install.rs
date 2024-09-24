@@ -9,7 +9,6 @@ use crate::v2::kubernetes_cluster::spec::{
     cluster_state_machine::ControllerModel,
     controller::types::{ReconcileModel, RequestContent, ResponseContent},
     install_helpers::*,
-    opaque::*,
 };
 use crate::v_replica_set_controller::model::reconciler::*;
 use crate::v_replica_set_controller::trusted::spec_types::*;
@@ -38,9 +37,9 @@ pub open spec fn vrs_installed_type() -> InstalledType {
 }
 
 impl Marshallable for VReplicaSetReconcileState {
-    spec fn marshal(self) -> Opaque;
+    spec fn marshal(self) -> Value;
 
-    spec fn unmarshal(o: Opaque) -> Result<Self, UnmarshalError>;
+    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()
@@ -49,9 +48,9 @@ impl Marshallable for VReplicaSetReconcileState {
 }
 
 impl Marshallable for EmptyTypeView {
-    spec fn marshal(self) -> Opaque;
+    spec fn marshal(self) -> Value;
 
-    spec fn unmarshal(o: Opaque) -> Result<Self, UnmarshalError>;
+    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()
