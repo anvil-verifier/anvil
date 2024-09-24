@@ -16,23 +16,23 @@ pub trait Marshallable: Sized {
         ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
 }
 
-/// This trait defines the methods that each ghost type of Kubernetes resource object should implement
+// This trait defines the methods that each ghost type of Kubernetes resource object should implement
 pub trait ResourceView: Sized {
     type Spec;
     type Status;
 
     spec fn default() -> Self;
 
-    /// Get the metadata of the object
+    // Get the metadata of the object
 
     spec fn metadata(self) -> ObjectMetaView;
 
-    /// Get the kind of the object
+    // Get the kind of the object
 
     spec fn kind() -> Kind;
 
-    /// Get the reference of the object,
-    /// which consists of kind, name and namespace
+    // Get the reference of the object,
+    // which consists of kind, name and namespace
 
     // TODO: object_ref can be implemented here if default implementation is supported by Verus
     spec fn object_ref(self) -> ObjectRef;
@@ -46,23 +46,23 @@ pub trait ResourceView: Sized {
                     namespace: o.metadata().namespace.get_Some_0(),
                 });
 
-    /// Get the spec of the object
+    // Get the spec of the object
 
     spec fn spec(self) -> Self::Spec;
 
-    /// Get the status of the object
+    // Get the status of the object
 
     spec fn status(self) -> Self::Status;
 
-    /// Convert the object to a dynamic object
+    // Convert the object to a dynamic object
 
     spec fn marshal(self) -> DynamicObjectView;
 
-    /// Convert back from a dynamic object
+    // Convert back from a dynamic object
 
     spec fn unmarshal(obj: DynamicObjectView) -> Result<Self, UnmarshalError>;
 
-    /// Check if the data integrity is preserved after converting to and back from dynamic object
+    // Check if the data integrity is preserved after converting to and back from dynamic object
 
     proof fn marshal_preserves_integrity()
         ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
@@ -97,10 +97,10 @@ pub trait ResourceView: Sized {
                 ==> Self::unmarshal_spec(obj.spec).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().spec()
                     && Self::unmarshal_status(obj.status).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().status();
 
-    /// This method specifies the validation rule that only checks the new object.
+    // This method specifies the validation rule that only checks the new object.
     spec fn state_validation(self) -> bool;
 
-    /// This method specifies the validation rule that checks the relations between the new and old object.
+    // This method specifies the validation rule that checks the relations between the new and old object.
     spec fn transition_validation(self, old_obj: Self) -> bool;
 
 }
