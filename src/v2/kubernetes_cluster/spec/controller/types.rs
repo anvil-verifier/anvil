@@ -3,9 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::v2::kubernetes_cluster::spec::{message::*, opaque::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
+use crate::v2::kubernetes_cluster::spec::message::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
@@ -15,7 +15,7 @@ pub struct ControllerState {
     pub scheduled_reconciles: Map<ObjectRef, DynamicObjectView>,
 }
 
-pub type ReconcileLocalState = Opaque;
+pub type ReconcileLocalState = Value;
 
 pub enum RequestContent {
     KubernetesRequest(APIRequest),

@@ -3,8 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*};
-use crate::v2::kubernetes_cluster::spec::opaque::*;
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vstd_ext::string_view::*;
 use vstd::{multiset::*, prelude::*};
 
@@ -12,9 +11,9 @@ verus! {
 
 pub type RPCId = nat;
 
-pub type ExternalRequest = Opaque;
+pub type ExternalRequest = Value;
 
-pub type ExternalResponse = Opaque;
+pub type ExternalResponse = Value;
 
 pub struct MessageOps {
     pub recv: Option<Message>,

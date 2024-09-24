@@ -6,6 +6,16 @@ use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub trait Marshallable: Sized {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
+
+    proof fn marshal_preserves_integrity()
+        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
+}
+
 /// This trait defines the methods that each ghost type of Kubernetes resource object should implement
 pub trait ResourceView: Sized {
     type Spec;
