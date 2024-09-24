@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    affinity::*, common::*, container::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    affinity::*, common::*, container::*, dynamic::*, object_meta::*, resource::*,
     resource_requirements::*, toleration::*, volume::*,
 };
 use crate::vstd_ext::{string_map::*, string_view::*};

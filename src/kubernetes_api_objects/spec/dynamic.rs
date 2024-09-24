@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::spec::{
-    common::*, marshal::*, object_meta::*, owner_reference::*, resource::*,
+    common::*, object_meta::*, owner_reference::*, resource::*,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;

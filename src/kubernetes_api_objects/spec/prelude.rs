@@ -5,7 +5,6 @@ pub use crate::kubernetes_api_objects::spec::common::*;
 pub use crate::kubernetes_api_objects::spec::config_map::*;
 pub use crate::kubernetes_api_objects::spec::daemon_set::*;
 pub use crate::kubernetes_api_objects::spec::dynamic::*;
-pub use crate::kubernetes_api_objects::spec::marshal::*;
 pub use crate::kubernetes_api_objects::spec::object_meta::*;
 pub use crate::kubernetes_api_objects::spec::owner_reference::*;
 pub use crate::kubernetes_api_objects::spec::persistent_volume_claim::*;

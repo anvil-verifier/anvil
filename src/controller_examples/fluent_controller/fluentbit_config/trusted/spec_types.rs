@@ -4,7 +4,7 @@ use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::fluent_controller::fluentbit_config::trusted::step::*;
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*, resource::*,
+    common::*, dynamic::*, object_meta::*, owner_reference::*, resource::*,
     resource_requirements::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
