@@ -1,5 +1,5 @@
 use crate::executable_model::string_set::*;
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, prelude::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
@@ -500,7 +500,7 @@ impl StatefulSet {
 pub trait CustomResource: View
 where Self::V: CustomResourceView, Self: std::marker::Sized
 {
-    fn unmarshal(obj: DynamicObject) -> (res: Result<Self, ParseDynamicObjectError>)
+    fn unmarshal(obj: DynamicObject) -> (res: Result<Self, UnmarshalError>)
         ensures
             res.is_Ok() == Self::V::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == Self::V::unmarshal(obj@).get_Ok_0();
@@ -564,13 +564,13 @@ impl ResourceView for SimpleCRView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !SimpleCRView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(SimpleCRView {
                 metadata: obj.metadata,
@@ -591,11 +591,11 @@ impl ResourceView for SimpleCRView {
 
     closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<SimpleCRStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -631,7 +631,7 @@ impl View for SimpleCR {
 
 impl CustomResource for SimpleCR {
     #[verifier(external_body)]
-    fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, ParseDynamicObjectError>)
+    fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, UnmarshalError>)
         ensures
             res.is_Ok() == SimpleCRView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::unmarshal(obj@).get_Ok_0(),

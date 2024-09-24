@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*, volume_resource_requirements::*,
 };
@@ -93,7 +93,7 @@ impl PersistentVolumeClaim {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<PersistentVolumeClaim, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<PersistentVolumeClaim, UnmarshalError>)
         ensures
             res.is_Ok() == PersistentVolumeClaimView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == PersistentVolumeClaimView::unmarshal(obj@).get_Ok_0(),
@@ -103,7 +103,7 @@ impl PersistentVolumeClaim {
             let res = PersistentVolumeClaim { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

@@ -91,13 +91,13 @@ impl ResourceView for RabbitmqClusterView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RabbitmqClusterView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RabbitmqClusterView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !RabbitmqClusterView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !RabbitmqClusterView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(RabbitmqClusterView {
                 metadata: obj.metadata,
@@ -118,11 +118,11 @@ impl ResourceView for RabbitmqClusterView {
 
     closed spec fn marshal_spec(s: RabbitmqClusterSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<RabbitmqClusterStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<RabbitmqClusterStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<RabbitmqClusterStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

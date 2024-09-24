@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::EmptyTypeView;
-use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_api_objects::{error::*, spec::prelude::*};
 use crate::reconciler::spec::io::{RequestView, ResponseView};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::v2::kubernetes_cluster::spec::{
@@ -40,7 +40,7 @@ pub open spec fn vrs_installed_type() -> InstalledType {
 impl Marshallable for VReplicaSetReconcileState {
     spec fn marshal(self) -> Opaque;
 
-    spec fn unmarshal(o: Opaque) -> Result<Self, ()>;
+    spec fn unmarshal(o: Opaque) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()
@@ -51,7 +51,7 @@ impl Marshallable for VReplicaSetReconcileState {
 impl Marshallable for EmptyTypeView {
     spec fn marshal(self) -> Opaque;
 
-    spec fn unmarshal(o: Opaque) -> Result<Self, ()>;
+    spec fn unmarshal(o: Opaque) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()

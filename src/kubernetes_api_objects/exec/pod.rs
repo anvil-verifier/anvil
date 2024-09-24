@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, container::*, dynamic::*, object_meta::*, resource::*,
     resource_requirements::*, toleration::*, volume::*,
@@ -99,7 +99,7 @@ impl Pod {
 
     /// Convert a DynamicObject to a Pod
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, UnmarshalError>)
         ensures
             res.is_Ok() == PodView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == PodView::unmarshal(obj@).get_Ok_0(),
@@ -109,7 +109,7 @@ impl Pod {
             let res = Pod { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

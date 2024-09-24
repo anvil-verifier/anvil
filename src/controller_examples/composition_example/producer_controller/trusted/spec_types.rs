@@ -101,13 +101,13 @@ impl ResourceView for ProducerView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ProducerView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ProducerView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ProducerView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ProducerView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(ProducerView {
                 metadata: obj.metadata,
@@ -128,11 +128,11 @@ impl ResourceView for ProducerView {
 
     closed spec fn marshal_spec(s: ProducerSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ProducerSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<ProducerSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<ProducerStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<ProducerStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<ProducerStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

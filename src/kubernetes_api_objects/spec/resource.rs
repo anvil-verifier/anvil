@@ -50,7 +50,7 @@ pub trait ResourceView: Sized {
 
     /// Convert back from a dynamic object
 
-    spec fn unmarshal(obj: DynamicObjectView) -> Result<Self, ParseDynamicObjectError>;
+    spec fn unmarshal(obj: DynamicObjectView) -> Result<Self, UnmarshalError>;
 
     /// Check if the data integrity is preserved after converting to and back from dynamic object
 
@@ -65,11 +65,11 @@ pub trait ResourceView: Sized {
 
     spec fn marshal_spec(s: Self::Spec) -> Value;
 
-    spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, ParseDynamicObjectError>;
+    spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, UnmarshalError>;
 
     spec fn marshal_status(s: Self::Status) -> Value;
 
-    spec fn unmarshal_status(v: Value) -> Result<Self::Status, ParseDynamicObjectError>;
+    spec fn unmarshal_status(v: Value) -> Result<Self::Status, UnmarshalError>;
 
     proof fn marshal_spec_preserves_integrity()
         ensures forall |s: Self::Spec| Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok() && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
