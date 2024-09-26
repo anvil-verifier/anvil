@@ -107,6 +107,22 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
+// TODO: Prove this.
+pub open spec fn each_object_in_etcd_has_at_most_one_controller_owner() -> StatePred<Self> {
+    |s: Self| {
+        forall |key: ObjectRef|
+            #[trigger] s.resources().contains_key(key)
+                ==> {
+                    let obj = s.resources()[key];
+                    let owners = obj.metadata.owner_references.get_Some_0();
+                    let controller_owners = owners.filter(
+                        |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                    );
+                    obj.metadata.owner_references.is_Some() ==> controller_owners.len() <= 1
+                }
+    }
+}
+
 pub open spec fn each_scheduled_object_has_consistent_key_and_valid_metadata() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
