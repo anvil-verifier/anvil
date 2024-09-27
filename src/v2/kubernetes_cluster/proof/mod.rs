@@ -11,6 +11,7 @@ pub mod network_liveness;
 pub mod objects_in_reconcile;
 pub mod objects_in_store;
 pub mod req_resp;
+pub mod retentive_cluster;
 pub mod stability;
 pub mod transition_validation;
 pub mod wf1_helpers;
