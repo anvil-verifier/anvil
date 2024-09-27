@@ -12,6 +12,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+// ClusterHistory includes the current state and a sequence of past states.
 pub struct ClusterHistory {
     pub current: ClusterState,
     pub past: Seq<ClusterState>,
@@ -22,6 +23,9 @@ pub struct RetentiveCluster {
     pub controller_models: Map<int, ControllerModel>,
 }
 
+// RetentiveCluster is simply the original Cluster state machine and a history of the states.
+// The history is initially empty and each step the previous state is pushed to the history.
+// No decision is made by reading the past states.
 impl RetentiveCluster {
     pub open spec fn init(self) -> StatePred<ClusterHistory> {
         |h: ClusterHistory| {

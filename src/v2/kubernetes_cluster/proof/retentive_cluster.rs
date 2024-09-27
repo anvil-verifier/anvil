@@ -10,6 +10,11 @@ verus! {
 
 impl RetentiveCluster {
 
+// If an invariant (on the cluster state, not the history) holds for the state machine w/ the history
+// then it holds for the state machine w/o the history.
+//
+// This allows us to prove some invariant using the history of the retentive state machine
+// and then transfer it back to the original state machine.
 pub proof fn transfer_invariant_to_cluster(self, inv: StatePred<ClusterState>)
     requires
         forall |h| #[trigger] self.init()(h) ==> inv(h.current),
@@ -38,6 +43,11 @@ pub proof fn transfer_invariant_to_cluster(self, inv: StatePred<ClusterState>)
     }
 }
 
+// If an invariant holds for the state machine w/o the history
+// then it holds for the state machine w/ the history.
+//
+// This allows us to use the invariants already proven in the original state machine
+// when proving invariants in the retentive state machine.
 pub proof fn transfer_invariant_from_cluster(self, inv: StatePred<ClusterState>)
     requires
         forall |s| #[trigger] self.to_cluster().init()(s) ==> inv(s),
