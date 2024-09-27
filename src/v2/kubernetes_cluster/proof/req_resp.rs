@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::v2::kubernetes_cluster::spec::{
+use crate::kubernetes_cluster::spec::{
     api_server::state_machine::{
         handle_create_request_msg, handle_get_request_msg, handle_update_request_msg,
     },

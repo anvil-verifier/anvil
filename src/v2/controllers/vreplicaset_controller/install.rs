@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::EmptyTypeView;
 use crate::kubernetes_api_objects::{error::*, spec::prelude::*};
-use crate::reconciler::spec::io::{RequestView, ResponseView};
-use crate::reconciler::spec::reconciler::Reconciler;
-use crate::v2::kubernetes_cluster::spec::{
+use crate::kubernetes_cluster::spec::{
     api_server::types::InstalledType,
     cluster_state_machine::ControllerModel,
     controller::types::{ReconcileModel, RequestContent, ResponseContent},
     install_helpers::*,
 };
-use crate::v_replica_set_controller::model::reconciler::*;
-use crate::v_replica_set_controller::trusted::spec_types::*;
+use crate::reconciler::spec::io::{RequestView, ResponseView};
+use crate::reconciler::spec::reconciler::Reconciler;
+use crate::vreplicaset_controller::model::reconciler::*;
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
 
 verus! {

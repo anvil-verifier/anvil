@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::state_machine::{action::*, state_machine::*};
-use crate::v2::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_cluster::spec::message::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {

@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use crate::v2::kubernetes_cluster::spec::{message::*, pod_monkey::types::*};
+use crate::kubernetes_cluster::spec::{message::*, pod_monkey::types::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
