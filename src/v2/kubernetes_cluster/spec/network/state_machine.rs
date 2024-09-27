@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::v2::kubernetes_cluster::spec::message::*;
-use crate::v2::kubernetes_cluster::spec::network::types::*;
+use crate::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_cluster::spec::network::types::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;

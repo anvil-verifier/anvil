@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
-use crate::v2::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_cluster::spec::message::*;
 use crate::vstd_ext::string_view::StringView;
 use vstd::{multiset::*, prelude::*};
 

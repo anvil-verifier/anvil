@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::v2::kubernetes_cluster::spec::{
+use crate::kubernetes_cluster::spec::{
     api_server::types::APIServerState, builtin_controllers::types::*, message::*,
 };
 use crate::state_machine::action::*;

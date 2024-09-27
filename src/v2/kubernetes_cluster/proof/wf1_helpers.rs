@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::v2::kubernetes_cluster::spec::{
+use crate::kubernetes_cluster::spec::{
     api_server::state_machine::api_server,
     api_server::types::*,
     builtin_controllers::state_machine::builtin_controllers,

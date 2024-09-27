@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
-use crate::v2::kubernetes_cluster::spec::{controller::types::*, message::*};
+use crate::kubernetes_cluster::spec::{controller::types::*, message::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {

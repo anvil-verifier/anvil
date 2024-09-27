@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::v2::kubernetes_cluster::spec::{api_server::types::*, controller::types::*};
+use crate::kubernetes_cluster::spec::{api_server::types::*, controller::types::*};
 use vstd::prelude::*;
 
 verus! {

@@ -4,19 +4,17 @@
 
 pub mod external_api;
 pub mod kubernetes_api_objects;
+#[path = "v2/kubernetes_cluster/mod.rs"]
 pub mod kubernetes_cluster;
 pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
-pub mod v2;
-#[path = "controller_examples/v_replica_set_controller/mod.rs"]
-pub mod v_replica_set_controller;
-#[path = "controller_examples/v2/vreplicaset_controller_v2/mod.rs"]
-pub mod vreplicaset_controller_v2;
+#[path = "v2/controllers/vreplicaset_controller/mod.rs"]
+pub mod vreplicaset_controller;
 pub mod vstd_ext;
 
-use crate::v_replica_set_controller::exec::reconciler::VReplicaSetReconciler;
+use crate::vreplicaset_controller::exec::reconciler::VReplicaSetReconciler;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
