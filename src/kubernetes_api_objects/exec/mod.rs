@@ -14,6 +14,7 @@ pub mod owner_reference;
 pub mod persistent_volume_claim;
 pub mod pod;
 pub mod pod_template_spec;
+pub mod preconditions;
 pub mod prelude;
 pub mod resource;
 pub mod resource_requirements;

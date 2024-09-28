@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::APIError;
 use crate::kubernetes_api_objects::spec::{
-    common::{Kind, ObjectRef},
+    common::{Kind, ObjectRef, ResourceVersion, Uid},
     dynamic::*,
+    preconditions::*,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::string::*;
 use vstd::{prelude::*, view::*};
-
-use vstd::pervasive::unreached;
 
 verus! {
 
@@ -64,6 +63,7 @@ impl CreateRequest {
 
 pub struct DeleteRequest {
     pub key: ObjectRef,
+    // pub preconditions: Option<PreconditionsView>,
 }
 
 /// UpdateRequest replaces the existing obj with a new one.
