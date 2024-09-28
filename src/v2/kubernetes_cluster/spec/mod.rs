@@ -9,3 +9,4 @@ pub mod install_helpers;
 pub mod message;
 pub mod network;
 pub mod pod_monkey;
+pub mod retentive_cluster;
