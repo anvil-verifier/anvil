@@ -25,7 +25,6 @@ pub struct RetentiveCluster {
 
 // RetentiveCluster is simply the original Cluster state machine and a history of the states.
 // The history is initially empty and each step the previous state is pushed to the history.
-// No decision is made by reading the past states.
 impl RetentiveCluster {
     pub open spec fn init(self) -> StatePred<ClusterHistory> {
         |h: ClusterHistory| {
