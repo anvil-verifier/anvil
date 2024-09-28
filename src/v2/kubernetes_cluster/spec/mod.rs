@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 pub mod api_server;
 pub mod builtin_controllers;
-pub mod cluster_state_machine;
+pub mod cluster;
 pub mod controller;
 pub mod external;
 pub mod install_helpers;

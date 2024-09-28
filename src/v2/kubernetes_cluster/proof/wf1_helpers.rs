@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::spec::{
     api_server::types::*,
     builtin_controllers::state_machine::builtin_controllers,
     builtin_controllers::types::*,
-    cluster_state_machine::*,
+    cluster::*,
     controller::state_machine::{controller, init_controller_state},
     controller::types::*,
     external::state_machine::external,

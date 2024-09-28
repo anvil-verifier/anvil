@@ -4,7 +4,7 @@ use crate::external_api::spec::EmptyTypeView;
 use crate::kubernetes_api_objects::{error::*, spec::prelude::*};
 use crate::kubernetes_cluster::spec::{
     api_server::types::InstalledType,
-    cluster_state_machine::ControllerModel,
+    cluster::ControllerModel,
     controller::types::{ReconcileModel, RequestContent, ResponseContent},
     install_helpers::*,
 };

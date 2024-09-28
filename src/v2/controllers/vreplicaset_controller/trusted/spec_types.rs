@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
 };
-use crate::kubernetes_cluster::spec::{cluster_state_machine::*, message::*};
+use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::vreplicaset_controller::trusted::step::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
