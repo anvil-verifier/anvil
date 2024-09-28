@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::kubernetes_cluster::spec::{cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 

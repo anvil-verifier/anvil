@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::kubernetes_cluster::spec::cluster_state_machine::*;
+use crate::kubernetes_cluster::spec::cluster::*;
 use vstd::prelude::*;
 
 verus! {

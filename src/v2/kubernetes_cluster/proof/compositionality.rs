@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{
-    cluster_state_machine::*, controller::state_machine::controller,
+    cluster::*, controller::state_machine::controller,
 };
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;

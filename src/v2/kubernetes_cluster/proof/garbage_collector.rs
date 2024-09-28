@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_cluster::spec::{
     api_server::types::*, builtin_controllers::garbage_collector::run_garbage_collector,
-    builtin_controllers::types::*, cluster_state_machine::*, message::*,
+    builtin_controllers::types::*, cluster::*, message::*,
 };
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;

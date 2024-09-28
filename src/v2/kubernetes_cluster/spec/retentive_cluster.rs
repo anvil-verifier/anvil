@@ -3,9 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{
-    api_server::types::InstalledTypes, cluster_state_machine::*,
-};
+use crate::kubernetes_cluster::spec::{api_server::types::InstalledTypes, cluster::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use vstd::{multiset::*, prelude::*};
