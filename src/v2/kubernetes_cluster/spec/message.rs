@@ -359,9 +359,10 @@ pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjec
     }))
 }
 
-pub open spec fn delete_req_msg_content(key: ObjectRef) -> MessageContent {
+pub open spec fn delete_req_msg_content(key: ObjectRef, preconditions: Option<PreconditionsView>) -> MessageContent {
     MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
+        preconditions: preconditions,
     }))
 }
 

@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*};
+use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, preconditions::*};
 use crate::vstd_ext::string_view::*;
 use vstd::{multiset::*, prelude::*};
 
@@ -373,9 +373,10 @@ pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjec
     }), req_id)
 }
 
-pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent<I, O> {
+pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId, preconditions: Option<PreconditionsView>) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
+        preconditions: preconditions,
     }), req_id)
 }
 

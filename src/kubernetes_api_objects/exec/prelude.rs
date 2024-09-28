@@ -9,6 +9,7 @@ pub use crate::kubernetes_api_objects::exec::object_meta::*;
 pub use crate::kubernetes_api_objects::exec::owner_reference::*;
 pub use crate::kubernetes_api_objects::exec::persistent_volume_claim::*;
 pub use crate::kubernetes_api_objects::exec::pod::*;
+pub use crate::kubernetes_api_objects::exec::preconditions::*;
 pub use crate::kubernetes_api_objects::exec::resource::*;
 pub use crate::kubernetes_api_objects::exec::role::*;
 pub use crate::kubernetes_api_objects::exec::role_binding::*;

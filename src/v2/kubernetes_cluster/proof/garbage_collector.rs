@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_cluster::spec::{
     api_server::types::*, builtin_controllers::garbage_collector::run_garbage_collector,
     builtin_controllers::types::*, cluster_state_machine::*, message::*,
 };
+use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
@@ -174,7 +174,11 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && self.builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
-        let delete_req_msg = built_in_controller_req_msg(s.rpc_id_allocator.allocate().1, delete_req_msg_content(key));
+        let preconditions = PreconditionsView {
+            uid: s.api_server.resources[key].metadata.uid,
+            resource_version: None,
+        };
+        let delete_req_msg = built_in_controller_req_msg(s.rpc_id_allocator.allocate().1, delete_req_msg_content(key, Some(preconditions)));
         assert(s_prime.in_flight().contains(delete_req_msg));
     }
 
@@ -184,7 +188,11 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
             Step::BuiltinControllersStep(i) => {
                 if i == input {
                     assert(Self::garbage_collector_deletion_enabled(key)(s));
-                    let delete_req_msg = built_in_controller_req_msg(s.rpc_id_allocator.allocate().1, delete_req_msg_content(key));
+                    let preconditions = PreconditionsView {
+                        uid: s.api_server.resources[key].metadata.uid,
+                        resource_version: None,
+                    };
+                    let delete_req_msg = built_in_controller_req_msg(s.rpc_id_allocator.allocate().1, delete_req_msg_content(key, Some(preconditions)));
                     assert(s_prime.in_flight().contains(delete_req_msg));
                     assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
                     assert(delete_msg_in_flight(s_prime));

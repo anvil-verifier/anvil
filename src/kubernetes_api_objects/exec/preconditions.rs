@@ -12,9 +12,22 @@ pub struct Preconditions {
     inner: deps_hack::kube::api::Preconditions,
 }
 
-impl Preconditions {
-    pub spec fn view(&self) -> PreconditionsView;
+impl View for Preconditions {
+    type V = PreconditionsView;
 
+    spec fn view(&self) -> PreconditionsView;
+}
+
+impl std::clone::Clone for Preconditions {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Preconditions)
+        ensures result@ == self@
+    {
+        Preconditions { inner: self.inner.clone() }
+    }
+}
+
+impl Preconditions {
     #[verifier(external_body)]
     pub fn default() -> (preconditions: Preconditions)
         ensures preconditions@ == PreconditionsView::default(),
@@ -37,10 +50,10 @@ impl Preconditions {
     }
 
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::kube::api::Preconditions) -> Preconditions { Preconditions { inner: inner } }
+    pub fn from_kube(inner: deps_hack::kube::api::Preconditions) -> Preconditions { Preconditions { inner: inner } }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::kube::api::Preconditions { self.inner }
+    pub fn into_kube(self) -> deps_hack::kube::api::Preconditions { self.inner }
 }
 
 }

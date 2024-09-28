@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::exec::{api_resource::*, dynamic::*};
+use crate::kubernetes_api_objects::exec::{api_resource::*, dynamic::*, preconditions::*};
 use crate::kubernetes_api_objects::spec::{
     api_method::*,
     common::{Kind, ObjectRef},
 };
-use crate::vstd_ext::string_view::*;
+use crate::vstd_ext::{option_lib::*, string_view::*};
 use vstd::{prelude::*, string::*, view::*};
 
 use vstd::pervasive::unreached;
@@ -116,6 +116,7 @@ pub struct KubeDeleteRequest {
     pub api_resource: ApiResource,
     pub name: String,
     pub namespace: String,
+    pub preconditions: Option<Preconditions>,
 }
 
 impl KubeDeleteRequest {
@@ -133,7 +134,8 @@ impl View for KubeDeleteRequest {
                 kind: self.api_resource@.kind,
                 name: self.name@,
                 namespace: self.namespace@,
-            }
+            },
+            preconditions: option_view(self.preconditions),
         }
     }
 }
@@ -207,6 +209,7 @@ impl View for KubeAPIRequest {
     }
 }
 
+// TODO: replace it with option_view
 pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
     match req {
         Some(req) => Some(req@),
@@ -519,6 +522,7 @@ impl KubeAPIResponse {
     }
 }
 
+// TODO: replace it with option_view
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
     match resp {
         Some(resp) => Some(resp@),

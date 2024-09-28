@@ -261,7 +261,12 @@ where
                                 &delete_req.namespace,
                                 delete_req.api_resource.as_kube_ref(),
                             );
-                            let dp = DeleteParams::default();
+                            let mut dp = DeleteParams::default();
+                            if delete_req.preconditions.is_some() {
+                                dp = dp.preconditions(
+                                    delete_req.preconditions.clone().unwrap().into_kube(),
+                                );
+                            }
                             let key = delete_req.key();
                             match api.delete(&delete_req.name, &dp).await {
                                 Err(err) => {

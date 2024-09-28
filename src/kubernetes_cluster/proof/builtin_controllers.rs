@@ -168,7 +168,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     );
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
-        let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(key, s.rest_id_allocator.allocate().1));
+        let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(key, s.rest_id_allocator.allocate().1, None));
         assert(s_prime.in_flight().contains(delete_req_msg));
     }
 
@@ -179,7 +179,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                 if i == input {
                     assert(Self::garbage_collector_deletion_enabled(key)(s));
                     let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
-                        key, s.rest_id_allocator.allocate().1
+                        key, s.rest_id_allocator.allocate().1, None
                     ));
                     assert(s_prime.in_flight().contains(delete_req_msg));
                     assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));

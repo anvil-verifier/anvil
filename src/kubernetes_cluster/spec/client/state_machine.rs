@@ -48,7 +48,7 @@ pub open spec fn delete_custom_resource() -> ClientAction<E::Input, E::Output> {
         },
         transition: |input: ClientActionInput, s: ClientState| {
             let delete_req_msg = Message::client_req_msg(Message::delete_req_msg_content(
-                input.obj.object_ref(), input.rest_id_allocator.allocate().1
+                input.obj.object_ref(), input.rest_id_allocator.allocate().1, None
             ));
 
             let s_prime = s;
