@@ -71,13 +71,20 @@ pub open spec fn object_has_no_finalizers(key: ObjectRef) -> StatePred<ClusterSt
     }
 }
 
-spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<ClusterState> {
+spec fn effective_delete_request_msg_for_key(key: ObjectRef, msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        exists |msg: Message| {
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_APIServer()
-            && msg.content.is_delete_request_with_key(key)
-        }
+        s.in_flight().contains(msg)
+        && s.api_server.resources.contains_key(key)
+        && msg.dst.is_APIServer()
+        && msg.content.is_delete_request_with_key(key)
+        && msg.content.get_delete_request().preconditions.get_Some_0().uid == s.api_server.resources[key].metadata.uid
+        && msg.content.get_delete_request().preconditions.get_Some_0().resource_version.is_None()
+    }
+}
+
+spec fn exists_effective_delete_request_msg_for_key(key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        exists |msg: Message| #![trigger s.in_flight().contains(msg)] Self::effective_delete_request_msg_for_key(key, msg)(s)
     }
 }
 
@@ -135,6 +142,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         // If the current owner_references does not satisfy the eventual requirement, the gc action is enabled.
         spec.entails(always(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref))))),
 {
     // We split `true` into two cases:
@@ -149,7 +157,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     };
 
     let delete_msg_in_flight = |s: ClusterState| {
-        Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::exists_delete_request_msg_in_flight_with_key(key)(s)
+        Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::exists_effective_delete_request_msg_for_key(key)(s)
     };
     let post = Self::objects_owner_references_satisfies(key, eventual_owner_ref);
 
@@ -194,7 +202,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                     };
                     let delete_req_msg = built_in_controller_req_msg(s.rpc_id_allocator.allocate().1, delete_req_msg_content(key, Some(preconditions)));
                     assert(s_prime.in_flight().contains(delete_req_msg));
-                    assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
+                    assert(Self::exists_effective_delete_request_msg_for_key(key)(s_prime));
                     assert(delete_msg_in_flight(s_prime));
                 } else {
                     assert(pre(s_prime));
@@ -216,7 +224,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).leads_to(lift_state(post))),
         {
             self.lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(spec, key, eventual_owner_ref);
-            or_leads_to_combine_and_equality!(spec, lift_state(delete_msg_in_flight), lift_state(post), lift_state(Self::exists_delete_request_msg_in_flight_with_key(key)); lift_state(post));
+            or_leads_to_combine_and_equality!(spec, lift_state(delete_msg_in_flight), lift_state(post), lift_state(Self::exists_effective_delete_request_msg_for_key(key)); lift_state(post));
             leads_to_trans_n!(spec, lift_state(pre), lift_state(delete_msg_in_flight), lift_state(post));
 
             temp_pred_equality(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(pre)));
@@ -249,41 +257,37 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
         spec.entails(always(lift_action(self.next()))),
+        spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
-    ensures spec.entails(lift_state(Self::exists_delete_request_msg_in_flight_with_key(key)).leads_to(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref)))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_weakly_well_formed()))),
+    ensures spec.entails(lift_state(Self::exists_effective_delete_request_msg_for_key(key)).leads_to(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref)))),
 {
-    let pre = Self::exists_delete_request_msg_in_flight_with_key(key);
+    let pre = Self::exists_effective_delete_request_msg_for_key(key);
     let post = Self::objects_owner_references_satisfies(key, eventual_owner_ref);
     assert_by(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
         {
-            let msg_to_p = |msg: Message| {
-                lift_state(|s: ClusterState| {
-                    &&& s.in_flight().contains(msg)
-                    &&& msg.dst.is_APIServer()
-                    &&& msg.content.is_delete_request_with_key(key)
-                })
-            };
+            let msg_to_p = |msg: Message| lift_state(Self::effective_delete_request_msg_for_key(key, msg));
             assert forall |msg: Message| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
                 let input = Some(msg);
-                let msg_to_p_state = |s: ClusterState| {
-                    &&& s.in_flight().contains(msg)
-                    &&& msg.dst.is_APIServer()
-                    &&& msg.content.is_delete_request_with_key(key)
-                };
+                let msg_to_p_state = Self::effective_delete_request_msg_for_key(key, msg);
                 let stronger_next = |s, s_prime| {
                     &&& self.next()(s, s_prime)
                     &&& Self::req_drop_disabled()(s)
+                    &&& Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
                     &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
                     &&& Self::object_has_no_finalizers(key)(s)
+                    &&& Self::each_object_in_etcd_is_weakly_well_formed()(s)
                 };
                 combine_spec_entails_always_n!(
                     spec, lift_action(stronger_next),
                     lift_action(self.next()),
                     lift_state(Self::req_drop_disabled()),
+                    lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
                     lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
-                    lift_state(Self::object_has_no_finalizers(key))
+                    lift_state(Self::object_has_no_finalizers(key)),
+                    lift_state(Self::each_object_in_etcd_is_weakly_well_formed())
                 );
                 self.lemma_pre_leads_to_post_by_api_server(spec, input, stronger_next, APIServerStep::HandleRequest, msg_to_p_state, post);
             }
@@ -294,8 +298,11 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex) implies tla_exists(msg_to_p).satisfied_by(ex) by {
                         let msg = choose |msg| {
                             &&& #[trigger] ex.head().in_flight().contains(msg)
+                            &&& ex.head().api_server.resources.contains_key(key)
                             &&& msg.dst.is_APIServer()
                             &&& msg.content.is_delete_request_with_key(key)
+                            &&& msg.content.get_delete_request().preconditions.get_Some_0().uid == ex.head().api_server.resources[key].metadata.uid
+                            &&& msg.content.get_delete_request().preconditions.get_Some_0().resource_version.is_None()
                         };
                         assert(msg_to_p(msg).satisfied_by(ex));
                     }
