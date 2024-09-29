@@ -6,6 +6,7 @@ pub mod external_api;
 pub mod kubernetes_api_objects;
 #[path = "v2/kubernetes_cluster/mod.rs"]
 pub mod kubernetes_cluster;
+#[path = "v2/reconciler/mod.rs"]
 pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;

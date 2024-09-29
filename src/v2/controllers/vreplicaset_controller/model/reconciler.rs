@@ -9,8 +9,10 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-impl Reconciler<VReplicaSetView, EmptyAPI> for VReplicaSetReconciler {
+impl Reconciler for VReplicaSetReconciler {
     type T = VReplicaSetReconcileState;
+    type K = VReplicaSetView;
+    type E = EmptyAPI;
 
     open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
         reconcile_init_state()
@@ -28,8 +30,6 @@ impl Reconciler<VReplicaSetView, EmptyAPI> for VReplicaSetReconciler {
     open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
         reconcile_error(state)
     }
-
-    open spec fn expect_from_user(obj: DynamicObjectView) -> bool { false /* expect nothing */ }
 }
 
 pub open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
