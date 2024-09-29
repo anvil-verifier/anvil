@@ -56,8 +56,10 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E
             }
         },
         transition: |input: BuiltinControllersActionInput, s: ApiServerState| {
+            // Let's just use None preconditions for v1
+            // in v2, we set the proper preconditions
             let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
-                input.key, input.rest_id_allocator.allocate().1
+                input.key, input.rest_id_allocator.allocate().1, None
             ));
             let s_prime = s;
             let output = BuiltinControllersActionOutput {

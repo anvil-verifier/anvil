@@ -4,10 +4,10 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::{api_server::types::*, message::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
-use crate::kubernetes_cluster::spec::{api_server::types::*, message::*};
 use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*};
 
@@ -255,6 +255,26 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
     }
 }
 
+pub open spec fn delete_request_admission_check(req: DeleteRequest, s: APIServerState) -> Option<APIError> {
+    if !s.resources.contains_key(req.key) {
+        // Deletion fails because the object does not exist
+        Some(APIError::ObjectNotFound)
+    } else if req.preconditions.is_Some() {
+        let preconditions = req.preconditions.get_Some_0();
+        if preconditions.uid.is_Some() && preconditions.uid != s.resources[req.key].metadata.uid {
+            // Deletion fails because the uid of the object does not match the uid in the precondition
+            Some(APIError::Conflict)
+        } else if preconditions.resource_version.is_Some() && preconditions.resource_version != s.resources[req.key].metadata.resource_version {
+            // Deletion fails because the resource version of the object does not match the resource version in the precondition
+            Some(APIError::Conflict)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
 // Here we make a compromise when modeling the behavior of setting
 // deletion timestamp to each object that is deemed to be deleted.
 // The real Kubernetes' behavior uses the current timestamp as the
@@ -266,9 +286,9 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
 pub closed spec fn deletion_timestamp() -> StringView;
 
 pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) -> (APIServerState, DeleteResponse) {
-    if !s.resources.contains_key(req.key) {
+    if delete_request_admission_check(req, s).is_Some() {
         // Deletion fails.
-        (s, DeleteResponse{res: Err(APIError::ObjectNotFound)})
+        (s, DeleteResponse{res: Err(delete_request_admission_check(req, s).get_Some_0())})
     } else {
         // Deletion succeeds.
         let obj = s.resources[req.key];

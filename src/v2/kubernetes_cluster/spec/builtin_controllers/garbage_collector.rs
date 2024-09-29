@@ -15,6 +15,8 @@ verus! {
 // + Specify foreground deletion
 //
 // + Specify orphan dependents
+//
+// + Specify how GC removes owner references from the object
 
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
     Action {
@@ -40,8 +42,14 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
             }
         },
         transition: |input: BuiltinControllersActionInput, s: ()| {
+            // GC set the preconditions to the object's uid in its delete request
+            // See https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/controller/garbagecollector/operations.go#L52-L61
+            let preconditions = PreconditionsView {
+                uid: input.resources[input.key].metadata.uid,
+                resource_version: None,
+            };
             let delete_req_msg = built_in_controller_req_msg(
-                input.rpc_id_allocator.allocate().1, delete_req_msg_content(input.key)
+                input.rpc_id_allocator.allocate().1, delete_req_msg_content(input.key, Some(preconditions))
             );
             let output = BuiltinControllersActionOutput {
                 send: Multiset::singleton(delete_req_msg),

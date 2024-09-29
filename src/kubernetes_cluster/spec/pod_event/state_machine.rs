@@ -44,7 +44,7 @@ pub open spec fn delete_pod() -> PodEventAction<E::Input, E::Output> {
         },
         transition: |input: PodEventActionInput, s: PodEventState| {
             let delete_req_msg = Message::pod_event_req_msg(Message::delete_req_msg_content(
-                input.pod.object_ref(), input.rest_id_allocator.allocate().1
+                input.pod.object_ref(), input.rest_id_allocator.allocate().1, None
             ));
 
             let s_prime = s;

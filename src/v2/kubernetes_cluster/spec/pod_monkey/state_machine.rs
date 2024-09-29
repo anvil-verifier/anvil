@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::{message::*, pod_monkey::types::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use crate::kubernetes_cluster::spec::{message::*, pod_monkey::types::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
@@ -41,7 +41,8 @@ pub open spec fn delete_pod() -> PodMonkeyAction {
         transition: |input: PodMonkeyActionInput, s: ()| {
             let delete_req_msg = pod_monkey_req_msg(
                 input.rpc_id_allocator.allocate().1,
-                delete_req_msg_content(input.pod.object_ref())
+                // Monkey does not need a precondition to constrain itself.
+                delete_req_msg_content(input.pod.object_ref(), None)
             );
 
             let s_prime = s;

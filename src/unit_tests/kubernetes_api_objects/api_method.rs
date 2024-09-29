@@ -83,6 +83,7 @@ pub fn test_deleterequest_key() {
         }),
         name: "name".to_string(),
         namespace: "namespace".to_string(),
+        preconditions: None,
     };
     assert_eq!(api_method.key(), "kind/namespace/name");
 }
