@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::transition_by_etcd, types::*},
     cluster::*,
@@ -10,6 +9,7 @@ use crate::kubernetes_cluster::spec::{
     external::{state_machine::*, types::*},
     message::*,
 };
+use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -592,29 +592,9 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
     );
 }
 
-// This desired_state_is specifies the desired state (described in the cr object)
-// Informally, it says that given the cr object, the object's key exists in the etcd,
-// and the corresponding object in etcd has the same spec and uid of the given cr object.
-// Note that we also mention the name and namespace here, which seems a bit redundant
-// because it seems that lemma_always_each_object_in_etcd_is_well_formed is enough
-// to tell us the name/namespace are the same between the two. Unfortunately that's not true,
-// and the reason is that given option1.get_Some_0() == option2.get_Some_0() and option1.is_Some(),
-// Verus cannot induce that option1.is_Some() && option1 == option2.
-// So it is necessary to say both the name and namespace are also the same.
-pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.resources().contains_key(cr.object_ref())
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).is_Ok()
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().name == cr.metadata().name
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().namespace == cr.metadata().namespace
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().metadata().uid == cr.metadata().uid
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
-    }
-}
-
 pub open spec fn the_object_in_schedule_has_spec_and_uid_as<T: CustomResourceView>(controller_id: int, cr: T) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(cr.object_ref())
-        ==> T::unmarshal(s.scheduled_reconciles(controller_id)[cr.object_ref()]).get_Ok_0().metadata().uid == cr.metadata().uid
+        ==> s.scheduled_reconciles(controller_id)[cr.object_ref()].metadata.uid == cr.metadata().uid
         && T::unmarshal(s.scheduled_reconciles(controller_id)[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
 }
 
@@ -655,7 +635,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
 
 pub open spec fn the_object_in_reconcile_has_spec_and_uid_as<T: CustomResourceView>(controller_id: int, cr: T) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(cr.object_ref())
-        ==> T::unmarshal(s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr).get_Ok_0().metadata().uid == cr.metadata().uid
+        ==> s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr.metadata.uid == cr.metadata().uid
         && T::unmarshal(s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr).get_Ok_0().spec() == cr.spec()
 }
 
