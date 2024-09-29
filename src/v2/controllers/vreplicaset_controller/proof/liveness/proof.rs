@@ -17,6 +17,7 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
     requires
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
+        // The vrs type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vrs controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
