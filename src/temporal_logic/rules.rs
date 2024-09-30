@@ -846,9 +846,6 @@ macro_rules! combine_with_next_internal {
     ($next:expr) => {
         $next
     };
-    ($next:expr, $expr:expr) => {
-        $next.and($expr)
-    };
     ($next:expr, $($expr:expr),* $(,)?) => {
         $next $(
             .and($expr)
