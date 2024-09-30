@@ -786,6 +786,7 @@ macro_rules! entails_always_and_n {
 
 #[macro_export]
 macro_rules! entails_always_and_n_internal {
+    ($spec:expr, $p1:expr) => {};
     ($spec:expr, $p1:expr, $p2:expr) => {
         entails_and_temp($spec, always($p1), always($p2));
         always_and_equality($p1, $p2);
@@ -842,6 +843,9 @@ macro_rules! combine_with_next {
 
 #[macro_export]
 macro_rules! combine_with_next_internal {
+    ($next:expr) => {
+        $next
+    };
     ($next:expr, $($expr:expr),* $(,)?) => {
         $next $(
             .and($expr)
