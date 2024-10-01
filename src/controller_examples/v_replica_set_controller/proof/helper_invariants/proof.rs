@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::spec::{
     api_method::*, common::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::generated_name_is_unique,
+    api_server::state_machine::generate_name,
     cluster::*,
     cluster_state_machine::Step,
     controller::types::{ControllerActionInput, ControllerStep},
@@ -20,6 +20,8 @@ use crate::v_replica_set_controller::{
     model::reconciler::{objects_to_pods, filter_pods},
 };
 use vstd::{multiset::*, prelude::*, string::*};
+
+use crate::kubernetes_cluster::spec::api_server::state_machine::handle_create_request;
 
 verus! {
 
@@ -252,13 +254,13 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                     let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
                     let new_diff = local_step_prime.get_AfterDeletePod_0();
 
-                    //assert()
-
                     if local_step.is_AfterListPods() {
-                        assume(false); // TODO: Deal with later
+                        // TODO: Prove this case later
+                        assume(false);
                         // The proof is true in this case since AfterListPods
                         // will issue a delete on an element that has been filtered
                         // out using filter_pods
+                        // use something like the lemma lemma_filtered_pods_set_equals_matching_pods.
                     }
 
                     let controller_owners = obj.metadata.owner_references.unwrap().filter(
@@ -284,10 +286,11 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                     match step {
                         Step::ApiServerStep(input) => {
                             let msg = input.unwrap();
+                            let content = msg.content;
                             if msg.content.is_create_request() {
-                                assume(false); // TODO: Deal with later
-                                // We need some other invariant or restriction to prove this,
-                                // the invariant as written is false.
+                                // TODO: Prove this case later
+                                // after the state machine has been modified to support delete preconditions.
+                                assume(false);
                             }
                         },
                         _ => {}
