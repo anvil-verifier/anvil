@@ -15,7 +15,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use crate::v_replica_set_controller::{
-    proof::{predicate::*},
+    proof::{utility_lemmas::*, predicate::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
     model::reconciler::{objects_to_pods, filter_pods},
 };
@@ -255,12 +255,20 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                     let new_diff = local_step_prime.get_AfterDeletePod_0();
 
                     if local_step.is_AfterListPods() {
-                        // TODO: Prove this case later
-                        assume(false);
-                        // The proof is true in this case since AfterListPods
-                        // will issue a delete on an element that has been filtered
-                        // out using filter_pods
-                        // use something like the lemma lemma_filtered_pods_set_equals_matching_pods.
+                        let cr_msg = step.get_ControllerStep_0().0.get_Some_0();
+                        let objs = cr_msg.content.get_list_response().res.unwrap();
+                        let triggering_cr = s.ongoing_reconciles()[cr_key].triggering_cr;
+                        let desired_replicas: usize = triggering_cr.spec.replicas.unwrap_or(0) as usize;
+                        let pods_or_none = objects_to_pods(objs);
+                        let pods = pods_or_none.unwrap();
+                        let filtered_pods = filter_pods(pods, triggering_cr);
+                        let diff = filtered_pods.len() - desired_replicas;
+                        lemma_filtered_pods_set_equals_matching_pods(s, triggering_cr, cr_msg);
+
+                        let filtered_pods_as_objects = filtered_pods.map_values(|p: PodView| p.marshal());
+                        let filtered_pods_as_set = filtered_pods_as_objects.to_set();
+                        assert(filtered_pods_as_objects[diff - 1] == filtered_pods[diff - 1].marshal());
+                        assert(filtered_pods_as_set.contains(filtered_pods[diff - 1].marshal()));
                     }
 
                     let controller_owners = obj.metadata.owner_references.unwrap().filter(

@@ -16,7 +16,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::v_replica_set_controller::{
     model::reconciler::*,
-    proof::{helper_invariants, liveness::api_actions::*, predicate::*},
+    proof::{utility_lemmas::*, helper_invariants, liveness::api_actions::*, predicate::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*, string_view::*};
