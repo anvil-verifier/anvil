@@ -25,6 +25,10 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
+pub open spec fn vrs_is_well_formed(vrs: VReplicaSetView) -> StatePred<VRSCluster> {
+    |s: VRSCluster| vrs.well_formed()
+}
+
 pub open spec fn cluster_resources_is_finite() -> StatePred<VRSCluster> {
     |s: VRSCluster| s.resources().dom().finite()
 } 
@@ -109,6 +113,7 @@ pub open spec fn every_create_request_is_well_formed() -> StatePred<VRSCluster> 
                 status: marshalled_default_status::<VReplicaSetView>(req.obj.kind), // Overwrite the status with the default one
             };
             &&& obj.metadata.deletion_timestamp.is_None()
+            &&& obj.metadata.namespace.is_Some()
             &&& content.get_create_request().namespace == obj.metadata.namespace.unwrap()
             &&& unmarshallable_object::<VReplicaSetView>(obj)
             &&& created_object_validity_check::<VReplicaSetView>(created_obj).is_none()
@@ -191,6 +196,32 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
 //
 // The proof sketch for this invariant is similar to the above.
 //
+
+pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs_if_in_etcd() -> StatePred<VRSCluster> {
+    |s: VRSCluster| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles().contains_key(key)
+            ==> {
+                let state = s.ongoing_reconciles()[key].local_state; 
+                let filtered_pods = state.filtered_pods.unwrap();
+                &&& s.ongoing_reconciles()[key].triggering_cr.object_ref() == key
+                &&& s.ongoing_reconciles()[key].triggering_cr.metadata().well_formed()
+                &&& state.filtered_pods.is_Some()
+                // Maintained across deletes, 
+                // maintained across creates since all new keys with generate_name
+                // are unique, maintained across updates since there are
+                // no updates.
+                &&& forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
+                    (
+                        filtered_pods[i].object_ref().namespace == s.ongoing_reconciles()[key].triggering_cr.metadata.namespace.unwrap()
+                        && (s.resources().contains_key(filtered_pods[i].object_ref()) ==>
+                            s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
+                                s.ongoing_reconciles()[key].triggering_cr.controller_owner_ref()
+                            ))
+                    )
+            }
+    }
+}
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView

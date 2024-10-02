@@ -100,6 +100,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, v
     }
 }
 
+
 #[verifier(external_body)]
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView)
     ensures
