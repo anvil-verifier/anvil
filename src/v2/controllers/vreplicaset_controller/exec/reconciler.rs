@@ -138,7 +138,11 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<Empty
                     api_resource: Pod::api_resource(),
                     name: pod_name_or_none.unwrap(),
                     namespace: namespace,
-                    preconditions: None,
+                    preconditions: {
+                        let mut pre = Preconditions::default();
+                        pre.set_resource_version_from_object_meta(filtered_pods[diff - 1].metadata());
+                        Some(pre)
+                    },
                 });
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
@@ -203,8 +207,13 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<Empty
                     api_resource: Pod::api_resource(),
                     name: pod_name_or_none.unwrap(),
                     namespace: namespace,
-                    // TODO: set the resource version to be the precondition
-                    preconditions: None,
+                    preconditions: {
+                        let mut pre = Preconditions::default();
+                        pre.set_resource_version_from_object_meta(
+                            state.filtered_pods.as_ref().unwrap()[diff - 1].metadata()
+                        );
+                        Some(pre)
+                    },
                 });
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
