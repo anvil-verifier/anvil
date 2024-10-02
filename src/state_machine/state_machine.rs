@@ -9,7 +9,7 @@ verus! {
 
 // `StateMachine` helps to write host state machines in a disciplined way
 // by explicitly writing `init`, `actions`, `step_to_action`, and `action_input`.
-///
+//
 // It takes four generic types:
 // * `State`: The (internal) state of the host.
 // * `Input`: The input from the external world of the state machine. For example a message.

@@ -165,7 +165,7 @@ pub proof fn next_with_wf_is_stable()
 
 // This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
 // We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
-///
+//
 // The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
 // init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
 pub open spec fn invariants(fbc: FluentBitConfigView) -> TempPred<FBCCluster> {
@@ -240,7 +240,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fbc: FluentBitConfigVi
 
 // The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
 // spec and uid as the cr we provide.
-///
+//
 // Note that don't try to find any connections between those invariants -- they are put together because they don't have to
 // wait for another of them to first be satisfied.
 pub open spec fn invariants_since_phase_i(fbc: FluentBitConfigView) -> TempPred<FBCCluster> {
@@ -260,7 +260,7 @@ pub proof fn invariants_since_phase_i_is_stable(fbc: FluentBitConfigView)
 }
 
 // For now, phase II only contains one invariant, which is the object in reconcile has the same spec and uid as fbc.
-///
+//
 // It is alone because it relies on the invariant the_object_in_schedule_has_spec_and_uid_as (in phase I) and every invariant
 // in phase III relies on it.
 pub open spec fn invariants_since_phase_ii(fbc: FluentBitConfigView) -> TempPred<FBCCluster> {

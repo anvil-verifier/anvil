@@ -744,7 +744,7 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
 //     spec |= pn
 // post:
 //     spec |= p1 /\ p2 /\ ... /\ pn
-///
+//
 // Usage: entails_and_n!(spec, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! entails_and_n {
@@ -775,7 +775,7 @@ pub use entails_and_n_internal;
 //     spec |= []pn
 // post:
 //     spec |= [](p1 /\ p2 /\ ... /\ pn)
-///
+//
 // Usage: entails_always_and_n!(spec, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! entails_always_and_n {
@@ -805,7 +805,7 @@ pub use entails_always_and_n_internal;
 // Usage:
 // Given next, p1, p2, p3, ...,
 // returns |s, s_prime| next(s, s_prime) && p1(s) && p2(s) && p3(s) && ...
-///
+//
 // Note: Verus reports strange errors saying the returned closure is not a spec_fn
 #[macro_export]
 macro_rules! merge_into_next {
@@ -865,7 +865,7 @@ pub use combine_with_next_internal;
 //     p1 /\ p2 /\ ... /\ pn ==> partial_spec
 // post:
 //     spec |= []all
-///
+//
 // Usage: combine_spec_entails_always_n!(spec, partial_spec, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! combine_spec_entails_always_n {
@@ -901,7 +901,7 @@ pub use combine_spec_entails_always_n_internal;
 //     p1 /\ p2 /\ ... /\ pn ==> partial_spec
 // post:
 //     spec |= []inv
-///
+//
 // Usage: invariant_n!(spec, partial_spec, inv, p1, p2, ..., pn)
 #[macro_export]
 macro_rules! invariant_n {
@@ -996,7 +996,7 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
 //     |= stable(pn)
 // post:
 //     |= stable(p1 /\ p2 /\ ... /\ pn)
-///
+//
 // Usage: stable_and_n!(p1, p2, p3, p4)
 #[macro_export]
 macro_rules! stable_and_n {
@@ -1022,7 +1022,7 @@ pub use stable_and_n_internal;
 // The conjunction of all the p is stable if each p is stable.
 // post:
 //     |= stable(always(p1) /\ always(p2) /\ ... /\ always(pn))
-///
+//
 // Usage: stable_and_always_n!(p1, p2, p3, p4)
 #[macro_export]
 macro_rules! stable_and_always_n {
@@ -1471,7 +1471,7 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
 //     spec |= pn ~> q
 // post:
 //     spec |= (p1 \/ p2 \/ ... \/ pn) ~> q
-///
+//
 // Usage: or_leads_to_combine_n!(spec, p1, p2, p3, p4; q)
 #[macro_export]
 macro_rules! or_leads_to_combine_n {
@@ -1517,7 +1517,7 @@ pub use or_leads_to_combine_and_equality;
 //     spec |= p ~> []qn
 // post:
 //     spec |= p ~> [](q1 /\ q2 /\ ... /\ qn)
-///
+//
 // Usage: leads_to_always_combine_n!(spec, p, q1, q2, q3, q4)
 #[macro_export]
 macro_rules! leads_to_always_combine_n {
@@ -1567,7 +1567,7 @@ pub use leads_to_always_combine_n_with_equality_internal;
 // post:
 //     spec |= []tla_forall(a_to_p)
 // The domain set assist in showing type A contains finite elements.
-///
+//
 // This lemma is actually similar to leads_to_always_combine_n when the n predicates are all a_to_p(a) for some a.
 // This is because tla_forall(a_to_p) == a_to_p(a1).and(a_to_p(a2))....and(a_to_p(an)), We only consider the case when
 // type A is finite here.

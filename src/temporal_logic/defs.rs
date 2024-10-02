@@ -66,7 +66,7 @@ impl<T> TempPred<T> {
     // `~>` for temporal predicates in TLA+.
     // Returns a temporal predicate that is satisfied
     // iff it is always the case that `self` getting satisfied implies `other` eventually getting satisfied.
-    ///
+    //
     // Defined in 3.2.3.
     pub open spec fn leads_to(self, other: Self) -> Self {
         always(self.implies(eventually(other)))
@@ -92,7 +92,7 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 
 // `[]` for temporal predicates in TLA+.
 // Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on every suffix of the execution.
-///
+//
 // Defined in 3.1.
 pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| forall |i: nat| #[trigger] temp_pred.satisfied_by(ex.suffix(i)))
@@ -100,7 +100,7 @@ pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 
 // `<>` for temporal predicates in TLA+.
 // Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on at least one suffix of the execution.
-///
+//
 // Defined in 3.2.1.
 pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| exists |i: nat| #[trigger] temp_pred.satisfied_by(ex.suffix(i)))
@@ -133,9 +133,9 @@ pub open spec fn stable<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 
 // Returns a state predicate that is satisfied
 // iff `action_pred` can be satisfied by any possible following state and the current state
-///
+//
 // enabled() is used for checking whether a particular action is enabled at this **state**
-///
+//
 // Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
     |s: T| exists |s_prime: T| #[trigger] action_pred(s, s_prime)
@@ -143,9 +143,9 @@ pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
 
 // Returns a temporal predicate that is satisfied
 // iff `always(lift_state(enabled(action_pred)))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
-///
+//
 // It says whether it is *always* the case that if the action is *always* enabled, the action *eventually* happens.
-///
+//
 // Defined in 5.3 in a different form.
 // We can prove the two forms are the same:
 //    []E(A) ~> A
@@ -162,7 +162,7 @@ pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 
 // `|=` for temporal predicates in TLA+.
 // Returns true iff `temp_pred` is satisfied by all possible executions (behaviors).
-///
+//
 // Defined in 3.3.
 pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)

@@ -39,7 +39,7 @@ proof fn safety_proof(rabbitmq: RabbitmqClusterView)
 // This invariant is exactly the high-level property. The proof of this invariant is where we talk about update Message. It requires another two invariants to hold all the time:
 // - replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd
 // - object_in_sts_update_request_has_smaller_rv_than_etcd
-///
+//
 // Invariant 2 is to show that every stateful set update request must specify the resource version because stateful set is allowed to update unconditionally. If resource version can be none, we can't rule out invalid update request through resource version. Invariant 3 is quite obvious.
 proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires

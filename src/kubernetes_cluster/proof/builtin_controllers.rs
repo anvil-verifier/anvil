@@ -22,7 +22,7 @@ impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, 
 // Everytime when we reason about update request message, we can only consider those valid ones (see validata_update_request).
 // However, listing all requirements makes spec looks cumbersome (consider using validate_create/update_request); we can only
 // list those that we need or that may appear according to the spec of system.
-///
+//
 // For example, in some lemma we use msg.content.get_update_request().obj.kind == key.kind, so this requirement is added here.
 pub open spec fn every_update_msg_sets_owner_references_as(
     key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
@@ -92,7 +92,7 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 // process, the reconciler only considers the object created from current cr and if so, it continues; otherwises, it returns.
 // With this lemma, we can prove that the reconciler will eventually continue the reconcile process. To use this lemma, please
 // read the explanations of all the preconditions and what each of them is for.
-///
+//
 // This lemma requires the following preconditions:
 //     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
 //     2. spec |= [](in_flight(create_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
@@ -107,13 +107,13 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 // if with any other owner references, should be deleted. 4 basically limits the domain of "any other owner references". For example,
 // in rabbitmq controller, the universal set should be the set of any cr's controller owner ref that has once been in reconcile.
 // If we don't have this, suppose owner_ref == None, then the object won't be deleted.
-///
+//
 // The proof of spec |= true ~> objects_owner_references_satisfies(eventual_owner_ref) consists of two parts:
 //     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
 //     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
 // The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
 // and the second holds due to the weak fairness of kubernetes api.
-///
+//
 // This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool

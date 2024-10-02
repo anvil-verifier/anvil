@@ -208,10 +208,10 @@ pub open spec fn controller_next() -> Action<Self, (Option<MsgType<E>>, Option<O
 // reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
 // infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
 // action allow us to prove reconcile is always eventually scheduled.
-///
+//
 // This action abstracts away a lot of implementation details in the Kubernetes API and kube framework,
 // such as the list-then-watch pattern.
-///
+//
 // In general, this action assumes the following key behavior:
 // (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
 //   -- so the first creation event will schedule a reconcile

@@ -23,7 +23,7 @@ pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<RMQ
 }
 
 // To prove the safety property about stateful set, we need to first specify what the property is.
-///
+//
 // Previously, we planned to use Message to describe the possible update/deletion/creation actions, and also specify the
 // relevant properties. However, it is better not to include Message in the description the high-level safety property
 // because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is

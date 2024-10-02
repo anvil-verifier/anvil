@@ -14,12 +14,12 @@ use vstd::pervasive::unreached;
 verus! {
 
 // KubeAPIRequest represents API requests used in executable.
-///
+//
 // kube-rs uses a generic type kube::api::Api as an api handle to send
 // requests to the Kubernetes API.
 // So KubeAPIRequest wraps around the variables used to instantiate kube::api::Api
 // and to call its methods.
-///
+//
 // Here we have one variant for each object kind because we need
 // the concrete object type to instantiate a kube::api::Api.
 // For example, to create a ConfigMap, we need to pass a ConfigMap object.
@@ -218,7 +218,7 @@ pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequ
 }
 
 // KubeAPIResponse represents API results used in executable.
-///
+//
 // KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
 
 #[is_variant]

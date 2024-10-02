@@ -28,7 +28,7 @@ verus! {
 
 // Proves AtAfterKRequestStep(Get, sub_resource) ~> sub_resource_state_matches(sub_resource, rabbitmq) and AtAfterKRequestStep(Get, sub_resource) ~>
 // AtAfterKRequestStep(Get, next_resource). The second one is not applicable to StatefulSet which doesn't have a next resource.
-///
+//
 // The proof contains two part: resource_key exists or does not exist at first. The proof of both parts contains several times of applying
 // wf1, handle_get_request => continue_reconcile => handle_create/update_request => continue_reconcile.
 pub proof fn lemma_from_after_get_resource_step_to_resource_matches(

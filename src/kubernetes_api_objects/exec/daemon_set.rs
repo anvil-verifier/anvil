@@ -16,11 +16,11 @@ verus! {
 // A DaemonSet object allows different types of Volumes attached to the pods,
 // including ConfigMaps, Secrets and PersistentVolumeClaims.
 // It also exposes the applications using a headless service.
-///
+//
 // This definition is a wrapper of DaemonSet defined at
 // https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/daemon_set.rs.
 // It is supposed to be used in exec controller code.
-///
+//
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/.
 
 #[verifier(external_body)]

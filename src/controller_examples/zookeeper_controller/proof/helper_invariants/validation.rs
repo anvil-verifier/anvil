@@ -32,7 +32,7 @@ verus! {
 // be updated. So we need the transition validation of custom resource (zookeeper) to show some fields of zookeeper won't change
 // by the update request. Therefore, though updating stateful set won't update those fields, the stateful set will still match
 // the desired state.
-///
+//
 // We don't need this for other subresources because they don't have such fields: (1) those fields are determined by the zookeeper
 // object (except the key of zookeeper); and (2) these fields won't be updated during update.
 pub open spec fn certain_fields_of_stateful_set_stay_unchanged(obj: DynamicObjectView, zookeeper: ZookeeperClusterView) -> bool {

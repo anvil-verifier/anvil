@@ -13,7 +13,7 @@ use vstd::{prelude::*, view::*};
 verus! {
 
 // APIRequest represents API requests sent to the Kubernetes API for specifications.
-///
+//
 // Kubernetes API accepts in general seven types requests: Get, List, Create, Delete, Update, Patch and Watch.
 // Each variant in APIRequest represents on type of request.
 // For now we do not consider Watch.

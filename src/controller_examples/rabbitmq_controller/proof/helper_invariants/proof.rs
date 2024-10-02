@@ -1224,9 +1224,9 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 
 // This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
 // create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
-///
+//
 // After the action, the controller stays at After(Create/Update, SubResource) step.
-///
+//
 // Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 
 //#[verifier(spinoff_prover)]
@@ -1512,7 +1512,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 // This lemma demonstrates how to use kubernetes_cluster::proof::api_server_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
 // (referred to as lemma_X) to prove that the system will eventually enter a state where delete stateful set request messages
 // will never appear in flight.
-///
+//
 // As an example, we can look at how this lemma is proved.
 // - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
 //     the newly generated messages are as expected. ("expected" means not delete stateful set request messages in this lemma. Therefore,

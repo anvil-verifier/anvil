@@ -115,7 +115,7 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: FBCluster) -> s
 // sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
 // daemon_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
 // so we need this extra spec and lemma.
-///
+//
 // If we don't have this, we have no idea of what is inside the response message.
 pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     sub_resource: SubResource, fb: FluentBitView
