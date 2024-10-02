@@ -28,13 +28,13 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-/// We need such a spec for daemon set because certain fields are determined by the spec of custom resource object and won't
-/// be updated. So we need the transition validation of custom resource (fb) to show some fields of fb won't change
-/// by the update request. Therefore, though updating daemon set won't update those fields, the daemon set will still match
-/// the desired state.
-///
-/// We don't need this for other subresources because they don't have such fields: (1) those fields are determined by the fb
-/// object (except the key of fb); and (2) these fields won't be updated during update.
+// We need such a spec for daemon set because certain fields are determined by the spec of custom resource object and won't
+// be updated. So we need the transition validation of custom resource (fb) to show some fields of fb won't change
+// by the update request. Therefore, though updating daemon set won't update those fields, the daemon set will still match
+// the desired state.
+//
+// We don't need this for other subresources because they don't have such fields: (1) those fields are determined by the fb
+// object (except the key of fb); and (2) these fields won't be updated during update.
 pub open spec fn certain_fields_of_daemon_set_stay_unchanged(obj: DynamicObjectView, fb: FluentBitView) -> bool {
     let made_spec = make_daemon_set(fb).spec.get_Some_0();
     let ds = DaemonSetView::unmarshal(obj).get_Ok_0();

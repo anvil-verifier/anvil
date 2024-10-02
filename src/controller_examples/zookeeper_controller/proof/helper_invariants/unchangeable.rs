@@ -36,8 +36,8 @@ verus! {
 // And the following lemmas are more powerful because it considers the cases when the objects in update request messages
 // and etcd rely on each other to show they satisfy those properties.
 
-/// Objects in create request messages satisfying the properties can be proved along because it doesn't have to do with
-/// how the objects in etcd look like now.
+// Objects in create request messages satisfying the properties can be proved along because it doesn't have to do with
+// how the objects in etcd look like now.
 pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {
@@ -48,7 +48,7 @@ pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
-/// On the contrary, we should combine the proof of update request message and etcd because they rely on each other.
+// On the contrary, we should combine the proof of update request message and etcd because they rely on each other.
 pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_resource: SubResource, zookeeper: ZookeeperClusterView) -> StatePred<ZKCluster> {
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {

@@ -9,8 +9,7 @@ use vstd::string::*;
 
 verus! {
 
-/// LabelSelectorView is the ghost type of LabelSelector.
-/// It is supposed to be used in spec and proof code.
+// LabelSelectorView is the ghost type of LabelSelector.
 
 pub struct LabelSelectorView {
     pub match_labels: Option<Map<StringView, StringView>>,

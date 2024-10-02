@@ -79,8 +79,8 @@ pub open spec fn daemon_set_not_exist_or_updated_or_no_more_status_from_bc(
     }
 }
 
-/// This lemma is very similar to lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_more_pending_req
-/// but does not consider the dependency on a configmap('s rv)
+// This lemma is very similar to lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_more_pending_req
+// but does not consider the dependency on a configmap('s rv)
 
 pub proof fn lemma_true_leads_to_always_daemon_set_not_exist_or_updated_or_no_more_pending_req(spec: TempPred<Self>, key: ObjectRef, make_fn: spec_fn() -> DaemonSetView)
     requires

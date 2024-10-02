@@ -5,8 +5,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// ApiResourceView is the ghost type of ApiResource.
-/// It is supposed to be used in spec and proof code.
+// ApiResourceView is the ghost type of ApiResource.
+
 
 pub struct ApiResourceView {
     pub kind: Kind,

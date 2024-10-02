@@ -8,9 +8,9 @@ use vstd::prelude::*;
 
 verus! {
 
-/// DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
-/// We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
-/// for all kinds of Kubernetes resource objects without exhaustive pattern matching.
+// DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
+// We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
+// for all kinds of Kubernetes resource objects without exhaustive pattern matching.
 
 #[verifier(external_body)]
 pub struct DynamicObject {

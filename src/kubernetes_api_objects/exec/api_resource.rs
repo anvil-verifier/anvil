@@ -6,11 +6,11 @@ use vstd::prelude::*;
 
 verus! {
 
-/// ApiResource is used for creating API handles for DynamicObject.
-///
-/// This definition is a wrapper of ApiResource defined at
-/// https://github.com/kube-rs/kube/blob/main/kube-core/src/discovery.rs.
-/// It is supposed to be used in exec controller code.
+// ApiResource is used for creating API handles for DynamicObject.
+//
+// This definition is a wrapper of ApiResource defined at
+// https://github.com/kube-rs/kube/blob/main/kube-core/src/discovery.rs.
+// It is supposed to be used in exec controller code.
 
 #[verifier(external_body)]
 pub struct ApiResource {

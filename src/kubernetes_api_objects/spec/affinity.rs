@@ -4,8 +4,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// AffinityView is the ghost type of Affinity.
-/// It is supposed to be used in spec and proof code.
+// AffinityView is the ghost type of Affinity.
+
 
 pub struct AffinityView {}
 

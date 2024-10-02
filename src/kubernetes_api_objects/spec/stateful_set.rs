@@ -13,8 +13,8 @@ use vstd::string::*;
 
 verus! {
 
-/// StatefulSetView is the ghost type of StatefulSet.
-/// It is supposed to be used in spec and proof code.
+// StatefulSetView is the ghost type of StatefulSet.
+
 
 pub struct StatefulSetView {
     pub metadata: ObjectMetaView,

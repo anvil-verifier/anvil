@@ -13,7 +13,7 @@ use vstd::prelude::*;
 
 verus! {
 
-/// RabbitmqReconcileState describes the local state with which the reconcile functions makes decisions.
+// RabbitmqReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct RabbitmqReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.

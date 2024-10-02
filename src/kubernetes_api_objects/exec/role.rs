@@ -10,11 +10,11 @@ use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
-/// This definition is a wrapper of Role defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
+// This definition is a wrapper of Role defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
 
 #[verifier(external_body)]
 pub struct Role {

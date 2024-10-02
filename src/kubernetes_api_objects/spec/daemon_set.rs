@@ -12,8 +12,8 @@ use vstd::string::*;
 
 verus! {
 
-/// DaemonSetView is the ghost type of DaemonSet.
-/// It is supposed to be used in spec and proof code.
+// DaemonSetView is the ghost type of DaemonSet.
+
 
 pub struct DaemonSetView {
     pub metadata: ObjectMetaView,

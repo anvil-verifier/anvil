@@ -134,8 +134,8 @@ pub fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulS
     stateful_set
 }
 
-/// The StatefulSet manages the zookeeper server containers (as Pods)
-/// and the volumes attached to each server (as PersistentVolumeClaims)
+// The StatefulSet manages the zookeeper server containers (as Pods)
+// and the volumes attached to each server (as PersistentVolumeClaims)
 pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: StatefulSet)
     requires zk@.well_formed(),
     ensures stateful_set@ == model_resource::make_stateful_set(zk@, rv@),

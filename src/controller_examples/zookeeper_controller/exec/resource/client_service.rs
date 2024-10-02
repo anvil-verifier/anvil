@@ -111,7 +111,7 @@ pub fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Servi
     client_service
 }
 
-/// Client Service is used for any client to connect to the zookeeper server
+// Client Service is used for any client to connect to the zookeeper server
 pub fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     requires zk@.well_formed(),
     ensures service@ == model_resource::make_client_service(zk@),

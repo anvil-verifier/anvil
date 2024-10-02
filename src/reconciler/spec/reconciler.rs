@@ -9,8 +9,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Reconciler is the key data structure we use to pack up all the custom controller-specific logic
-/// and install it to the Kubernetes cluster state machine
+// Reconciler is the key data structure we use to pack up all the custom controller-specific logic
+// and install it to the Kubernetes cluster state machine
 #[verifier(reject_recursive_types(K))]
 #[verifier(reject_recursive_types(ExternalAPIType))]
 pub trait Reconciler<K: CustomResourceView, ExternalAPIType: ExternalAPI>: Sized {

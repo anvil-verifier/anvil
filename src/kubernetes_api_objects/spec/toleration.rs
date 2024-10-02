@@ -8,8 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// TolerationView is the ghost type of Toleration.
-/// It is supposed to be used in spec and proof code.
+// TolerationView is the ghost type of Toleration.
+
 
 pub struct TolerationView {}
 

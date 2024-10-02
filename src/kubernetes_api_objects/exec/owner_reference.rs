@@ -9,13 +9,13 @@ use vstd::{prelude::*, string::*};
 verus! {
 
 
-/// OwnerReference contains enough information to let you identify an owning object.
-/// An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
-///
-/// This definition is a wrapper of OwnerReference defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/owner_reference.rs.
-/// It is supposed to be used in exec controller code.
-///
+// OwnerReference contains enough information to let you identify an owning object.
+// An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
+//
+// This definition is a wrapper of OwnerReference defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/owner_reference.rs.
+// It is supposed to be used in exec controller code.
+//
 
 #[verifier(external_body)]
 pub struct OwnerReference {

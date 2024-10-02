@@ -652,12 +652,12 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     init_invariant(spec, FBCCluster::init(), stronger_next, inv);
 }
 
-/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
-/// create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
-///
-/// After the action, the controller stays at After(Create/Update, SubResource) step.
-///
-/// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
+// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
+// create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
+//
+// After the action, the controller stays at After(Create/Update, SubResource) step.
+//
+// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, fbc: FluentBitConfigView, s: FBCCluster, s_prime: FBCCluster, msg: FBCMessage, step: FBCStep)
     requires

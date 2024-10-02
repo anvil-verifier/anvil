@@ -10,8 +10,8 @@ use vstd::string::*;
 
 verus! {
 
-/// RoleBindingView is the ghost type of RoleBinding.
-/// It is supposed to be used in spec and proof code.
+// RoleBindingView is the ghost type of RoleBinding.
+
 
 pub struct RoleBindingView {
     pub metadata: ObjectMetaView,

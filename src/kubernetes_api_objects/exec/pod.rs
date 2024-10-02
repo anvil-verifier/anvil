@@ -13,17 +13,17 @@ use vstd::string::*;
 
 verus! {
 
-/// Pod is a type of API object used for grouping one or more containers that share storage and network resources.
-/// This is the smallest deployable unit in Kubernetes.
-///
-/// You can specify the Container(s), including the images and commands, and the Volume(s),
-/// such as a ConfigMap or a Secret, in the specification of a Pod (i.e., PodSpec).
-///
-/// This definition is a wrapper of Pod defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/pod.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
+// Pod is a type of API object used for grouping one or more containers that share storage and network resources.
+// This is the smallest deployable unit in Kubernetes.
+//
+// You can specify the Container(s), including the images and commands, and the Volume(s),
+// such as a ConfigMap or a Secret, in the specification of a Pod (i.e., PodSpec).
+//
+// This definition is a wrapper of Pod defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/pod.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
 
 #[verifier(external_body)]
 pub struct Pod {
@@ -97,7 +97,7 @@ impl Pod {
         DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
-    /// Convert a DynamicObject to a Pod
+    // Convert a DynamicObject to a Pod
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, UnmarshalError>)
         ensures

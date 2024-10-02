@@ -109,7 +109,7 @@ pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_ser
     admin_server_service
 }
 
-/// Admin-server Service is used for client to connect to admin server
+// Admin-server Service is used for client to connect to admin server
 pub fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires zk@.well_formed(),
     ensures service@ == model_resource::make_admin_server_service(zk@),

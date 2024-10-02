@@ -36,11 +36,11 @@ proof fn safety_proof(rabbitmq: RabbitmqClusterView)
     lemma_stateful_set_never_scaled_down_for_rabbitmq(cluster_spec_without_wf(), rabbitmq);
 }
 
-/// This invariant is exactly the high-level property. The proof of this invariant is where we talk about update Message. It requires another two invariants to hold all the time:
-/// - replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd
-/// - object_in_sts_update_request_has_smaller_rv_than_etcd
-///
-/// Invariant 2 is to show that every stateful set update request must specify the resource version because stateful set is allowed to update unconditionally. If resource version can be none, we can't rule out invalid update request through resource version. Invariant 3 is quite obvious.
+// This invariant is exactly the high-level property. The proof of this invariant is where we talk about update Message. It requires another two invariants to hold all the time:
+// - replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd
+// - object_in_sts_update_request_has_smaller_rv_than_etcd
+//
+// Invariant 2 is to show that every stateful set update request must specify the resource version because stateful set is allowed to update unconditionally. If resource version can be none, we can't rule out invalid update request through resource version. Invariant 3 is quite obvious.
 proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
@@ -156,13 +156,13 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-/// This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object
-/// in create/update stateful set object. We define this order because, the replicas in the update request is derived from
-/// the triggering cr; so, in order to show the updated replicas is no smaller than the original one, we need to show that
-/// the original one (the one stored in etcd)'s replicas is no larger than that of triggering cr. obj.metadata.owner_references_only_contains
-/// (s.ongoing_reconciles()[key].triggering_cr.controller_owner_ref()) here is to ensure that the cr is still the one that creates the stateful
-/// set object. The left two comparison is to assist the last one because when the state moves to the next state, the triggering_cr
-/// may be assigned (inserted or updated).
+// This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object
+// in create/update stateful set object. We define this order because, the replicas in the update request is derived from
+// the triggering cr; so, in order to show the updated replicas is no smaller than the original one, we need to show that
+// the original one (the one stored in etcd)'s replicas is no larger than that of triggering cr. obj.metadata.owner_references_only_contains
+// (s.ongoing_reconciles()[key].triggering_cr.controller_owner_ref()) here is to ensure that the cr is still the one that creates the stateful
+// set object. The left two comparison is to assist the last one because when the state moves to the next state, the triggering_cr
+// may be assigned (inserted or updated).
 spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         obj.kind.is_StatefulSetKind(),

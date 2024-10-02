@@ -14,17 +14,17 @@ use vstd::string::*;
 
 verus! {
 
-/// StatefulSet is a type of API object used for managing stateful applications,
-/// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
-/// A StatefulSet object allows different types of Volumes attached to the pods,
-/// including ConfigMaps, Secrets and PersistentVolumeClaims.
-/// It also exposes the applications using a headless service.
-///
-/// This definition is a wrapper of StatefulSet defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/stateful_set.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/.
+// StatefulSet is a type of API object used for managing stateful applications,
+// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
+// A StatefulSet object allows different types of Volumes attached to the pods,
+// including ConfigMaps, Secrets and PersistentVolumeClaims.
+// It also exposes the applications using a headless service.
+//
+// This definition is a wrapper of StatefulSet defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/stateful_set.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/.
 
 #[verifier(external_body)]
 pub struct StatefulSet {
@@ -116,7 +116,7 @@ impl StatefulSet {
         )
     }
 
-    /// Convert a DynamicObject to a StatefulSet
+    // Convert a DynamicObject to a StatefulSet
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<StatefulSet, UnmarshalError>)
         ensures

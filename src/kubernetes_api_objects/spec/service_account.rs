@@ -8,8 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// ServiceAccountView is the ghost type of ServiceAccount.
-/// It is supposed to be used in spec and proof code.
+// ServiceAccountView is the ghost type of ServiceAccount.
+
 
 pub struct ServiceAccountView {
     pub metadata: ObjectMetaView,

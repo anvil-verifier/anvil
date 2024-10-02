@@ -177,11 +177,11 @@ pub proof fn next_with_wf_is_stable()
     );
 }
 
-/// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
-/// We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
-///
-/// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
-/// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
+// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
+// We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
+//
+// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
+// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
 pub open spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     next_with_wf().and(derived_invariants_since_beginning(rabbitmq))
 }
@@ -259,11 +259,11 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
     );
 }
 
-/// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
-/// spec and uid as the cr we provide.
-///
-/// Note that don't try to find any connections between those invariants -- they are put together because they don't have to
-/// wait for another of them to first be satisfied.
+// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
+// spec and uid as the cr we provide.
+//
+// Note that don't try to find any connections between those invariants -- they are put together because they don't have to
+// wait for another of them to first be satisfied.
 pub open spec fn invariants_since_phase_i(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::crash_disabled()))
     .and(always(lift_state(RMQCluster::busy_disabled())))
@@ -280,10 +280,10 @@ pub proof fn invariants_since_phase_i_is_stable(rabbitmq: RabbitmqClusterView)
     );
 }
 
-/// For now, phase II only contains one invariant, which is the object in reconcile has the same spec and uid as rabbitmq.
-///
-/// It is alone because it relies on the invariant the_object_in_schedule_has_spec_and_uid_as (in phase I) and every invariant
-/// in phase III relies on it.
+// For now, phase II only contains one invariant, which is the object in reconcile has the same spec and uid as rabbitmq.
+//
+// It is alone because it relies on the invariant the_object_in_schedule_has_spec_and_uid_as (in phase I) and every invariant
+// in phase III relies on it.
 pub open spec fn invariants_since_phase_ii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
 }
@@ -308,9 +308,9 @@ pub proof fn invariants_since_phase_iii_is_stable(rabbitmq: RabbitmqClusterView)
     stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
 }
 
-/// Invariants since this phase ensure that certain objects only have owner references that point to current cr.
-/// To have these invariants, we first need the invariant that evert create/update request make/change the object in the
-/// expected way.
+// Invariants since this phase ensure that certain objects only have owner references that point to current cr.
+// To have these invariants, we first need the invariant that evert create/update request make/change the object in the
+// expected way.
 pub open spec fn invariants_since_phase_iv(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))
 }
@@ -322,9 +322,9 @@ pub proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
     always_p_is_stable(tla_forall(a_to_p_1));
 }
 
-/// Invariants since phase V rely on the invariants since phase IV. When the objects starts to always have owner reference
-/// pointing to current cr, it will never be recycled by the garbage collector. Plus, the reconciler itself never tries to
-/// delete this object, so we can have the invariants saying that no delete request messages will be in flight.
+// Invariants since phase V rely on the invariants since phase IV. When the objects starts to always have owner reference
+// pointing to current cr, it will never be recycled by the garbage collector. Plus, the reconciler itself never tries to
+// delete this object, so we can have the invariants saying that no delete request messages will be in flight.
 pub open spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq))))
 }

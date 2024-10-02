@@ -9,8 +9,8 @@ use vstd::string::*;
 
 verus! {
 
-/// OwnerReferenceView is the ghost type of OwnerReference.
-/// It is supposed to be used in spec and proof code.
+// OwnerReferenceView is the ghost type of OwnerReference.
+
 
 pub struct OwnerReferenceView {
     pub block_owner_deletion: Option<bool>,

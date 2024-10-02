@@ -9,8 +9,8 @@ use vstd::seq_lib::*;
 
 verus! {
 
-/// ServiceView is the ghost type of Service.
-/// It is supposed to be used in spec and proof code.
+// ServiceView is the ghost type of Service.
+
 
 pub struct ServiceView {
     pub metadata: ObjectMetaView,
