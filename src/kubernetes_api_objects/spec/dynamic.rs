@@ -8,8 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// DynamicObjectView is the ghost type of DynamicObject.
-/// It is supposed to be used in spec and proof code.
+// DynamicObjectView is the ghost type of DynamicObject.
+
 
 pub struct DynamicObjectView {
     pub kind: Kind,

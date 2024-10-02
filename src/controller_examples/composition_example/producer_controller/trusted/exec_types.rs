@@ -12,7 +12,7 @@ use vstd::prelude::*;
 
 verus! {
 
-/// ProducerReconcileState describes the local state with which the reconcile functions makes decisions.
+// ProducerReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct ProducerReconcileState {
     pub reconcile_step: ProducerReconcileStep,
 }

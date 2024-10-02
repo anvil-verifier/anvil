@@ -11,15 +11,15 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Secret is a type of API object used to store confidential data in key-value pairs.
-/// A Secret object can be used to set environment variables or configuration files
-/// in a Volume mounted to a Pod.
+// Secret is a type of API object used to store confidential data in key-value pairs.
+// A Secret object can be used to set environment variables or configuration files
+// in a Volume mounted to a Pod.
 ///
-/// This definition is a wrapper of Secret defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/secret.rs.
-/// It is supposed to be used in exec controller code.
+// This definition is a wrapper of Secret defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/secret.rs.
+// It is supposed to be used in exec controller code.
 ///
-/// More detailed information: https://kubernetes.io/docs/concepts/configuration/secret/.
+// More detailed information: https://kubernetes.io/docs/concepts/configuration/secret/.
 
 #[verifier(external_body)]
 pub struct Secret {

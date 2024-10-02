@@ -12,7 +12,7 @@ use vstd::prelude::*;
 
 verus! {
 
-/// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
+// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct VReplicaSetReconcileState {
     pub reconcile_step: VReplicaSetReconcileStep,
     pub filtered_pods: Option<Vec<Pod>>,

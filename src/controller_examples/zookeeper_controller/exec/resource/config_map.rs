@@ -100,7 +100,7 @@ pub fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) ->
     config_map
 }
 
-/// The ConfigMap stores the configuration data of zookeeper servers
+// The ConfigMap stores the configuration data of zookeeper servers
 pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires zk@.well_formed(),
     ensures config_map@ == model_resource::make_config_map(zk@),

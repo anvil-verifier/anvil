@@ -27,8 +27,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Valid owner_references field satisfies that every owner reference in it valid uid, i.e., it points to some existing objects.
-/// We don't test custom resource object here because we don't care about whether it's owner_references is valid.
+// Valid owner_references field satisfies that every owner reference in it valid uid, i.e., it points to some existing objects.
+// We don't test custom resource object here because we don't care about whether it's owner_references is valid.
 pub open spec fn owner_references_is_valid(obj: DynamicObjectView, s: ZKCluster) -> bool {
     let owner_refs = obj.metadata.owner_references.get_Some_0();
 

@@ -11,17 +11,17 @@ use vstd::{prelude::*, seq_lib::*, string::*};
 
 verus! {
 
-/// DaemonSet is a type of API object used for managing daemon applications,
-/// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
-/// A DaemonSet object allows different types of Volumes attached to the pods,
-/// including ConfigMaps, Secrets and PersistentVolumeClaims.
-/// It also exposes the applications using a headless service.
+// DaemonSet is a type of API object used for managing daemon applications,
+// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
+// A DaemonSet object allows different types of Volumes attached to the pods,
+// including ConfigMaps, Secrets and PersistentVolumeClaims.
+// It also exposes the applications using a headless service.
 ///
-/// This definition is a wrapper of DaemonSet defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/daemon_set.rs.
-/// It is supposed to be used in exec controller code.
+// This definition is a wrapper of DaemonSet defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/daemon_set.rs.
+// It is supposed to be used in exec controller code.
 ///
-/// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/.
+// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/.
 
 #[verifier(external_body)]
 pub struct DaemonSet {
@@ -90,7 +90,7 @@ impl DaemonSet {
         DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
-    /// Convert a DynamicObject to a DaemonSet
+    // Convert a DynamicObject to a DaemonSet
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<DaemonSet, UnmarshalError>)
         ensures

@@ -11,10 +11,10 @@ verus! {
 #[verifier(reject_recursive_types(Input))]
 #[verifier(reject_recursive_types(Output))]
 pub struct Action<State, Input, Output> {
-    /// The condition that enables the host action.
+    // The condition that enables the host action.
     pub precondition: spec_fn(Input, State) -> bool,
 
-    /// The new internal state and output made by the transition.
+    // The new internal state and output made by the transition.
     pub transition: spec_fn(Input, State) -> (State, Output),
 }
 
@@ -30,13 +30,13 @@ impl<State, Input, Output> Action<State, Input, Output> {
         }
     }
 
-    /// `weak_fairness` assumption says that,
-    /// it is always true that, if `pre` is always true, `forward` eventually becomes true
+    // `weak_fairness` assumption says that,
+    // it is always true that, if `pre` is always true, `forward` eventually becomes true
     pub open spec fn weak_fairness(self, input: Input) -> TempPred<State> {
         always(lift_state(self.pre(input))).leads_to(lift_action(self.forward(input)))
     }
 
-    /// `wf1` is a specialized version of temporal_logic_rules::wf1 for Action
+    // `wf1` is a specialized version of temporal_logic_rules::wf1 for Action
     pub proof fn wf1(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, pre: StatePred<State>, post: StatePred<State>)
         requires
             forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),

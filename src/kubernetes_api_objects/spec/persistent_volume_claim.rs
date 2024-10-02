@@ -10,8 +10,8 @@ use vstd::seq_lib::*;
 
 verus! {
 
-/// PersistentVolumeClaimView is the ghost type of PersistentVolumeClaim.
-/// It is supposed to be used in spec and proof code.
+// PersistentVolumeClaimView is the ghost type of PersistentVolumeClaim.
+
 
 pub struct PersistentVolumeClaimView {
     pub metadata: ObjectMetaView,

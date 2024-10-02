@@ -12,8 +12,8 @@ use vstd::string::*;
 
 verus! {
 
-/// PodView is the ghost type of Pod.
-/// It is supposed to be used in spec and proof code.
+// PodView is the ghost type of Pod.
+
 
 pub struct PodView {
     pub metadata: ObjectMetaView,

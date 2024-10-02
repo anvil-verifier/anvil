@@ -9,8 +9,8 @@ use vstd::seq_lib::*;
 
 verus! {
 
-/// RoleView is the ghost type of Role.
-/// It is supposed to be used in spec and proof code.
+// RoleView is the ghost type of Role.
+
 
 pub struct RoleView {
     pub metadata: ObjectMetaView,

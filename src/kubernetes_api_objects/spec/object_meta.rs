@@ -9,8 +9,8 @@ use vstd::string::*;
 
 verus! {
 
-/// ObjectMetaView is the ghost type of ObjectMeta.
-/// It is supposed to be used in spec and proof code.
+// ObjectMetaView is the ghost type of ObjectMeta.
+
 
 pub struct ObjectMetaView {
     pub name: Option<StringView>,

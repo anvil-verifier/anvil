@@ -22,13 +22,13 @@ pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<RMQ
     always(lift_action(stateful_set_not_scaled_down::<M>(rabbitmq)))
 }
 
-/// To prove the safety property about stateful set, we need to first specify what the property is.
+// To prove the safety property about stateful set, we need to first specify what the property is.
 ///
-/// Previously, we planned to use Message to describe the possible update/deletion/creation actions, and also specify the
-/// relevant properties. However, it is better not to include Message in the description the high-level safety property
-/// because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is
-/// to talk about the previous and current state: an object being updated means that it exists in both states but changes
-/// in current state.
+// Previously, we planned to use Message to describe the possible update/deletion/creation actions, and also specify the
+// relevant properties. However, it is better not to include Message in the description the high-level safety property
+// because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is
+// to talk about the previous and current state: an object being updated means that it exists in both states but changes
+// in current state.
 pub open spec fn stateful_set_not_scaled_down<M: Maker>(rabbitmq: RabbitmqClusterView) -> ActionPred<RMQCluster> {
     |s: RMQCluster, s_prime: RMQCluster| {
         let sts_key = M::make_stateful_set_key(rabbitmq);

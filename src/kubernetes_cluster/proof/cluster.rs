@@ -28,7 +28,7 @@ verus! {
 
 impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-/// Prove weak_fairness is stable.
+// Prove weak_fairness is stable.
 pub proof fn action_weak_fairness_is_stable<Output>(action: Action<Self, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
@@ -37,7 +37,7 @@ pub proof fn action_weak_fairness_is_stable<Output>(action: Action<Self, (), Out
     always_p_is_stable::<Self>(split_always);
 }
 
-/// Prove weak_fairness for all input is stable.
+// Prove weak_fairness for all input is stable.
 pub proof fn tla_forall_action_weak_fairness_is_stable<Input, Output>(
     action: Action<Self, Input, Output>
 )

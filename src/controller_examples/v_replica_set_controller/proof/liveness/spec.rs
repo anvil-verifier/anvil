@@ -127,11 +127,11 @@ pub open spec fn next_with_wf() -> TempPred<VRSCluster> {
     .and(VRSCluster::disable_pod_event().weak_fairness(()))
 }
 
-/// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
-/// We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
+// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
+// We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
 ///
-/// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
-/// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
+// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
+// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
 pub open spec fn invariants(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
     next_with_wf().and(derived_invariants_since_beginning(vrs))
 }
@@ -157,11 +157,11 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
     .and(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
 }
 
-/// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
-/// spec and uid as the cr we provide.
+// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
+// spec and uid as the cr we provide.
 ///
-/// Note that don't try to find any connections between those invariants -- they are put together because they don't have to
-/// wait for another of them to first be satisfied.
+// Note that don't try to find any connections between those invariants -- they are put together because they don't have to
+// wait for another of them to first be satisfied.
 pub open spec fn invariants_since_phase_i(vrs: VReplicaSetView) -> TempPred<VRSCluster> {
     always(lift_state(VRSCluster::crash_disabled()))
     .and(always(lift_state(VRSCluster::busy_disabled())))

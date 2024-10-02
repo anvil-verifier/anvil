@@ -13,7 +13,7 @@ use vstd::{prelude::*, view::*};
 
 verus! {
 
-/// ZookeeperReconcileState describes the local state with which the reconcile functions makes decisions.
+// ZookeeperReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.

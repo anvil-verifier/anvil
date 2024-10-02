@@ -111,7 +111,7 @@ pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &S
     headless_service
 }
 
-/// Headless Service is used to assign DNS entry to each zookeeper server Pod
+// Headless Service is used to assign DNS entry to each zookeeper server Pod
 pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires zk@.well_formed(),
     ensures service@ == model_resource::make_headless_service(zk@),

@@ -12,11 +12,11 @@ use vstd::{prelude::*, view::*};
 
 verus! {
 
-/// APIRequest represents API requests sent to the Kubernetes API for specifications.
+// APIRequest represents API requests sent to the Kubernetes API for specifications.
 ///
-/// Kubernetes API accepts in general seven types requests: Get, List, Create, Delete, Update, Patch and Watch.
-/// Each variant in APIRequest represents on type of request.
-/// For now we do not consider Watch.
+// Kubernetes API accepts in general seven types requests: Get, List, Create, Delete, Update, Patch and Watch.
+// Each variant in APIRequest represents on type of request.
+// For now we do not consider Watch.
 
 // TODO: implement Update and Patch request.
 #[is_variant]
@@ -29,20 +29,20 @@ pub enum APIRequest {
     UpdateStatusRequest(UpdateStatusRequest),
 }
 
-/// GetRequest gets an object with the key (kind, name and namespace).
+// GetRequest gets an object with the key (kind, name and namespace).
 
 pub struct GetRequest {
     pub key: ObjectRef,
 }
 
-/// ListRequest lists all the objects of kind in namespace.
+// ListRequest lists all the objects of kind in namespace.
 
 pub struct ListRequest {
     pub kind: Kind,
     pub namespace: StringView,
 }
 
-/// CreateRequest creates the obj.
+// CreateRequest creates the obj.
 
 pub struct CreateRequest {
     pub namespace: StringView,
@@ -59,14 +59,14 @@ impl CreateRequest {
     }
 }
 
-/// DeleteRequest deletes the object with the key.
+// DeleteRequest deletes the object with the key.
 
 pub struct DeleteRequest {
     pub key: ObjectRef,
     pub preconditions: Option<PreconditionsView>,
 }
 
-/// UpdateRequest replaces the existing obj with a new one.
+// UpdateRequest replaces the existing obj with a new one.
 
 pub struct UpdateRequest {
     pub namespace: StringView,
@@ -84,7 +84,7 @@ impl UpdateRequest {
     }
 }
 
-/// UpdateStatusRequest replaces the status of the existing obj with a new one.
+// UpdateStatusRequest replaces the status of the existing obj with a new one.
 
 pub struct UpdateStatusRequest {
     pub namespace: StringView,
@@ -102,7 +102,7 @@ impl UpdateStatusRequest {
     }
 }
 
-/// APIResponse represents API responses sent from the Kubernetes API for specifications.
+// APIResponse represents API responses sent from the Kubernetes API for specifications.
 
 #[is_variant]
 pub enum APIResponse {
@@ -114,37 +114,37 @@ pub enum APIResponse {
     UpdateStatusResponse(UpdateStatusResponse),
 }
 
-/// GetResponse has the object returned by GetRequest.
+// GetResponse has the object returned by GetRequest.
 
 pub struct GetResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 
-/// ListResponse has the sequence of objects returned by ListRequest.
+// ListResponse has the sequence of objects returned by ListRequest.
 
 pub struct ListResponse {
     pub res: Result<Seq<DynamicObjectView>, APIError>,
 }
 
-/// CreateResponse has the object created by CreateRequest.
+// CreateResponse has the object created by CreateRequest.
 
 pub struct CreateResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 
-/// DeleteResponse does NOT contain the object that gets deleted.
+// DeleteResponse does NOT contain the object that gets deleted.
 
 pub struct DeleteResponse {
     pub res: Result<(), APIError>,
 }
 
-/// UpdateResponse has the object updated by UpdateRequest.
+// UpdateResponse has the object updated by UpdateRequest.
 
 pub struct UpdateResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 
-/// UpdateStatusResponse has the object updated by UpdateStatusRequest.
+// UpdateStatusResponse has the object updated by UpdateStatusRequest.
 
 pub struct UpdateStatusResponse {
     pub res: Result<DynamicObjectView, APIError>,

@@ -51,7 +51,7 @@ pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<Ow
     owner_references
 }
 
-/// make_service constructs the Service object given the name, ports and cluster_ip
+// make_service constructs the Service object given the name, ports and cluster_ip
 pub fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
     requires zk@.well_formed(),
     ensures service@ == model_resource::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),

@@ -8,14 +8,14 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-/// ObjectMeta contains the metadata that all Kubernetes resource objects must have,
-/// including name, namespace, uid, and so on.
+// ObjectMeta contains the metadata that all Kubernetes resource objects must have,
+// including name, namespace, uid, and so on.
 ///
-/// This definition is a wrapper of ObjectMeta defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/object_meta.rs.
-/// It is supposed to be used in exec controller code.
+// This definition is a wrapper of ObjectMeta defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/object_meta.rs.
+// It is supposed to be used in exec controller code.
 ///
-/// More detailed information: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/.
+// More detailed information: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/.
 
 #[verifier(external_body)]
 pub struct ObjectMeta {

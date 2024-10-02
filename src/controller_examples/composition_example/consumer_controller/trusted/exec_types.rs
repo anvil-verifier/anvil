@@ -12,7 +12,7 @@ use vstd::prelude::*;
 
 verus! {
 
-/// ConsumerReconcileState describes the local state with which the reconcile functions makes decisions.
+// ConsumerReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct ConsumerReconcileState {
     pub reconcile_step: ConsumerReconcileStep,
 }

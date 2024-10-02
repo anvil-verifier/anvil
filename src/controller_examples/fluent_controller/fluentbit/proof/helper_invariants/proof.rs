@@ -746,12 +746,12 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     init_invariant(spec, FBCluster::init(), stronger_next, inv);
 }
 
-/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
-/// create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
+// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a sub resource object
+// create/update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
 ///
-/// After the action, the controller stays at After(Create/Update, SubResource) step.
+// After the action, the controller stays at After(Create/Update, SubResource) step.
 ///
-/// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
+// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, fb: FluentBitView, s: FBCluster, s_prime: FBCluster, msg: FBMessage, step: FBStep)
     requires
@@ -828,25 +828,25 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
     leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, fb)));
 }
 
-/// This lemma demonstrates how to use kubernetes_cluster::proof::api_server_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
-/// (referred to as lemma_X) to prove that the system will eventually enter a state where delete daemon set request messages
-/// will never appear in flight.
+// This lemma demonstrates how to use kubernetes_cluster::proof::api_server_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
+// (referred to as lemma_X) to prove that the system will eventually enter a state where delete daemon set request messages
+// will never appear in flight.
 ///
-/// As an example, we can look at how this lemma is proved.
-/// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
-///     the newly generated messages are as expected. ("expected" means not delete daemon set request messages in this lemma. Therefore,
-///     we provide an invariant daemon_set_has_owner_reference_pointing_to_current_cr so that the grabage collector won't try
-///     to send a delete request to delete the messsage.)
-/// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
-/// - Proof body: The proof consists of three parts.
-///   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and
-///     s.in_flight().contains(msg) in the statepred of final state (no_delete_ds_req_is_in_flight in this lemma, so we can
-///     get the requirements in this lemma).
-///   + Show that spec |= every_new_req_msg_if_in_flight_then_satisfies. Basically, use two assert forall to show that forall state and
-///     its next state and forall messages, if the messages are newly generated, they must satisfy the "requirements" and always satisfies it
-///     as long as it is in flight.
-///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
-///     and the original statepred.
+// As an example, we can look at how this lemma is proved.
+// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
+//     the newly generated messages are as expected. ("expected" means not delete daemon set request messages in this lemma. Therefore,
+//     we provide an invariant daemon_set_has_owner_reference_pointing_to_current_cr so that the grabage collector won't try
+//     to send a delete request to delete the messsage.)
+// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
+// - Proof body: The proof consists of three parts.
+//   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and
+//     s.in_flight().contains(msg) in the statepred of final state (no_delete_ds_req_is_in_flight in this lemma, so we can
+//     get the requirements in this lemma).
+//   + Show that spec |= every_new_req_msg_if_in_flight_then_satisfies. Basically, use two assert forall to show that forall state and
+//     its next state and forall messages, if the messages are newly generated, they must satisfy the "requirements" and always satisfies it
+//     as long as it is in flight.
+//   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
+//     and the original statepred.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec: TempPred<FBCluster>, sub_resource: SubResource, fb: FluentBitView)
     requires

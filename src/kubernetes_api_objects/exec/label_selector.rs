@@ -8,14 +8,14 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-/// LabelSelector is used to select objects that are relevant by matching the labels.
-/// Labels are key/value pairs that are attached to objects such as Pods.
+// LabelSelector is used to select objects that are relevant by matching the labels.
+// Labels are key/value pairs that are attached to objects such as Pods.
 ///
-/// This definition is a wrapper of LabelSelector defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/label_selector.rs.
-/// It is supposed to be used in exec controller code.
+// This definition is a wrapper of LabelSelector defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/label_selector.rs.
+// It is supposed to be used in exec controller code.
 ///
-/// More detailed information: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors.
+// More detailed information: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors.
 
 #[verifier(external_body)]
 pub struct LabelSelector {

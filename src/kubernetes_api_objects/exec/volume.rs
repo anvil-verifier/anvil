@@ -82,7 +82,7 @@ impl Volume {
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> Volume { Volume { inner } }
 
-    /// Methods for the fields that Anvil currently does not reason about
+    // Methods for the fields that Anvil currently does not reason about
 
     #[verifier(external_body)]
     pub fn set_empty_dir(&mut self, empty_dir: EmptyDirVolumeSource)
