@@ -117,7 +117,10 @@ pub open spec fn reconcile_core(
                                         name: pod_name_or_none.unwrap(),
                                         namespace: namespace,
                                     },
-                                    preconditions: None,
+                                    preconditions: Some(PreconditionsView {
+                                        uid: None,
+                                        resource_version: filtered_pods[diff - 1].metadata.resource_version
+                                    }),
                                 });
                                 let state_prime = VReplicaSetReconcileState {
                                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod((diff - 1) as usize),
@@ -184,7 +187,10 @@ pub open spec fn reconcile_core(
                                 name: pod_name_or_none.unwrap(),
                                 namespace: namespace,
                             },
-                            preconditions: None,
+                            preconditions: Some(PreconditionsView {
+                                uid: None,
+                                resource_version: state.filtered_pods.unwrap()[diff - 1].metadata.resource_version
+                            }),
                         });
                         let state_prime = VReplicaSetReconcileState {
                             reconcile_step: VReplicaSetReconcileStep::AfterDeletePod((diff - 1) as usize),
