@@ -412,8 +412,6 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec: T
     }
 }
 
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
 proof fn pending_requests_num_decreases(spec: TempPred<Self>, rest_id: RestId, msg_num: nat, msg: MsgType<E>)
     requires
         msg_num > 0,
