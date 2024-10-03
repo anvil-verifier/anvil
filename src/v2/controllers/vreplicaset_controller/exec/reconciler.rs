@@ -5,6 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
+use crate::vstd_ext::option_lib::option_view;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -89,7 +90,7 @@ pub fn reconcile_error(state: &VReplicaSetReconcileState) -> (res: bool)
 
 pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidEResp>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<VoidEReq>>))
     requires v_replica_set@.well_formed(),
-    ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(v_replica_set@, opt_response_to_view(&resp_o), state@),
+    ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(v_replica_set@, option_view(resp_o), state@),
 {
     let namespace = v_replica_set.metadata().namespace().unwrap();
     match &state.reconcile_step {
