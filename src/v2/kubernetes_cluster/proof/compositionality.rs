@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_cluster::spec::{cluster::*, controller::state_machine::controller};
+use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
@@ -264,6 +264,149 @@ pub trait VerticalComposition: Sized {
         ensures
             spec.entails(always(lift_state((Self::consumer().non_interference_condition)(good_citizen_id)))),
         ;
+}
+
+mod example {
+
+use crate::kubernetes_cluster::spec::{api_server::types::InstalledTypes, cluster::*};
+use crate::temporal_logic::defs::*;
+use vstd::prelude::*;
+use super::*;
+
+// Here is an example on how to use HorizontalComposition and VerticalComposition to compose controllers.
+
+pub spec fn cook_controllers() -> Seq<ControllerModel>;
+pub spec fn cook_property(i: int) -> TempPred<ClusterState>;
+pub spec fn cook_cluster_condition(i: int) -> spec_fn(Cluster) -> bool;
+pub spec fn cook_fairness_condition(i: int) -> TempPred<ClusterState>;
+pub spec fn cook_non_interference_condition(i: int) -> spec_fn(good_citizen_id: int) -> StatePred<ClusterState>;
+
+pub spec fn waiter_controller() -> ControllerModel;
+pub spec fn waiter_cluster_condition() -> spec_fn(Cluster) -> bool;
+pub spec fn waiter_fairness_condition() -> TempPred<ClusterState>;
+pub spec fn waiter_property() -> TempPred<ClusterState>;
+pub spec fn waiter_non_interference_condition() -> spec_fn(good_citizen_id: int) -> StatePred<ClusterState>;
+
+pub spec fn waiter_and_cooks_installed_types() -> InstalledTypes;
+
+pub open spec fn waiter_and_cooks() -> Cluster {
+    Cluster {
+        controller_models: Map::new(|k| 0 <= k < cook_controllers().len(), |k| cook_controllers()[k])
+            .insert(cook_controllers().len() as int, waiter_controller()),
+        installed_types: waiter_and_cooks_installed_types(),
+    }
+}
+
+pub open spec fn cooks() -> Seq<ControllerPredGroup> {
+    cook_controllers().map(|i, v| ControllerPredGroup {
+        controller: v,
+        property: cook_property(i),
+        cluster_condition: cook_cluster_condition(i),
+        fairness_condition: cook_fairness_condition(i),
+        non_interference_condition: cook_non_interference_condition(i),
+    })
+}
+
+pub open spec fn waiter() -> ControllerPredGroup {
+    ControllerPredGroup {
+        controller: waiter_controller(),
+        property: waiter_property(),
+        cluster_condition: waiter_cluster_condition(),
+        fairness_condition: waiter_fairness_condition(),
+        non_interference_condition: waiter_non_interference_condition(),
+    }
+}
+
+pub struct CooksComposition {}
+
+pub struct WaiterCooksComposition {}
+
+impl HorizontalComposition for CooksComposition {
+    open spec fn producers() -> Seq<ControllerPredGroup> { cooks() }
+
+    #[verifier(external_body)]
+    proof fn producer_is_correct(spec: TempPred<ClusterState>, cluster: Cluster, producer_id: int, p_index: int) {}
+
+    #[verifier(external_body)]
+    proof fn producer_does_not_interfere_with_the_producer(spec: TempPred<ClusterState>, cluster: Cluster, good_citizen_id: int, p_index: int, q_index: int) {}
+}
+
+impl VerticalComposition for WaiterCooksComposition {
+    open spec fn consumer() -> ControllerPredGroup { waiter() }
+
+    open spec fn producers() -> Seq<ControllerPredGroup> { cooks() }
+
+    #[verifier(external_body)]
+    proof fn consumer_is_correct(spec: TempPred<ClusterState>, cluster: Cluster, consumer_id: int) {}
+
+    #[verifier(external_body)]
+    proof fn consumer_does_not_interfere_with_the_producer(spec: TempPred<ClusterState>, cluster: Cluster, good_citizen_id: int, p_index: int) {}
+
+    #[verifier(external_body)]
+    proof fn producer_does_not_interfere_with_the_consumer(spec: TempPred<ClusterState>, cluster: Cluster, good_citizen_id: int, p_index: int) {}
+}
+
+proof fn waiter_and_cooks_are_correct(spec: TempPred<ClusterState>)
+    requires
+        (waiter().cluster_condition)(waiter_and_cooks()),
+        forall |p_index| 0 <= p_index < cooks().len() ==> #[trigger] (cooks()[p_index].cluster_condition)(waiter_and_cooks()),
+        spec.entails(lift_state(waiter_and_cooks().init())),
+        spec.entails(always(lift_action(waiter_and_cooks().next()))),
+        spec.entails(waiter().fairness_condition),
+        forall |p_index: int| 0 <= p_index < cooks().len() ==> #[trigger] spec.entails(cooks()[p_index].fairness_condition),
+    ensures
+        spec.entails(waiter().property),
+        forall |p_index: int| 0 <= p_index < cooks().len() ==> #[trigger] spec.entails(cooks()[p_index].property),
+{
+    let cluster = waiter_and_cooks();
+
+    let cook_ids = Map::new(|k: int| 0 <= k < cook_controllers().len(), |k: int| k);
+    let waiter_id = cook_controllers().len() as int;
+
+    // The good_citizen_id must point to the waiter.
+    assert forall |p_index| #![trigger cooks()[p_index]] 0 <= p_index < cooks().len()
+    implies
+        (forall |good_citizen_id| cluster.controller_models.remove_keys(cook_ids.values()).contains_key(good_citizen_id)
+            ==> spec.entails(always(lift_state(#[trigger] (cooks()[p_index].non_interference_condition)(good_citizen_id)))))
+    by {
+        assert forall |good_citizen_id| cluster.controller_models.remove_keys(cook_ids.values()).contains_key(good_citizen_id)
+        implies spec.entails(always(lift_state(#[trigger] (cooks()[p_index].non_interference_condition)(good_citizen_id))))
+        by {
+            assert forall |controller_id| #[trigger] cluster.controller_models.contains_key(controller_id)
+            implies controller_id == waiter_id || cook_ids.values().contains(controller_id) by {
+                if controller_id == cook_controllers().len() as int {
+                    assert(controller_id == waiter_id);
+                } else {
+                    assert(cook_ids.dom().contains(controller_id) && cook_ids[controller_id] == controller_id);
+                }
+            }
+            assert(good_citizen_id == waiter_id);
+            WaiterCooksComposition::consumer_does_not_interfere_with_the_producer(spec, cluster, good_citizen_id, p_index);
+        }
+    }
+    // Compose cooks horizontally.
+    compose_horizontally::<CooksComposition>(spec, cluster, cooks(), cook_ids);
+
+    // There is no good_citizen_id that is neither the waiter nor any cook.
+    // So we prove the following assertion by contradiction.
+    assert forall |good_citizen_id: int| cluster.controller_models.remove(waiter_id).remove_keys(cook_ids.values()).contains_key(good_citizen_id)
+    implies #[trigger] spec.entails(always(lift_state((waiter().non_interference_condition)(good_citizen_id))))
+    by {
+        assert forall |controller_id| #[trigger] cluster.controller_models.contains_key(controller_id)
+        implies controller_id == waiter_id || cook_ids.values().contains(controller_id) by {
+            if controller_id == cook_controllers().len() as int {
+                assert(controller_id == waiter_id);
+            } else {
+                assert(cook_ids.dom().contains(controller_id) && cook_ids[controller_id] == controller_id);
+            }
+        }
+        assert(!cluster.controller_models.remove(waiter_id).remove_keys(cook_ids.values()).contains_key(good_citizen_id));
+    }
+    // Compose the waiter and cooks vertically.
+    compose_vertically::<WaiterCooksComposition>(spec, cluster, waiter(), cooks(), waiter_id, cook_ids);
+}
+
+
 }
 
 }
