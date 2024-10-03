@@ -20,15 +20,9 @@ pub struct VReplicaSetView {
 pub type VReplicaSetStatusView = EmptyStatusView;
 
 impl VReplicaSetView {
-    // TODO: well_formed should just call state_validation
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.name.is_Some()
-        &&& self.metadata.namespace.is_Some()
-        &&& self.metadata.uid.is_Some()
-        // TODO: ensure that the following is consistent with k8s's ReplicaSet
-        &&& self.spec.template.is_Some()
-        &&& self.spec.template.get_Some_0().metadata.is_Some()
-        &&& self.spec.template.get_Some_0().spec.is_Some()
+        &&& self.metadata.well_formed()
+        &&& self.state_validation()
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
@@ -122,14 +116,26 @@ impl ResourceView for VReplicaSetView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
+    // TODO: keep it consistent with k8s's ReplicaSet
     open spec fn state_validation(self) -> bool {
-        self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
+        // replicas is non-negative
+        &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
+        // selector exists, and its match_labels is not empty
+        // TODO: revise it after supporting selector.match_expressions
+        &&& self.spec.selector.is_Some()
+        &&& self.spec.selector.get_Some_0().match_labels.is_Some()
+        &&& self.spec.selector.get_Some_0().match_labels.get_Some_0().len() > 0
+        // template and its metadata ane spec exists
+        &&& self.spec.template.is_Some()
+        &&& self.spec.template.get_Some_0().metadata.is_Some()
+        &&& self.spec.template.get_Some_0().spec.is_Some()
+        // selector matches template's metadata's labels
+        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.labels.unwrap_or(Map::empty()))
     }
 
     open spec fn transition_validation(self, old_obj: VReplicaSetView) -> bool {
         true
     }
-
 }
 
 impl CustomResourceView for VReplicaSetView {
