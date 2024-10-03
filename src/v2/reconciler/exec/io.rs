@@ -131,20 +131,6 @@ impl <T: View> View for Request<T> {
     }
 }
 
-pub open spec fn opt_response_to_view<T: View>(resp: &Option<Response<T>>) -> Option<ResponseView<T::V>> {
-    match resp {
-        Some(resp) => Some(resp@),
-        None => None,
-    }
-}
-
-pub open spec fn opt_request_to_view<T: View>(request: &Option<Request<T>>) -> Option<RequestView<T::V>> {
-    match request {
-        Some(req) => Some(req@),
-        None => None,
-    }
-}
-
 #[macro_export]
 macro_rules! is_some_k_get_resp {
     ($r:expr) => {
