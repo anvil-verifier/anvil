@@ -140,16 +140,6 @@ pub open spec fn each_custom_object_in_etcd_is_well_formed<T: CustomResourceView
     }
 }
 
-pub open spec fn type_is_installed_in_cluster<T: CustomResourceView>(self) -> bool {
-    let string = T::kind().get_CustomResourceKind_0();
-    &&& self.installed_types.contains_key(string)
-    &&& self.installed_types[string].unmarshallable_spec == |v: Value| InstallTypeHelper::<T>::unmarshal_spec(v)
-    &&& self.installed_types[string].unmarshallable_status == |v: Value| InstallTypeHelper::<T>::unmarshal_status(v)
-    &&& self.installed_types[string].valid_object == |obj: DynamicObjectView| InstallTypeHelper::<T>::valid_object(obj)
-    &&& self.installed_types[string].valid_transition == |obj, old_obj: DynamicObjectView| InstallTypeHelper::<T>::valid_transition(obj, old_obj)
-    &&& self.installed_types[string].marshalled_default_status == || InstallTypeHelper::<T>::marshalled_default_status()
-}
-
 pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomResourceView>(self, spec: TempPred<ClusterState>)
     requires
         spec.entails(lift_state(self.init())),

@@ -1,11 +1,40 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, resource::*};
+use crate::kubernetes_api_objects::{
+    error::UnmarshalError,
+    spec::{api_method::*, common::*, resource::*},
+};
 use crate::kubernetes_cluster::spec::message::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub struct VoidEReqView {}
+
+pub struct VoidERespView {}
+
+impl Marshallable for VoidEReqView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity()
+        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0()
+    {}
+}
+
+impl Marshallable for VoidERespView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity()
+        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0()
+    {}
+}
 
 #[is_variant]
 pub enum RequestView<T> {
