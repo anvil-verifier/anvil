@@ -9,7 +9,6 @@ pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod reconciler;
 pub mod shim_layer;
-pub mod soundness;
 pub mod state_machine;
 pub mod temporal_logic;
 pub mod vstd_ext;
