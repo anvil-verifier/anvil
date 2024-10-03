@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::{spec_types::*, step::*};
@@ -9,25 +8,32 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-impl Reconciler for VReplicaSetReconciler {
-    type T = VReplicaSetReconcileState;
-    type K = VReplicaSetView;
-    type E = EmptyAPI;
+pub struct VReplicaSetReconciler {}
 
-    open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
+pub struct VReplicaSetReconcileState {
+    pub reconcile_step: VReplicaSetReconcileStep,
+    pub filtered_pods: Option<Seq<PodView>>,
+}
+
+impl Reconciler for VReplicaSetReconciler {
+    type S = VReplicaSetReconcileState;
+    type K = VReplicaSetView;
+    type EReq = VoidEReqView;
+    type EResp = VoidERespView;
+
+    open spec fn reconcile_init_state() -> Self::S {
         reconcile_init_state()
     }
 
-    open spec fn reconcile_core(fb: VReplicaSetView, resp_o: Option<ResponseView<EmptyTypeView>>, state: VReplicaSetReconcileState)
-    -> (VReplicaSetReconcileState, Option<RequestView<EmptyTypeView>>) {
+    open spec fn reconcile_core(fb: Self::K, resp_o: Option<ResponseView<Self::EResp>>, state: Self::S) -> (Self::S, Option<RequestView<Self::EReq>>) {
         reconcile_core(fb, resp_o, state)
     }
 
-    open spec fn reconcile_done(state: VReplicaSetReconcileState) -> bool {
+    open spec fn reconcile_done(state: Self::S) -> bool {
         reconcile_done(state)
     }
 
-    open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
+    open spec fn reconcile_error(state: Self::S) -> bool {
         reconcile_error(state)
     }
 }
@@ -53,9 +59,7 @@ pub open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(
-    v_replica_set: VReplicaSetView, resp_o: Option<ResponseView<EmptyTypeView>>, state: VReplicaSetReconcileState
-) -> (VReplicaSetReconcileState, Option<RequestView<EmptyTypeView>>) {
+pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<ResponseView<VoidERespView>>, state: VReplicaSetReconcileState) -> (VReplicaSetReconcileState, Option<RequestView<VoidEReqView>>) {
     let namespace = v_replica_set.metadata.namespace.unwrap();
     match &state.reconcile_step {
         VReplicaSetReconcileStep::Init => {

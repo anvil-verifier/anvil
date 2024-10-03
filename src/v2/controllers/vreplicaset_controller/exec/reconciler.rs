@@ -1,48 +1,61 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::external_api::exec::*;
-use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
-use crate::kubernetes_api_objects::exec::{
-    container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
-    volume::*,
-};
-use crate::kubernetes_api_objects::spec::prelude::DynamicObjectView;
-use crate::kubernetes_api_objects::spec::prelude::PodView;
-use crate::kubernetes_api_objects::spec::resource::ResourceView;
-use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::kubernetes_api_objects::exec::{label_selector::*, pod_template_spec::*, prelude::*};
+use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
-use crate::vreplicaset_controller::trusted::exec_types::*;
-use crate::vreplicaset_controller::trusted::spec_types;
-use crate::vreplicaset_controller::trusted::step::*;
+use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
+
+// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
+pub struct VReplicaSetReconcileState {
+    pub reconcile_step: VReplicaSetReconcileStep,
+    pub filtered_pods: Option<Vec<Pod>>,
+}
+
+impl View for VReplicaSetReconcileState {
+    type V = model_reconciler::VReplicaSetReconcileState;
+
+    open spec fn view(&self) -> model_reconciler::VReplicaSetReconcileState {
+        model_reconciler::VReplicaSetReconcileState {
+            reconcile_step: self.reconcile_step,
+            filtered_pods: match self.filtered_pods {
+                Some(fp) => Some(fp@.map_values(|p: Pod| p@)),
+                None => None,
+            },
+        }
+    }
+}
 
 pub struct VReplicaSetReconciler {}
 
 impl Reconciler for VReplicaSetReconciler {
-    type R = VReplicaSet;
-    type T = VReplicaSetReconcileState;
-    type ExternalAPIType = EmptyAPIShimLayer;
+    type S = VReplicaSetReconcileState;
+    type K = VReplicaSet;
+    type EReq = VoidEReq;
+    type EResp = VoidEResp;
 
-    open spec fn well_formed(v_replica_set: &VReplicaSet) -> bool { v_replica_set@.well_formed() }
+    open spec fn well_formed(v_replica_set: &Self::K) -> bool {
+        v_replica_set@.well_formed()
+    }
 
-    fn reconcile_init_state() -> VReplicaSetReconcileState {
+    fn reconcile_init_state() -> Self::S {
         reconcile_init_state()
     }
 
-    fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<EmptyType>>, state: VReplicaSetReconcileState) -> (VReplicaSetReconcileState, Option<Request<EmptyType>>) {
+    fn reconcile_core(v_replica_set: &Self::K, resp_o: Option<Response<Self::EResp>>, state: Self::S) -> (Self::S, Option<Request<Self::EReq>>) {
         reconcile_core(v_replica_set, resp_o, state)
     }
 
-    fn reconcile_done(state: &VReplicaSetReconcileState) -> bool {
+    fn reconcile_done(state: &Self::S) -> bool {
         reconcile_done(state)
     }
 
-    fn reconcile_error(state: &VReplicaSetReconcileState) -> bool {
+    fn reconcile_error(state: &Self::S) -> bool {
         reconcile_error(state)
     }
 }
@@ -74,7 +87,7 @@ pub fn reconcile_error(state: &VReplicaSetReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<EmptyType>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<EmptyType>>))
+pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidEResp>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<VoidEReq>>))
     requires v_replica_set@.well_formed(),
     ensures (res.0@, opt_request_to_view(&res.1)) == model_reconciler::reconcile_core(v_replica_set@, opt_response_to_view(&resp_o), state@),
 {

@@ -9,6 +9,20 @@ use vstd::pervasive::unreached;
 
 verus! {
 
+pub struct VoidEReq {}
+
+impl View for VoidEReq {
+    type V = VoidEReqView;
+    spec fn view(&self) -> VoidEReqView;
+}
+
+pub struct VoidEResp {}
+
+impl View for VoidEResp {
+    type V = VoidERespView;
+    spec fn view(&self) -> VoidERespView;
+}
+
 // Third-party libraries can also receive requests from reconciler.
 // T: The input type of the third-party library of the reconciler which should also be defined by the developer.
 // Typically, T can be an enum type, which lists all the possible supporting handlings the developer need support from the

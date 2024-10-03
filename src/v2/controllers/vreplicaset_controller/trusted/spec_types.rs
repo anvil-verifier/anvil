@@ -1,6 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
@@ -12,13 +11,6 @@ use vstd::prelude::*;
 
 verus! {
 
-pub struct VReplicaSetReconciler {}
-
-pub struct VReplicaSetReconcileState {
-    pub reconcile_step: VReplicaSetReconcileStep,
-    pub filtered_pods: Option<Seq<PodView>>,
-}
-
 pub struct VReplicaSetView {
     pub metadata: ObjectMetaView,
     pub spec: VReplicaSetSpecView,
@@ -28,6 +20,7 @@ pub struct VReplicaSetView {
 pub type VReplicaSetStatusView = EmptyStatusView;
 
 impl VReplicaSetView {
+    // TODO: well_formed should just call state_validation
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()

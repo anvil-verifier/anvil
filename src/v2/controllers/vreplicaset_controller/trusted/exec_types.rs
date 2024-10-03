@@ -12,42 +12,6 @@ use vstd::prelude::*;
 
 verus! {
 
-// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
-pub struct VReplicaSetReconcileState {
-    pub reconcile_step: VReplicaSetReconcileStep,
-    pub filtered_pods: Option<Vec<Pod>>,
-}
-
-// impl std::clone::Clone for VReplicaSetReconcileState {
-
-//     #[verifier(external_body)]
-//     fn clone(&self) -> (result: VReplicaSetReconcileState)
-//         ensures result == self
-//     {
-//         VReplicaSetReconcileState {
-//             reconcile_step: self.reconcile_step,
-//             filtered_pods: match self.filtered_pods {
-//                 Some(fp) => Some(fp.clone()),
-//                 None => None,
-//             },
-//         }
-//     }
-// }
-
-impl View for VReplicaSetReconcileState {
-    type V = spec_types::VReplicaSetReconcileState;
-
-    open spec fn view(&self) -> spec_types::VReplicaSetReconcileState {
-        spec_types::VReplicaSetReconcileState {
-            reconcile_step: self.reconcile_step,
-            filtered_pods: match self.filtered_pods {
-                Some(fp) => Some(fp@.map_values(|p: Pod| p@)),
-                None => None,
-            },
-        }
-    }
-}
-
 #[verifier(external_body)]
 pub struct VReplicaSet {
     inner: deps_hack::VReplicaSet
