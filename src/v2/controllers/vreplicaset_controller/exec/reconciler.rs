@@ -12,6 +12,13 @@ use vstd::seq_lib::*;
 
 verus! {
 
+// TODO:
+// + Skip reconciling if ReplicaSet has non-nil deletion_timestamp
+//
+// + Adopt and release pods based on ownership and labels
+//
+// + Update ReplicaSet status based on Pod status
+
 // VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct VReplicaSetReconcileState {
     pub reconcile_step: VReplicaSetReconcileStep,
