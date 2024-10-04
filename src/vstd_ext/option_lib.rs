@@ -5,9 +5,16 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn option_view<T: View>(t: Option<T>) -> Option<T::V> {
-    match t {
-        Some(v) => Some(v@),
+pub open spec fn option_view<T: View>(o: Option<T>) -> Option<T::V> {
+    match o {
+        Some(t) => Some(t@),
+        None => None,
+    }
+}
+
+pub open spec fn option_vec_view<T: View>(o: Option<Vec<T>>) -> Option<Seq<T::V>> {
+    match o {
+        Some(vec) => Some(vec@.map_values(|t: T| t@)),
         None => None,
     }
 }

@@ -25,6 +25,12 @@ pub struct PersistentVolumeClaim {
     inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
 }
 
+impl View for PersistentVolumeClaim {
+    type V = PersistentVolumeClaimView;
+
+    spec fn view(&self) -> PersistentVolumeClaimView;
+}
+
 impl PersistentVolumeClaim {
     pub spec fn view(&self) -> PersistentVolumeClaimView;
 
