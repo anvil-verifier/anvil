@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::exec::*;
+use crate::external_shim_layer::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -36,7 +36,7 @@ use vstd::{string::*, view::*};
 // run_controller prepares and runs the controller. It requires:
 // K: the custom resource type
 // ReconcilerType: the reconciler type
-pub async fn run_controller<K, ReconcilerType>(fault_injection: bool) -> Result<()>
+pub async fn run_controller<K, ReconcilerType, E>(fault_injection: bool) -> Result<()>
 where
     K: Clone
         + Resource<Scope = NamespaceResourceScope>
@@ -53,13 +53,14 @@ where
     ReconcilerType::S: Send,
     ReconcilerType::EReq: Send,
     ReconcilerType::EResp: Send,
+    E: ExternalShimLayer<ReconcilerType::EReq, ReconcilerType::EResp>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, ReconcilerType>(cr, ctx, fault_injection).await;
+        return reconcile_with::<K, ReconcilerType, E>(cr, ctx, fault_injection).await;
     };
 
     info!("starting controller");
@@ -86,7 +87,7 @@ where
 // For each request from ReconcilerType::reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
 // It ends the loop when the ReconcilerType reports the reconcile is done (ReconcilerType::reconcile_done)
 // or encounters error (ReconcilerType::reconcile_error).
-pub async fn reconcile_with<K, ReconcilerType>(
+pub async fn reconcile_with<K, ReconcilerType, E>(
     cr: Arc<K>,
     ctx: Arc<Data>,
     fault_injection: bool,
@@ -101,6 +102,7 @@ where
     K::DynamicType: Default + Clone + Debug,
     ReconcilerType: Reconciler,
     ReconcilerType::K: ResourceWrapper<K>,
+    E: ExternalShimLayer<ReconcilerType::EReq, ReconcilerType::EResp>,
 {
     let client = &ctx.client;
 
@@ -360,11 +362,10 @@ where
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
                 }
-                Request::ExternalRequest(req) => {
-                    // check_fault_timing = true;
-                    // let external_resp = ReconcilerType::ExternalAPIType::call_external_api(req);
-                    // resp_option = Some(Response::ExternalResponse(external_resp));
-                    panic!("not implemented");
+                Request::ExternalRequest(external_req) => {
+                    check_fault_timing = true;
+                    let external_resp = E::external_call(external_req);
+                    resp_option = Some(Response::ExternalResponse(external_resp));
                 }
             },
             _ => resp_option = None,

@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::reconciler::spec::resource_builder;
