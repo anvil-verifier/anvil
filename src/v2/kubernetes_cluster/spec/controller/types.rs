@@ -1,11 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
-use crate::kubernetes_cluster::spec::message::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
