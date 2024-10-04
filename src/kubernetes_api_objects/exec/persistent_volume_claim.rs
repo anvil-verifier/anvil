@@ -32,8 +32,6 @@ impl View for PersistentVolumeClaim {
 }
 
 impl PersistentVolumeClaim {
-    pub spec fn view(&self) -> PersistentVolumeClaimView;
-
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
         ensures b == (self.view() == other.view())
