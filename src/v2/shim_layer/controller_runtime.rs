@@ -35,8 +35,8 @@ use vstd::{string::*, view::*};
 
 // run_controller prepares and runs the controller. It requires:
 // K: the custom resource type
-// ReconcilerType: the reconciler type
-pub async fn run_controller<K, ReconcilerType, E>(fault_injection: bool) -> Result<()>
+// R: the reconciler type
+pub async fn run_controller<K, R, E>(fault_injection: bool) -> Result<()>
 where
     K: Clone
         + Resource<Scope = NamespaceResourceScope>
@@ -48,19 +48,19 @@ where
         + Sync
         + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
-    ReconcilerType: Reconciler + Send + Sync,
-    ReconcilerType::K: ResourceWrapper<K> + Send,
-    ReconcilerType::S: Send,
-    ReconcilerType::EReq: Send,
-    ReconcilerType::EResp: Send,
-    E: ExternalShimLayer<ReconcilerType::EReq, ReconcilerType::EResp>,
+    R: Reconciler + Send + Sync,
+    R::K: ResourceWrapper<K> + Send,
+    R::S: Send,
+    R::EReq: Send,
+    R::EResp: Send,
+    E: ExternalShimLayer<R::EReq, R::EResp>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, ReconcilerType, E>(cr, ctx, fault_injection).await;
+        return reconcile_with::<K, R, E>(cr, ctx, fault_injection).await;
     };
 
     info!("starting controller");
@@ -79,15 +79,15 @@ where
     Ok(())
 }
 
-// reconcile_with implements the reconcile function by repeatedly invoking ReconcilerType::reconcile_core.
+// reconcile_with implements the reconcile function by repeatedly invoking R::reconcile_core.
 // reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any relevant event to the controller.
-// In each invocation, reconcile_with invokes ReconcilerType::reconcile_core in a loop:
-// it starts with ReconcilerType::reconcile_init_state, and in each iteration it invokes ReconcilerType::reconcile_core
+// In each invocation, reconcile_with invokes R::reconcile_core in a loop:
+// it starts with R::reconcile_init_state, and in each iteration it invokes R::reconcile_core
 // with the new state returned by the previous invocation.
-// For each request from ReconcilerType::reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
-// It ends the loop when the ReconcilerType reports the reconcile is done (ReconcilerType::reconcile_done)
-// or encounters error (ReconcilerType::reconcile_error).
-pub async fn reconcile_with<K, ReconcilerType, E>(
+// For each request from R::reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
+// It ends the loop when the R reports the reconcile is done (R::reconcile_done)
+// or encounters error (R::reconcile_error).
+pub async fn reconcile_with<K, R, E>(
     cr: Arc<K>,
     ctx: Arc<Data>,
     fault_injection: bool,
@@ -100,9 +100,9 @@ where
         + Debug
         + Serialize,
     K::DynamicType: Default + Clone + Debug,
-    ReconcilerType: Reconciler,
-    ReconcilerType::K: ResourceWrapper<K>,
-    E: ExternalShimLayer<ReconcilerType::EReq, ReconcilerType::EResp>,
+    R: Reconciler,
+    R::K: ResourceWrapper<K>,
+    E: ExternalShimLayer<R::EReq, R::EResp>,
 {
     let client = &ctx.client;
 
@@ -147,9 +147,9 @@ where
         deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap()
     );
 
-    let cr_wrapper = ReconcilerType::K::from_kube(cr);
-    let mut state = ReconcilerType::reconcile_init_state();
-    let mut resp_option: Option<Response<ReconcilerType::EResp>> = None;
+    let cr_wrapper = R::K::from_kube(cr);
+    let mut state = R::reconcile_init_state();
+    let mut resp_option: Option<Response<R::EResp>> = None;
     // check_fault_timing is only set to true right after the controller issues any create, update or delete request,
     // or external request
     let mut check_fault_timing: bool;
@@ -158,17 +158,16 @@ where
     loop {
         check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
-        if ReconcilerType::reconcile_done(&state) {
+        if R::reconcile_done(&state) {
             info!("{} done", log_header);
             break;
         }
-        if ReconcilerType::reconcile_error(&state) {
+        if R::reconcile_error(&state) {
             warn!("{} error", log_header);
             return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, request_option) =
-            ReconcilerType::reconcile_core(&cr_wrapper, resp_option, state);
+        let (state_prime, request_option) = R::reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match request_option {
             Some(request) => match request {
