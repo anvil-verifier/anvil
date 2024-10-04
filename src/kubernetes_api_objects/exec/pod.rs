@@ -30,9 +30,13 @@ pub struct Pod {
     inner: deps_hack::k8s_openapi::api::core::v1::Pod,
 }
 
-impl Pod {
-    pub spec fn view(&self) -> PodView;
+impl View for Pod {
+    type V = PodView;
 
+    spec fn view(&self) -> PodView;
+}
+
+impl Pod {
     #[verifier(external_body)]
     pub fn default() -> (pod: Pod)
         ensures pod@ == PodView::default(),

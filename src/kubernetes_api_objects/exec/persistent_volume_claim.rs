@@ -25,9 +25,13 @@ pub struct PersistentVolumeClaim {
     inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
 }
 
-impl PersistentVolumeClaim {
-    pub spec fn view(&self) -> PersistentVolumeClaimView;
+impl View for PersistentVolumeClaim {
+    type V = PersistentVolumeClaimView;
 
+    spec fn view(&self) -> PersistentVolumeClaimView;
+}
+
+impl PersistentVolumeClaim {
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
         ensures b == (self.view() == other.view())

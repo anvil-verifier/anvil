@@ -28,9 +28,14 @@ pub struct DaemonSet {
     inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSet,
 }
 
-impl DaemonSet {
-    pub spec fn view(&self) -> DaemonSetView;
 
+impl View for DaemonSet {
+    type V = DaemonSetView;
+
+    spec fn view(&self) -> DaemonSetView;
+}
+
+impl DaemonSet {
     #[verifier(external_body)]
     pub fn default() -> (daemon_set: DaemonSet)
         ensures daemon_set@ == DaemonSetView::default(),

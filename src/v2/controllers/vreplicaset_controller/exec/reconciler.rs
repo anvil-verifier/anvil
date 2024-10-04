@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::option_lib::option_view;
+use crate::vstd_ext::option_lib::*;
 use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -276,7 +276,7 @@ pub fn make_owner_references(v_replica_set: &VReplicaSet) -> (owner_references: 
 // TODO: This function can be replaced by a map.
 // Revisit it if Verus supports Vec.map.
 fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
-    ensures opt_podvec_to_view(&pods_or_none) == model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@))
+    ensures option_vec_view(pods_or_none) == model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@))
 {
     let mut pods = Vec::new();
     let mut idx = 0;
@@ -372,13 +372,6 @@ proof fn lemma_filter_contains_implies_contains<A>(s: Seq<A>, pred: spec_fn(A) -
             // Inductive step.
             lemma_filter_contains_implies_contains(s.drop_last(), pred, e);
         }
-    }
-}
-
-pub open spec fn opt_podvec_to_view(vec_or_none: &Option<Vec<Pod>>) -> Option<Seq<PodView>> {
-    match vec_or_none {
-        Some(vec) => Some(vec@.map_values(|p: Pod| p@)),
-        None => None,
     }
 }
 
