@@ -18,7 +18,6 @@ pub enum VReplicaSetReconcileStep {
 impl std::marker::Copy for VReplicaSetReconcileStep {}
 
 impl std::clone::Clone for VReplicaSetReconcileStep {
-    #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
     { *self }

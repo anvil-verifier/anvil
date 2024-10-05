@@ -16,7 +16,6 @@ pub enum VDeploymentReconcileStep {
 impl std::marker::Copy for VDeploymentReconcileStep {}
 
 impl std::clone::Clone for VDeploymentReconcileStep {
-    #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
         ensures result == self
     { *self }
