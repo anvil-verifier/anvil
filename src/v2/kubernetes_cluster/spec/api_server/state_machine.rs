@@ -541,6 +541,11 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
                     // More generally speaking, this modeling won't affect the correctness of any controller that
                     // treats a terminating object without finalizers as a non-existing object --- a good practice
                     // controllers should follow.
+                    //
+                    // NOTE: the API server should also check whether the deletion grace period in the metadata
+                    // is set to 0 before deleting the object in case of graceful deletion
+                    // (see https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L533).
+                    // Here we omit that condition because graceful deletion is not supported.
                     (APIServerState {
                         resources: s.resources.remove(updated_obj_with_new_rv.object_ref()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
