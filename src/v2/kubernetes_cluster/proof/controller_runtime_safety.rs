@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::transition_by_etcd, types::*},
     cluster::*,
@@ -10,6 +9,7 @@ use crate::kubernetes_cluster::spec::{
     external::{state_machine::*, types::*},
     message::*,
 };
+use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
@@ -91,11 +91,15 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(self, spe
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
 
+pub open spec fn state_comes_with_a_pending_request(self, controller_id: int, state: spec_fn(ReconcileLocalState) -> bool) -> bool {
+    &&& forall |s| #[trigger] state(s) ==> s != (self.controller_models[controller_id].reconcile_model.init)()
+    &&& forall |cr, resp_o, pre_state| #[trigger] state((self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0) ==> (self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1.is_Some()
+}
+
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
-        forall |s| (#[trigger] state(s)) ==> s != (self.controller_models[controller_id].reconcile_model.init)(),
-        forall |cr, resp_o, pre_state| #[trigger] state((self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0) ==> (self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1.is_Some(),
+        self.state_comes_with_a_pending_request(controller_id, state),
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),

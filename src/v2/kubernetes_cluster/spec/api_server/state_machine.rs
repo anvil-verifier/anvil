@@ -298,8 +298,6 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
             // Creation succeeds.
             (APIServerState {
                 resources: s.resources.insert(created_obj.object_ref(), created_obj),
-                // The object just gets created so it is not stable yet: built-in controller might update it
-                stable_resources: s.stable_resources.remove(created_obj.object_ref()),
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
@@ -506,8 +504,6 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
                     // or has at least one finalizer.
                     (APIServerState {
                         resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
-                        // The object just gets updated so it is not stable yet: built-in controller might update it
-                        stable_resources: s.stable_resources.remove(req.key()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                         ..s
                     }, UpdateResponse{res: Ok(updated_obj_with_new_rv)})
@@ -686,8 +682,7 @@ pub open spec fn handle_request(installed_types: InstalledTypes) -> APIServerAct
 pub open spec fn api_server(installed_types: InstalledTypes) -> APIServerStateMachine {
     StateMachine {
         init: |s: APIServerState| {
-            &&& s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
-            &&& s.stable_resources == Set::<ObjectRef>::empty()
+            s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
         },
         actions: set![handle_request(installed_types)],
         step_to_action: |step: APIServerStep| {
