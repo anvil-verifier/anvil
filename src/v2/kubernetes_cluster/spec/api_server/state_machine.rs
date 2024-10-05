@@ -35,17 +35,22 @@ verus! {
 // for managing the metadata of each object. E.g., it needs to allocate a universally unique uid to
 // each object when it gets created, and updates the resource version of each object when it's updated.
 //
-// The model is not always submissive to the implementation. When writing the model, we carefully choose
-// the data representation that is most suitable for formal reasoning instead of copying the data types
-// from the Go implementation.
-//
+// The model is not always submissive to the implementation. When writing the model, we sometimes choose
+// the data representation that is most suitable for formal reasoning without affecting correctness.
 // For example, the uid is modeled as an int, instead of a string. Generating unique uid is done by
-// incrementing a int counter, so that each newly generated uid is different from any previous ones.
+// incrementing an int counter, so that each newly generated uid is different from any previous ones.
 // This simple modeling easily guarantees the uniqueness of uid without tedious reasoning on strings.
 // To make sure this inconsistency does not sacrifice soundness, Anvil does not allow controllers to see
 // an object's uid. Instead, a controller can check whether two uids are the same, and copying a uid to
-// construct an owner_reference or deletion precondition. In this way, modeling the uid as a int or a string
+// construct an owner_reference or deletion precondition. In this way, modeling the uid as an int or a string
 // makes no difference to controller implementations.
+//
+// Importantly, we do *not* model the API server's watch cache for simplicity. This means that:
+// * Watch operation is not modeled, and controllers rely on the schedule_controller_reconcile action of the
+// cluster state machine to get invoked (instead of getting triggered by a watch stream).
+// * Controllers are forced to *not* read from the API server's watch cache and every read hits the consistent datastore.
+// This avoids the time-travel bugs reported by the Sieve project (https://github.com/sieve-project/sieve).
+// Note that controllers can still maintain an internal cache of the cluster state if they want.
 //
 // Certainly, this model is not perfect and have some inconsistency and incompleteness issues. We have a TODO
 // list to gradually improve the model.
@@ -352,7 +357,17 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) ->
             // With the finalizer(s) in the object, we cannot immediately delete it from the key-value store.
             // Instead, we set the deletion timestamp of this object.
             // If the object already has a deletion timestamp, then skip.
+            //
+            // NOTE: Having finalizer(s) is not the only reason that a deletion is postponed. Having a graceful
+            // period set in the deletion option is another reason. Currently we do not model the graceful period
+            // option so we don't model how the API server checks whether a deletion should be graceful.
+            // However, even without a graceful period option, deleting a Pod can still be graceful depending on its
+            // spec content (see https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/apis/core/types.go#L3256)
+            // because Pod implements CheckGracefulDelete (see https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/registry/core/pod/strategy.go#L168).
+            // This is irrelevant to application controllers that do not manage pods, and acceptable for verifying
+            // low-level built-in controllers because they are supposed to treat terminating pods as non-existing pods.
             if obj.metadata.deletion_timestamp.is_Some() {
+                // A deletion timestamp is already set so no need to bother it.
                 (s, DeleteResponse{res: Ok(())})
             } else {
                 let stamped_obj_with_new_rv = obj.set_deletion_timestamp(deletion_timestamp())
@@ -508,19 +523,24 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
                         ..s
                     }, UpdateResponse{res: Ok(updated_obj_with_new_rv)})
                 } else {
-                    // The delete-during-update case, where the update removes the finalizer from
+                    // The delete-during-update case, where the update removes the finalizers from
                     // the object that has a deletion timestamp, so the object needs to be deleted now.
+                    //
                     // NOTE: in the actual implementation, when handling an update request,
                     // the API server first applies the update to the object in the key-value store,
-                    // then checks whether object can be deleted.
+                    // then checks whether the object can be deleted.
                     // If so, it continues to delete the object from the key-value store before replying
                     // to the update request.
                     // This means that there is a super short window where the object has been updated in the store
                     // (with a deletion timestamp and without any finalizer), but has not been deleted yet.
-                    // We choose not to model this short window and instead merge the update and delete into one atomic action
-                    // because the controller that issues the update request in an non-async manner will not observe
-                    // this intermediate state within the short window.
-                    // When the update request returns, the object has been deleted anyway.
+                    // This behavior, strictly speaking, makes the entire Update operation not atomic.
+                    // We choose to still model the Update operation as an atomic step for simplicity.
+                    // This design choice does not affect the correctness of the controller that issues Update
+                    // in a blocking manner because the controller will never observe this intermediate state between
+                    // the update and deletion.
+                    // More generally speaking, this modeling won't affect the correctness of any controller that
+                    // treats a terminating object without finalizers as a non-existing object --- a good practice
+                    // controllers should follow.
                     (APIServerState {
                         resources: s.resources.remove(updated_obj_with_new_rv.object_ref()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
@@ -630,7 +650,6 @@ pub open spec fn handle_update_status_request_msg(installed_types: InstalledType
     (s_prime, form_update_status_resp_msg(msg, resp))
 }
 
-// etcd is modeled as a centralized map that handles get/list/create/delete/update
 pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_APIRequest(),
@@ -652,25 +671,6 @@ pub open spec fn handle_request(installed_types: InstalledTypes) -> APIServerAct
             &&& input.recv.get_Some_0().content.is_APIRequest()
         },
         transition: |input: APIServerActionInput, s: APIServerState| {
-            // This transition describes how Kubernetes API server handles requests,
-            // which consists of multiple steps in reality:
-            //
-            // (1) apiserver receives the request from some controller/client,
-            //  perform some validation (e.g., through webhook)
-            //  and forwards the request to the underlying datastore (e.g., etcd);
-            // (2) The datastore reads/writes the cluster state and replies to apiserver;
-            // (3) The datastore also sends a notification of state update caused by the request to apiserver;
-            // (4) apiserver replies to the controller/client that sent the request;
-            // (5) apiserver forwards the notification to any controllers/clients that subscribes for the updates.
-            //
-            // Note that built-in controllers often subscribes for updates to several kinds of resources.
-            // For example, the statefulset controller subscribes updates to all statefulset objects.
-            // When seeing a new statefulset is created,
-            // it will send requests to create pods and volumes owned by this statefulset.
-            //
-            // Here we simplify step (1) ~ (5) by omitting the process that state changes are streamed
-            // to built-in controllers and activate their reconciliation.
-            // Built-in controllers will be specified as actions of the top level cluster state machine.
             let (s_prime, etcd_resp) = transition_by_etcd(installed_types, input.recv.get_Some_0(), s);
             (s_prime, APIServerActionOutput {
                 send: Multiset::singleton(etcd_resp)
