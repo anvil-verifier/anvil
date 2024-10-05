@@ -16,11 +16,6 @@ pub struct VReplicaSetReconcileState {
 }
 
 impl Reconciler<VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView> for VReplicaSetReconciler {
-    // type S = VReplicaSetReconcileState;
-    // type K = VReplicaSetView;
-    // type EReq = VoidEReqView;
-    // type EResp = VoidERespView;
-
     open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
         reconcile_init_state()
     }
