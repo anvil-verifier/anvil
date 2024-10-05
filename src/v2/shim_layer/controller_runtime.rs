@@ -4,6 +4,7 @@
 use crate::external_shim_layer::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
+use crate::kubernetes_api_objects::spec::resource::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::shim_layer::fault_injection::*;
 use builtin::*;
@@ -50,6 +51,7 @@ where
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     R: Reconciler + Send + Sync,
     R::K: ResourceWrapper<K> + Send,
+    <R::K as View>::V: CustomResourceView,
     R::S: Send,
     R::EReq: Send,
     R::EResp: Send,
@@ -102,6 +104,7 @@ where
     K::DynamicType: Default + Clone + Debug,
     R: Reconciler,
     R::K: ResourceWrapper<K>,
+    <R::K as View>::V: CustomResourceView,
     E: ExternalShimLayer<R::EReq, R::EResp>,
 {
     let client = &ctx.client;

@@ -15,25 +15,20 @@ pub struct VReplicaSetReconcileState {
     pub filtered_pods: Option<Seq<PodView>>,
 }
 
-impl Reconciler for VReplicaSetReconciler {
-    type S = VReplicaSetReconcileState;
-    type K = VReplicaSetView;
-    type EReq = VoidEReqView;
-    type EResp = VoidERespView;
-
-    open spec fn reconcile_init_state() -> Self::S {
+impl Reconciler<VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView> for VReplicaSetReconciler {
+    open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
         reconcile_init_state()
     }
 
-    open spec fn reconcile_core(fb: Self::K, resp_o: Option<ResponseView<Self::EResp>>, state: Self::S) -> (Self::S, Option<RequestView<Self::EReq>>) {
-        reconcile_core(fb, resp_o, state)
+    open spec fn reconcile_core(vrs: VReplicaSetView, resp_o: Option<ResponseView<VoidERespView>>, state: VReplicaSetReconcileState) -> (VReplicaSetReconcileState, Option<RequestView<VoidEReqView>>) {
+        reconcile_core(vrs, resp_o, state)
     }
 
-    open spec fn reconcile_done(state: Self::S) -> bool {
+    open spec fn reconcile_done(state: VReplicaSetReconcileState) -> bool {
         reconcile_done(state)
     }
 
-    open spec fn reconcile_error(state: Self::S) -> bool {
+    open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
         reconcile_error(state)
     }
 }

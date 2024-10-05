@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{error::*, spec::prelude::*};
 use crate::kubernetes_cluster::spec::cluster::{Cluster, ControllerModel};
+use crate::reconciler::spec::io::{VoidEReqView, VoidERespView};
 use crate::vreplicaset_controller::model::reconciler::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
@@ -21,7 +22,7 @@ impl Marshallable for VReplicaSetReconcileState {
 
 pub open spec fn vrs_controller_model() -> ControllerModel {
     ControllerModel {
-        reconcile_model: Cluster::installed_reconcile_model::<VReplicaSetReconciler>(),
+        reconcile_model: Cluster::installed_reconcile_model::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(),
         external_model: None,
     }
 }

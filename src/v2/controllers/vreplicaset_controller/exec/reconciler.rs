@@ -46,17 +46,14 @@ impl Reconciler for VReplicaSetReconciler {
     type K = VReplicaSet;
     type EReq = VoidEReq;
     type EResp = VoidEResp;
-
-    open spec fn well_formed(v_replica_set: &Self::K) -> bool {
-        v_replica_set@.well_formed()
-    }
+    type M = model_reconciler::VReplicaSetReconciler;
 
     fn reconcile_init_state() -> Self::S {
         reconcile_init_state()
     }
 
-    fn reconcile_core(v_replica_set: &Self::K, resp_o: Option<Response<Self::EResp>>, state: Self::S) -> (Self::S, Option<Request<Self::EReq>>) {
-        reconcile_core(v_replica_set, resp_o, state)
+    fn reconcile_core(vrs: &Self::K, resp_o: Option<Response<Self::EResp>>, state: Self::S) -> (Self::S, Option<Request<Self::EReq>>) {
+        reconcile_core(vrs, resp_o, state)
     }
 
     fn reconcile_done(state: &Self::S) -> bool {
