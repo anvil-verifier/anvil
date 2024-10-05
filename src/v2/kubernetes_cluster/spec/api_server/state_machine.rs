@@ -12,13 +12,64 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-// TODO:
-// + Need more validation checks.
-//   For example, RoleBinding's roleRef is immutable: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#clusterrolebinding-example
+// This state machine describes the behavior of the API server and its back-end datastore (e.g., etcd).
+// More concretely, it models how the datastore stores state objects, and how the API server handles
+// controllers' requests to read and write state objects. We model the two components in one state
+// machine because controllers always interact with state objects via API servers.
 //
-// + Check kind-specific strategy like AllowCreateOnUpdate()
+// The datastore provides a key-value store interface to store all the state objects. For each
+// state object, the key is a tuple of its name, namespace and kind, and the value is the entire
+// object. Besides name, namespace and kind, each object has other metadata fields including:
+// * a resource_version that tracks the revision of this object
+// * a uid that uniquely distinguishes an object from its historical occurrences
+// * so on...
 //
-// + Support graceful deletion
+// The API server provides a REST API, including Get, List, Create, Update and Delete. The API
+// implementation is more complex than a simple key-value store because a modification to the
+// cluster state must pass a series of validation checks (e.g., whether the resource_version matches).
+// In real world, each REST API operation above is supposed to be atomic and implemented using a etcd
+// transaction, so we can model them using one state machine step.
+//
+// This state machine ues a Map to represent the state object datastore, matching its key-value interface.
+// Besides the key-value store, this state machine also needs to maintain a local state that is used
+// for managing the metadata of each object. E.g., it needs to allocate a universally unique uid to
+// each object when it gets created, and updates the resource version of each object when it's updated.
+//
+// The model is not always submissive to the implementation. When writing the model, we carefully choose
+// the data representation that is most suitable for formal reasoning instead of copying the data types
+// from the Go implementation.
+//
+// For example, the uid is modeled as an int, instead of a string. Generating unique uid is done by
+// incrementing a int counter, so that each newly generated uid is different from any previous ones.
+// This simple modeling easily guarantees the uniqueness of uid without tedious reasoning on strings.
+// To make sure this inconsistency does not sacrifice soundness, Anvil does not allow controllers to see
+// an object's uid. Instead, a controller can check whether two uids are the same, and copying a uid to
+// construct an owner_reference or deletion precondition. In this way, modeling the uid as a int or a string
+// makes no difference to controller implementations.
+//
+// Certainly, this model is not perfect and have some inconsistency and incompleteness issues. We have a TODO
+// list to gradually improve the model.
+//
+// The TODO list:
+// + Support more expressive list operation
+//
+// + Model Patch (if needed)
+//
+// + Model uniqueness of generated name using spec ensures (when supported)
+//
+// + Model all the validation checks of built-in types
+//
+// + Model kind-specific strategy like AllowCreateOnUpdate
+//
+// + Model graceful deletion
+//
+// + Model foreground and orphan deletion options
+//
+// + Support cluster-wide state objects (the ones that don't belong to a namespace)
+//
+// + Keep the error code consistent with the real API Server
+//
+// + Document intended mismatch between the model and the real API server
 
 #[verifier(inline)]
 pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
@@ -155,7 +206,6 @@ pub open spec fn handle_get_request(req: GetRequest, s: APIServerState) -> GetRe
 
 #[verifier(inline)]
 pub open spec fn handle_list_request(req: ListRequest, s: APIServerState) -> ListResponse {
-    // TODO: List should consider other fields
     let selector = |o: DynamicObjectView| {
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
@@ -194,6 +244,10 @@ pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, i
 pub closed spec fn generate_name(s: APIServerState) -> StringView;
 
 // TODO: This should be a spec ensures of the generate_name above
+// NOTE: In the actual implementation, the API server might fail to generate a unique name
+// after a number of attempts. For the sake of liveness, we simplify that behavior and assume
+// that the API server is always able to find a unique name by random generation in our model.
+// For more details, see the implementation: https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L432-L443
 #[verifier(external_body)]
 pub proof fn generated_name_is_unique(s: APIServerState)
     ensures forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s)
@@ -284,6 +338,11 @@ pub open spec fn delete_request_admission_check(req: DeleteRequest, s: APIServer
 // modeling and proof much easier compared to modelling the real clock.
 pub closed spec fn deletion_timestamp() -> StringView;
 
+// NOTE: Deletion has three modes including background (default), foreground, orphan.
+// For now, we only model background deletion and only allow our controllers to perform background deletion
+// (by hiding the mode option).
+// This is acceptable for this project because background deletion is enough for all the reconciliation tasks
+// performed by our controllers.
 pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) -> (APIServerState, DeleteResponse) {
     if delete_request_admission_check(req, s).is_Some() {
         // Deletion fails.
@@ -313,6 +372,13 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) ->
             }
         } else {
             // The object can be immediately removed from the key-value store.
+            //
+            // NOTE: In some very corner case, the API server SEEMS to first updates the object (to update its finalizers)
+            // and then deletes the object immediately, which makes the entire Delete operation not atomic.
+            // However, this only happens in the orphan or foreground deletion mode, so we do not model this
+            // seemingly non-atomic behavior for now.
+            // For more details, see how the API server updates the object in the middle of handling deletion requests:
+            // https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L1009
             (APIServerState {
                 resources: s.resources.remove(req.key),
                 resource_version_counter: s.resource_version_counter + 1,
