@@ -371,7 +371,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) ->
         } else {
             // The object can be immediately removed from the key-value store.
             //
-            // NOTE: In some very corner case, the API server SEEMS to first updates the object (to update its finalizers)
+            // NOTE: In some very corner case, the API server *seems* to first updates the object (to update its finalizers)
             // and then deletes the object immediately, which makes the entire Delete operation not atomic.
             // However, this only happens in the orphan or foreground deletion mode, so we do not model this
             // seemingly non-atomic behavior for now.
