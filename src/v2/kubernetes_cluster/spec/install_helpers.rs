@@ -27,36 +27,38 @@ pub open spec fn type_is_installed_in_cluster<T: CustomResourceView>(self) -> bo
     &&& self.installed_types[string] == Self::installed_type::<T>()
 }
 
-pub open spec fn installed_reconcile_model<R: Reconciler>() -> ReconcileModel
+pub open spec fn installed_reconcile_model<R, S, K, EReq, EResp>() -> ReconcileModel
     where
-        R::S: Marshallable,
-        R::EReq: Marshallable,
-        R::EResp: Marshallable,
+        R: Reconciler<S, K, EReq, EResp>,
+        K: CustomResourceView,
+        S: Marshallable,
+        EReq: Marshallable,
+        EResp: Marshallable,
 {
     ReconcileModel {
-        kind: R::K::kind(),
+        kind: K::kind(),
         init: || R::reconcile_init_state().marshal(),
         transition: |obj, resp_o, s| {
-            let obj_um = R::K::unmarshal(obj).get_Ok_0();
+            let obj_um = K::unmarshal(obj).get_Ok_0();
             let resp_o_um = match resp_o {
                 None => None,
                 Some(resp) => Some(match resp {
-                    ResponseContent::KubernetesResponse(api_resp) => ResponseView::<R::EResp>::KResponse(api_resp),
-                    ResponseContent::ExternalResponse(ext_resp) => ResponseView::<R::EResp>::ExternalResponse(R::EResp::unmarshal(ext_resp).get_Ok_0()),
+                    ResponseContent::KubernetesResponse(api_resp) => ResponseView::<EResp>::KResponse(api_resp),
+                    ResponseContent::ExternalResponse(ext_resp) => ResponseView::<EResp>::ExternalResponse(EResp::unmarshal(ext_resp).get_Ok_0()),
                 })
             };
-            let s_um = R::S::unmarshal(s).get_Ok_0();
+            let s_um = S::unmarshal(s).get_Ok_0();
             let (s_prime_um, req_o_um) = R::reconcile_core(obj_um, resp_o_um, s_um);
             (s_prime_um.marshal(), match req_o_um {
                 None => None,
                 Some(req) => Some(match req {
-                    RequestView::<R::EReq>::KRequest(api_req) => RequestContent::KubernetesRequest(api_req),
-                    RequestView::<R::EReq>::ExternalRequest(ext_req) => RequestContent::ExternalRequest(ext_req.marshal()),
+                    RequestView::<EReq>::KRequest(api_req) => RequestContent::KubernetesRequest(api_req),
+                    RequestView::<EReq>::ExternalRequest(ext_req) => RequestContent::ExternalRequest(ext_req.marshal()),
                 })
             })
         },
-        done: |s| R::reconcile_done(R::S::unmarshal(s).get_Ok_0()),
-        error: |s| R::reconcile_error(R::S::unmarshal(s).get_Ok_0()),
+        done: |s| R::reconcile_done(S::unmarshal(s).get_Ok_0()),
+        error: |s| R::reconcile_error(S::unmarshal(s).get_Ok_0()),
     }
 }
 
