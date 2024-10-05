@@ -284,6 +284,17 @@ pub struct VReplicaSetSpec {
 #[derive(
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
+#[kube(group = "anvil.dev", version = "v1", kind = "VDeployment")]
+#[kube(shortname = "vrs", namespaced)]
+pub struct VDeploymentSpec {
+    pub replicas: Option<i32>,
+    pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
+}
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
 #[kube(group = "anvil.dev", version = "v1", kind = "VStatefulSet")]
 #[kube(shortname = "vsts", namespaced)]
 #[kube(status = "VStatefulSetStatus")]
@@ -329,35 +340,4 @@ pub struct VStatefulSetStatus {
     pub update_revision: Option<String>,
     #[serde(rename = "observedGeneration")]
     pub observed_generation: Option<i64>,
-}
-
-#[derive(
-    kube::CustomResource,
-    Debug,
-    Clone,
-    serde::Deserialize,
-    serde::Serialize,
-    schemars::JsonSchema,
-    Default,
-)]
-#[kube(namespaced, group = "anvil.dev", version = "v1", kind = "Producer")]
-pub struct ProducerSpec {
-    pub message: String,
-}
-
-impl Default for Producer {
-    fn default() -> Producer {
-        Producer {
-            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
-            spec: ProducerSpec::default(),
-        }
-    }
-}
-
-#[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
-)]
-#[kube(namespaced, group = "anvil.dev", version = "v1", kind = "Consumer")]
-pub struct ConsumerSpec {
-    pub message: String,
 }
