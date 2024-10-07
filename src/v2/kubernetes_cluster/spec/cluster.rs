@@ -376,8 +376,8 @@ impl Cluster {
                 let controller_and_external_state = s.controller_and_externals[controller_id];
                 let controller_and_external_state_prime = ControllerAndExternalState {
                     controller: ControllerState {
-                        ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
                         scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
+                        ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
                     },
                     ..controller_and_external_state
                 };

@@ -139,8 +139,8 @@ pub open spec fn controller(model: ReconcileModel, controller_id: int) -> Contro
     StateMachine {
         init: |s: ControllerState| {
             s == ControllerState {
-                ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
                 scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
+                ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
             }
         },
         actions: set![
