@@ -2,22 +2,15 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::{
+    api_server::state_machine::api_server, api_server::types::*,
+    builtin_controllers::state_machine::builtin_controllers, builtin_controllers::types::*,
+    cluster::*, controller::state_machine::controller, controller::types::*,
+    external::state_machine::external, external::types::*, message::*,
+    network::state_machine::network, network::types::*,
+};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::api_server,
-    api_server::types::*,
-    builtin_controllers::state_machine::builtin_controllers,
-    builtin_controllers::types::*,
-    cluster::*,
-    controller::state_machine::{controller, init_controller_state},
-    controller::types::*,
-    external::state_machine::external,
-    external::types::*,
-    message::*,
-    network::state_machine::network,
-    network::types::*,
-};
 use vstd::prelude::*;
 
 verus! {

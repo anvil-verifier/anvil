@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::{controller::types::*, message::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
-use crate::kubernetes_cluster::spec::{controller::types::*, message::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {
@@ -135,17 +135,13 @@ pub open spec fn end_reconcile(model: ReconcileModel) -> ControllerAction {
     }
 }
 
-pub open spec fn init_controller_state() -> ControllerState {
-    ControllerState {
-        ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
-        scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
-    }
-}
-
 pub open spec fn controller(model: ReconcileModel, controller_id: int) -> ControllerStateMachine {
     StateMachine {
         init: |s: ControllerState| {
-            s == init_controller_state()
+            s == ControllerState {
+                ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+                scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
+            }
         },
         actions: set![
             run_scheduled_reconcile(model),

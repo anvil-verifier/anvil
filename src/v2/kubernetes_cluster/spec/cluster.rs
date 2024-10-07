@@ -4,19 +4,11 @@
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::api_server,
-    api_server::types::*,
-    builtin_controllers::state_machine::builtin_controllers,
-    builtin_controllers::types::*,
-    controller::state_machine::{controller, init_controller_state},
-    controller::types::*,
-    external::state_machine::external,
-    external::types::*,
-    message::*,
-    network::state_machine::network,
-    network::types::*,
-    pod_monkey::state_machine::pod_monkey,
-    pod_monkey::types::*,
+    api_server::state_machine::api_server, api_server::types::*,
+    builtin_controllers::state_machine::builtin_controllers, builtin_controllers::types::*,
+    controller::state_machine::controller, controller::types::*, external::state_machine::external,
+    external::types::*, message::*, network::state_machine::network, network::types::*,
+    pod_monkey::state_machine::pod_monkey, pod_monkey::types::*,
 };
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -368,6 +360,7 @@ impl Cluster {
     // because the behavior that a controller crashes at time t1 and then restarts at t2 (t2 > t1)
     // is equivalent to the behavior that a controller no longer gets scheduled from t1 and
     // then restarts at t2, as long as a crashed controller won't trigger new actions.
+    //
     // Note that weak fairness on the controller's action is not a problem here:
     // weak fairness only says that the controller eventually takes a step if it remains enabled,
     // so even with weak fairness the controller can still stay "offline" from t1 to t2.
@@ -382,7 +375,10 @@ impl Cluster {
                 let controller_id = input;
                 let controller_and_external_state = s.controller_and_externals[controller_id];
                 let controller_and_external_state_prime = ControllerAndExternalState {
-                    controller: init_controller_state(),
+                    controller: ControllerState {
+                        ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+                        scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
+                    },
                     ..controller_and_external_state
                 };
                 (ClusterState {
