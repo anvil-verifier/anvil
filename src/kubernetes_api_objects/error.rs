@@ -1,6 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use deps_hack::kube;
 use vstd::prelude::*;
 
 verus! {

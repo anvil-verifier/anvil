@@ -1,11 +1,7 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
     error::UnmarshalError,
-    spec::{api_method::*, common::*, resource::*},
+    spec::{api_method::*, resource::*},
 };
-use crate::kubernetes_cluster::spec::message::*;
 use vstd::prelude::*;
 
 verus! {

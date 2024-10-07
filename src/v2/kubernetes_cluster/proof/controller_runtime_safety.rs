@@ -1,13 +1,7 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::{state_machine::transition_by_etcd, types::*},
-    cluster::*,
-    controller::types::*,
-    external::{state_machine::*, types::*},
-    message::*,
+    api_server::state_machine::transition_by_etcd, cluster::*, controller::types::*,
+    external::state_machine::*, message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;

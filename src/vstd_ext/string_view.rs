@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 use vstd::prelude::*;
-use vstd::string::*;
 
 verus! {
 

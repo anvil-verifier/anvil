@@ -3,13 +3,11 @@
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, container::*, dynamic::*, object_meta::*, resource::*,
-    resource_requirements::*, toleration::*, volume::*,
+    toleration::*, volume::*,
 };
 use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 

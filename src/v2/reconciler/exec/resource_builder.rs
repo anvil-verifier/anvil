@@ -1,13 +1,6 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
-use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*};
 use crate::reconciler::spec::resource_builder;
-use crate::vstd_ext::{string_map::StringMap, string_view::*};
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 

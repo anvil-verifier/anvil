@@ -1,14 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::UnmarshalError;
-use crate::kubernetes_api_objects::exec::{
-    api_resource::*, dynamic::*, object_meta::*, pod::*, resource::*,
-};
+use crate::kubernetes_api_objects::exec::{object_meta::*, pod::*, resource::*};
 use crate::kubernetes_api_objects::spec::pod_template_spec::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 

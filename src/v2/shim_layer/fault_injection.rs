@@ -1,18 +1,10 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
-use builtin::*;
-use builtin_macros::*;
-use core::fmt::Debug;
 use deps_hack::anyhow::Result;
-use deps_hack::futures::{Future, Stream, StreamExt, TryFuture};
 use deps_hack::k8s_openapi::api::core::v1::ConfigMap;
 use deps_hack::kube::{
-    api::{Api, ObjectMeta, PostParams, Resource},
+    api::{Api, PostParams},
     Client,
 };
 use deps_hack::tracing::info;
-use deps_hack::Error;
 
 pub async fn crash_or_continue(
     client: &Client,

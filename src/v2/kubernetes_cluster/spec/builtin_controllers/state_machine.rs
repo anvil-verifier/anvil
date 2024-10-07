@@ -1,15 +1,6 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
-use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{
-    api_server::types::APIServerState,
-    builtin_controllers::{garbage_collector::*, types::*},
-    message::*,
-};
-use crate::state_machine::action::*;
+use crate::kubernetes_cluster::spec::builtin_controllers::{garbage_collector::*, types::*};
 use crate::state_machine::state_machine::*;
-use vstd::{multiset::*, prelude::*};
+use vstd::prelude::*;
 
 verus! {
 

@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::exec::{label_selector::*, pod_template_spec::*, prelude::*};
+use crate::kubernetes_api_objects::exec::prelude::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
 use crate::vstd_ext::option_lib::*;
-use crate::vstd_ext::{string_map::StringMap, string_view::*};
+use crate::vstd_ext::string_map::StringMap;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 

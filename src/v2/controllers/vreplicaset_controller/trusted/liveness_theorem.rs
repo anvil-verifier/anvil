@@ -1,11 +1,7 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
-use crate::vreplicaset_controller::trusted::{spec_types::*, step::*};
-use crate::vstd_ext::string_view::int_to_string_view;
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
 
 verus! {

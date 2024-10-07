@@ -1,9 +1,6 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::resource::{CustomResourceView, ResourceView};
 use crate::reconciler::exec::io::*;
-use crate::reconciler::spec::{io::*, reconciler::Reconciler as ModelReconciler};
+use crate::reconciler::spec::reconciler::Reconciler as ModelReconciler;
 use crate::vstd_ext::option_lib::*;
 use vstd::prelude::*;
 

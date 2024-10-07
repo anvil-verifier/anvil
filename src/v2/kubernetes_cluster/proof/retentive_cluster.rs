@@ -1,9 +1,5 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
-use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, retentive_cluster::*};
-use crate::temporal_logic::{defs::*, rules::*};
+use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {

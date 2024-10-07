@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{config_map::*, resource::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
 verus! {

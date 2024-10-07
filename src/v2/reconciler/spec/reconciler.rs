@@ -1,8 +1,4 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, resource::*};
-use crate::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_api_objects::spec::resource::*;
 use crate::reconciler::spec::io::*;
 use vstd::prelude::*;
 
@@ -23,7 +19,7 @@ verus! {
 // correspondingly. Since Rust doesn't support type equality constraint (see https://github.com/rust-lang/rust/issues/20041),
 // instead of stating the equality constraint, we state that the spec Reconciler is built
 // using the views of the exec Reconciler's S, K, EReq and EResp.
-pub trait Reconciler<S, K, EReq, EResp> {
+pub trait Reconciler<S, K: CustomResourceView, EReq, EResp> {
     // reconcile_init_state returns the initial local state that the reconciler starts
     // its reconcile function with.
     spec fn reconcile_init_state() -> S;

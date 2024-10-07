@@ -1,14 +1,6 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::{deletion_timestamp, unmarshallable_object, valid_object},
-    cluster::*,
-    message::*,
-};
-use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 verus! {

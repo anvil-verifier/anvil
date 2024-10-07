@@ -6,11 +6,7 @@ use crate::kubernetes_api_objects::exec::{
     pod_template_spec::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{resource::*, stateful_set::*};
-use crate::vstd_ext::string_map::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 

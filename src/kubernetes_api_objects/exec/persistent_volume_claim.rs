@@ -5,9 +5,7 @@ use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*, volume_resource_requirements::*,
 };
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, resource::*};
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 
