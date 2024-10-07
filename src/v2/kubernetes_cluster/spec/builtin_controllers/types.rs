@@ -1,6 +1,3 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{api_server::types::APIServerState, message::*};
 use crate::state_machine::action::*;

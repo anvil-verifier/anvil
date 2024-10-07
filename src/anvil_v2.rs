@@ -1,6 +1,3 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 pub mod kubernetes_api_objects;
 #[path = "v2/kubernetes_cluster/mod.rs"]
 pub mod kubernetes_cluster;

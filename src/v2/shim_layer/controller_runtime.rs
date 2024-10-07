@@ -1,6 +1,3 @@
-// Copyright 2022 VMware, Inc.
-// SPDX-License-Identifier: MIT
-#![allow(unused_imports)]
 use crate::external_shim_layer::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
