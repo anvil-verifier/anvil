@@ -7,8 +7,7 @@ use crate::kubernetes_api_objects::spec::{
     preconditions::*,
 };
 use crate::vstd_ext::string_view::*;
-use vstd::string::*;
-use vstd::{prelude::*, view::*};
+use vstd::prelude::*;
 
 verus! {
 

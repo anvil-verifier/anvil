@@ -4,19 +4,17 @@ use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::shim_layer::fault_injection::*;
-use builtin::*;
-use builtin_macros::*;
 use core::fmt::Debug;
 use core::hash::Hash;
 use deps_hack::anyhow::Result;
-use deps_hack::futures::{Future, Stream, StreamExt, TryFuture};
+use deps_hack::futures::StreamExt;
 use deps_hack::kube::{
-    api::{Api, DeleteParams, ListParams, ObjectMeta, PostParams, Resource},
+    api::{Api, DeleteParams, ListParams, PostParams, Resource},
     runtime::{
-        controller::{self, Action, Controller},
-        reflector, watcher,
+        controller::{Action, Controller},
+        watcher,
     },
-    Client, CustomResource, CustomResourceExt,
+    Client, CustomResourceExt,
 };
 use deps_hack::kube_core::{ErrorResponse, NamespaceResourceScope};
 use deps_hack::serde::{de::DeserializeOwned, Serialize};
@@ -24,7 +22,7 @@ use deps_hack::tracing::{error, info, warn};
 use deps_hack::Error;
 use std::sync::Arc;
 use std::time::Duration;
-use vstd::{string::*, view::*};
+use vstd::string::*;
 
 // The shim layer connects the verified reconciler to the trusted kube-rs APIs.
 // The key is to implement the reconcile function (impl FnMut(Arc<K>, Arc<Ctx>) -> ReconcilerFut),

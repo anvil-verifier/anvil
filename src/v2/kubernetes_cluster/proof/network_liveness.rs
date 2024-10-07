@@ -1,10 +1,5 @@
-use crate::kubernetes_api_objects::spec::prelude::*;
+use crate::kubernetes_cluster::spec::{api_server::types::*, cluster::*, message::*};
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::kubernetes_cluster::spec::{
-    api_server::types::*, cluster::*, message::*,
-};
-use crate::vstd_ext::multiset_lib::*;
-use vstd::assert_multisets_equal;
 use vstd::prelude::*;
 
 verus! {

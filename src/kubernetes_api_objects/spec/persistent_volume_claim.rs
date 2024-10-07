@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 

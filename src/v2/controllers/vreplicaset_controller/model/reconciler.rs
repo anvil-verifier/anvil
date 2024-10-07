@@ -1,7 +1,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::{spec_types::*, step::*};
-use vstd::{prelude::*, string::*};
+use vstd::prelude::*;
 
 verus! {
 

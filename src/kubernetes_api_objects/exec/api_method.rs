@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::exec::{api_resource::*, dynamic::*, preconditions::*};
-use crate::kubernetes_api_objects::spec::{
-    api_method::*,
-    common::{Kind, ObjectRef},
-};
-use crate::vstd_ext::{option_lib::*, string_view::*};
-use vstd::{prelude::*, string::*, view::*};
+use crate::kubernetes_api_objects::spec::{api_method::*, common::ObjectRef};
+use crate::vstd_ext::option_lib::*;
+use vstd::prelude::*;
 
 use vstd::pervasive::unreached;
 

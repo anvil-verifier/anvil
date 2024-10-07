@@ -6,8 +6,7 @@ use crate::kubernetes_api_objects::exec::{
     resource::*,
 };
 use crate::kubernetes_api_objects::spec::{daemon_set::*, resource::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
-use vstd::{prelude::*, seq_lib::*, string::*};
+use vstd::prelude::*;
 
 verus! {
 

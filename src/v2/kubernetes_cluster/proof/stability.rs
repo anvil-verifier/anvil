@@ -1,6 +1,6 @@
-use crate::state_machine::{action::*, state_machine::*};
-use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_cluster::spec::cluster::*;
+use crate::state_machine::action::*;
+use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {

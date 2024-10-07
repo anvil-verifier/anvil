@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::exec::api_method::*;
 use crate::reconciler::spec::io::*;
-use vstd::{prelude::*, view::*};
+use vstd::prelude::*;
 
 use vstd::pervasive::unreached;
 

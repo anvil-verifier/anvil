@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::string::*;
 
 verus! {
 
