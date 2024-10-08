@@ -420,7 +420,8 @@ impl Cluster {
     // * Non-deterministic requests get rejected by API server. For example, when
     //   creating an object using a generate_name, API server will try to create
     //   the object using a randomly generated name, and retry if it fails. If all
-    //   attempts fail, the request will fail with AlreadyExists error.
+    //   attempts fail, the request will fail with AlreadyExists error. For more
+    //   details, see https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L435.
     pub open spec fn drop_req(self) -> Action<ClusterState, (Message, APIError), ()> {
         let result = |input: (Message, APIError), s: ClusterState| {
             let req_msg = input.0;
