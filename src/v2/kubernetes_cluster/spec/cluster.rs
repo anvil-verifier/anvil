@@ -411,11 +411,16 @@ impl Cluster {
         }
     }
 
-    // The drop_req drops a request sent to the API server and results in a timeout error
-    // to the sending controller. This is used to model network failures -- in a real-world
-    // cluster, we should expect that a request sent by a controller doesn't arrive at the
-    // API server due to various reasons including network configuration faults and
-    // hardware or software faults in the networking stack.
+    // The drop_req intercepts a request sent to the API server and returns an error
+    // to the sending controller. This is used to model different types of transient
+    // failures, including:
+    // * Network failures that drop the request, where the error might be Timeout.
+    // * API server is running busy and cannot take more requests, where the error
+    //   might be ServerTimeout.
+    // * Non-deterministic requests get rejected by API server. For example, when
+    //   creating an object using a generate_name, API server will try to create
+    //   the object using a randomly generated name, and retry if it fails. If all
+    //   attempts fail, the request will fail with AlreadyExists error.
     pub open spec fn drop_req(self) -> Action<ClusterState, (Message, APIError), ()> {
         let result = |input: (Message, APIError), s: ClusterState| {
             let req_msg = input.0;
@@ -435,7 +440,6 @@ impl Cluster {
                 &&& s.req_drop_enabled
                 &&& req_msg.dst.is_APIServer()
                 &&& req_msg.content.is_APIRequest()
-                &&& api_err.is_Timeout() || api_err.is_ServerTimeout()
                 &&& result(input, s).is_Enabled()
             },
             transition: |input: (Message, APIError), s: ClusterState| {
