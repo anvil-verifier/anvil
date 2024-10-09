@@ -13,7 +13,7 @@ use vstd::prelude::*;
 verus! {
 
 pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
-    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef,
     req_msg: Message, diff: int
 )
     requires
