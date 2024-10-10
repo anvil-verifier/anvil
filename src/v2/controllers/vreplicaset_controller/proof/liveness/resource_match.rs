@@ -11,7 +11,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{helper_invariants, predicate::*},
+    proof::{helper_invariants, liveness::{api_actions::*}, predicate::*},
 };
 use crate::vstd_ext::{map_lib::*, set_lib::*, seq_lib::*};
 use vstd::{map_lib::*, prelude::*};
@@ -27,9 +27,13 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -67,9 +71,13 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         // &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         //         ==> vrs_not_interfered_by(other_id)(s)
@@ -82,9 +90,13 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         // &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
         //         ==> vrs_not_interfered_by(other_id)(s)
@@ -96,67 +108,66 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        assume(false);
-        // let step = choose |step| Cluster::next_step(s, s_prime, step);
-        // match step {
-        //     Step::ApiServerStep(input) => {
-        //         let msg = input.get_Some_0();
-        //         lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
-        //             s, s_prime, vrs, diff, msg
-        //         );
-        //         // Prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-        //         assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
-        //         // Prod for the theorem prover to realize there is a response message.
-        //         if msg == req_msg {
-        //             let resp_msg = Cluster::handle_list_request_msg(req_msg, s.kubernetes_api_state).1;
-        //             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
+                    s, s_prime, vrs, cluster, controller_id, diff, msg
+                );
+                // Prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
+                assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
+                // Prod for the theorem prover to realize there is a response message.
+                if msg == req_msg {
+                    let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
+                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
 
-        //             assert forall |o: DynamicObjectView| #![auto]
-        //             pre(s) && matching_pod_entries(vrs, s_prime.resources()).values().contains(o)
-        //             implies resp_objs.to_set().contains(o) by {
-        //                 // Tricky reasoning about .to_seq
-        //                 let selector = |o: DynamicObjectView| {
-        //                     &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-        //                     &&& o.object_ref().kind == PodView::kind()
-        //                 };
-        //                 let selected_elements = s.resources().values().filter(selector);
-        //                 assert(selected_elements.contains(o));
-        //                 lemma_values_finite(s.resources());
-        //                 finite_set_to_seq_contains_all_set_elements(selected_elements);
-        //             }
+                    assert forall |o: DynamicObjectView| #![auto]
+                    pre(s) && matching_pod_entries(vrs, s_prime.resources()).values().contains(o)
+                    implies resp_objs.to_set().contains(o) by {
+                        // Tricky reasoning about .to_seq
+                        let selector = |o: DynamicObjectView| {
+                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                            &&& o.object_ref().kind == PodView::kind()
+                        };
+                        let selected_elements = s.resources().values().filter(selector);
+                        assert(selected_elements.contains(o));
+                        lemma_values_finite(s.resources());
+                        finite_set_to_seq_contains_all_set_elements(selected_elements);
+                    }
 
-        //             assert forall |o: DynamicObjectView| #![auto]
-        //             pre(s) && resp_objs.contains(o)
-        //             implies !PodView::unmarshal(o).is_err() by {
-        //                 // Tricky reasoning about .to_seq
-        //                 let selector = |o: DynamicObjectView| {
-        //                     &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-        //                     &&& o.object_ref().kind == PodView::kind()
-        //                 };
-        //                 let selected_elements = s.resources().values().filter(selector);
-        //                 lemma_values_finite(s.resources());
-        //                 finite_set_to_seq_contains_all_set_elements(selected_elements);
-        //                 assert(resp_objs == selected_elements.to_seq());
-        //                 assert(selected_elements.contains(o));
-        //             }
-        //             seq_pred_false_on_all_elements_implies_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
+                    assert forall |o: DynamicObjectView| #![auto]
+                    pre(s) && resp_objs.contains(o)
+                    implies !PodView::unmarshal(o).is_err() by {
+                        // Tricky reasoning about .to_seq
+                        let selector = |o: DynamicObjectView| {
+                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                            &&& o.object_ref().kind == PodView::kind()
+                        };
+                        let selected_elements = s.resources().values().filter(selector);
+                        lemma_values_finite(s.resources());
+                        finite_set_to_seq_contains_all_set_elements(selected_elements);
+                        assert(resp_objs == selected_elements.to_seq());
+                        assert(selected_elements.contains(o));
+                    }
+                    seq_pred_false_on_all_elements_implies_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
 
-        //             assert({
-        //                 &&& s_prime.in_flight().contains(resp_msg)
-        //                 &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-        //                 &&& resp_msg.content.get_list_response().res.is_Ok()
-        //                 &&& {
-        //                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-        //                     // The matching pods must be a subset of the response.
-        //                     &&& matching_pod_entries(vrs, s_prime.resources()).values().subset_of(resp_objs.to_set())
-        //                     &&& objects_to_pods(resp_objs).is_Some()
-        //                 }
-        //             });
-        //             assert(post(s_prime));
-        //         }
-        //     },
-        //     _ => {}
-        // }
+                    assert({
+                        &&& s_prime.in_flight().contains(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& resp_msg.content.get_list_response().res.is_Ok()
+                        &&& {
+                            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                            // The matching pods must be a subset of the response.
+                            &&& matching_pod_entries(vrs, s_prime.resources()).values().subset_of(resp_objs.to_set())
+                            &&& objects_to_pods(resp_objs).is_Some()
+                        }
+                    });
+                    assert(post(s_prime));
+                }
+            },
+            _ => {}
+        }
     }
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
@@ -190,6 +201,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
             finite_set_to_seq_contains_all_set_elements(selected_elements);
             assert(resp_objs == selected_elements.to_seq());
             assert(selected_elements.contains(o));
+            assert(s.resources().contains_value(o));
         }
         seq_pred_false_on_all_elements_implies_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
 

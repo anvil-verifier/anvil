@@ -51,6 +51,10 @@ pub proof fn lemma_true_leads_to_req_drop_always_disabled(self, spec: TempPred<C
     leads_to_stable(spec, lift_action(self.next()), true_pred(), lift_state(Self::req_drop_disabled()));
 }
 
+pub open spec fn pod_monkey_disabled() -> StatePred<ClusterState> {
+    |s: ClusterState| !s.pod_monkey_enabled
+}
+
 }
 
 }
