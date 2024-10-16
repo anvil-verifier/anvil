@@ -1,4 +1,4 @@
-FROM ghcr.io/vmware-research/verifiable-controllers/verus:latest as builder
+FROM ghcr.io/anvil-verifier/anvil/verus:latest as builder
 
 ARG APP
 WORKDIR /anvil

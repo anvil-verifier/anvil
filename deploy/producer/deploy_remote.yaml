@@ -16,6 +16,6 @@ spec:
         app.kubernetes.io/name: producer-controller
     spec:
       containers:
-        - image: ghcr.io/vmware-research/verifiable-controllers/producer-controller:latest
+        - image: ghcr.io/anvil-verifier/anvil/producer-controller:latest
           name: controller
       serviceAccountName: producer-controller

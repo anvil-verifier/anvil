@@ -16,6 +16,6 @@ spec:
         app.kubernetes.io/name: rabbitmq-controller
     spec:
       containers:
-        - image: ghcr.io/vmware-research/verifiable-controllers/rabbitmq-controller:latest
+        - image: ghcr.io/anvil-verifier/anvil/rabbitmq-controller:latest
           name: controller
       serviceAccountName: rabbitmq-controller

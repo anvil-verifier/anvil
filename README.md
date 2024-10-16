@@ -1,5 +1,5 @@
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/vmware-research/verifiable-controllers/blob/main/LICENSE)
-[![CI](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/anvil-verifier/anvil/blob/main/LICENSE)
+[![CI](https://github.com/anvil-verifier/anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/anvil-verifier/anvil/actions/workflows/ci.yml)
 
 # Anvil: Building Formally Verified Kubernetes Controllers
 
@@ -9,7 +9,7 @@ So far, we have built and verified three Kubernetes controllers (for managing Zo
 
 For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/controller_examples/). To use Anvil, you will need to install [Verus](https://github.com/verus-lang/verus) (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)). Currently Anvil uses Verus version `0d7b766446cd33521132cff03b6108705e83884f`.
 
-If you want to reproduce the results in the OSDI'24 paper "Anvil: Verifying Liveness of Cluster Management Controllers", please refer to the [osdi24](https://github.com/vmware-research/verifiable-controllers/tree/osdi24) branch.
+If you want to reproduce the results in the OSDI'24 paper "Anvil: Verifying Liveness of Cluster Management Controllers", please refer to the [osdi24](https://github.com/anvil-verifier/anvil/tree/osdi24) branch.
 
 ## Implementing controllers with Anvil
 

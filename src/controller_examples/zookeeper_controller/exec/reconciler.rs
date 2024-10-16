@@ -114,7 +114,7 @@ pub fn reconcile_core(
                     // the zookeeper cluster might be unavailable because of losing the quorum.
                     // So the controller needs to correctly prompt membership change before reducing the replica
                     // size of the stateful set, by writing the new replica size into the zookeeper API.
-                    // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
+                    // Details can be found in https://github.com/anvil-verifier/anvil/issues/174.
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
                         ..state

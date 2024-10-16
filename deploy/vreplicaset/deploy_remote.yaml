@@ -16,6 +16,6 @@ spec:
         app.kubernetes.io/name: vreplicaset-controller
     spec:
       containers:
-        - image: ghcr.io/vmware-research/verifiable-controllers/vreplicaset-controller:latest
+        - image: ghcr.io/anvil-verifier/anvil/vreplicaset-controller:latest
           name: controller
       serviceAccountName: vreplicaset-controller
