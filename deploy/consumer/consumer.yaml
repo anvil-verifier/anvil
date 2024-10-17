@@ -1,6 +1,0 @@
-apiVersion: anvil.dev/v1
-kind: Consumer
-metadata:
-  name: app
-spec:
-  message: world
