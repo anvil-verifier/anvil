@@ -33,12 +33,23 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s),
         forall |diff: usize| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterCreatePod(diff))(s)),
         forall |diff: usize| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vrs_not_interfered_by(other_id)(s)
     ensures
         matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()),
 {
+    if msg.src.is_Controller() {
+        let id = msg.src.get_Controller_0();
+        assert(
+            (id != controller_id ==> cluster.controller_models.remove(controller_id).contains_key(id)));
+        // Invoke non-interference lemma by trigger.
+        assert(id != controller_id ==> vrs_not_interfered_by(id)(s));
+    } else {
+        assume(false);
+    }
+
     // Dispatch through all the requests which may mutate the k-v store.
     let mutates_key = if msg.content.is_create_request() {
-        assume(false);
         let req = msg.content.get_create_request();
         Some(ObjectRef{
             kind: req.obj.kind,
@@ -50,15 +61,12 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
             namespace: req.namespace,
         })
     } else if msg.content.is_delete_request() {
-        assume(false);
         let req = msg.content.get_delete_request();
         Some(req.key)
     } else if msg.content.is_update_request() {
-        assume(false);
         let req = msg.content.get_update_request();
         Some(req.key())
     } else if msg.content.is_update_status_request() {
-        assume(false);
         let req = msg.content.get_update_status_request();
         Some(req.key())
     } else {

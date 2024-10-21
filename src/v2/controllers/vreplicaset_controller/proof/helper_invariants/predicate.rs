@@ -128,9 +128,9 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
 pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
-            &&& s.in_flight().contains(msg)
-            &&& #[trigger] msg.dst.is_APIServer()
-            &&& #[trigger] msg.content.is_APIRequest()
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
         } ==> {
             &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != PodView::kind()
             &&& msg.content.is_update_status_request() ==> msg.content.get_update_status_request().key().kind != PodView::kind()
@@ -177,7 +177,7 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |msg: Message| #![trigger msg.dst.is_APIServer(), msg.content.is_APIRequest()] {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
             let key = content.get_delete_request().key;
             let obj = s.resources()[key];
