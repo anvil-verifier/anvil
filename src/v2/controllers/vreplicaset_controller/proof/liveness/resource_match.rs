@@ -35,12 +35,14 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
 
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
     ensures
@@ -79,14 +81,43 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
-        // &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-        //         ==> vrs_not_interfered_by(other_id)(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
         &&& helper_invariants::cluster_resources_is_finite()(s)
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
+        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
+    let non_interference_property = |s| {
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+    };
+
+    assert_by(
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))))
+        ==>
+            spec.entails(always(lift_state(non_interference_property))),
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies vrs_not_interfered_by(other_id)(ex.suffix(n).head()) by {
+                if spec.satisfied_by(ex) && cluster.controller_models.remove(controller_id).contains_key(other_id) {
+                    // Gradually unwrap the semantics of `spec.entails(always(lift_state(vrs_not_interfered_by(other_id))))`
+                    // until Verus knows that the consequent is true.
+                    assert(valid(spec.implies(always(lift_state(vrs_not_interfered_by(other_id))))));
+                    assert(spec.implies(always(lift_state(vrs_not_interfered_by(other_id)))).satisfied_by(ex));
+                    assert(always(lift_state(vrs_not_interfered_by(other_id))).satisfied_by(ex));
+                    assert(lift_state(vrs_not_interfered_by(other_id)).satisfied_by(ex.suffix(n)));
+                }
+            }
+        }
+    );
+
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
@@ -98,11 +129,12 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
-        // &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-        //         ==> vrs_not_interfered_by(other_id)(s)
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(non_interference_property),
         lift_state(helper_invariants::cluster_resources_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
+        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
