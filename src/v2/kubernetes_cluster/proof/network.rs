@@ -286,7 +286,6 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
         match step {
             Step::ControllerStep(input) => {
                 let id = input.0;
-                //assume(self.controller_models.contains_key(id) ==> s.controller_and_externals.contains_key(id));
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
                     && msg.content.is_APIRequest()
@@ -311,23 +310,17 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
                     }
                 }
             },
-            Step::BuiltinControllersStep(..) => {
+            _ => {
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
                     && msg.content.is_APIRequest()
                     && msg.src.is_Controller()
                     implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
                     if !s.in_flight().contains(msg) {
-                        assume(false);
+                        // TODO: Make an understandable version of this proof.
+                        assert(false);
                     }
                 }
-            },
-            Step::ScheduleControllerReconcileStep(..) => {assume(false);},
-            Step::RestartControllerStep(..) => {assume(false);},
-            Step::DisableCrashStep(..) => {assume(false);},
-            Step::PodMonkeyStep(..) => {assume(false);},
-            _ => {
-                //assume(false);
             }
         }
     };
