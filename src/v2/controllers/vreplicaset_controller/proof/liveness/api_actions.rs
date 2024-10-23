@@ -27,8 +27,10 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         cluster.each_builtin_object_in_etcd_is_well_formed()(s),
         cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
         helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s),
         helper_invariants::no_pending_update_or_update_status_request_on_pods()(s),
+        helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s),
         helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s),
         helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s),
         forall |diff: usize| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterCreatePod(diff))(s)),
@@ -44,8 +46,6 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
             (id != controller_id ==> cluster.controller_models.remove(controller_id).contains_key(id)));
         // Invoke non-interference lemma by trigger.
         assert(id != controller_id ==> vrs_not_interfered_by(id)(s));
-    } else {
-        assume(false);
     }
 
     // Dispatch through all the requests which may mutate the k-v store.

@@ -144,6 +144,25 @@ pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePr
 // proof for other state machines within the compound state machine.
 //
 
+pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& !msg.src.is_Controller()
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
+        } ==> {
+            &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != PodView::kind()
+            &&& msg.content.is_delete_request() ==> msg.content.get_delete_request().key.kind != PodView::kind()
+        }
+    }
+}
+//
+// TODO: Prove this.
+//
+// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
+// proof for other state machines within the compound state machine.
+//
 
 pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_step(
     vrs: VReplicaSetView, controller_id: int,

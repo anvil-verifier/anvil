@@ -286,6 +286,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_cont
         match step {
             Step::ControllerStep(input) => {
                 let id = input.0;
+                //assume(self.controller_models.contains_key(id) ==> s.controller_and_externals.contains_key(id));
                 assert forall |msg| 
                     #[trigger] s_prime.in_flight().contains(msg) 
                     && msg.content.is_APIRequest()
