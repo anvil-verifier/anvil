@@ -9,4 +9,3 @@ pub mod controller;
 pub mod external_api;
 pub mod message;
 pub mod network;
-pub mod pod_event;
