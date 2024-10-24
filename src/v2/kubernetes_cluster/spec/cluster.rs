@@ -268,6 +268,7 @@ impl Cluster {
         Action {
             precondition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 &&& self.controller_models.contains_key(controller_id)
+                &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
                 &&& received_msg_destined_for(input.0, HostId::Controller(controller_id))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
@@ -325,6 +326,7 @@ impl Cluster {
                 let object_key = input.1;
                 &&& s.resources().contains_key(object_key)
                 &&& self.controller_models.contains_key(controller_id)
+                &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
                 &&& object_key.kind == self.controller_models[controller_id].reconcile_model.kind
             },
             transition: |input: (int, ObjectRef), s: ClusterState| {
@@ -366,6 +368,7 @@ impl Cluster {
             precondition: |input: int, s: ClusterState| {
                 let controller_id = input;
                 &&& self.controller_models.contains_key(controller_id)
+                &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
                 &&& s.controller_and_externals[controller_id].crash_enabled
             },
             transition: |input: int, s: ClusterState| {
@@ -394,7 +397,8 @@ impl Cluster {
         Action {
             precondition: |input: int, s: ClusterState| {
                 let controller_id = input;
-                self.controller_models.contains_key(controller_id)
+                &&& self.controller_models.contains_key(controller_id)
+                &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
             },
             transition: |input: int, s: ClusterState| {
                 let controller_id = input;
@@ -560,7 +564,9 @@ impl Cluster {
         Action {
             precondition: |input: Option<Message>, s: ClusterState| {
                 &&& self.controller_models.contains_key(controller_id)
+                &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
                 &&& self.controller_models[controller_id].external_model.is_Some()
+                &&& s.controller_and_externals[controller_id].external.is_Some() // redundant, but helps safety proof
                 &&& received_msg_destined_for(input, HostId::External(controller_id))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
@@ -665,6 +671,7 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
+            &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
             &&& received_msg_destined_for(input.1, HostId::Controller(controller_id))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
@@ -686,7 +693,9 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
+            &&& s.controller_and_externals.contains_key(controller_id) // redundant, but helps safety proof
             &&& self.controller_models[controller_id].external_model.is_Some()
+            &&& s.controller_and_externals[controller_id].external.is_Some() // redundant, but helps safety proof
             &&& received_msg_destined_for(input.1, HostId::External(controller_id))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
