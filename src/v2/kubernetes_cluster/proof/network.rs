@@ -1,9 +1,15 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::transition_by_etcd, cluster::*, message::*,
+    api_server::{
+        state_machine::transition_by_etcd,
+        types::*,
+    },
+    cluster::*,
+    controller::types::*,
+    message::*,
 };
-use vstd::prelude::*;
+use vstd::{multiset::*, prelude::*};
 
 verus! {
 
@@ -240,6 +246,76 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
                             assert(pending_req.rpc_id < s.rpc_id_allocator.rpc_id_counter);
                             assert(msg.rpc_id == s.rpc_id_allocator.rpc_id_counter)
                         }
+                    }
+                }
+            }
+        }
+    };
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
+}
+
+pub open spec fn every_in_flight_req_msg_from_controller_has_valid_controller_id(self) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message|
+            #[trigger] s.in_flight().contains(msg)
+            && msg.content.is_APIRequest()
+            && msg.src.is_Controller()
+            ==> self.controller_models.contains_key(msg.src.get_Controller_0())
+    }
+}
+
+pub proof fn lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(self.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+{
+    let invariant = self.every_in_flight_req_msg_from_controller_has_valid_controller_id();
+    let stronger_next = |s, s_prime| {
+        self.next()(s, s_prime)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next())
+    );
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        let step = choose |step| self.next_step(s, s_prime, step);
+        match step {
+            Step::ControllerStep(input) => {
+                let id = input.0;
+                assert forall |msg| 
+                    #[trigger] s_prime.in_flight().contains(msg) 
+                    && msg.content.is_APIRequest()
+                    && msg.src.is_Controller()
+                    implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
+                    if !s.in_flight().contains(msg) {
+                        let controller_result = self.controller(id).next_result(
+                            ControllerActionInput{recv: input.1, scheduled_cr_key: input.2, rpc_id_allocator: s.rpc_id_allocator},
+                            s.controller_and_externals[id].controller
+                        );
+                        let outgoing_messages = controller_result.get_Enabled_1().send;
+                        assert(outgoing_messages == Multiset::<Message>::empty() || outgoing_messages.len() == 1);
+                        if outgoing_messages.len() == 1 {
+                            let elt = outgoing_messages.choose();
+                            if msg == elt {
+                                assert(s_prime.in_flight().contains(elt) 
+                                && elt.content.is_APIRequest()
+                                && elt.src.is_Controller());
+                                assert(elt.src.get_Controller_0() == id);
+                            }
+                        }
+                    }
+                }
+            },
+            _ => {
+                assert forall |msg| 
+                    #[trigger] s_prime.in_flight().contains(msg) 
+                    && msg.content.is_APIRequest()
+                    && msg.src.is_Controller()
+                    implies self.controller_models.contains_key(msg.src.get_Controller_0()) by {
+                    if !s.in_flight().contains(msg) {
+                        // TODO: Make an understandable version of this proof.
+                        assert(false);
                     }
                 }
             }
