@@ -16,6 +16,14 @@ use vstd::prelude::*;
 
 verus! {
 
+// General helper predicates
+pub open spec fn lifted_vrs_non_interference_property(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    lift_state(|s| {
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+    })
+}
+
 // Predicates for reasoning about model states
 
 pub open spec fn at_step_closure(step: VReplicaSetReconcileStep) -> spec_fn(ReconcileLocalState) -> bool {
@@ -27,6 +35,8 @@ pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, 
         let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
         let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
         &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+        &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).is_ok()
+        &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
         &&& triggering_cr.object_ref() == vrs.object_ref()
         &&& triggering_cr.spec() == vrs.spec()
         &&& triggering_cr.metadata().uid == vrs.metadata().uid
