@@ -38,7 +38,7 @@ And `modify1` and `modify2` modifies different parts of the object.
 The problem is how to prove that $C$ eventually successfully writes the object (for at least once) with some fairness assumption.
 Since $C$ races with every controller in $S$ on the version number, the fairness assumption needs to imply that $C$ eventually wins the race (for at least once).
 
-We find that even strong fairness is not sufficient to prove that. To see why, consider the following execution:
+We find that even strong fairness is not sufficient to prove liveness here. To see why, consider the following execution:
 ```
 C                       S
 v1 = read()
@@ -53,4 +53,4 @@ write(..., v2) // err
 ```
 where every time between $C$'s `read` and `write`, some controller from $S$ successfully writes the object, making the version number read by $C$ no longer fresh. In this execution, $C$ runs fairly but it will never successfully writes the object.
 
-Note that this example is realistic. In practice, Kubernetes controllers share objects in this same --- they update different parts of the object by racing with each other. This usually doesn't block any controller's progress indefinitely, because (1) there is usually a long time window between each controller's successful `write` and its next `write` and (2) if a controller's `write` fails, it can aggressively retry `read`-`if P { write }`.
+Note that this example is realistic. In practice, Kubernetes controllers share objects in this same --- they update different parts of the object while racing with each other. This usually doesn't block any controller's progress indefinitely, because (1) there is usually a long time window between each controller's successful `write` and its next `write`, (2) if a controller's `write` fails, it can aggressively retry `read; if P { write; }`, and (3) there aren't too many controllers sharing the same object at the same time.
