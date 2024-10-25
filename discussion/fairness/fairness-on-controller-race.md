@@ -22,7 +22,8 @@ for {
     ... // do something
 }
 ```
-and there is a set of other controllers $S$ ($S$ won't grow) that each of them runs:
+
+And there is a set of other controllers $S$ ($S$ won't grow) that each of them runs:
 ```
 for {
     ... // do something
@@ -33,7 +34,9 @@ for {
     ... // do something
 }
 ```
-And `modify1` and `modify2` modifies different parts of the object.
+
+Assume that initially `P` holds true for the object in etcd and only $C$'s `write` invalidates `P`.
+That is, $C$ will retry its `write` until it succeeds.
 
 The problem is how to prove that $C$ eventually successfully writes the object (for at least once) with some fairness assumption.
 Since $C$ races with every controller in $S$ on the version number, the fairness assumption needs to imply that $C$ eventually wins the race (for at least once).
