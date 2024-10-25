@@ -1,11 +1,12 @@
 When verifying interactions between controllers, we find it hard to specify the fairness assumptions that allow controllers to make progress while there are races on the resource version number of the same object (stored in etcd).
 
 ## Background
-Kubernetes controllers often employ a pattern that it reads an object from etcd (which uses version control for stored objects) and then writes the updated object back to etcd.
+Kubernetes controllers often employ a pattern that it reads an object from etcd and then writes the updated object back to etcd. 
 Note that:
+- etcd uses version based concurrency control for each object, and the version numbers behave like logical timestamps
 - each object in etcd has its own version number
 - each write to the object in etcd will increment its version number
-- each write must carry a version number, and the write succeeds only if the carried number equals to the current version number of that object
+- each write must carry a version number `v`, and the write succeeds only if `v` equals to the current version number of that object
 
 ## Problem
 Now suppose our controller $C$ runs:
@@ -38,10 +39,16 @@ for {
 Assume that initially `P` holds true for the object in etcd and only $C$'s `write` invalidates `P`.
 That is, $C$ will retry its `write` until it succeeds.
 
-The problem is how to prove that $C$ eventually successfully writes the object (for at least once) with some fairness assumption.
-Since $C$ races with every controller in $S$ on the version number, the fairness assumption needs to imply that $C$ eventually wins the race (for at least once).
+The pseudocode above turns into state machine actions: in each (atomic) action, a controller receives the response from the last request it sent (if any), performs internal computation, and then sends one request (`read` or `write`) to the network. We do NOT assume the entire block is atomic.
 
-We find that even strong fairness is not sufficient to prove liveness here. To see why, consider the following execution:
+The network and etcd are also modeled as state machine actions. The network connects controllers to etcd has delay and can reorder messages. In each (atomic) action, etcd handles on request sent by some controller and sends a reply to the network.
+
+We currently assume fairness on controller's actions and etcd's actions.
+
+The problem is how to prove that $C$ eventually successfully writes the object (for at least once).
+Since $C$ races with every controller in $S$ on the version number, we need to prove that $C$ eventually wins the race (for at least once).
+
+*However, we find that neither weak fairness nor strong fairness can solve the problem.* To see why, consider the following execution:
 ```
 C                       S
 v1 = read()
