@@ -483,7 +483,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                         assert(resp_objs == selected_elements.to_seq());
                         assert(selected_elements.contains(o));
                     }
-                    seq_pred_false_on_all_elements_implies_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
+                    seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
 
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -535,7 +535,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
             assert(resp_objs == selected_elements.to_seq());
             assert(selected_elements.contains(o));
         }
-        seq_pred_false_on_all_elements_implies_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
+        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
 
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
