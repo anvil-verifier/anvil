@@ -112,4 +112,15 @@ pub proof fn seq_pred_false_on_all_elements_is_equivalent_to_empty_filter<A>(s: 
 // If `pred` is false on every element, filter will return an empty sequence.
 //
 
+#[verifier(external_body)]
+pub proof fn seq_filter_preserves_no_duplicates<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    requires s.no_duplicates(),
+    ensures s.filter(pred).no_duplicates();
+//
+// TODO: Prove this -- Trivial.
+//
+// Since the parent sequence has no duplicates, and the filtered sequence only removes elements,
+// that sequence also has no duplicates.
+//
+
 }
