@@ -741,11 +741,12 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                     a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
                     assert(matching_pod_entries(vrs, s.resources()).insert(key, created_obj) == matching_pod_entries(vrs, s_prime.resources()));
                 } else {
-                    a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
-                    lemma_api_request_not_made_by_vrs_maintains_matching_pods(
-                        s, s_prime, vrs, cluster, controller_id, diff, msg, Some(req_msg),
-                    );
-                    assert(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
+                    assert_by(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()), {
+                        a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
+                        lemma_api_request_not_made_by_vrs_maintains_matching_pods(
+                            s, s_prime, vrs, cluster, controller_id, diff, msg, Some(req_msg),
+                        );
+                    });
                 }                
             },
             _ => {}
