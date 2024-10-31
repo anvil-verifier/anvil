@@ -70,7 +70,7 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
 }
 
 // TODO: Prove this lemma.
-// Annoying sequence reasoning.
+// More comments sketching an informal proof in the body.
 #[verifier(external_body)]
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
@@ -95,6 +95,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     let pods = pods_or_none.unwrap();
     let filtered_pods = filter_pods(pods, vrs);
 
+    // We've proved the first property of filtered_pods.
     assert(pods.no_duplicates());
     let pred = |pod: PodView|
         pod.metadata.owner_references_contains(vrs.controller_owner_ref())
@@ -103,17 +104,13 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     seq_filter_preserves_no_duplicates(pods, pred);
     assert(filtered_pods.no_duplicates());
     
+    // We now must prove that the number of elements of `filtered_pods` is equal to the number
+    // of matching pods. This is true by the way we construct `filtered_pods`.
     assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len());
-    assume(filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values());
 
-    // let filtered_pods_set = filtered_pods.map_values(|p: PodView| p.marshal()).to_set();
-    // let matching_pods_set = matching_pod_entries(vrs, s.resources()).values();
-    // assert forall |o: DynamicObjectView| #[trigger] filtered_pods_set.contains(o) implies matching_pods_set.contains(o) by {
-    //     //assume(false);
-    // } 
-    // assert forall |o: DynamicObjectView| #[trigger] matching_pods_set.contains(o) implies filtered_pods_set.contains(o) by {
-    //     //assume(false);
-    // } 
+    // We now must prove that the elements of `filtered_pods` are precisely the matching pod
+    // entries. This is also true by construction.
+    assert(filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values());
 }
 
 }
