@@ -1,9 +1,9 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::temporal_logic::{defs::*, rules::*};
+use crate::temporal_logic::{defs::*};
 use crate::vreplicaset_controller::{
-    model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    model::{install::*},
+    trusted::{liveness_theorem::*, spec_types::*},
 };
 use vstd::prelude::*;
 
