@@ -11,8 +11,9 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{predicate::*},
+    proof::{helper_invariants, predicate::*},
 };
+use crate::vstd_ext::seq_lib::*;
 use vstd::prelude::*;
 
 verus! {
@@ -66,6 +67,50 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
             }
         }
     );
+}
+
+// TODO: Prove this lemma.
+// More comments sketching an informal proof in the body.
+#[verifier(external_body)]
+pub proof fn lemma_filtered_pods_set_equals_matching_pods(
+    s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
+    controller_id: int, resp_msg: Message
+)
+    requires
+        resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
+    ensures
+        ({
+            let objs = resp_msg.content.get_list_response().res.unwrap();
+            let pods_or_none = objects_to_pods(objs);
+            let pods = pods_or_none.unwrap();
+            let filtered_pods = filter_pods(pods, vrs);
+            &&& filtered_pods.no_duplicates()
+            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len()
+            &&& filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values()
+        }),
+{
+    let pre = resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s);
+    let objs = resp_msg.content.get_list_response().res.unwrap();
+    let pods_or_none = objects_to_pods(objs);
+    let pods = pods_or_none.unwrap();
+    let filtered_pods = filter_pods(pods, vrs);
+
+    // We've proved the first property of filtered_pods.
+    assert(pods.no_duplicates());
+    let pred = |pod: PodView|
+        pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+        && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+        && pod.metadata.deletion_timestamp.is_None();
+    seq_filter_preserves_no_duplicates(pods, pred);
+    assert(filtered_pods.no_duplicates());
+    
+    // We now must prove that the number of elements of `filtered_pods` is equal to the number
+    // of matching pods. This is true by the way we construct `filtered_pods`.
+    assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len());
+
+    // We now must prove that the elements of `filtered_pods` are precisely the matching pod
+    // entries. This is also true by construction.
+    assert(filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values());
 }
 
 }

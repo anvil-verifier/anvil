@@ -153,6 +153,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
                 // The matching pods must be a subset of the response.
                 &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
                 &&& objects_to_pods(resp_objs).is_Some()
+                &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
             }
         }
     }
@@ -183,6 +184,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
             // The matching pods must be a subset of the response.
             &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
             &&& objects_to_pods(resp_objs).is_Some()
+            &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
         }
     }
 }

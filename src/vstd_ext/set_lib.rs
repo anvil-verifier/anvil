@@ -18,4 +18,14 @@ pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
 // anything in that constructed sequence will be part of the original set.
 //
 
+#[verifier(external_body)]
+pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: Set<A>)
+    requires s.finite(),
+    ensures s.to_seq().no_duplicates();
+//
+// TODO: Prove this -- Trivial.
+// 
+// The `to_seq()` construction applied to a set will not introduce duplicates.
+//
+
 }
