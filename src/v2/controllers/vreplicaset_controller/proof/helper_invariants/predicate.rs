@@ -245,6 +245,7 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
             let filtered_pods = state.filtered_pods.unwrap();
             let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
             &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+            &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
             &&& state.filtered_pods.is_Some()
             &&& diff <= filtered_pod_keys.len()
             &&& filtered_pod_keys.no_duplicates()
