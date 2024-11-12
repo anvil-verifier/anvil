@@ -199,32 +199,31 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
             let req = content.get_delete_request();
-            let req_rv = req.preconditions.unwrap().resource_version.unwrap();
-            let key = req.key;
-            let obj = s.resources()[key];
+            let obj = s.resources()[req.key];
             &&& s.in_flight().contains(msg)
             &&& msg.src.is_Controller()
             &&& msg.src.get_Controller_0() == controller_id
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
             &&& content.is_delete_request()
-            &&& s.resources().contains_key(key)
+            &&& s.resources().contains_key(req.key)
             &&& owned_selector_match_is(vrs, obj)
         } ==> {
             let content = msg.content;
             let req = content.get_delete_request();
-            let req_rv = req.preconditions.unwrap().resource_version.unwrap();
-            let key = req.key;
-            let obj = s.resources()[key];
+            let obj = s.resources()[req.key];
             &&& exists |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
-
-            // Delete precondition clauses.
+            // NOTE: We require that the resource version in etcd is
+            // equal to the one carried by the delete request to
+            // exclude the case where another reconcile working on another
+            // vrs object tries to delete the same object.
             &&& req.preconditions.is_Some()
             &&& req.preconditions.unwrap().resource_version.is_Some()
             &&& obj.metadata.uid.is_None()
             &&& obj.metadata.resource_version.is_Some()
-            &&& obj.metadata.resource_version.unwrap() == req_rv
+            &&& obj.metadata.resource_version.unwrap() == 
+                    req.preconditions.unwrap().resource_version.unwrap()
         }
     }
 }
