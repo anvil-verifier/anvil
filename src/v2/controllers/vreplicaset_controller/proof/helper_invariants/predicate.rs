@@ -198,15 +198,15 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
     |s: ClusterState| {
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
-            let req = content.get_delete_request();
-            let obj = s.resources()[req.key];
+            let key = content.get_delete_request().key;
+            let obj = s.resources()[key];
             &&& s.in_flight().contains(msg)
             &&& msg.src.is_Controller()
             &&& msg.src.get_Controller_0() == controller_id
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
             &&& content.is_delete_request()
-            &&& s.resources().contains_key(req.key)
+            &&& s.resources().contains_key(key)
             &&& owned_selector_match_is(vrs, obj)
         } ==> {
             let content = msg.content;
