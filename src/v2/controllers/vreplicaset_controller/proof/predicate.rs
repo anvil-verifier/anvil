@@ -24,6 +24,15 @@ pub open spec fn lifted_vrs_non_interference_property(cluster: Cluster, controll
     })
 }
 
+pub open spec fn lifted_vrs_non_interference_property_action(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    lift_action(|s, s_prime| {
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vrs_not_interfered_by(other_id)(s))
+        && (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime))
+    })
+}
+
 // Predicates for reasoning about model states
 
 pub open spec fn at_step_closure(step: VReplicaSetReconcileStep) -> spec_fn(ReconcileLocalState) -> bool {
