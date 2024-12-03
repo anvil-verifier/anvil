@@ -185,12 +185,6 @@ pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_s
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// We know that if VReplicaSet sends a create matching pod request, that it's at an `AfterCreatePod` state.
-// We show this for the other state machines by showing they don't create matching pods.
-//
 
 pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_step(
     vrs: VReplicaSetView, controller_id: int,
@@ -228,11 +222,6 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// The proof sketch for this invariant is similar to the above.
-//
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView, controller_id: int,
