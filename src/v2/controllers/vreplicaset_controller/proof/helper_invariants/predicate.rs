@@ -198,6 +198,7 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
     |s: ClusterState| {
         forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
             let content = msg.content;
+            let req = content.get_delete_request();
             let key = content.get_delete_request().key;
             let obj = s.resources()[key];
             &&& s.in_flight().contains(msg)
@@ -208,22 +209,22 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
             &&& content.is_delete_request()
             &&& s.resources().contains_key(key)
             &&& owned_selector_match_is(vrs, obj)
-        } ==> {
-            let content = msg.content;
-            let req = content.get_delete_request();
-            let obj = s.resources()[req.key];
-            &&& exists |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
-            &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
             // NOTE: We require that the resource version in etcd is
             // equal to the one carried by the delete request to
             // exclude the case where another reconcile working on another
             // vrs object tries to delete the same object.
             &&& req.preconditions.is_Some()
             &&& req.preconditions.unwrap().resource_version.is_Some()
-            &&& obj.metadata.uid.is_None()
+            &&& req.preconditions.unwrap().uid.is_None()
             &&& obj.metadata.resource_version.is_Some()
             &&& obj.metadata.resource_version.unwrap() == 
                     req.preconditions.unwrap().resource_version.unwrap()
+        } ==> {
+            let content = msg.content;
+            let req = content.get_delete_request();
+            let obj = s.resources()[req.key];
+            &&& exists |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
+            &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         }
     }
 }

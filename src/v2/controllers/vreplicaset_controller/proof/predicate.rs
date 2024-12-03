@@ -306,6 +306,8 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
         let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
+        let key = request.get_DeleteRequest_0().key;
+        let obj = s.resources()[key];
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
@@ -314,6 +316,16 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
         &&& msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
         &&& delete_constraint(vrs, request.get_DeleteRequest_0())(s)
+        // NOTE: We require that the resource version in etcd is
+        // equal to the one carried by the delete request to
+        // exclude the case where another reconcile working on another
+        // vrs object tries to delete the same object.
+        &&& request.get_DeleteRequest_0().preconditions.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().resource_version.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().uid.is_None()
+        &&& obj.metadata.resource_version.is_Some()
+        &&& obj.metadata.resource_version.unwrap() == 
+                request.get_DeleteRequest_0().preconditions.unwrap().resource_version.unwrap()
     }
 }
 
@@ -323,6 +335,8 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
     |s: ClusterState| {
         let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
         let request = req_msg.content.get_APIRequest_0();
+        let key = request.get_DeleteRequest_0().key;
+        let obj = s.resources()[key];
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
@@ -331,6 +345,16 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
         &&& req_msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
         &&& delete_constraint(vrs, request.get_DeleteRequest_0())(s)
+        // NOTE: We require that the resource version in etcd is
+        // equal to the one carried by the delete request to
+        // exclude the case where another reconcile working on another
+        // vrs object tries to delete the same object.
+        &&& request.get_DeleteRequest_0().preconditions.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().resource_version.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().uid.is_None()
+        &&& obj.metadata.resource_version.is_Some()
+        &&& obj.metadata.resource_version.unwrap() == 
+                request.get_DeleteRequest_0().preconditions.unwrap().resource_version.unwrap()
     }
 }
 
