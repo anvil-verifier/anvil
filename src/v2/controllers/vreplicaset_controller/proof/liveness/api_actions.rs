@@ -31,6 +31,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s),
         helper_invariants::no_pending_update_or_update_status_request_on_pods()(s),
         helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s),
+        helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s),
         helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s),
         helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s),
         forall |diff: usize| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterCreatePod(diff))(s)),
@@ -98,6 +99,7 @@ pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
         helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s),
         helper_invariants::no_pending_update_or_update_status_request_on_pods()(s),
         helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s),
+        helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s),
         helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s),
         helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)

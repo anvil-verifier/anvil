@@ -123,4 +123,14 @@ pub proof fn seq_filter_preserves_no_duplicates<A>(s: Seq<A>, pred: spec_fn(A) -
 // that sequence also has no duplicates.
 //
 
+#[verifier(external_body)]
+pub proof fn seq_filter_contains_implies_seq_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, elt: A)
+    requires s.filter(pred).contains(elt),
+    ensures s.contains(elt);
+//
+// TODO: Prove this -- Trivial.
+//
+// Anything in the 
+//
+
 }

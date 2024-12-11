@@ -223,6 +223,54 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
     }
 }
 
+pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            ==> {
+                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                let filtered_pods = state.filtered_pods.unwrap();
+                &&& triggering_cr.object_ref() == key
+                &&& triggering_cr.metadata().well_formed()
+                &&& state.filtered_pods.is_Some()
+                // Maintained across deletes, 
+                // maintained across creates since all new keys with generate_name
+                // are unique, maintained across updates since there are
+                // no updates.
+                &&& forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
+                    (
+                        filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                        && (s.resources().contains_key(filtered_pods[i].object_ref()) ==>
+                            s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
+                                triggering_cr.controller_owner_ref()
+                            ))
+                    )
+                // Special case: the above property holds on a list response to the
+                // appropriate request. 
+                &&& forall |msg| {
+                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& msg.content.is_list_response()
+                    } ==> {
+                        let resp_objs = msg.content.get_list_response().res.unwrap();
+                        &&& msg.content.get_list_response().res.is_Ok()
+                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() != 0 
+                        &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
+                        (
+                            resp_objs[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                            && (s.resources().contains_key(resp_objs[i].object_ref()) ==>
+                                    s.resources()[resp_objs[i].object_ref()].metadata
+                                        == resp_objs[i].metadata
+                                )
+                        )
+                    }
+            }
+    }
+}
+
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
@@ -256,6 +304,34 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
 // 
 // This invariant may have to be moved to a later phase, since I think this invariant will rely
 // on other invariants.
+//
+
+pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(
+    vrs: VReplicaSetView, controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
+            let content = msg.content;
+            let req = content.get_delete_request();
+            &&& s.in_flight().contains(msg)
+            &&& msg.src.is_Controller()
+            &&& msg.src.get_Controller_0() == controller_id
+            &&& msg.content.is_APIRequest()
+            &&& content.is_delete_request()
+        } ==> {
+            let content = msg.content;
+            let req = content.get_delete_request();
+            &&& req.preconditions.is_Some()
+            &&& req.preconditions.unwrap().resource_version.is_Some()
+            &&& req.preconditions.unwrap().uid.is_None()
+            &&& req.preconditions.unwrap().resource_version.unwrap() < s.api_server.resource_version_counter
+        }
+    }
+}
+//
+// TODO: Prove this.
+//
+// Every delete request must be on an object with a resource version less than the resource version counter.
 //
 
 }

@@ -226,6 +226,22 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed<T: CustomResourceVi
     always_weaken::<ClusterState>(spec, lift_state(p), lift_state(invariant));
 }
 
+// TODO: Prove this.
+pub open spec fn each_object_in_etcd_has_at_most_one_controller_owner() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.resources().contains_key(key)
+                ==> {
+                    let obj = s.resources()[key];
+                    let owners = obj.metadata.owner_references.get_Some_0();
+                    let controller_owners = owners.filter(
+                        |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                    );
+                    obj.metadata.owner_references.is_Some() ==> controller_owners.len() <= 1
+                }
+    }
+}
+
 }
 
 }
