@@ -46,6 +46,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
     ensures
@@ -90,6 +91,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
@@ -113,6 +115,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
@@ -167,8 +170,9 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))
     ensures
         spec.entails(
             lift_state(
@@ -212,6 +216,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
@@ -236,6 +241,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
@@ -479,6 +485,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
         diff < 0,
@@ -528,6 +535,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
@@ -555,6 +563,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
@@ -829,6 +838,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
 
@@ -880,6 +890,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
@@ -907,6 +918,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
@@ -970,6 +982,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
         diff > 0,
@@ -1019,6 +1032,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
@@ -1046,6 +1060,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
@@ -1079,6 +1094,9 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                     let filtered_pods_as_set = filtered_pods_as_objects.to_set();
                     assert(filtered_pods_as_objects[diff - 1] == filtered_pods[diff - 1].marshal());
                     assert(filtered_pods_as_set.contains(filtered_pods[diff - 1].marshal()));
+
+                    let key = filtered_pods[diff - 1].object_ref();
+                    let obj = s.resources()[key];
                 }
             },
             _ => {}
@@ -1116,6 +1134,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
 
@@ -1164,6 +1183,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
@@ -1189,6 +1209,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
     );
@@ -1279,6 +1300,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
@@ -1332,6 +1354,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)(s)
@@ -1363,6 +1386,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)),
+        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id))
     );
 

@@ -69,6 +69,63 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
     );
 }
 
+pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+    ensures
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))))
+        <==>
+            spec.entails(always(lifted_vrs_non_interference_property_action(cluster, controller_id))),
+{
+    let lhs = 
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))));
+    let rhs = spec.entails(always(lifted_vrs_non_interference_property_action(cluster, controller_id)));
+
+    assert_by(
+        lhs ==> rhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                lhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies 
+                vrs_not_interfered_by(other_id)(ex.suffix(n).head())
+                && vrs_not_interfered_by(other_id)(ex.suffix(n).head_next()) by {
+                // Gradually unwrap the semantics of `spec.entails(always(lift_state(vrs_not_interfered_by(other_id))))`
+                // until Verus can show the consequent.
+                assert(valid(spec.implies(always(lift_state(vrs_not_interfered_by(other_id))))));
+                assert(spec.implies(always(lift_state(vrs_not_interfered_by(other_id)))).satisfied_by(ex));
+                assert(always(lift_state(vrs_not_interfered_by(other_id))).satisfied_by(ex));
+                assert(lift_state(vrs_not_interfered_by(other_id)).satisfied_by(ex.suffix(n)));
+                assert(lift_state(vrs_not_interfered_by(other_id)).satisfied_by(ex.suffix(n + 1)));
+            }
+        }
+    );
+    
+    assert_by(
+        rhs ==> lhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, other_id: int| #![auto]
+                rhs
+                && spec.satisfied_by(ex)
+                && cluster.controller_models.remove(controller_id).contains_key(other_id)
+                implies 
+                vrs_not_interfered_by(other_id)(ex.suffix(n).head())
+                && vrs_not_interfered_by(other_id)(ex.suffix(n).head_next()) by {
+                // Gradually unwrap the semantics of `spec.entails(always(lifted_vrs_non_interference_property_action(cluster, controller_id)))`
+                // until Verus can show the consequent.
+                assert(valid(spec.implies(always(lifted_vrs_non_interference_property_action(cluster, controller_id)))));
+                assert(spec.implies(always(lifted_vrs_non_interference_property_action(cluster, controller_id))).satisfied_by(ex));
+                assert(always(lifted_vrs_non_interference_property_action(cluster, controller_id)).satisfied_by(ex));
+                assert(lifted_vrs_non_interference_property_action(cluster, controller_id).satisfied_by(ex.suffix(n)));
+                assert(lifted_vrs_non_interference_property_action(cluster, controller_id).satisfied_by(ex.suffix(n + 1)));
+            }
+        }
+    );
+}
+
 // TODO: Prove this lemma.
 // More comments sketching an informal proof in the body.
 #[verifier(external_body)]
