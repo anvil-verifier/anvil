@@ -29,11 +29,18 @@ pub open spec fn cluster_resources_is_finite() -> StatePred<ClusterState> {
 } 
 
 pub open spec fn vrs_replicas_bounded(
-    vrs: VReplicaSetView
+    vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        0 <= vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
+        let triggering_cr_result = 
+            VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr);
+        (s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+        && triggering_cr_result.is_Ok())
+        ==> triggering_cr_result.unwrap().state_validation()
     }
+    // |s: ClusterState| {
+    //     0 <= vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
+    // }
 }
 //
 // TODO: Prove this.

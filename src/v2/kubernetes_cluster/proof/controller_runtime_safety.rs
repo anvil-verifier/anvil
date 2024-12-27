@@ -217,6 +217,78 @@ pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(self, spec: Temp
     init_invariant(spec, self.init(), stronger_next, invariant);
 }
 
+pub open spec fn cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceView>() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            let unmarshal_result = 
+                T::unmarshal(s.resources()[key]);
+            #[trigger] s.resources().contains_key(key)
+            && key.kind.is_CustomResourceKind()
+            && key.kind == T::kind()
+            ==> unmarshal_result.is_Ok()
+                && unmarshal_result.unwrap().state_validation()
+        }
+    }
+}
+
+pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceView>(
+    spec: TempPred<ClusterState>, cluster: Cluster,
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<T>()))),
+        cluster.type_is_installed_in_cluster::<T>(),
+    ensures spec.entails(always(lift_state(Self::cr_objects_in_etcd_satisfy_state_validation::<T>()))),
+{
+    let inv = Self::cr_objects_in_etcd_satisfy_state_validation::<T>();
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<T>()(s)
+    };
+
+    T::marshal_preserves_integrity();
+    T::marshal_spec_preserves_integrity();
+    T::marshal_status_preserves_integrity();
+    T::unmarshal_result_determined_by_unmarshal_spec_and_status();
+    T::validation_result_determined_by_spec_and_status();
+    
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<T>())
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
+pub open spec fn cr_objects_in_schedule_satisfy_state_validation<T: CustomResourceView>(
+    controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            let unmarshal_result = 
+                T::unmarshal(s.scheduled_reconciles(controller_id)[key]);
+            #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
+            && key.kind.is_CustomResourceKind()
+            && key.kind == T::kind()
+            ==> unmarshal_result.is_Ok()
+                && unmarshal_result.unwrap().state_validation()
+        }
+    }
+}
+
+pub open spec fn the_object_in_reconcile_satisfies_state_validation<T: CustomResourceView>(
+    key: ObjectRef, controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let unmarshal_result = 
+            T::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr);
+        s.ongoing_reconciles(controller_id).contains_key(key)
+        ==> unmarshal_result.is_Ok()
+            && unmarshal_result.unwrap().state_validation()
+    }
+}
+
 }
 
 }

@@ -18,6 +18,61 @@ use vstd::prelude::*;
 
 verus!{
 
+pub proof fn lemma_always_vrs_replicas_bounded(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        // spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        // spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        // spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        // spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        // spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        // spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        // spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        // spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        // spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        // spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        // spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        // forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+        //     ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+    ensures spec.entails(always(lift_state(vrs_replicas_bounded(vrs, controller_id)))),
+{
+    assume(false);
+    // let stronger_next = |s, s_prime| {
+    //     &&& cluster.next()(s, s_prime)
+    //     &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    //     &&& Cluster::desired_state_is(vrs)(s)
+    //     &&& vrs_replicas_bounded(vrs, controller_id)(s)
+    // };
+    // assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies vrs_replicas_bounded(vrs, controller_id)(s) by {
+    //     let key = vrs.object_ref();
+    //     VReplicaSetView::marshal_preserves_integrity();
+    //     assert(s.resources().contains_key(key));
+    // //     if s_prime.ongoing_reconciles(controller_id).contains_key(key) && state(s_prime.ongoing_reconciles(controller_id)[key].local_state) {
+    // //         if s.controller_and_externals[controller_id] == s_prime.controller_and_externals[controller_id] {
+    // //             assert(s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
+    // //             assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
+    // //         } else {
+    // //             assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
+    // //         }
+    // //     }
+    // }
+
+    // invariant_n!(
+    //     spec, lift_action(stronger_next),
+    //     lift_state(vrs_replicas_bounded(vrs, controller_id)),
+    //     lift_action(cluster.next()),
+    //     lift_state(Cluster::there_is_the_controller_state(controller_id)),
+    //     lift_state(Cluster::desired_state_is(vrs)),
+    // );
+}
+
 pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
