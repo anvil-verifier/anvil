@@ -38,7 +38,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -84,7 +84,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
@@ -109,7 +109,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_non_interference_property(cluster, controller_id),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
@@ -161,7 +161,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -208,7 +208,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
@@ -234,7 +234,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_non_interference_property(cluster, controller_id),
         lift_state(helper_invariants::cluster_resources_is_finite()),
@@ -473,7 +473,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
@@ -524,7 +524,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
@@ -553,7 +553,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
@@ -614,7 +614,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -663,7 +663,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
@@ -689,7 +689,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_non_interference_property(cluster, controller_id),
         lift_state(helper_invariants::cluster_resources_is_finite()),
@@ -826,7 +826,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
@@ -879,7 +879,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
@@ -908,7 +908,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
@@ -970,7 +970,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
@@ -1021,7 +1021,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
@@ -1050,7 +1050,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
@@ -1124,7 +1124,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -1174,7 +1174,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
@@ -1201,7 +1201,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_non_interference_property(cluster, controller_id),
         lift_state(helper_invariants::cluster_resources_is_finite()),
@@ -1287,7 +1287,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
@@ -1342,7 +1342,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
-        &&& cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
@@ -1373,7 +1373,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
-        lift_state(cluster.each_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
