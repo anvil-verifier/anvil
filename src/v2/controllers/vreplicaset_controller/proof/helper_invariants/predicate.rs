@@ -17,39 +17,8 @@ use vstd::prelude::*;
 
 verus!{
 
-// MAJOR CHANGES TO MAKE:
-// Distinguish API messages coming from different sources in invariants
-
-pub open spec fn vrs_is_well_formed(vrs: VReplicaSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| vrs.well_formed()
-}
-
-pub open spec fn cluster_resources_is_finite() -> StatePred<ClusterState> {
-    |s: ClusterState| s.resources().dom().finite()
-} 
-
-pub open spec fn vrs_replicas_bounded(
-    vrs: VReplicaSetView, controller_id: int,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let triggering_cr_result = 
-            VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr);
-        (s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
-        && triggering_cr_result.is_Ok())
-        ==> triggering_cr_result.unwrap().state_validation()
-    }
-    // |s: ClusterState| {
-    //     0 <= vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
-    // }
-}
-//
-// TODO: Prove this.
-//
-// This should be easy to enforce with state validation.
-//
-
 pub open spec fn matching_pods_bounded(
-    vrs: VReplicaSetView
+    vrs: VReplicaSetView,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         0 <= matching_pod_entries(vrs, s.resources()).len() <= i32::MAX // As allowed by the previous invariant.
@@ -58,28 +27,7 @@ pub open spec fn matching_pods_bounded(
 //
 // TODO: Prove this.
 //
-// This should be easy to enforce with state validation.
-//
-
-pub open spec fn vrs_selector_matches_template_labels(
-    vrs: VReplicaSetView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let match_value = 
-            if vrs.spec.template.is_none()
-            || vrs.spec.template.unwrap().metadata.is_none()
-            || vrs.spec.template.unwrap().metadata.unwrap().labels.is_none() {
-                Map::empty()
-            } else {
-                vrs.spec.template.unwrap().metadata.unwrap().labels.unwrap()
-            };
-        vrs.spec.selector.matches(match_value)
-    }
-}
-//
-// TODO: Prove this.
-//
-// This should be easy to enforce with state validation.
+// This actually is quite difficult.
 //
 
 // TODO: should not need to be a safety property.
@@ -144,12 +92,6 @@ pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePr
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
-// proof for other state machines within the compound state machine.
-//
 
 pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods() -> StatePred<ClusterState> {
     |s: ClusterState| {
