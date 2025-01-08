@@ -93,11 +93,33 @@ pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePr
     }
 }
 
+pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src.is_BuiltinController()
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
+        } ==> {
+            let key = msg.content.get_delete_request().key; 
+                // if msg.content.is_create_request() {
+                //     msg.content.get_create_request().key()
+                // } else {
+                    
+                // };
+
+            &&& msg.content.is_delete_request()
+            &&& s.resources().contains_key(key)
+                    ==> !matching_pod_entries(vrs, s.resources()).contains_key(key)
+        }
+    }
+}
+
 pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& !msg.src.is_Controller()
+            &&& !(msg.src.is_Controller() || msg.src.is_BuiltinController())
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         } ==> {
