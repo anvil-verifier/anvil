@@ -101,16 +101,14 @@ pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         } ==> {
-            let key = msg.content.get_delete_request().key; 
-                // if msg.content.is_create_request() {
-                //     msg.content.get_create_request().key()
-                // } else {
-                    
-                // };
-
+            let req = msg.content.get_delete_request(); 
             &&& msg.content.is_delete_request()
-            &&& s.resources().contains_key(key)
-                    ==> !matching_pod_entries(vrs, s.resources()).contains_key(key)
+            &&& req.preconditions.is_Some()
+            &&& req.preconditions.unwrap().uid.is_Some()
+            &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key)
+                    ==> (!matching_pod_entries(vrs, s.resources()).contains_key(req.key)
+                          || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
         }
     }
 }

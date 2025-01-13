@@ -190,6 +190,136 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
     );
 }
 
+pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs))))),
+{
+    let requirements = |msg: Message, s: ClusterState| {
+        ({
+            &&& msg.src.is_BuiltinController()
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
+        })
+        ==>
+        ({
+            let req = msg.content.get_delete_request(); 
+            &&& msg.content.is_delete_request()
+            &&& req.preconditions.is_Some()
+            &&& req.preconditions.unwrap().uid.is_Some()
+            &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key)
+                    ==> (!matching_pod_entries(vrs, s.resources()).contains_key(req.key)
+                          || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
+        })
+    };
+    let requirements_antecedent = |msg: Message, s: ClusterState| {
+        &&& msg.src.is_BuiltinController()
+        &&& msg.dst.is_APIServer()
+        &&& msg.content.is_APIRequest()
+    };
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
+        &&& no_pending_update_or_update_status_request_on_pods()(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+    };
+
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies requirements(msg, s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            match step {
+                Step::BuiltinControllersStep(..) => {
+                    if (!s.in_flight().contains(msg) && requirements_antecedent(msg, s_prime)) {
+                        let key = msg.content.get_delete_request().key;
+                        let obj = s.resources()[key];
+                        let owner_references = obj.metadata.owner_references.get_Some_0();
+                        assert(forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {
+                            // the referred owner object does not exist in the cluster state
+                            ||| !s.resources().contains_key(owner_reference_to_object_reference(owner_references[i], key.namespace))
+                            // or it exists but has a different uid
+                            // (which means the actual owner was deleted and another object with the same name gets created again)
+                            ||| s.resources()[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
+                        });
+                        if (matching_pod_entries(vrs, s.resources()).contains_key(key)) {
+                            assert(obj.metadata.owner_references_contains(vrs.controller_owner_ref()));
+                            let idx = choose |i| 0 <= i < owner_references.len() && owner_references[i] == vrs.controller_owner_ref();
+                            assert(s.resources().contains_key(vrs.object_ref()));
+                        }
+                    }
+                },
+                _ => {}
+            }
+        }
+    }
+    
+    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+        spec, cluster, controller_id
+    );
+    invariant_n!(
+        spec, lift_action(stronger_next), 
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
+        lift_state(no_pending_update_or_update_status_request_on_pods()),
+        lifted_vrs_non_interference_property_action(cluster, controller_id)
+    );
+
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+}
+
 pub proof fn lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
