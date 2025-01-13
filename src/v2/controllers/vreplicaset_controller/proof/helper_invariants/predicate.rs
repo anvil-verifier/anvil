@@ -334,4 +334,12 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
 // Every delete request must be on an object with a resource version less than the resource version counter.
 //
 
+pub open spec fn vrs_does_not_have_deletion_timestamp (
+    vrs: VReplicaSetView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vrs_obj = s.resources()[vrs.object_ref()];
+        vrs_obj.metadata.deletion_timestamp.is_None()
+    }
+}
 }

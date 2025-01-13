@@ -538,6 +538,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_does_not_have_deletion_timestamp(vrs)(s)
     };
     helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
         spec, cluster, controller_id
@@ -565,7 +566,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
         lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)),
+        lift_state(helper_invariants::vrs_does_not_have_deletion_timestamp(vrs))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -985,6 +987,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_does_not_have_deletion_timestamp(vrs)))),
         diff > 0,
     ensures
         spec.entails(

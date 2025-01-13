@@ -120,6 +120,13 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
             if pods_or_none.is_none() {
                 return (error_state(state), None);
             }
+            if v_replica_set.metadata().has_deletion_timestamp() {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                return (state_prime, None);
+            }
             let pods = pods_or_none.unwrap();
             let filtered_pods = filter_pods(pods, v_replica_set);
             let replicas = v_replica_set.spec().replicas().unwrap_or(0);
