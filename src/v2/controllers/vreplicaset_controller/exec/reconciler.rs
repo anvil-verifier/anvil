@@ -99,6 +99,13 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
     let namespace = v_replica_set.metadata().namespace().unwrap();
     match &state.reconcile_step {
         VReplicaSetReconcileStep::Init => {
+            if v_replica_set.metadata().has_deletion_timestamp() {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                return (state_prime, None);
+            }
             let req = KubeAPIRequest::ListRequest(KubeListRequest {
                 api_resource: Pod::api_resource(),
                 namespace: namespace,
@@ -119,13 +126,6 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
             let pods_or_none = objects_to_pods(objs);
             if pods_or_none.is_none() {
                 return (error_state(state), None);
-            }
-            if v_replica_set.metadata().has_deletion_timestamp() {
-                let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::Done,
-                    ..state
-                };
-                return (state_prime, None);
             }
             let pods = pods_or_none.unwrap();
             let filtered_pods = filter_pods(pods, v_replica_set);

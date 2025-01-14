@@ -55,15 +55,23 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
     let namespace = v_replica_set.metadata.namespace.unwrap();
     match &state.reconcile_step {
         VReplicaSetReconcileStep::Init => {
-            let req = APIRequest::ListRequest(ListRequest {
-                kind: PodView::kind(),
-                namespace: namespace,
-            });
-            let state_prime = VReplicaSetReconcileState {
-                reconcile_step: VReplicaSetReconcileStep::AfterListPods,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req)))
+            if v_replica_set.metadata.deletion_timestamp.is_some() {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let req = APIRequest::ListRequest(ListRequest {
+                    kind: PodView::kind(),
+                    namespace: namespace,
+                });
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::AfterListPods,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req)))
+            }
         },
         VReplicaSetReconcileStep::AfterListPods => {
             if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
@@ -77,61 +85,53 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                     (error_state(state), None)
                 } else {
                     let pods = pods_or_none.unwrap();
-                    if v_replica_set.metadata.deletion_timestamp.is_some() {
-                        let state_prime = VReplicaSetReconcileState {
-                            reconcile_step: VReplicaSetReconcileStep::Done,
-                            ..state
-                        };
-                        (state_prime, None)
-                    }  else {
-                        let filtered_pods = filter_pods(pods, v_replica_set);
-                        let replicas = v_replica_set.spec.replicas.unwrap_or(0);
-                        if replicas < 0 {
-                            (error_state(state), None)
+                    let filtered_pods = filter_pods(pods, v_replica_set);
+                    let replicas = v_replica_set.spec.replicas.unwrap_or(0);
+                    if replicas < 0 {
+                        (error_state(state), None)
+                    } else {
+                        let desired_replicas: usize = replicas as usize;
+                        if filtered_pods.len() == desired_replicas {
+                            let state_prime = VReplicaSetReconcileState {
+                                reconcile_step: VReplicaSetReconcileStep::Done,
+                                ..state
+                            };
+                            (state_prime, None)
+                        } else if filtered_pods.len() < desired_replicas {
+                            let diff =  desired_replicas - filtered_pods.len();
+                            let pod = make_pod(v_replica_set);
+                            let req = APIRequest::CreateRequest(CreateRequest {
+                                namespace: namespace,
+                                obj: pod.marshal(),
+                            });
+                            let state_prime = VReplicaSetReconcileState {
+                                reconcile_step: VReplicaSetReconcileStep::AfterCreatePod((diff - 1) as usize),
+                                ..state
+                            };
+                            (state_prime, Some(RequestView::KRequest(req)))
                         } else {
-                            let desired_replicas: usize = replicas as usize;
-                            if filtered_pods.len() == desired_replicas {
-                                let state_prime = VReplicaSetReconcileState {
-                                    reconcile_step: VReplicaSetReconcileStep::Done,
-                                    ..state
-                                };
-                                (state_prime, None)
-                            } else if filtered_pods.len() < desired_replicas {
-                                let diff =  desired_replicas - filtered_pods.len();
-                                let pod = make_pod(v_replica_set);
-                                let req = APIRequest::CreateRequest(CreateRequest {
-                                    namespace: namespace,
-                                    obj: pod.marshal(),
+                            let diff = filtered_pods.len() - desired_replicas;
+                            let pod_name_or_none = filtered_pods[diff - 1].metadata.name;
+                            if pod_name_or_none.is_none() {
+                                (error_state(state), None)
+                            } else {
+                                let req = APIRequest::DeleteRequest(DeleteRequest {
+                                    key: ObjectRef {
+                                        kind: PodView::kind(),
+                                        name: pod_name_or_none.unwrap(),
+                                        namespace: namespace,
+                                    },
+                                    preconditions: Some(PreconditionsView {
+                                        uid: None,
+                                        resource_version: filtered_pods[diff - 1].metadata.resource_version
+                                    }),
                                 });
                                 let state_prime = VReplicaSetReconcileState {
-                                    reconcile_step: VReplicaSetReconcileStep::AfterCreatePod((diff - 1) as usize),
+                                    reconcile_step: VReplicaSetReconcileStep::AfterDeletePod((diff - 1) as usize),
+                                    filtered_pods: Some(filtered_pods),
                                     ..state
                                 };
                                 (state_prime, Some(RequestView::KRequest(req)))
-                            } else {
-                                let diff = filtered_pods.len() - desired_replicas;
-                                let pod_name_or_none = filtered_pods[diff - 1].metadata.name;
-                                if pod_name_or_none.is_none() {
-                                    (error_state(state), None)
-                                } else {
-                                    let req = APIRequest::DeleteRequest(DeleteRequest {
-                                        key: ObjectRef {
-                                            kind: PodView::kind(),
-                                            name: pod_name_or_none.unwrap(),
-                                            namespace: namespace,
-                                        },
-                                        preconditions: Some(PreconditionsView {
-                                            uid: None,
-                                            resource_version: filtered_pods[diff - 1].metadata.resource_version
-                                        }),
-                                    });
-                                    let state_prime = VReplicaSetReconcileState {
-                                        reconcile_step: VReplicaSetReconcileStep::AfterDeletePod((diff - 1) as usize),
-                                        filtered_pods: Some(filtered_pods),
-                                        ..state
-                                    };
-                                    (state_prime, Some(RequestView::KRequest(req)))
-                                }
                             }
                         }
                     }
