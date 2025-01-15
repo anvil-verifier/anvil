@@ -115,8 +115,6 @@ impl ResourceView for VReplicaSetView {
     open spec fn state_validation(self) -> bool {
         // replicas is non-negative
         &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
-        // replicas is less than i32::MAX
-        &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() <= i32::MAX
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels.is_Some()

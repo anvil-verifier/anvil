@@ -30,7 +30,7 @@ impl View for VReplicaSetReconcileState {
 
     open spec fn view(&self) -> model_reconciler::VReplicaSetReconcileState {
         model_reconciler::VReplicaSetReconcileState {
-            reconcile_step: self.reconcile_step,
+            reconcile_step: self.reconcile_step@,
             filtered_pods: match self.filtered_pods {
                 Some(fp) => Some(fp@.map_values(|p: Pod| p@)),
                 None => None,
