@@ -263,6 +263,40 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomR
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
+pub open spec fn cr_objects_in_schedule_satisfy_state_validation<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            let unmarshal_result = 
+                T::unmarshal(s.scheduled_reconciles(controller_id)[key]);
+            #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
+            && key.kind.is_CustomResourceKind()
+            && key.kind == T::kind()
+            ==> unmarshal_result.is_Ok()
+                && unmarshal_result.unwrap().state_validation()
+        }
+    }
+}
+//
+// TODO: Prove this
+//
+
+pub open spec fn cr_objects_in_reconcile_satisfy_state_validation<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            let unmarshal_result = 
+                T::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr);
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            && key.kind.is_CustomResourceKind()
+            && key.kind == T::kind()
+            ==> unmarshal_result.is_Ok()
+                && unmarshal_result.unwrap().state_validation()
+        }
+    }
+}
+//
+// TODO: Prove this
+//
+
 }
 
 }

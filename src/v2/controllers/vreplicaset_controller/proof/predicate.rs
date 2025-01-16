@@ -35,11 +35,11 @@ pub open spec fn lifted_vrs_non_interference_property_action(cluster: Cluster, c
 
 // Predicates for reasoning about model states
 
-pub open spec fn at_step_closure(step: VReplicaSetReconcileStep) -> spec_fn(ReconcileLocalState) -> bool {
+pub open spec fn at_step_closure(step: VReplicaSetRecStepView) -> spec_fn(ReconcileLocalState) -> bool {
     |s: ReconcileLocalState| VReplicaSetReconcileState::unmarshal(s).unwrap().reconcile_step == step
 }
 
-pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, step: VReplicaSetReconcileStep) -> StatePred<ClusterState> {
+pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, step: VReplicaSetRecStepView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
         let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
@@ -54,7 +54,7 @@ pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, 
 }
 
 // Pass controller ID, unmarshal local state.
-pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, step: VReplicaSetReconcileStep) -> StatePred<ClusterState> {
+pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, step: VReplicaSetRecStepView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::no_pending_req_msg(controller_id, s, vrs.object_ref())
@@ -98,7 +98,7 @@ pub open spec fn pending_req_in_flight_at_after_list_pods_step(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterListPods;
+        let step = VReplicaSetRecStepView::AfterListPods;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -119,7 +119,7 @@ pub open spec fn req_msg_is_the_in_flight_list_req_at_after_list_pods_step(
     vrs: VReplicaSetView, controller_id: int, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterListPods;
+        let step = VReplicaSetRecStepView::AfterListPods;
         let msg = req_msg;
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -140,7 +140,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterListPods;
+        let step = VReplicaSetRecStepView::AfterListPods;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -172,7 +172,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
     vrs: VReplicaSetView, controller_id: int, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterListPods;
+        let step = VReplicaSetRecStepView::AfterListPods;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -203,7 +203,7 @@ pub open spec fn pending_req_in_flight_at_after_create_pod_step(
     vrs: VReplicaSetView, controller_id: int, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterCreatePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterCreatePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -224,7 +224,7 @@ pub open spec fn req_msg_is_the_in_flight_create_request_at_after_create_pod_ste
     vrs: VReplicaSetView, controller_id: int, req_msg: Message, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterCreatePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterCreatePod(diff);
         let request = req_msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
@@ -244,7 +244,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_create_pod_step(
     vrs: VReplicaSetView, controller_id: int, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterCreatePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterCreatePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -269,7 +269,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
     vrs: VReplicaSetView, controller_id: int, resp_msg: Message, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterCreatePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterCreatePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -303,7 +303,7 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
     vrs: VReplicaSetView, controller_id: int, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterDeletePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         let key = request.get_DeleteRequest_0().key;
@@ -333,7 +333,7 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
     vrs: VReplicaSetView, controller_id: int, req_msg: Message, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterDeletePod(diff);
         let request = req_msg.content.get_APIRequest_0();
         let key = request.get_DeleteRequest_0().key;
         let obj = s.resources()[key];
@@ -362,7 +362,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
     vrs: VReplicaSetView, controller_id: int, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterDeletePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
@@ -383,7 +383,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
     vrs: VReplicaSetView, controller_id: int, resp_msg: Message, diff: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VReplicaSetReconcileStep::AfterDeletePod(diff as usize);
+        let step = VReplicaSetRecStepView::AfterDeletePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
