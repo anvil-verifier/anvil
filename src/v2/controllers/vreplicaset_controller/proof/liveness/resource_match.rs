@@ -49,8 +49,9 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        vrs.metadata.deletion_timestamp.is_None(),
+        //spec.entails(always(lift_state(helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)))),
+        //spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
     ensures
         spec.entails(
             lift_state(
@@ -96,8 +97,8 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
-        &&& helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)(s)
-        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        //&&& helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)(s)
+        //&&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
         spec, cluster, controller_id
@@ -121,9 +122,9 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
         lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)),
-        lift_state(helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)),
-        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
+        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        //lift_state(helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)),
+        //lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {

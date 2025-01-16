@@ -50,4 +50,30 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
     }
 }
 
+pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& cr.metadata().name.is_Some()
+        &&& cr.metadata().namespace.is_Some()
+        &&& cr.metadata().deletion_timestamp.is_None()
+        // The object that has the same key with cr exists in etcd...
+        &&& s.resources().contains_key(cr.object_ref())
+        // and its uid is the same as cr...
+        &&& s.resources()[cr.object_ref()].metadata.uid == cr.metadata().uid
+        // and cr is not to be deleted...
+        &&& s.resources()[cr.object_ref()].metadata.deletion_timestamp == cr.metadata().deletion_timestamp
+        // and can be unmarshalled to T...
+        &&& T::unmarshal(s.resources()[cr.object_ref()]).is_Ok()
+        // and its spec is the same as cr.
+        &&& T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
+    }
+}
+
+pub open spec fn eventually_stable_reconciliation<T: CustomResourceView>(current_state_matches: spec_fn(T) -> StatePred<ClusterState>) -> TempPred<ClusterState> {
+    tla_forall(|cr: T| always(lift_state(Self::desired_state_is(cr))).leads_to(always(lift_state(current_state_matches(cr)))))
+}
+
+pub open spec fn eventually_stable_reconciliation_per_cr<T: CustomResourceView>(cr: T, current_state_matches: spec_fn(T) -> StatePred<ClusterState>) -> TempPred<ClusterState> {
+    always(lift_state(Self::desired_state_is(cr))).leads_to(always(lift_state(current_state_matches(cr))))
+}
+
 }
