@@ -38,7 +38,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::matching_pods_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
@@ -67,7 +67,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         &&& spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
         &&& spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref()))))
         &&& spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite())))
-        &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id))))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs))))
         &&& spec.entails(always(lift_state(helper_invariants::matching_pods_bounded(vrs))))
         &&& spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
         &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
@@ -571,7 +571,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
@@ -703,7 +703,7 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
@@ -815,7 +815,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
@@ -856,7 +856,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())(s)
         &&& helper_invariants::cluster_resources_is_finite()(s)
-        &&& helper_invariants::vrs_replicas_bounded(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_replicas_bounded(vrs)(s)
         &&& helper_invariants::every_create_request_is_well_formed()(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)(s)
@@ -872,7 +872,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())),
         lift_state(helper_invariants::cluster_resources_is_finite()),
-        lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)),
+        lift_state(helper_invariants::vrs_replicas_bounded(vrs)),
         lift_state(helper_invariants::every_create_request_is_well_formed()),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)),
@@ -1116,7 +1116,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
@@ -1157,7 +1157,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         &&& VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())(s)
         &&& helper_invariants::cluster_resources_is_finite()(s)
-        &&& helper_invariants::vrs_replicas_bounded(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_replicas_bounded(vrs)(s)
         &&& helper_invariants::every_create_request_is_well_formed()(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)(s)
@@ -1173,7 +1173,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())),
         lift_state(helper_invariants::cluster_resources_is_finite()),
-        lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)),
+        lift_state(helper_invariants::vrs_replicas_bounded(vrs)),
         lift_state(helper_invariants::every_create_request_is_well_formed()),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)),
@@ -1213,7 +1213,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
@@ -1346,7 +1346,7 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
         spec.entails(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::matching_pods_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
@@ -1459,7 +1459,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)))),
@@ -1500,7 +1500,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         &&& VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())(s)
         &&& helper_invariants::cluster_resources_is_finite()(s)
-        &&& helper_invariants::vrs_replicas_bounded(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_replicas_bounded(vrs)(s)
         &&& helper_invariants::every_create_request_is_well_formed()(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)(s)
@@ -1516,7 +1516,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())),
         lift_state(helper_invariants::cluster_resources_is_finite()),
-        lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)),
+        lift_state(helper_invariants::vrs_replicas_bounded(vrs)),
         lift_state(helper_invariants::every_create_request_is_well_formed()),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs)),
@@ -1723,7 +1723,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         spec.entails(always(lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())))),
         spec.entails(always(lift_state(helper_invariants::cluster_resources_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::matching_pods_bounded(vrs)))),
         spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
@@ -1766,7 +1766,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         &&& VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())(s)
         &&& helper_invariants::cluster_resources_is_finite()(s)
-        &&& helper_invariants::vrs_replicas_bounded(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_replicas_bounded(vrs)(s)
         &&& helper_invariants::matching_pods_bounded(vrs)(s)
         &&& helper_invariants::every_create_request_is_well_formed()(s)
         &&& helper_invariants::no_pending_update_or_update_status_request_on_pods()(s)
@@ -1784,7 +1784,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         lift_state(VRSCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(VRSCluster::pending_req_of_key_is_unique_with_unique_id(vrs.object_ref())),
         lift_state(helper_invariants::cluster_resources_is_finite()),
-        lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id)),
+        lift_state(helper_invariants::vrs_replicas_bounded(vrs)),
         lift_state(helper_invariants::matching_pods_bounded(vrs)),
         lift_state(helper_invariants::every_create_request_is_well_formed()),
         lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()),

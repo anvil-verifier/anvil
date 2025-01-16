@@ -152,7 +152,7 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView) -> Tem
     .and(always(tla_forall(|k : usize| lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterCreatePod(k)))))))
     .and(always(tla_forall(|k : usize| lift_state(VRSCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(vrs.object_ref(), at_step_closure(VReplicaSetReconcileStep::AfterDeletePod(k)))))))
     .and(always(lift_state(helper_invariants::cluster_resources_is_finite())))
-    .and(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs, controller_id))))
+    .and(always(lift_state(helper_invariants::vrs_replicas_bounded(vrs))))
     .and(always(lift_state(helper_invariants::matching_pods_bounded(vrs))))
     .and(always(lift_state(helper_invariants::vrs_selector_matches_template_labels(vrs))))
     .and(always(lift_state(helper_invariants::every_create_request_is_well_formed())))
