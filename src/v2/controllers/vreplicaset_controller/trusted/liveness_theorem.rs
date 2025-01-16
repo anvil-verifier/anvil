@@ -69,11 +69,11 @@ pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<Clu
 }
 
 pub open spec fn eventually_stable_reconciliation<T: CustomResourceView>(current_state_matches: spec_fn(T) -> StatePred<ClusterState>) -> TempPred<ClusterState> {
-    tla_forall(|cr: T| always(lift_state(Self::desired_state_is(cr))).leads_to(always(lift_state(current_state_matches(cr)))))
+    tla_forall(|cr: T| always(lift_state(Cluster::desired_state_is(cr))).leads_to(always(lift_state(current_state_matches(cr)))))
 }
 
 pub open spec fn eventually_stable_reconciliation_per_cr<T: CustomResourceView>(cr: T, current_state_matches: spec_fn(T) -> StatePred<ClusterState>) -> TempPred<ClusterState> {
-    always(lift_state(Self::desired_state_is(cr))).leads_to(always(lift_state(current_state_matches(cr))))
+    always(lift_state(Cluster::desired_state_is(cr))).leads_to(always(lift_state(current_state_matches(cr))))
 }
 
 }
