@@ -624,7 +624,6 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
                     let local_step = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
                     let local_step_prime = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap().reconcile_step;
                     let new_diff = local_step_prime.get_AfterCreatePod_0();
-
                     let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
 
                     assert(s.ongoing_reconciles(controller_id).contains_key(cr_key));
