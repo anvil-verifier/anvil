@@ -103,34 +103,109 @@ pub proof fn seq_unequal_preserved_by_add_auto<A>(suffix: Seq<A>)
     };
 }
 
-#[verifier(external_body)]
 pub proof fn seq_pred_false_on_all_elements_is_equivalent_to_empty_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
-    ensures (forall |e: A| #[trigger] s.contains(e) ==> !pred(e)) <==> s.filter(pred).len() == 0;
-//
-// TODO: Prove this -- Trivial.
-//
-// If `pred` is false on every element, filter will return an empty sequence.
-//
+    ensures (forall |e: A| #[trigger] s.contains(e) ==> !pred(e)) <==> s.filter(pred).len() == 0,
+{
+    if s.len() != 0 {
+        assert((forall |e: A| s.contains(e) ==> !pred(e)) ==> s.filter(pred).len() == 0) by {
+            assume(forall |e: A| s.contains(e) ==> !pred(e));
+            seq_pred_false_on_all_elements_implies_empty_filter(s, pred);
+        }
+        assert(s.filter(pred).len() == 0 ==> (forall |e: A| s.contains(e) ==> !pred(e))) by {
+            assume(s.filter(pred).len() == 0);
+            empty_filter_implies_seq_pred_false_on_all_elements(s, pred);
+        }
+    }
+}
 
-#[verifier(external_body)]
+proof fn seq_pred_false_on_all_elements_implies_empty_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    requires forall |e: A| #![auto] s.contains(e) ==> !pred(e),
+    ensures s.filter(pred).len() == 0,
+    decreases s.len()
+    // If `pred` is false on every element, filter will return an empty sequence.
+{
+    reveal(Seq::filter);
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        // prove precondition for subseq and recursive call
+        assert(forall |e: A| subseq.contains(e) ==> !pred(e)) by {
+            assert(forall |i: int| 0 <= i < subseq.len() ==> s.contains(#[trigger] s[i]) ==> !pred(subseq[i]));
+        }
+        seq_pred_false_on_all_elements_implies_empty_filter(subseq, pred);
+        assert(subseq.filter(pred) == s.filter(pred)) by {
+            assert(!pred(s.last())) by {
+                assert(s.contains(s.last()) ==> !pred(s.last()));
+            };
+        } // s.filter(pred) == subseq.filter(pred) == ... == Seq::empty()
+    }
+}
+proof fn empty_filter_implies_seq_pred_false_on_all_elements<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    requires s.filter(pred).len() == 0,
+    ensures forall |e: A| #![auto] s.contains(e) ==> !pred(e)
+    decreases s.len()
+    // If `pred` is false on every element, filter will return an empty sequence.
+{
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        assert(!pred(s.last())) by {
+            // assert(s.filter(pred).len() == 0);
+            reveal(Seq::filter);
+            assert(s.filter(pred) == {
+                if pred(s.last()) {
+                    subseq.filter(pred).push(s.last())
+                } else {
+                    subseq.filter(pred)
+                }
+            })
+        }
+        assert(s.filter(pred) == subseq.filter(pred)) by {
+            reveal(Seq::filter);
+            assert(!pred(s.last()));
+        }
+        empty_filter_implies_seq_pred_false_on_all_elements(s.drop_last(), pred);
+        assert forall |e: A| #![auto] s.contains(e) ==> !pred(e) by {
+            assert(forall |i: int| 0 <= i < subseq.len() ==> (subseq.contains(#[trigger] subseq[i]) ==> !pred(subseq[i])));
+            assert(forall |i: int| 0 <= i < subseq.len() ==> s[i] == subseq[i]);
+            // assert(!pred(s.last()) && s.contains(s.last()));
+        }
+    }
+}
+
+// useful theorem to prove the following 2
+proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    ensures
+        forall |e: A| s.filter(pred).contains(e) ==> #[trigger] s.contains(e),
+        forall |i: int| 0 <= i < s.filter(pred).len() ==> s.contains(#[trigger] s.filter(pred)[i]), // 2nd form
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.filter(pred).len() != 0 {
+        let subseq = s.drop_last();
+        seq_filter_is_a_subset_of_original_seq(s.drop_last(), pred);
+        assert(forall |i: int| 0 <= i < subseq.filter(pred).len() ==> subseq.contains(#[trigger] subseq.filter(pred)[i]));
+        // assert(forall |i: int| 0 <= i < s.filter(pred).len() ==> s.contains(#[trigger] s.filter(pred)[i]));
+        // assert(forall |e: A| s.filter(pred).contains(e) ==> #[trigger] s.contains(e));
+    }
+}
+
 pub proof fn seq_filter_preserves_no_duplicates<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     requires s.no_duplicates(),
-    ensures s.filter(pred).no_duplicates();
-//
-// TODO: Prove this -- Trivial.
-//
-// Since the parent sequence has no duplicates, and the filtered sequence only removes elements,
-// that sequence also has no duplicates.
-//
+    ensures s.filter(pred).no_duplicates()
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() != 0 {
+        seq_filter_preserves_no_duplicates(s.drop_last(), pred);
+        if pred(s.last()) {
+            seq_filter_is_a_subset_of_original_seq(s.drop_last(), pred);
+        }
+    }
+}
 
-#[verifier(external_body)]
 pub proof fn seq_filter_contains_implies_seq_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, elt: A)
     requires s.filter(pred).contains(elt),
-    ensures s.contains(elt);
-//
-// TODO: Prove this -- Trivial.
-//
-// Anything in the 
-//
-
+    ensures s.contains(elt)
+{
+    seq_filter_is_a_subset_of_original_seq(s, pred);
+}
 }
