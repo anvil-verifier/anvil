@@ -171,6 +171,8 @@ jobs:
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
+      - name: Pin home to version 0.5.9 (workaround)
+        run: cargo update home --precise 0.5.9
       - name: Run unit tests
         run: cargo test unit_tests
   conformance-tests:
@@ -205,6 +207,8 @@ jobs:
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Set up a kind cluster
         run: kind create cluster
+      - name: Pin home to version 0.5.9 (workaround)
+        run: cargo update home --precise 0.5.9
       - name: Run conformance tests
         run: cargo test conformance_tests -- --nocapture
   framework-verification:
