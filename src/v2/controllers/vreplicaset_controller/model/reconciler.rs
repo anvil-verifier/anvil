@@ -55,15 +55,23 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
     let namespace = v_replica_set.metadata.namespace.unwrap();
     match &state.reconcile_step {
         VReplicaSetReconcileStep::Init => {
-            let req = APIRequest::ListRequest(ListRequest {
-                kind: PodView::kind(),
-                namespace: namespace,
-            });
-            let state_prime = VReplicaSetReconcileState {
-                reconcile_step: VReplicaSetReconcileStep::AfterListPods,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req)))
+            if v_replica_set.metadata.deletion_timestamp.is_some() {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let req = APIRequest::ListRequest(ListRequest {
+                    kind: PodView::kind(),
+                    namespace: namespace,
+                });
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::AfterListPods,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req)))
+            }
         },
         VReplicaSetReconcileStep::AfterListPods => {
             if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()

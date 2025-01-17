@@ -99,6 +99,13 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
     let namespace = v_replica_set.metadata().namespace().unwrap();
     match &state.reconcile_step {
         VReplicaSetReconcileStep::Init => {
+            if v_replica_set.metadata().has_deletion_timestamp() {
+                let state_prime = VReplicaSetReconcileState {
+                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    ..state
+                };
+                return (state_prime, None);
+            }
             let req = KubeAPIRequest::ListRequest(KubeListRequest {
                 api_resource: Pod::api_resource(),
                 namespace: namespace,
