@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::*, 
+    api_server::{state_machine::*, types::InstalledTypes}, 
     cluster::*, 
     message::*
 };
@@ -16,64 +16,6 @@ use crate::vreplicaset_controller::{
 use vstd::prelude::*;
 
 verus!{
-
-// MAJOR CHANGES TO MAKE:
-// Distinguish API messages coming from different sources in invariants
-
-pub open spec fn vrs_is_well_formed(vrs: VReplicaSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| vrs.well_formed()
-}
-
-pub open spec fn cluster_resources_is_finite() -> StatePred<ClusterState> {
-    |s: ClusterState| s.resources().dom().finite()
-} 
-
-pub open spec fn vrs_replicas_bounded(
-    vrs: VReplicaSetView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        0 <= vrs.spec.replicas.unwrap_or(0) <= i32::MAX // As allowed by Kubernetes.
-    }
-}
-//
-// TODO: Prove this.
-//
-// This should be easy to enforce with state validation.
-//
-
-pub open spec fn matching_pods_bounded(
-    vrs: VReplicaSetView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        0 <= matching_pod_entries(vrs, s.resources()).len() <= i32::MAX // As allowed by the previous invariant.
-    }
-}
-//
-// TODO: Prove this.
-//
-// This should be easy to enforce with state validation.
-//
-
-pub open spec fn vrs_selector_matches_template_labels(
-    vrs: VReplicaSetView
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let match_value = 
-            if vrs.spec.template.is_none()
-            || vrs.spec.template.unwrap().metadata.is_none()
-            || vrs.spec.template.unwrap().metadata.unwrap().labels.is_none() {
-                Map::empty()
-            } else {
-                vrs.spec.template.unwrap().metadata.unwrap().labels.unwrap()
-            };
-        vrs.spec.selector.matches(match_value)
-    }
-}
-//
-// TODO: Prove this.
-//
-// This should be easy to enforce with state validation.
-//
 
 // TODO: should not need to be a safety property.
 pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
@@ -111,19 +53,14 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
                 status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
             };
             &&& obj.metadata.deletion_timestamp.is_None()
-            &&& obj.metadata.namespace.is_Some()
-            &&& content.get_create_request().namespace == obj.metadata.namespace.unwrap()
+            &&& created_obj.metadata.namespace.is_Some()
+            &&& content.get_create_request().namespace == created_obj.metadata.namespace.unwrap()
             &&& unmarshallable_object(obj, cluster.installed_types)
             &&& created_object_validity_check(created_obj, cluster.installed_types).is_none()
+            &&& PodView::unmarshal(created_obj).is_ok()
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
-// proof for other state machines within the compound state machine.
-//
 
 pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -137,18 +74,32 @@ pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePr
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
-// proof for other state machines within the compound state machine.
-//
+
+pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src.is_BuiltinController()
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
+        } ==> {
+            let req = msg.content.get_delete_request(); 
+            &&& msg.content.is_delete_request()
+            &&& req.preconditions.is_Some()
+            &&& req.preconditions.unwrap().uid.is_Some()
+            &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key)
+                    ==> (!matching_pod_entries(vrs, s.resources()).contains_key(req.key)
+                          || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
+        }
+    }
+}
 
 pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
-            &&& !msg.src.is_Controller()
+            &&& !(msg.src.is_Controller() || msg.src.is_BuiltinController())
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         } ==> {
@@ -157,30 +108,43 @@ pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// Proving this for the VReplicaSet controller should be easy; we'd need to do a similar
-// proof for other state machines within the compound state machine.
-//
 
 pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_step(
-    vrs: VReplicaSetView, controller_id: int,
+    vrs: VReplicaSetView, installed_types: InstalledTypes, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| #![trigger msg.dst.is_APIServer(), msg.content.is_APIRequest()] {
             let content = msg.content;
-            let obj = content.get_create_request().obj;
+            let req = content.get_create_request();
+            let created_obj = DynamicObjectView {
+                kind: req.obj.kind,
+                metadata: ObjectMetaView {
+                    // Set name for new object if name is not provided, here we generate
+                    // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+                    name: if req.obj.metadata.name.is_Some() {
+                        req.obj.metadata.name
+                    } else {
+                        Some(generate_name(s.api_server))
+                    },
+                    namespace: Some(req.namespace), // Set namespace for new object
+                    resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
+                    uid: Some(s.api_server.uid_counter), // Set uid for new object
+                    deletion_timestamp: None, // Unset deletion timestamp for new object
+                    ..req.obj.metadata
+                },
+                spec: req.obj.spec,
+                status: marshalled_default_status(req.obj.kind, installed_types), // Overwrite the status with the default one
+            };
             &&& s.in_flight().contains(msg)
             &&& msg.src.is_Controller()
             &&& msg.src.get_Controller_0() == controller_id
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
             &&& content.is_create_request()
-            &&& owned_selector_match_is(vrs, obj)
+            &&& owned_selector_match_is(vrs, created_obj)
         } ==> {
             // Need to modify these predicates.
-            &&& exists |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterCreatePod(diff))(s)
+            &&& exists |diff: nat| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterCreatePod(diff))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         }
     }
@@ -217,7 +181,7 @@ pub open spec fn every_delete_matching_pod_request_implies_at_after_delete_pod_s
             let content = msg.content;
             let req = content.get_delete_request();
             let obj = s.resources()[req.key];
-            &&& exists |diff: usize| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterDeletePod(diff))(s)
+            &&& exists |diff: nat| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
             &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         }
     }
@@ -270,13 +234,18 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
             }
     }
 }
+//
+// TODO: Prove this.
+//
+// No hints.
+//
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |diff: nat| {
-            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetReconcileStep::AfterDeletePod(diff as usize))(s)
+            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
         } ==> {
             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
             let filtered_pods = state.filtered_pods.unwrap();

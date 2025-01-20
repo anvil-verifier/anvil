@@ -8,7 +8,7 @@ verus! {
 pub struct VReplicaSetReconciler {}
 
 pub struct VReplicaSetReconcileState {
-    pub reconcile_step: VReplicaSetReconcileStep,
+    pub reconcile_step: VReplicaSetRecStepView,
     pub filtered_pods: Option<Seq<PodView>>,
 }
 
@@ -32,21 +32,21 @@ impl Reconciler<VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidER
 
 pub open spec fn reconcile_init_state() -> VReplicaSetReconcileState {
     VReplicaSetReconcileState {
-        reconcile_step: VReplicaSetReconcileStep::Init,
+        reconcile_step: VReplicaSetRecStepView::Init,
         filtered_pods: None,
     }
 }
 
 pub open spec fn reconcile_done(state: VReplicaSetReconcileState) -> bool {
     match state.reconcile_step {
-        VReplicaSetReconcileStep::Done => true,
+        VReplicaSetRecStepView::Done => true,
         _ => false,
     }
 }
 
 pub open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
     match state.reconcile_step {
-        VReplicaSetReconcileStep::Error => true,
+        VReplicaSetRecStepView::Error => true,
         _ => false,
     }
 }
@@ -54,18 +54,18 @@ pub open spec fn reconcile_error(state: VReplicaSetReconcileState) -> bool {
 pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<ResponseView<VoidERespView>>, state: VReplicaSetReconcileState) -> (VReplicaSetReconcileState, Option<RequestView<VoidEReqView>>) {
     let namespace = v_replica_set.metadata.namespace.unwrap();
     match &state.reconcile_step {
-        VReplicaSetReconcileStep::Init => {
+        VReplicaSetRecStepView::Init => {
             let req = APIRequest::ListRequest(ListRequest {
                 kind: PodView::kind(),
                 namespace: namespace,
             });
             let state_prime = VReplicaSetReconcileState {
-                reconcile_step: VReplicaSetReconcileStep::AfterListPods,
+                reconcile_step: VReplicaSetRecStepView::AfterListPods,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req)))
         },
-        VReplicaSetReconcileStep::AfterListPods => {
+        VReplicaSetRecStepView::AfterListPods => {
             if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
             && resp_o.get_Some_0().get_KResponse_0().is_ListResponse()
             && resp_o.get_Some_0().get_KResponse_0().get_ListResponse_0().res.is_ok()) {
@@ -82,10 +82,10 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                     if replicas < 0 {
                         (error_state(state), None)
                     } else {
-                        let desired_replicas: usize = replicas as usize;
+                        let desired_replicas = replicas;
                         if filtered_pods.len() == desired_replicas {
                             let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetReconcileStep::Done,
+                                reconcile_step: VReplicaSetRecStepView::Done,
                                 ..state
                             };
                             (state_prime, None)
@@ -97,7 +97,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                                 obj: pod.marshal(),
                             });
                             let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetReconcileStep::AfterCreatePod((diff - 1) as usize),
+                                reconcile_step: VReplicaSetRecStepView::AfterCreatePod((diff - 1) as nat),
                                 ..state
                             };
                             (state_prime, Some(RequestView::KRequest(req)))
@@ -119,7 +119,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                                     }),
                                 });
                                 let state_prime = VReplicaSetReconcileState {
-                                    reconcile_step: VReplicaSetReconcileStep::AfterDeletePod((diff - 1) as usize),
+                                    reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
                                     filtered_pods: Some(filtered_pods),
                                     ..state
                                 };
@@ -130,7 +130,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                 }
             }
         },
-        VReplicaSetReconcileStep::AfterCreatePod(diff) => {
+        VReplicaSetRecStepView::AfterCreatePod(diff) => {
             let diff = *diff;
             if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
             && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
@@ -138,7 +138,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                 (error_state(state), None)
             } else if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    reconcile_step: VReplicaSetRecStepView::Done,
                     ..state
                 };
                 (state_prime, None)
@@ -149,13 +149,13 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                     obj: pod.marshal(),
                 });
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::AfterCreatePod((diff - 1) as usize),
+                    reconcile_step: VReplicaSetRecStepView::AfterCreatePod((diff - 1) as nat),
                     ..state
                 };
                 (state_prime, Some(RequestView::KRequest(req)))
             }
         },
-        VReplicaSetReconcileStep::AfterDeletePod(diff) => {
+        VReplicaSetRecStepView::AfterDeletePod(diff) => {
             let diff = *diff;
             if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
             && resp_o.get_Some_0().get_KResponse_0().is_DeleteResponse()
@@ -163,7 +163,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                 (error_state(state), None)
             } else if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetReconcileStep::Done,
+                    reconcile_step: VReplicaSetRecStepView::Done,
                     ..state
                 };
                 (state_prime, None)
@@ -189,7 +189,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                             }),
                         });
                         let state_prime = VReplicaSetReconcileState {
-                            reconcile_step: VReplicaSetReconcileStep::AfterDeletePod((diff - 1) as usize),
+                            reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
                             ..state
                         };
                         (state_prime, Some(RequestView::KRequest(req)))
@@ -206,7 +206,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
 pub open spec fn error_state(state: VReplicaSetReconcileState) -> (state_prime: VReplicaSetReconcileState)
 {
     VReplicaSetReconcileState {
-        reconcile_step: VReplicaSetReconcileStep::Error,
+        reconcile_step: VReplicaSetRecStepView::Error,
         ..state
     }
 }
