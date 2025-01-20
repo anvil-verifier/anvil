@@ -90,8 +90,7 @@ pub open spec fn state_comes_with_a_pending_request(self, controller_id: int, st
     &&& forall |cr, resp_o, pre_state| #[trigger] state((self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0) ==> (self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1.is_Some()
 }
 
-// TODO: Proof exceeds default rlimit now, investigate.
-#[verifier(rlimit(10000))]
+// TODO: Investigate flaky proof.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
