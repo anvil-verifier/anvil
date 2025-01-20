@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    api_server::state_machine::*, 
+    api_server::{state_machine::*, types::InstalledTypes}, 
     cluster::*, 
     message::*
 };
@@ -110,7 +110,7 @@ pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods
 }
 
 pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_step(
-    vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
+    vrs: VReplicaSetView, installed_types: InstalledTypes, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| #![trigger msg.dst.is_APIServer(), msg.content.is_APIRequest()] {
@@ -133,7 +133,7 @@ pub open spec fn every_create_matching_pod_request_implies_at_after_create_pod_s
                     ..req.obj.metadata
                 },
                 spec: req.obj.spec,
-                status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
+                status: marshalled_default_status(req.obj.kind, installed_types), // Overwrite the status with the default one
             };
             &&& s.in_flight().contains(msg)
             &&& msg.src.is_Controller()

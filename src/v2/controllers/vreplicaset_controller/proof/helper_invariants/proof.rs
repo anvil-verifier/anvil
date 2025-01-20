@@ -491,7 +491,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
-    ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster, controller_id))))),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))),
 {
     let key = vrs.object_ref();
     let requirements = |msg: Message, s: ClusterState| {
@@ -670,7 +670,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
     temp_pred_equality(
-        lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster, controller_id)),
+        lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
