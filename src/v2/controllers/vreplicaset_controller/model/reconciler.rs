@@ -97,7 +97,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                                 obj: pod.marshal(),
                             });
                             let state_prime = VReplicaSetReconcileState {
-                                reconcile_step: VReplicaSetRecStepView::AfterCreatePod(abs(diff - 1)),
+                                reconcile_step: VReplicaSetRecStepView::AfterCreatePod((diff - 1) as nat),
                                 ..state
                             };
                             (state_prime, Some(RequestView::KRequest(req)))
@@ -119,7 +119,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                                     }),
                                 });
                                 let state_prime = VReplicaSetReconcileState {
-                                    reconcile_step: VReplicaSetRecStepView::AfterDeletePod(abs(diff - 1)),
+                                    reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
                                     filtered_pods: Some(filtered_pods),
                                     ..state
                                 };
@@ -149,7 +149,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                     obj: pod.marshal(),
                 });
                 let state_prime = VReplicaSetReconcileState {
-                    reconcile_step: VReplicaSetRecStepView::AfterCreatePod(abs(diff - 1)),
+                    reconcile_step: VReplicaSetRecStepView::AfterCreatePod((diff - 1) as nat),
                     ..state
                 };
                 (state_prime, Some(RequestView::KRequest(req)))
@@ -189,7 +189,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                             }),
                         });
                         let state_prime = VReplicaSetReconcileState {
-                            reconcile_step: VReplicaSetRecStepView::AfterDeletePod(abs(diff - 1)),
+                            reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
                             ..state
                         };
                         (state_prime, Some(RequestView::KRequest(req)))
