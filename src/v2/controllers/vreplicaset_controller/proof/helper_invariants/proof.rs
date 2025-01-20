@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::state_machine::*, 
-    cluster::*, 
+    cluster::*,
     message::*
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -14,7 +14,7 @@ use crate::vreplicaset_controller::{
     proof::{predicate::*, helper_lemmas, helper_invariants::{predicate::*}},
 };
 use crate::vstd_ext::seq_lib::*;
-use vstd::prelude::*;
+use vstd::{map::*, prelude::*};
 
 verus!{
 
@@ -903,6 +903,5 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
-
 
 }
