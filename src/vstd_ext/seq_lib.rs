@@ -128,6 +128,7 @@ proof fn seq_pred_false_on_all_elements_implies_empty_filter<A>(s: Seq<A>, pred:
     if s.len() != 0 {
         let subseq = s.drop_last();
         // prove precondition for subseq and recursive call
+<<<<<<< HEAD
         assert(forall |e: A| subseq.contains(e) ==> !pred(e)) by {
             assert(forall |i: int| 0 <= i < subseq.len() ==> s.contains(#[trigger] s[i]) ==> !pred(subseq[i]));
         }
@@ -167,9 +168,20 @@ proof fn empty_filter_implies_seq_pred_false_on_all_elements<A>(s: Seq<A>, pred:
             assert(forall |i: int| 0 <= i < subseq.len() ==> (subseq.contains(#[trigger] subseq[i]) ==> !pred(subseq[i])));
             assert(forall |i: int| 0 <= i < subseq.len() ==> s[i] == subseq[i]);
             // assert(!pred(s.last()) && s.contains(s.last()));
+=======
+        assert (forall |e: A| subseq.contains(e) ==> !pred(e)) by {
+            assert (forall |i: int| 0 <= i < subseq.len() ==> s.contains(#[trigger] s[i]) ==> !pred(subseq[i]));
+>>>>>>> d4e96dd (ensure code style consistency)
         }
+        seq_pred_false_on_all_elements_implies_empty_filter(subseq, pred);
+        assert (subseq.filter(pred) == s.filter(pred)) by {
+            assert (!pred(s.last())) by {
+                assert (s.contains(s.last()) ==> !pred(s.last()));
+            };
+        } // s.filter(pred) == subseq.filter(pred) == ... == Seq::empty()
     }
 }
+<<<<<<< HEAD
 
 // useful theorem to prove the following 2
 proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
@@ -187,6 +199,8 @@ proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(A) -
         // assert(forall |e: A| s.filter(pred).contains(e) ==> #[trigger] s.contains(e));
     }
 }
+=======
+>>>>>>> d4e96dd (ensure code style consistency)
 
 pub proof fn seq_filter_preserves_no_duplicates<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     requires s.no_duplicates(),
