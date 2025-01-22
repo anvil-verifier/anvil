@@ -820,6 +820,8 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                         let pods = pods_or_none.unwrap();
                         let filtered_pods = filter_pods(pods, triggering_cr);
                         let diff = filtered_pods.len() - desired_replicas;
+
+                        // show filtered_pods[diff - 1] has the desired property.
                         seq_filter_contains_implies_seq_contains(
                             pods,
                             |pod: PodView|
@@ -828,11 +830,31 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                             && pod.metadata.deletion_timestamp.is_None(),
                             filtered_pods[diff - 1]
                         );
+                        if diff - 1 >= 0 {
+                            assert(filtered_pods[diff - 1].metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
+                        }
 
-                        let idx1 = choose |i| pods[i] == filtered_pods[diff - 1];
-                        assert(pods[idx1] == filtered_pods[diff - 1]);
-                        assert(pods[idx1] == PodView::unmarshal(objs[idx1]).unwrap());
-                        assert(filtered_pods[diff - 1].object_ref() == request_key);
+                        // Show that pods[idx1] and filtered_pods[diff - 1] have the same metadata.
+                        let idx1 = choose |i| 0 <= i < pods.len() && pods[i] == filtered_pods[diff - 1];
+                        assert(pods[idx1].metadata == filtered_pods[diff - 1].metadata);
+
+                        // Show that pods[idx1] and objs[idx1] have the same metadata.
+                        let unwrap_obj = |o: DynamicObjectView| PodView::unmarshal(o).unwrap();
+                        assert(pods == objs.map_values(unwrap_obj));
+                        seq_map_value_lemma(
+                            objs, unwrap_obj
+                        );
+                        assert(objs.contains(objs[idx1]));
+                        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                            objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                        );
+                        assert(PodView::unmarshal(objs[idx1]).is_ok());
+                        assert(objs[idx1].metadata == pods[idx1].metadata);
+
+                        // Show that objs[idx1] and obj (in etcd) have the same metadata.
+                        if s.resources().contains_key(objs[idx1].object_ref()) {
+                            assert(objs[idx1].metadata == obj.metadata);
+                        }
                     }
 
                     let controller_owners = obj.metadata.owner_references.unwrap().filter(

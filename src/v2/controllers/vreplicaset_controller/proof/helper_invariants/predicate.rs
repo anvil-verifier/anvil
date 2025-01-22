@@ -206,9 +206,12 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                     (
                         filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                         && (s.resources().contains_key(filtered_pods[i].object_ref()) ==>
-                            s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
+                            (s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
                                 triggering_cr.controller_owner_ref()
-                            ))
+                                )
+                            // && s.resources()[filtered_pods[i].object_ref()].metadata.resource_version
+                            //     < s.api_server.resource_version_counter
+                             ))
                     )
                 // Special case: the above property holds on a list response to the
                 // appropriate request. 
@@ -221,10 +224,11 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.get_list_response().res.is_Ok()
-                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() != 0 
+                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
                         &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                         (
-                            resp_objs[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                            resp_objs[i].metadata.namespace.is_some()
+                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
                             && (s.resources().contains_key(resp_objs[i].object_ref()) ==>
                                     s.resources()[resp_objs[i].object_ref()].metadata
                                         == resp_objs[i].metadata
