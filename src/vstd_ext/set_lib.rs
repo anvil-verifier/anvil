@@ -66,6 +66,4 @@ proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
     }
 }
 
-fn main(){}
-
 }
