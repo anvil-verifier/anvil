@@ -753,11 +753,15 @@ pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
 )
     requires
         spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
         // Weak fairness for controller steps.
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        // Every new reconcile satisfies the requirements.
+        spec.entails(always(lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements)))),
         // Controller termination.
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
-        self.controller_models.contains_key(controller_id),
+        // There is the controller state.
+        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)))));
 
 }
