@@ -275,6 +275,7 @@ pub open spec fn cr_objects_in_schedule_satisfy_state_validation<T: CustomResour
         }
     }
 }
+<<<<<<< HEAD
 
 pub proof fn lemma_always_cr_objects_in_schedule_satisfy_state_validation<T: CustomResourceView>(
     self, spec: TempPred<ClusterState>, controller_id: int
@@ -319,6 +320,11 @@ pub proof fn lemma_always_cr_objects_in_schedule_satisfy_state_validation<T: Cus
     );
     init_invariant(spec, self.init(), stronger_next, inv);
 }
+=======
+//
+// TODO: Prove this
+//
+>>>>>>> remotes/upstream/main
 
 pub open spec fn cr_objects_in_reconcile_satisfy_state_validation<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -333,6 +339,7 @@ pub open spec fn cr_objects_in_reconcile_satisfy_state_validation<T: CustomResou
         }
     }
 }
+<<<<<<< HEAD
 
 pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: CustomResourceView>(
     self, spec: TempPred<ClusterState>, controller_id: int
@@ -380,6 +387,11 @@ pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: Cu
     );
     init_invariant(spec, self.init(), stronger_next, inv);
 }
+=======
+//
+// TODO: Prove this
+//
+>>>>>>> remotes/upstream/main
 
 }
 
