@@ -714,6 +714,52 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(controller_id, cr)));
 }
 
+pub open spec fn every_ongoing_reconcile_satisfies(
+    controller_id: int, requirements: spec_fn(OngoingReconcile, ClusterState) -> bool
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+                ==> requirements(s.ongoing_reconciles(controller_id)[key], s) 
+    }
+}
+
+pub open spec fn every_new_ongoing_reconcile_satisfies(
+    controller_id: int, requirements: spec_fn(OngoingReconcile, ClusterState) -> bool
+) -> ActionPred<ClusterState> {
+    |s: ClusterState, s_prime: ClusterState| {
+        forall |key: ObjectRef|
+            {
+                &&& (!s.ongoing_reconciles(controller_id).contains_key(key)
+                     || requirements(s.ongoing_reconciles(controller_id)[key], s))
+                &&& #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key)
+            } ==> requirements(s_prime.ongoing_reconciles(controller_id)[key], s_prime)
+    }
+}
+
+// This lemma shows that if spec ensures every newly started reconcile for a given controller_id
+// satisfies some requirements, the system will eventually reaches a state where all ongoing reconciles
+// of that controller_id satisfy those requirements.
+//
+// To require "every newly started reconcile for a given controller_id satisfies some requirements", 
+// we use a spec_fn (i.e., a closure) as parameter which can be defined by callers and require 
+// spec |= [](every_new_ongoing_reconcile_satisfies(requirements)).
+#[verifier(external_body)]
+pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
+    self, 
+    spec: TempPred<ClusterState>,
+    controller_id: int,
+    requirements: spec_fn(OngoingReconcile, ClusterState) -> bool
+)
+    requires
+        spec.entails(always(lift_action(self.next()))),
+        // Weak fairness for controller steps.
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        // Controller termination.
+        spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
+        self.controller_models.contains_key(controller_id),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)))));
+
 }
 
 }
