@@ -268,30 +268,6 @@ pub proof fn lemma_always_etcd_is_finite(
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
-pub open spec fn etcd_is_finite() -> StatePred<ClusterState> {
-    |s: ClusterState| s.resources().dom().finite()
-} 
-
-pub proof fn lemma_always_etcd_is_finite(
-    self, spec: TempPred<ClusterState>,
-)
-    requires
-        spec.entails(lift_state(self.init())),
-        spec.entails(always(lift_action(self.next()))),
-    ensures spec.entails(always(lift_state(Self::etcd_is_finite()))),
-{
-    let inv = Self::etcd_is_finite();
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& self.next()(s, s_prime)
-    };
-    
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(self.next())
-    );
-    init_invariant(spec, self.init(), stronger_next, inv);
-}
-
 }
 
 }
