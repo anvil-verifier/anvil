@@ -128,13 +128,13 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
 
 // TODO: Prove this lemma.
 // More comments sketching an informal proof in the body.
-#[verifier(external_body)]
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
 )
     requires
         resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
+        list_pod_resp_contains_all_namespaced_pods(vrs, controller_id, resp_msg)(s),
     ensures
         ({
             let objs = resp_msg.content.get_list_response().res.unwrap();
@@ -142,7 +142,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             let pods = pods_or_none.unwrap();
             let filtered_pods = filter_pods(pods, vrs);
             &&& filtered_pods.no_duplicates()
-            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len()
+            &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
             &&& filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values()
         }),
 {
@@ -163,11 +163,30 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     
     // We now must prove that the number of elements of `filtered_pods` is equal to the number
     // of matching pods. This is true by the way we construct `filtered_pods`.
-    assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len());
+    assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len());
 
     // We now must prove that the elements of `filtered_pods` are precisely the matching pod
     // entries. This is also true by construction.
     assert(filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values());
 }
 
+// should we put it in trusted?
+// or in API related lemmas
+// and remove the vrs-related part of code
+pub open spec fn list_pod_resp_contains_all_namespaced_pods(
+    vrs: VReplicaSetView, 
+    controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let objs = resp_msg.content.get_list_response().res.unwrap();
+        let pods_or_none = objects_to_pods(objs);
+        let pods = pods_or_none.unwrap();
+        let objs_in_s = s.resources().values().to_seq();
+        let pods_or_none_in_s = objects_to_pods(objs_in_s);
+        let pods_in_s = pods_or_none_in_s.unwrap();
+        // ns is consistent
+        &&& forall |p: PodView| pods.contains(p) ==> p.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+        &&& pods_in_s == pods
+        }
+    }
 }

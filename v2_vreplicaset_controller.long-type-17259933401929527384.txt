@@ -1,0 +1,1 @@
+vstd::map::Map<kubernetes_api_objects::spec::common::ObjectRef, kubernetes_api_objects::spec::dynamic::DynamicObjectView>
