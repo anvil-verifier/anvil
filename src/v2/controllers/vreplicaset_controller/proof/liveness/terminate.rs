@@ -923,7 +923,6 @@ proof fn lemma_true_equal_to_reconcile_idle_or_at_any_state(vrs: VReplicaSetView
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to_create_n(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, n: nat
 )
@@ -943,9 +942,30 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
             )))),
-{}
+{
+    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id,
+        vrs.object_ref(),
+        unwrap_local_state_closure(
+            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+        )
+    ));
+    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id,
+        vrs.object_ref(),
+        at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
+    ));
 
-#[verifier(external_body)]
+    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
+        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
+        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
+        assert(always(pre).satisfied_by(ex));
+
+        assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {
+        }
+    }
+}
+
 pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to_delete_n(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, n: nat
 )
@@ -965,5 +985,28 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
             )))),
-{}
+{
+    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id,
+        vrs.object_ref(),
+        unwrap_local_state_closure(
+            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+        )
+    ));
+    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+        controller_id,
+        vrs.object_ref(),
+        at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
+    ));
+
+    assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
+        assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
+        assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
+        assert(always(pre).satisfied_by(ex));
+
+        assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {
+        }
+    }
+}
+
 }
