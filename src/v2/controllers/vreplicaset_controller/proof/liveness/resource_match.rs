@@ -1539,6 +1539,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
 }
 
 // TODO: Investigate flaky proof.
+#[verifier(rlimit(4000))]
 pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int

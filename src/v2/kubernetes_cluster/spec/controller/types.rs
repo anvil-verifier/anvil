@@ -9,6 +9,7 @@ verus! {
 pub struct ControllerState {
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile>,
     pub scheduled_reconciles: Map<ObjectRef, DynamicObjectView>,
+    pub reconcile_id_allocator: ReconcileIdAllocator,
 }
 
 pub type ReconcileLocalState = Value;
@@ -23,6 +24,33 @@ pub enum ResponseContent {
     ExternalResponse(ExternalResponse),
 }
 
+pub type ReconcileId = nat;
+
+// ReconcileIdAllocator allocates unique ReconcileId for each reconcile on a
+// given controller_id.
+pub struct ReconcileIdAllocator {
+    pub reconcile_id_counter: ReconcileId,
+}
+
+impl ReconcileIdAllocator {
+    // Allocate a ReconcileId which is the current reconcile_id_counter
+    // and also returns a new ReconcileIdAllocator with a different reconcile_id_counter.
+    //
+    // The user (i.e., state machine) after allocating one ReconcileId, should use
+    // the returned new ReconcileIdAllocator to allocate the next ReconcileId.
+    // By doing so, the user of ReconcileIdAllocator always gets a ReconcileId
+    // which differs from all the ReconcileIds allocated before because the
+    // returned ReconcileIdAllocator has a incremented reconcile_id_counter.
+    //
+    // Besides the uniqueness, the allocated ReconcileId can also serve as a timestamp
+    // if we need to say some reconciles happen before others.
+    pub open spec fn allocate(self) -> (Self, ReconcileId) {
+        (ReconcileIdAllocator {
+            reconcile_id_counter: self.reconcile_id_counter + 1,
+        }, self.reconcile_id_counter)
+    }
+}
+
 pub struct ReconcileModel {
     pub kind: Kind,
     pub init: spec_fn() -> ReconcileLocalState,
@@ -35,6 +63,7 @@ pub struct OngoingReconcile {
     pub triggering_cr: DynamicObjectView,
     pub pending_req_msg: Option<Message>,
     pub local_state: ReconcileLocalState,
+    pub reconcile_id: ReconcileId,
 }
 
 #[is_variant]
