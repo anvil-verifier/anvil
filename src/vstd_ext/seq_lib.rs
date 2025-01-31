@@ -108,17 +108,12 @@ pub proof fn seq_pred_false_on_all_elements_is_equivalent_to_empty_filter<A>(s: 
 {
     if s.len() != 0 {
         assert((forall |e: A| s.contains(e) ==> !pred(e)) ==> s.filter(pred).len() == 0) by {
-            // p -> q <== >!p || q
-            if (forall |e: A| s.contains(e) ==> !pred(e))
-            {
-                seq_pred_false_on_all_elements_implies_empty_filter(s, pred);
-            }
+            assume(forall |e: A| s.contains(e) ==> !pred(e));
+            seq_pred_false_on_all_elements_implies_empty_filter(s, pred);
         }
         assert(s.filter(pred).len() == 0 ==> (forall |e: A| s.contains(e) ==> !pred(e))) by {
-            if (s.filter(pred).len() == 0)
-            {
-                empty_filter_implies_seq_pred_false_on_all_elements(s, pred);
-            }
+            assume(s.filter(pred).len() == 0);
+            empty_filter_implies_seq_pred_false_on_all_elements(s, pred);
         }
     }
 }
@@ -213,6 +208,16 @@ pub proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(
         // assert(forall |i: int| 0 <= i < s.filter(pred).len() ==> s.contains(#[trigger] s.filter(pred)[i]));
         // assert(forall |e: A| s.filter(pred).contains(e) ==> #[trigger] s.contains(e));
     }
+}
+
+pub proof fn seq_map_value_lemma<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
+    ensures 
+        s.len() == s.map_values(f).len(),
+        (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]));
+{
+    let map_seq = s.map_values(f);
+    assert(s.len() == map_seq.len());
+    assert(forall |i: int| 0 <= i < s.len() ==> map_seq[i] == f(s[i]));
 }
 
 }

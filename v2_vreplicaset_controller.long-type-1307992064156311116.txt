@@ -1,0 +1,1 @@
+builtin::FnSpec<(vreplicaset_controller::trusted::spec_types::VReplicaSetView, kubernetes_api_objects::spec::dynamic::DynamicObjectView), bool>

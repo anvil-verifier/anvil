@@ -1,0 +1,963 @@
+warning: `#[is_variant]` is deprecated - use `->` or `matches` instead
+  --> src/kubernetes_api_objects/error.rs:8:1
+   |
+8  | / #[is_variant]
+9  | | pub enum APIError {
+10 | |     BadRequest,
+11 | |     Conflict,
+...  |
+20 | |     Other
+21 | | }
+   | |_^
+
+error: unexpected token
+   --> src/v2/controllers/vreplicaset_controller/proof/predicate.rs:347:1
+    |
+347 | itions.unwrap().resource_version.unwrap()
+    | ^^^^^^
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/predicate.rs:92:27
+   |
+92 | ...   ==> (!matching_pod_entries(vrs, s.resources()).contains_key...
+   |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/predicate.rs:147:47
+    |
+147 | ...rigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/predicate.rs:184:47
+    |
+184 | ...rigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/predicate.rs:255:24
+    |
+255 | ...   #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VRepli...
+    |                  ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/predicate.rs:266:21
+    |
+266 | ...   &&& matching_pod_entries(vrs, s.resources()).contains_key(...
+    |           ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/predicate.rs:267:21
+    |
+267 | ...   &&& matching_pod_entries(vrs, s.resources())[filtered_pod_...
+    |           ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:152:9
+    |
+152 |         lifted_vrs_non_interference_property_action(cluster, con...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:248:9
+    |
+248 |         lifted_vrs_non_interference_property_action(cluster, con...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:298:27
+    |
+298 | ...   ==> (!matching_pod_entries(vrs, s.resources()).contains_ke...
+    |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:346:29
+    |
+346 | ...   if (matching_pod_entries(vrs, s.resources()).contains_key(...
+    |           ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:378:9
+    |
+378 |         lifted_vrs_non_interference_property_action(cluster, con...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:459:9
+    |
+459 |         lifted_vrs_non_interference_property_action(cluster, con...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:527:47
+    |
+527 | ...rigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:591:62
+    |
+591 | ...rigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:593:28
+    |
+593 | ...   assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSe...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:594:28
+    |
+594 | ...   || at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRec...
+    |          ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:640:28
+    |
+640 | ...   assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSe...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:668:9
+    |
+668 |         lifted_vrs_non_interference_property_action(cluster, con...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:736:47
+    |
+736 | ...rigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:796:62
+    |
+796 | ...rigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:798:28
+    |
+798 | ...   assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSe...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:799:28
+    |
+799 | ...   || at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRec...
+    |          ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:872:28
+    |
+872 | ...   assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSe...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:917:9
+    |
+917 |         lifted_vrs_non_interference_property_action(cluster, con...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/helper_invariants/proof.rs:1165:9
+     |
+1165 |         lifted_vrs_non_interference_property_action(cluster, co...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:28:33
+   |
+28 | ...ils(always(lifted_vrs_non_interference_property(cluster, contr...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:33:35
+   |
+33 | ...ils(always(lifted_vrs_non_interference_property(cluster, contr...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:63:50
+   |
+63 | ...ies(always(lifted_vrs_non_interference_property(cluster, contr...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:64:44
+   |
+64 | ...ies(always(lifted_vrs_non_interference_property(cluster, contr...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:65:31
+   |
+65 | ...ert(always(lifted_vrs_non_interference_property(cluster, contr...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:66:24
+   |
+66 | ...    assert(lifted_vrs_non_interference_property(cluster, contr...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:79:33
+   |
+79 | ...always(lifted_vrs_non_interference_property_action(cluster, co...
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:84:35
+   |
+84 | ...always(lifted_vrs_non_interference_property_action(cluster, co...
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:119:50
+    |
+119 | ...always(lifted_vrs_non_interference_property_action(cluster, c...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:120:44
+    |
+120 | ...always(lifted_vrs_non_interference_property_action(cluster, c...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:121:31
+    |
+121 | ...always(lifted_vrs_non_interference_property_action(cluster, c...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:122:24
+    |
+122 | ...assert(lifted_vrs_non_interference_property_action(cluster, c...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property_action` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:123:24
+    |
+123 | ...assert(lifted_vrs_non_interference_property_action(cluster, c...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:136:9
+    |
+136 | ...   resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:142:80
+    |
+142 | ...et() == matching_pod_entries(vrs, s.resources()).values()
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/helper_lemmas.rs:152:12
+    |
+152 |     assert(matching_pod_entries(vrs, s.resources()).values() == ...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:38:41
+   |
+38 | ...trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+   |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `at_vrs_step_with_vrs` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:39:41
+   |
+39 | ...trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetR...
+   |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:43:9
+   |
+43 | ...   matching_pod_entries(vrs, s.resources()) == matching_pod_en...
+   |       ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:43:53
+   |
+43 | ...es()) == matching_pod_entries(vrs, s_prime.resources()),
+   |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:81:32
+   |
+81 | ...s_equal!(matching_pod_entries(vrs, s.resources()) == matching_...
+   |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:81:76
+   |
+81 | ...es()) == matching_pod_entries(vrs, s_prime.resources()));
+   |             ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:110:9
+    |
+110 | ...   matching_pod_entries(vrs, s.resources()) == matching_pod_e...
+    |       ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:110:53
+    |
+110 | ...s()) == matching_pod_entries(vrs, s_prime.resources()),
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:148:32
+    |
+148 | ..._equal!(matching_pod_entries(vrs, s.resources()) == matching_...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/api_actions.rs:148:76
+    |
+148 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `no_pending_req_at_vrs_step_with_vrs` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:57:25
+   |
+57 | ...       &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:58:25
+   |
+58 |                     &&& num_diff_pods_is(vrs, diff)(s)
+   |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_list_pods_step` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:63:29
+   |
+63 | ...   &&& pending_req_in_flight_at_after_list_pods_step(vrs, cont...
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:64:29
+   |
+64 |                         &&& num_diff_pods_is(vrs, diff)(s)
+   |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `no_pending_req_at_vrs_step_with_vrs` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:71:13
+   |
+71 |         &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_i...
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:72:13
+   |
+72 |         &&& num_diff_pods_is(vrs, diff)(s)
+   |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_list_pods_step` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:75:13
+   |
+75 | ...   &&& pending_req_in_flight_at_after_list_pods_step(vrs, cont...
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+  --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:76:13
+   |
+76 |         &&& num_diff_pods_is(vrs, diff)(s)
+   |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:116:9
+    |
+116 |         lifted_vrs_non_interference_property(cluster, controller...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:135:24
+    |
+135 | ...   assert(matching_pod_entries(vrs, s.resources()) == matchin...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:135:68
+    |
+135 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `req_msg_is_the_in_flight_list_req_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:184:25
+    |
+184 | ...&& req_msg_is_the_in_flight_list_req_at_after_list_pods_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:185:25
+    |
+185 |                     &&& num_diff_pods_is(vrs, diff)(s)
+    |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `exists_resp_in_flight_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:190:29
+    |
+190 | ...   &&& exists_resp_in_flight_at_after_list_pods_step(vrs, con...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:191:29
+    |
+191 |                         &&& num_diff_pods_is(vrs, diff)(s)
+    |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `req_msg_is_the_in_flight_list_req_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:198:13
+    |
+198 | ...&& req_msg_is_the_in_flight_list_req_at_after_list_pods_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:199:13
+    |
+199 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `exists_resp_in_flight_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:202:13
+    |
+202 | ...   &&& exists_resp_in_flight_at_after_list_pods_step(vrs, con...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:203:13
+    |
+203 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:244:9
+    |
+244 |         lifted_vrs_non_interference_property(cluster, controller...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:264:24
+    |
+264 | ...   assert(matching_pod_entries(vrs, s.resources()) == matchin...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:264:68
+    |
+264 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:271:31
+    |
+271 | ...   pre(s) && matching_pod_entries(vrs, s_prime.resources()).v...
+    |                 ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:352:33
+    |
+352 | ...   &&& matching_pod_entries(vrs, s_prime.resources()).values(...
+    |           ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:369:19
+    |
+369 | ...   pre(s) && matching_pod_entries(vrs, s_prime.resources()).v...
+    |                 ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:451:21
+    |
+451 | ...   &&& matching_pod_entries(vrs, s_prime.resources()).values(...
+    |           ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:503:25
+    |
+503 | ...&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:504:25
+    |
+504 |                     &&& num_diff_pods_is(vrs, diff)(s)
+    |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:509:29
+    |
+509 | ... &&& pending_req_in_flight_at_after_create_pod_step(vrs, cont...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:510:29
+    |
+510 |                         &&& num_diff_pods_is(vrs, diff)(s)
+    |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:517:13
+    |
+517 | ...&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:518:13
+    |
+518 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:521:13
+    |
+521 | ... &&& pending_req_in_flight_at_after_create_pod_step(vrs, cont...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:522:13
+    |
+522 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:567:9
+    |
+567 |         lifted_vrs_non_interference_property(cluster, controller...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:587:24
+    |
+587 | ...   assert(matching_pod_entries(vrs, s.resources()) == matchin...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:587:68
+    |
+587 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `req_msg_is_the_in_flight_create_request_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:645:25
+    |
+645 | ...&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:646:25
+    |
+646 |                     &&& num_diff_pods_is(vrs, diff)(s)
+    |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `exists_ok_resp_in_flight_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:651:29
+    |
+651 | ... &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, c...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:652:29
+    |
+652 |                         &&& num_diff_pods_is(vrs, diff + 1)(s)
+    |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `req_msg_is_the_in_flight_create_request_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:659:13
+    |
+659 | ...&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:660:13
+    |
+660 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `exists_ok_resp_in_flight_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:663:13
+    |
+663 | ... &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, c...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:664:13
+    |
+664 |         &&& num_diff_pods_is(vrs, diff + 1)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:707:9
+    |
+707 |         lifted_vrs_non_interference_property(cluster, controller...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:764:56
+    |
+764 | ..._finite(matching_pod_entries(vrs, s.resources()), s.resources...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:765:28
+    |
+765 | ...   assert(matching_pod_entries(vrs, s.resources()).insert(key...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:765:97
+    |
+765 | ...obj) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:767:31
+    |
+767 | ...   assert_by(matching_pod_entries(vrs, s.resources()) == matc...
+    |                 ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:767:75
+    |
+767 | ...s()) == matching_pod_entries(vrs, s_prime.resources()), {
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:768:60
+    |
+768 | ..._finite(matching_pod_entries(vrs, s.resources()), s.resources...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:818:44
+    |
+818 | ..._finite(matching_pod_entries(vrs, s.resources()), s.resources...
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:819:16
+    |
+819 | ...   assert(matching_pod_entries(vrs, s.resources()).insert(key...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:819:85
+    |
+819 | ...obj) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:865:25
+    |
+865 | ...&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:866:25
+    |
+866 |                     &&& num_diff_pods_is(vrs, diff)(s)
+    |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:871:29
+    |
+871 | ... &&& pending_req_in_flight_at_after_create_pod_step(vrs, cont...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:872:29
+    |
+872 |                         &&& num_diff_pods_is(vrs, diff)(s)
+    |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:879:13
+    |
+879 | ...&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vr...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:880:13
+    |
+880 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_create_pod_step` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:883:13
+    |
+883 | ... &&& pending_req_in_flight_at_after_create_pod_step(vrs, cont...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:884:13
+    |
+884 |         &&& num_diff_pods_is(vrs, diff)(s)
+    |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:930:9
+    |
+930 |         lifted_vrs_non_interference_property(cluster, controller...
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:951:24
+    |
+951 | ...   assert(matching_pod_entries(vrs, s.resources()) == matchin...
+    |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+   --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:951:68
+    |
+951 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+    |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1009:25
+     |
+1009 | ...&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vr...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1010:25
+     |
+1010 |                     &&& num_diff_pods_is(vrs, diff)(s)
+     |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1015:29
+     |
+1015 | ... &&& pending_req_in_flight_at_after_delete_pod_step(vrs, con...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1016:29
+     |
+1016 |                         &&& num_diff_pods_is(vrs, diff)(s)
+     |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1023:13
+     |
+1023 | ...&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vr...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1024:13
+     |
+1024 |         &&& num_diff_pods_is(vrs, diff)(s)
+     |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1027:13
+     |
+1027 | ... &&& pending_req_in_flight_at_after_delete_pod_step(vrs, con...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1028:13
+     |
+1028 |         &&& num_diff_pods_is(vrs, diff)(s)
+     |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1073:9
+     |
+1073 |         lifted_vrs_non_interference_property(cluster, controlle...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1093:24
+     |
+1093 | ...   assert(matching_pod_entries(vrs, s.resources()) == matchi...
+     |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1093:68
+     |
+1093 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1162:25
+     |
+1162 | ...&& req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step(vr...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1163:25
+     |
+1163 |                     &&& num_diff_pods_is(vrs, diff)(s)
+     |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `exists_ok_resp_in_flight_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1168:29
+     |
+1168 | ... &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, ...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1169:29
+     |
+1169 |                         &&& num_diff_pods_is(vrs, diff - 1)(s)
+     |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1176:13
+     |
+1176 | ...&& req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step(vr...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1177:13
+     |
+1177 |         &&& num_diff_pods_is(vrs, diff)(s)
+     |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `exists_ok_resp_in_flight_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1180:13
+     |
+1180 | ... &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, ...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1181:13
+     |
+1181 |         &&& num_diff_pods_is(vrs, diff - 1)(s)
+     |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1222:9
+     |
+1222 |         lifted_vrs_non_interference_property(cluster, controlle...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1253:56
+     |
+1253 | ..._finite(matching_pod_entries(vrs, s.resources()), s.resource...
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1254:28
+     |
+1254 | ...   assert(matching_pod_entries(vrs, s.resources()).remove(ke...
+     |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1254:84
+     |
+1254 | ...key) == matching_pod_entries(vrs, s_prime.resources()));
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1256:31
+     |
+1256 | ...   assert_by(matching_pod_entries(vrs, s.resources()) == mat...
+     |                 ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1256:75
+     |
+1256 | ...s()) == matching_pod_entries(vrs, s_prime.resources()), {
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1257:60
+     |
+1257 | ..._finite(matching_pod_entries(vrs, s.resources()), s.resource...
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1281:44
+     |
+1281 | ..._finite(matching_pod_entries(vrs, s.resources()), s.resource...
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1282:16
+     |
+1282 | ...   assert(matching_pod_entries(vrs, s.resources()).remove(ke...
+     |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1282:72
+     |
+1282 | ...key) == matching_pod_entries(vrs, s_prime.resources()));
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1330:25
+     |
+1330 | ...&& resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(vr...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1331:25
+     |
+1331 |                     &&& num_diff_pods_is(vrs, diff)(s)
+     |                         ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1336:29
+     |
+1336 | ... &&& pending_req_in_flight_at_after_delete_pod_step(vrs, con...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1337:29
+     |
+1337 |                         &&& num_diff_pods_is(vrs, diff)(s)
+     |                             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1344:13
+     |
+1344 | ...&& resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(vr...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1345:13
+     |
+1345 |         &&& num_diff_pods_is(vrs, diff)(s)
+     |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `pending_req_in_flight_at_after_delete_pod_step` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1348:13
+     |
+1348 | ... &&& pending_req_in_flight_at_after_delete_pod_step(vrs, con...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `num_diff_pods_is` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1349:13
+     |
+1349 |         &&& num_diff_pods_is(vrs, diff)(s)
+     |             ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `lifted_vrs_non_interference_property` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1398:9
+     |
+1398 |         lifted_vrs_non_interference_property(cluster, controlle...
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1420:24
+     |
+1420 | ...   assert(matching_pod_entries(vrs, s.resources()) == matchi...
+     |              ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `matching_pod_entries` in this scope
+    --> src/v2/controllers/vreplicaset_controller/proof/liveness/resource_match.rs:1420:68
+     |
+1420 | ...s()) == matching_pod_entries(vrs, s_prime.resources()));
+     |            ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error: aborting due to 158 previous errors; 1 warning emitted
+
+For more information about this error, try `rustc --explain E0425`.
