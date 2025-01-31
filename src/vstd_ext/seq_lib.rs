@@ -214,10 +214,4 @@ pub proof fn seq_map_value_lemma<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
     ensures 
         s.len() == s.map_values(f).len(),
         (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]));
-{
-    let map_seq = s.map_values(f);
-    assert(s.len() == map_seq.len());
-    assert(forall |i: int| 0 <= i < s.len() ==> map_seq[i] == f(s[i]));
-}
-
 }
