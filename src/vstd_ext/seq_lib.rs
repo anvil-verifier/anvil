@@ -108,12 +108,17 @@ pub proof fn seq_pred_false_on_all_elements_is_equivalent_to_empty_filter<A>(s: 
 {
     if s.len() != 0 {
         assert((forall |e: A| s.contains(e) ==> !pred(e)) ==> s.filter(pred).len() == 0) by {
-            assume(forall |e: A| s.contains(e) ==> !pred(e));
-            seq_pred_false_on_all_elements_implies_empty_filter(s, pred);
+            // p -> q <== >!p || q
+            if (forall |e: A| s.contains(e) ==> !pred(e))
+            {
+                seq_pred_false_on_all_elements_implies_empty_filter(s, pred);
+            }
         }
         assert(s.filter(pred).len() == 0 ==> (forall |e: A| s.contains(e) ==> !pred(e))) by {
-            assume(s.filter(pred).len() == 0);
-            empty_filter_implies_seq_pred_false_on_all_elements(s, pred);
+            if (s.filter(pred).len() == 0)
+            {
+                empty_filter_implies_seq_pred_false_on_all_elements(s, pred);
+            }
         }
     }
 }

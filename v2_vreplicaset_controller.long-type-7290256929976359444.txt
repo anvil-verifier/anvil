@@ -1,1 +1,0 @@
-fn(vreplicaset_controller::trusted::spec_types::VReplicaSetView, kubernetes_api_objects::spec::dynamic::DynamicObjectView) -> bool {vreplicaset_controller::trusted::liveness_theorem::owned_selector_match_is}

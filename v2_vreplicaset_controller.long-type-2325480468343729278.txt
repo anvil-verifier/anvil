@@ -1,1 +1,0 @@
-fn(vstd::seq::Seq<kubernetes_api_objects::spec::pod::PodView>, vreplicaset_controller::trusted::spec_types::VReplicaSetView) -> vstd::seq::Seq<kubernetes_api_objects::spec::pod::PodView> {vreplicaset_controller::model::reconciler::filter_pods}
