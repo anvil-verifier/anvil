@@ -197,18 +197,22 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                 let filtered_pods = state.filtered_pods.unwrap();
                 &&& triggering_cr.object_ref() == key
                 &&& triggering_cr.metadata().well_formed()
-                &&& state.filtered_pods.is_Some()
+                &&& state.filtered_pods.is_Some() ==>
                 // Maintained across deletes, 
                 // maintained across creates since all new keys with generate_name
                 // are unique, maintained across updates since there are
                 // no updates.
-                &&& forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
+                    forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
                     (
                         filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                         && (s.resources().contains_key(filtered_pods[i].object_ref()) ==>
-                            s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
+                            (s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
                                 triggering_cr.controller_owner_ref()
-                            ))
+                                )
+                             ))
+                        && filtered_pods[i].metadata.resource_version.is_some()
+                        && filtered_pods[i].metadata.resource_version.unwrap()
+                            < s.api_server.resource_version_counter
                     )
                 // Special case: the above property holds on a list response to the
                 // appropriate request. 
@@ -221,14 +225,17 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.get_list_response().res.is_Ok()
-                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() != 0 
+                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
                         &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                         (
-                            resp_objs[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                            resp_objs[i].metadata.namespace.is_some()
+                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
                             && (s.resources().contains_key(resp_objs[i].object_ref()) ==>
                                     s.resources()[resp_objs[i].object_ref()].metadata
-                                        == resp_objs[i].metadata
-                                )
+                                        == resp_objs[i].metadata)
+                            && resp_objs[i].metadata.resource_version.is_some()
+                            && resp_objs[i].metadata.resource_version.unwrap()
+                                    < s.api_server.resource_version_counter
                         )
                     }
             }
@@ -285,6 +292,7 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
             &&& s.in_flight().contains(msg)
             &&& msg.src.is_Controller()
             &&& msg.src.get_Controller_0() == controller_id
+            &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
             &&& content.is_delete_request()
         } ==> {
