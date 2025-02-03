@@ -744,7 +744,6 @@ pub open spec fn every_new_ongoing_reconcile_satisfies(
 // To require "every newly started reconcile for a given controller_id satisfies some requirements", 
 // we use a spec_fn (i.e., a closure) as parameter which can be defined by callers and require 
 // spec |= [](every_new_ongoing_reconcile_satisfies(requirements)).
-#[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
     self, 
     spec: TempPred<ClusterState>,
@@ -762,7 +761,47 @@ pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
         // There is the controller state.
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)))));
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)))))
+{
+    assert forall |reconcile_id| spec.entails(
+        lift_state(#[trigger] Self::reconcile_id_counter_is(controller_id, reconcile_id))
+                    .leads_to(always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements))))
+    ) by {
+        self.lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_satisfies_with_reconcile_id(
+            spec, controller_id, requirements, reconcile_id
+        );
+    }
+    let has_reconcile_id = |reconcile_id| lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id));
+    leads_to_exists_intro(spec, has_reconcile_id, always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements))));
+    assert_by(
+        tla_exists(has_reconcile_id) == true_pred::<ClusterState>(),
+        {
+            assert forall |ex| #[trigger] true_pred().satisfied_by(ex) implies tla_exists(has_reconcile_id).satisfied_by(ex) by {
+                let reconcile_id = ex.head().reconcile_id_allocator(controller_id).reconcile_id_counter;
+                assert(has_reconcile_id(reconcile_id).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(has_reconcile_id), true_pred());
+        }
+    );
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_satisfies_with_reconcile_id(
+    self, 
+    spec: TempPred<ClusterState>,
+    controller_id: int,
+    requirements: spec_fn(OngoingReconcile, ClusterState) -> bool,
+    reconcile_id: nat,
+)
+    requires
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| self.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_action(Self::every_new_ongoing_reconcile_satisfies(controller_id, requirements)))),
+        spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))))),
+        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+    ensures spec.entails(lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id))
+                        .leads_to(always(lift_state(Self::every_ongoing_reconcile_satisfies(controller_id, requirements)))));
 
 }
 
