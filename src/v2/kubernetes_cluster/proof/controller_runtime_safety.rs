@@ -381,6 +381,118 @@ pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: Cu
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
+pub open spec fn reconcile_id_counter_is(controller_id: int, reconcile_id: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| s.reconcile_id_allocator(controller_id).reconcile_id_counter == reconcile_id
+}
+
+pub open spec fn reconcile_id_counter_is_no_smaller_than(controller_id: int, reconcile_id: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| s.reconcile_id_allocator(controller_id).reconcile_id_counter >= reconcile_id
+}
+
+pub proof fn lemma_always_has_reconcile_id_counter_no_smaller_than(
+    self, spec: TempPred<ClusterState>, controller_id: int, reconcile_id: ReconcileId
+)
+    requires
+        spec.entails(always(lift_action(self.next()))),
+        // need redundancy since the basepoint might not be init.
+        self.controller_models.contains_key(controller_id),
+        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+        spec.entails(lift_state(Self::reconcile_id_counter_is(controller_id, reconcile_id))),
+    ensures spec.entails(always(lift_state(Self::reconcile_id_counter_is_no_smaller_than(controller_id, reconcile_id)))),
+{
+    let invariant = Self::reconcile_id_counter_is_no_smaller_than(controller_id, reconcile_id);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+    init_invariant::<ClusterState>(spec, Self::reconcile_id_counter_is(controller_id, reconcile_id), stronger_next, invariant);
+}
+
+pub open spec fn every_ongoing_reconcile_has_lower_id_than_allocator(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            ==> s.ongoing_reconciles(controller_id)[key].reconcile_id 
+                    < s.reconcile_id_allocator(controller_id).reconcile_id_counter
+    }
+}
+
+pub proof fn lemma_always_every_ongoing_reconcile_has_lower_id_than_allocator(
+    self, spec: TempPred<ClusterState>, controller_id: int,
+)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+    ensures spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
+{
+    let invariant = Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id);
+
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key) implies
+        s_prime.ongoing_reconciles(controller_id)[key].reconcile_id < s_prime.reconcile_id_allocator(controller_id).reconcile_id_counter by {
+            let step = choose |step| self.next_step(s, s_prime, step);
+            if s.ongoing_reconciles(controller_id).contains_key(key) {
+                assert(s.reconcile_id_allocator(controller_id).reconcile_id_counter <= s_prime.reconcile_id_allocator(controller_id).reconcile_id_counter);
+            }
+        }
+    };
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
+}
+
+pub open spec fn every_ongoing_reconcile_has_unique_id(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key1, key2|
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key1)
+            && #[trigger] s.ongoing_reconciles(controller_id).contains_key(key2)
+            && key1 != key2
+            ==>  s.ongoing_reconciles(controller_id)[key1].reconcile_id 
+                    != s.ongoing_reconciles(controller_id)[key2].reconcile_id
+    }
+}
+
+pub proof fn lemma_always_every_ongoing_reconcile_has_unique_id(
+    self, spec: TempPred<ClusterState>, controller_id: int,
+)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+    ensures spec.entails(always(lift_state(Self::every_ongoing_reconcile_has_unique_id(controller_id)))),
+{
+    let invariant = Self::every_ongoing_reconcile_has_unique_id(controller_id);
+    let stronger_next = |s, s_prime| {
+        self.next()(s, s_prime)
+        && Self::there_is_the_controller_state(controller_id)(s)
+        && Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    self.lemma_always_every_ongoing_reconcile_has_lower_id_than_allocator(spec, controller_id);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id)),
+        lift_state(Self::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))
+    );
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
+}
+
 }
 
 }
