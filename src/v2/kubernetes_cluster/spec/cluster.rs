@@ -57,8 +57,18 @@ impl ClusterState {
         self.controller_and_externals[controller_id].controller.scheduled_reconciles
     }
 
+    #[verifier(inline)]
+    pub open spec fn reconcile_id_allocator(self, controller_id: int) -> ReconcileIdAllocator {
+        self.controller_and_externals[controller_id].controller.reconcile_id_allocator
+    }
+
     pub open spec fn has_rpc_id_counter_no_smaller_than(self, rpc_id: nat) -> bool {
         self.rpc_id_allocator.rpc_id_counter >= rpc_id
+    }
+
+    pub open spec fn has_reconcile_id_counter_no_smaller_than(self, controller_id: int, reconcile_id: nat) -> bool {
+        self.controller_and_externals[controller_id].controller.reconcile_id_allocator.reconcile_id_counter
+            >= reconcile_id
     }
 }
 
