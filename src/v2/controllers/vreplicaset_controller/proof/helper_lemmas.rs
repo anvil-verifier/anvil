@@ -134,59 +134,57 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
 )
     requires
         resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
-        list_pod_resp_contains_all_namespaced_pods(vrs, controller_id, resp_msg)(s),
     ensures
         ({
-            let objs = resp_msg.content.get_list_response().res.unwrap();
-            let pods_or_none = objects_to_pods(objs);
-            let pods = pods_or_none.unwrap();
-            let filtered_pods = filter_pods(pods, vrs);
+            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+            let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
             &&& filtered_pods.no_duplicates()
-            &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
             &&& filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values()
         }),
 {
-    let pre = resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s);
-    let objs = resp_msg.content.get_list_response().res.unwrap();
-    let pods_or_none = objects_to_pods(objs);
-    let pods = pods_or_none.unwrap();
-    let filtered_pods = filter_pods(pods, vrs);
-
-    // We've proved the first property of filtered_pods.
-    assert(pods.no_duplicates());
-    let pred = |pod: PodView|
+    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
+    let filter_pods_pred = |pod: PodView| 
         pod.metadata.owner_references_contains(vrs.controller_owner_ref())
         && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
         && pod.metadata.deletion_timestamp.is_None();
-    seq_filter_preserves_no_duplicates(pods, pred);
-    assert(filtered_pods.no_duplicates());
-    
-    // We now must prove that the number of elements of `filtered_pods` is equal to the number
-    // of matching pods. This is true by the way we construct `filtered_pods`.
-    assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len());
-
-    // We now must prove that the elements of `filtered_pods` are precisely the matching pod
-    // entries. This is also true by construction.
-    assert(filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values());
+    assert(filtered_pods.no_duplicates()) by {
+        assert(objects_to_pods(resp_objs).unwrap().no_duplicates());
+        seq_filter_preserves_no_duplicates(objects_to_pods(resp_objs).unwrap(), filter_pods_pred);
+        assert(filtered_pods == objects_to_pods(resp_objs).unwrap().filter(filter_pods_pred));
+    }
+    PodView::marshal_preserves_integrity();
+    // get rid of s.resources
+    // now we only need to prove
+    // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
+    // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
+    assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
+    assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)) == filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())) by {
+        // get rid of objects_to_pods
+        pred_on_element_equal_to_pred_on_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
+        assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]).is_Ok());
+        PodView::marshal_preserves_integrity();
+        PodView::marshal_preserves_metadata();
+        let resp_pods = objects_to_pods(resp_objs).unwrap();
+        assert(resp_pods.len() == resp_objs.len());
+        assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
+            &&& #[trigger] resp_objs[i].metadata == resp_pods[i].metadata
+            &&& #[trigger] PodView::unmarshal_spec(resp_objs[i].spec).get_Ok_0() == resp_pods[i].spec
+        });
+        // prove 2 filters are equal
+        pred_on_element_equal_to_pred_on_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
+        assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
+            &&& #[trigger] resp_objs[i].kind == PodView::kind()
+            &&& #[trigger] resp_objs[i].metadata.namespace.is_Some()
+            &&& #[trigger] resp_objs[i].metadata.namespace == vrs.metadata.namespace
+        });
+        assert(forall |i: int| 0 <= i < resp_objs.len() ==>
+            #[trigger] owned_selector_match_is(vrs, resp_objs[i]) == #[trigger] filter_pods_pred(resp_pods[i]));
+        // prove filter_pods_pred works the same as filter_pods
+        assert(filter_pods(resp_pods, vrs) == resp_pods.filter(filter_pods_pred));
+        PodView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+        seq_map_filter_equal_seq_filter_map(resp_objs, resp_pods, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0(), |p: PodView| p.marshal());
+    }
 }
 
-// should we put it in trusted?
-// or in API related lemmas
-// and remove the vrs-related part of code
-pub open spec fn list_pod_resp_contains_all_namespaced_pods(
-    vrs: VReplicaSetView, 
-    controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let objs = resp_msg.content.get_list_response().res.unwrap();
-        let pods_or_none = objects_to_pods(objs);
-        let pods = pods_or_none.unwrap();
-        let objs_in_s = s.resources().values().to_seq();
-        let pods_or_none_in_s = objects_to_pods(objs_in_s);
-        let pods_in_s = pods_or_none_in_s.unwrap();
-        // ns is consistent
-        &&& forall |p: PodView| pods.contains(p) ==> p.metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
-        &&& pods_in_s == pods
-        }
-    }
 }
