@@ -232,8 +232,8 @@ pub proof fn pred_on_element_equal_to_pred_on_index<A>(s: Seq<A>, pred: spec_fn(
 pub proof fn seq_map_filter_equal_seq_filter_map<A, B>(a: Seq<A>, b: Seq<B>, c: spec_fn(A) -> bool, d: spec_fn(B) -> bool, g: spec_fn(A) -> B, g_rev: spec_fn(B) -> A)
     requires a.len() == b.len(),
         forall |i: int| 0 <= i < a.len() ==> #[trigger] c(a[i]) == #[trigger] d(b[i]),
-        forall |i: int| 0 <= i < a.len() ==> #[trigger] d(g(a[i])) == d(b[i]),
-        forall |i: int| 0 <= i < b.len() ==> #[trigger] c(g_rev(b[i])) == c(a[i]),
+        forall |i: int| 0 <= i < a.len() ==> #[trigger] g(a[i]) == b[i],
+        forall |i: int| 0 <= i < b.len() ==> #[trigger] g_rev(b[i]) == a[i],
     ensures a.filter(c).map_values(g) == b.filter(d),
         b.filter(d).map_values(g_rev) == a.filter(c);
 }
