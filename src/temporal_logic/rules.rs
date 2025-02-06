@@ -972,6 +972,31 @@ pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
     always_p_is_stable(p.implies(eventually(q)));
 }
 
+// Forall a leads-to predicate p -> q(a) is stable.
+// pre:
+//     forall |a| |= stable(p -> q(a))
+// post:
+//     |= stable(tla_forall(|a| p -> q(a)))
+pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
+    requires forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a)))),
+    ensures valid(stable(tla_forall(|a: A| p.leads_to(a_to_q(a))))),
+{
+    let target = tla_forall(|a: A| p.leads_to(a_to_q(a)));
+    assert forall |ex| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
+        assert forall |i| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies 
+                    (target.satisfied_by(ex) ==> #[trigger] target.satisfied_by(ex.suffix(i))) by {
+            assert forall |a: A| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies 
+                        (p.leads_to(a_to_q(a)).satisfied_by(ex) ==> #[trigger] p.leads_to(a_to_q(a)).satisfied_by(ex.suffix(i))) by {
+                assert(valid(stable(p.leads_to(a_to_q(a)))));
+                assert(stable(p.leads_to(a_to_q(a))).satisfied_by(ex));
+                if (p.leads_to(a_to_q(a)).satisfied_by(ex)) {
+                    assert(p.leads_to(a_to_q(a)).satisfied_by(ex.suffix(i)));
+                }
+            }
+        }
+    }
+}
+
 // p and q is stable if both p and q are stable.
 // pre:
 //     |= stable(p)
