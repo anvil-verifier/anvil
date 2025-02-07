@@ -223,9 +223,22 @@ pub proof fn seq_map_value_lemma<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
 
 // TODO: trivial
 #[verifier(external_body)]
+pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filter_pred: spec_fn(A) -> bool)
+    requires forall |e: A| s.contains(e) ==> pred(e),
+    ensures forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e);
+
+// TODO: trivial
+#[verifier(external_body)]
 pub proof fn pred_on_element_equal_to_pred_on_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     ensures
         (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]));
+
+// TODO: trivial
+#[verifier(external_body)]
+pub proof fn seq_map_values_index_equal_seq_index_map<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
+    ensures
+        s.len() == s.map_values(f).len(),
+        (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]));
 
 // TODO: hard
 #[verifier(external_body)]
@@ -233,7 +246,5 @@ pub proof fn seq_map_filter_equal_seq_filter_map<A, B>(a: Seq<A>, b: Seq<B>, c: 
     requires a.len() == b.len(),
         forall |i: int| 0 <= i < a.len() ==> #[trigger] c(a[i]) == #[trigger] d(b[i]),
         forall |i: int| 0 <= i < a.len() ==> #[trigger] g(a[i]) == b[i],
-        forall |i: int| 0 <= i < b.len() ==> #[trigger] g_rev(b[i]) == a[i],
-    ensures a.filter(c).map_values(g) == b.filter(d),
-        b.filter(d).map_values(g_rev) == a.filter(c);
+    ensures b.filter(d) == a.filter(c).map_values(g);
 }
