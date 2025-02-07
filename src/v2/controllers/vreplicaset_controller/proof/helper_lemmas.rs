@@ -162,14 +162,14 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
     assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)) == filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())) by {
         // get rid of objects_to_pods
-        pred_on_element_equal_to_pred_on_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
+        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
         assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]).is_Ok());
         PodView::marshal_preserves_integrity();
         PodView::marshal_preserves_metadata();
         let resp_pods = objects_to_pods(resp_objs).unwrap();
         assert(resp_pods.len() == resp_objs.len());
         // prove 2 filters are equal
-        pred_on_element_equal_to_pred_on_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
+        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
         assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
             &&& #[trigger] resp_objs[i].kind == PodView::kind()
             &&& #[trigger] resp_objs[i].metadata.namespace.is_Some()
@@ -188,7 +188,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
                 unmarshal_preserves_integrity(resp_pods[i], resp_objs[i]);
             }
             assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())) by {
-                seq_map_filter_equal_seq_filter_map(resp_objs, resp_pods, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0(), |p: PodView| p.marshal());
+                seq_map_then_filter_equal_to_seq_filter_then_map(resp_objs, resp_pods, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0(), |p: PodView| p.marshal());
             }
             assert(filtered_objs.len() == filtered_pods.len());
             assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods.map_values(|p: PodView| p.marshal())[i] == filtered_objs[i] by {
@@ -197,11 +197,11 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
                     assert(forall |obj: DynamicObjectView| filtered_objs.contains(obj) ==> PodView::unmarshal(obj).is_Ok()) by {
                         true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok(), |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
                     }
-                    pred_on_element_equal_to_pred_on_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
+                    true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
                 }
                 assert(PodView::unmarshal(filtered_objs[i]).get_Ok_0() == filtered_pods[i]);
                 unmarshal_preserves_integrity(filtered_pods[i], filtered_objs[i]);
-                seq_map_values_index_equal_seq_index_map(filtered_pods, |p: PodView| p.marshal());
+                indexed_seq_map_values_element_equal_to_indexed_seq_element_map(filtered_pods, |p: PodView| p.marshal());
             }
             assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
             assert_seqs_equal!(filtered_pods.map_values(|p: PodView| p.marshal()), filtered_objs);

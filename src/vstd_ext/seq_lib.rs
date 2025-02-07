@@ -229,20 +229,20 @@ pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pr
 
 // TODO: trivial
 #[verifier(external_body)]
-pub proof fn pred_on_element_equal_to_pred_on_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     ensures
         (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]));
 
 // TODO: trivial
 #[verifier(external_body)]
-pub proof fn seq_map_values_index_equal_seq_index_map<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
+pub proof fn indexed_seq_map_values_element_equal_to_indexed_seq_element_map<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
     ensures
         s.len() == s.map_values(f).len(),
         (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]));
 
 // TODO: hard
 #[verifier(external_body)]
-pub proof fn seq_map_filter_equal_seq_filter_map<A, B>(a: Seq<A>, b: Seq<B>, c: spec_fn(A) -> bool, d: spec_fn(B) -> bool, g: spec_fn(A) -> B, g_rev: spec_fn(B) -> A)
+pub proof fn seq_map_then_filter_equal_to_seq_filter_then_map<A, B>(a: Seq<A>, b: Seq<B>, c: spec_fn(A) -> bool, d: spec_fn(B) -> bool, g: spec_fn(A) -> B, g_rev: spec_fn(B) -> A)
     requires a.len() == b.len(),
         forall |i: int| 0 <= i < a.len() ==> #[trigger] c(a[i]) == #[trigger] d(b[i]),
         forall |i: int| 0 <= i < a.len() ==> #[trigger] g(a[i]) == b[i],
