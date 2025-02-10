@@ -228,19 +228,18 @@ pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pr
     }
 }
 
-// Q:
-// 1. Why assert(s.contains(s[i]) ==> pred(s[i])); failed
-// 2. How to specify conditions of forall |i: int, obj: A|
 pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     ensures
         (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))
 {
     if s.len() != 0 {
-        // trivial
         assert((forall |i: int| 0 <= i < s.len() ==> pred(s[i])) ==> (forall |obj: A| s.contains(obj) ==> pred(obj)));
-        assert forall |i: int, obj: A| (s.contains(obj) ==> pred(obj)) && 0 <= i < s.len() implies pred(s[i]) by {
-            assert(s.contains(s[i]));
-            assert(s.contains(s[i]) ==> pred(s[i]));
+        assert((forall |obj: A| s.contains(obj) ==> pred(obj)) ==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))) by {
+            if (forall |obj: A| s.contains(obj) ==> pred(obj)) {
+                assert(forall |i: int| 0 <= i < s.len() ==> pred(s[i])) by {
+                    assert(forall |i: int| 0 <= i < s.len() ==> s.contains(#[trigger] s[i]) ==> pred(s[i]));
+                }
+            }
         }
     }
 }
