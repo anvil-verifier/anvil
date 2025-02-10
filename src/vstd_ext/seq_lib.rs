@@ -215,36 +215,62 @@ pub proof fn seq_map_value_lemma<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
     ensures 
         s.len() == s.map_values(f).len(),
         (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]));
-//
-// TODO: Prove this -- Trivial.
-//
-// Anything in the 
-//
 
-// TODO: trivial
-#[verifier(external_body)]
 pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filter_pred: spec_fn(A) -> bool)
     requires forall |e: A| s.contains(e) ==> pred(e),
-    ensures forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e);
+    ensures forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)
+{
+    assert(forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)) by {
+        assert(forall |e: A| s.filter(filter_pred).contains(e) ==> #[trigger] s.contains(e)) by {
+            seq_filter_is_a_subset_of_original_seq(s, filter_pred);
+        }
+        assert(forall |e: A| s.contains(e) ==> pred(e));
+    }
+}
 
-// TODO: trivial
-#[verifier(external_body)]
+// Q:
+// 1. Why assert(s.contains(s[i]) ==> pred(s[i])); failed
+// 2. How to specify conditions of forall |i: int, obj: A|
 pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     ensures
-        (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]));
+        (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))
+{
+    if s.len() != 0 {
+        // trivial
+        assert((forall |i: int| 0 <= i < s.len() ==> pred(s[i])) ==> (forall |obj: A| s.contains(obj) ==> pred(obj)));
+        assert forall |i: int, obj: A| (s.contains(obj) ==> pred(obj)) && 0 <= i < s.len() implies pred(s[i]) by {
+            assert(s.contains(s[i]));
+            assert(s.contains(s[i]) ==> pred(s[i]));
+        }
+    }
+}
 
-// TODO: trivial
-#[verifier(external_body)]
-pub proof fn indexed_seq_map_values_element_equal_to_indexed_seq_element_map<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
-    ensures
-        s.len() == s.map_values(f).len(),
-        (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]));
+// Q: Why reveal is required as filter is open spec
+pub proof fn commutativity_of_seq_map_and_filter<A, B>(s: Seq<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, map: spec_fn(A) -> B)
+    // ensure filter on original sequence is identical to filter on mapped sequence
+    requires forall |i: int| 0 <= i < s.len() ==> #[trigger] pred(s[i]) == #[trigger] pred_on_mapped(map(s[i])),
+    ensures s.map_values(map).filter(pred_on_mapped) == s.filter(pred).map_values(map),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        commutativity_of_seq_map_and_filter(subseq, pred, pred_on_mapped, map);
+        assert(pred(s.last()) == pred_on_mapped(map(s.last())));
+        assert(s.map_values(map).filter(pred_on_mapped) == s.filter(pred).map_values(map)) by {
+            assert(subseq.map_values(map).filter(pred_on_mapped) == subseq.filter(pred).map_values(map));
+            assert(s.map_values(map) == subseq.map_values(map).push(map(s.last())));
+            assert(s.map_values(map).drop_last() == subseq.map_values(map));
+            if !pred(s.last()) {
+                assert(s.map_values(map).filter(pred_on_mapped) == subseq.map_values(map).filter(pred_on_mapped)) by {
+                    assert(subseq.map_values(map).filter(pred_on_mapped) == subseq.map_values(map).push(map(s.last())).filter(pred_on_mapped));
+                }
+            } else {
+                // why this line the same as postcondition is required
+                assert(s.map_values(map).filter(pred_on_mapped) == s.filter(pred).map_values(map));
+            }
+        }
+    }
+}
 
-// TODO: hard
-#[verifier(external_body)]
-pub proof fn seq_map_then_filter_equal_to_seq_filter_then_map<A, B>(a: Seq<A>, b: Seq<B>, c: spec_fn(A) -> bool, d: spec_fn(B) -> bool, g: spec_fn(A) -> B, g_rev: spec_fn(B) -> A)
-    requires a.len() == b.len(),
-        forall |i: int| 0 <= i < a.len() ==> #[trigger] c(a[i]) == #[trigger] d(b[i]),
-        forall |i: int| 0 <= i < a.len() ==> #[trigger] g(a[i]) == b[i],
-    ensures b.filter(d) == a.filter(c).map_values(g);
 }

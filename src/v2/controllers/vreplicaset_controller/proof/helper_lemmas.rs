@@ -181,27 +181,26 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
         let filtered_objs = resp_objs.filter(|obj| owned_selector_match_is(vrs, obj));
         assert(filtered_objs =~= filtered_pods.map_values(|p: PodView| p.marshal())) by {
-            assert forall |i: int| 0 <= i < resp_objs.len() implies resp_pods[i].marshal() == resp_objs[i] by {
+            assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i].marshal() == resp_objs[i] by {
                 // spec and status are encoded nestedly
                 assert(PodView::unmarshal(resp_objs[i]).is_Ok());
                 assert(PodView::unmarshal(resp_objs[i]).get_Ok_0() == resp_pods[i]);
                 unmarshal_preserves_integrity(resp_pods[i], resp_objs[i]);
             }
             assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())) by {
-                seq_map_then_filter_equal_to_seq_filter_then_map(resp_objs, resp_pods, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0(), |p: PodView| p.marshal());
+                commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0());
             }
             assert(filtered_objs.len() == filtered_pods.len());
             assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods.map_values(|p: PodView| p.marshal())[i] == filtered_objs[i] by {
                 assert(filtered_pods == resp_pods.filter(filter_pods_pred));
                 assert(PodView::unmarshal(filtered_objs[i]).is_Ok()) by {
-                    assert(forall |obj: DynamicObjectView| filtered_objs.contains(obj) ==> PodView::unmarshal(obj).is_Ok()) by {
+                    assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj).is_Ok()) by {
                         true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok(), |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
                     }
                     true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
                 }
                 assert(PodView::unmarshal(filtered_objs[i]).get_Ok_0() == filtered_pods[i]);
                 unmarshal_preserves_integrity(filtered_pods[i], filtered_objs[i]);
-                indexed_seq_map_values_element_equal_to_indexed_seq_element_map(filtered_pods, |p: PodView| p.marshal());
             }
             assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
             assert_seqs_equal!(filtered_pods.map_values(|p: PodView| p.marshal()), filtered_objs);
