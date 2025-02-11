@@ -126,7 +126,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify vreplicaset controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
   v2-vdeployment-verification:
     runs-on: ubuntu-20.04
     steps:
