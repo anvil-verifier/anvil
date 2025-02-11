@@ -201,12 +201,13 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         let ranking_pred = |n: nat| create_resp(-n);
 
         // Useful assertions to let us chain in and out of ranking_pred
-        assert forall |n: nat| #![trigger create_resp(-n)]
+        // TODO: triggering on `create_resp(-n)` lets verus panics
+        assert forall |n: nat| #![trigger ranking_pred(n)]
                     spec.entails(create_resp(-n).leads_to(ranking_pred(n))) by {
             entails_implies_leads_to(spec, create_resp(-n), ranking_pred(n));
         };
 
-        assert forall |n: nat| #![trigger create_resp(-n)]
+        assert forall |n: nat| #![trigger ranking_pred(n)]
                     spec.entails(ranking_pred(n).leads_to(create_resp(-n))) by {
             entails_implies_leads_to(spec, ranking_pred(n), create_resp(-n));
         };
