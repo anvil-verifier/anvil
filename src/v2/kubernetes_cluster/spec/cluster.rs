@@ -57,8 +57,18 @@ impl ClusterState {
         self.controller_and_externals[controller_id].controller.scheduled_reconciles
     }
 
+    #[verifier(inline)]
+    pub open spec fn reconcile_id_allocator(self, controller_id: int) -> ReconcileIdAllocator {
+        self.controller_and_externals[controller_id].controller.reconcile_id_allocator
+    }
+
     pub open spec fn has_rpc_id_counter_no_smaller_than(self, rpc_id: nat) -> bool {
         self.rpc_id_allocator.rpc_id_counter >= rpc_id
+    }
+
+    pub open spec fn has_reconcile_id_counter_no_smaller_than(self, controller_id: int, reconcile_id: nat) -> bool {
+        self.controller_and_externals[controller_id].controller.reconcile_id_allocator.reconcile_id_counter
+            >= reconcile_id
     }
 }
 
@@ -358,6 +368,9 @@ impl Cluster {
     // is equivalent to the behavior that a controller no longer gets scheduled from t1 and
     // then restarts at t2, as long as a crashed controller won't trigger new actions.
     //
+    // Note that to simplify reasoning, although restarting a controller will stop
+    // all ongoing_reconciles, a restart will preserve the reconcile_id_allocator.
+    //
     // Note that weak fairness on the controller's action is not a problem here:
     // weak fairness only says that the controller eventually takes a step if it remains enabled,
     // so even with weak fairness the controller can still stay "offline" from t1 to t2.
@@ -375,6 +388,7 @@ impl Cluster {
                     controller: ControllerState {
                         scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
                         ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+                        reconcile_id_allocator: controller_and_external_state.controller.reconcile_id_allocator,
                     },
                     ..controller_and_external_state
                 };

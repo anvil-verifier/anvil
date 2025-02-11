@@ -3,3 +3,4 @@
 pub mod api_actions;
 pub mod proof;
 pub mod resource_match;
+pub mod terminate;

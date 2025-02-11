@@ -21,7 +21,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -44,7 +44,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -67,7 +67,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -80,7 +80,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify zookeeper controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 50
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
   vreplicaset-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -90,7 +90,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -113,7 +113,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -126,7 +126,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify vreplicaset controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
   v2-vdeployment-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -136,7 +136,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -149,7 +149,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify vdeployment controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
@@ -159,7 +159,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -184,7 +184,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -220,7 +220,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -243,7 +243,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 0d7b766446cd33521132cff03b6108705e83884f
+          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -256,7 +256,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify conformance of the executable model
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
   fluent-e2e-test:
     runs-on: ubuntu-20.04
     steps:

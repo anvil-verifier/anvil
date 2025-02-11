@@ -17,14 +17,17 @@ pub open spec fn run_scheduled_reconcile(model: ReconcileModel) -> ControllerAct
         },
         transition: |input: ControllerActionInput, s: ControllerState| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
+            let (new_allocator, reconcile_id) = s.reconcile_id_allocator.allocate();
             let initialized_ongoing_reconcile = OngoingReconcile {
                 triggering_cr: s.scheduled_reconciles[cr_key],
                 pending_req_msg: None,
                 local_state: (model.init)(),
+                reconcile_id: reconcile_id
             };
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_ongoing_reconcile),
                 scheduled_reconciles: s.scheduled_reconciles.remove(cr_key),
+                reconcile_id_allocator: new_allocator,
                 ..s
             };
             let output = ControllerActionOutput {
@@ -137,6 +140,9 @@ pub open spec fn controller(model: ReconcileModel, controller_id: int) -> Contro
             s == ControllerState {
                 scheduled_reconciles: Map::<ObjectRef, DynamicObjectView>::empty(),
                 ongoing_reconciles: Map::<ObjectRef, OngoingReconcile>::empty(),
+                reconcile_id_allocator: ReconcileIdAllocator {
+                    reconcile_id_counter: 0,
+                },
             }
         },
         actions: set![

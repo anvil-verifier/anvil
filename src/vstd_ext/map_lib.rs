@@ -17,7 +17,7 @@ pub proof fn a_submap_of_a_finite_map_is_finite<K, V>(m1: Map<K, V>, m2: Map<K, 
     ensures
         m1.dom().finite(),
 {
-    assert(m1.dom()===m2.dom().intersect(m1.dom()));
+    assert(m1.dom() === m2.dom().intersect(m1.dom()));
 }
 
 }

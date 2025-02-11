@@ -39,6 +39,12 @@ pub open spec fn at_step_closure(step: VReplicaSetRecStepView) -> spec_fn(Reconc
     |s: ReconcileLocalState| VReplicaSetReconcileState::unmarshal(s).unwrap().reconcile_step == step
 }
 
+pub open spec fn unwrap_local_state_closure<T>(
+    closure: spec_fn(VReplicaSetReconcileState) -> T
+) -> spec_fn(ReconcileLocalState) -> T {
+    |s: ReconcileLocalState| closure(VReplicaSetReconcileState::unmarshal(s).unwrap())
+}
+
 pub open spec fn at_vrs_step_with_vrs(vrs: VReplicaSetView, controller_id: int, step: VReplicaSetRecStepView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();

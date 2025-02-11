@@ -19,6 +19,940 @@ use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
+// -------------- Leads-to Chaining Reasoning --------------
+
+pub proof fn lemma_from_diff_and_init_to_current_state_matches(
+    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        vrs.state_validation(),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(lift_state(current_state_matches(vrs)))
+        )
+{
+    let invariants = {
+        &&& spec.entails(always(lift_action(cluster.next())))
+        &&& spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))
+        &&& spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
+        &&& spec.entails(always(lift_state(Cluster::desired_state_is(vrs))))
+        &&& spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
+        &&& spec.entails(always(lift_state(Cluster::crash_disabled(controller_id))))
+        &&& spec.entails(always(lift_state(Cluster::req_drop_disabled())))
+        &&& spec.entails(always(lift_state(Cluster::pod_monkey_disabled())))
+        &&& spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id())))
+        &&& spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
+        &&& spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
+        &&& spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())))
+        &&& spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
+        &&& spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))))
+        &&& spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))))
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id))))
+
+        &&& spec.entails(always(lift_state(Cluster::etcd_is_finite())))
+        &&& spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id))))
+        &&& spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods())))
+        &&& spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods())))
+        &&& spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id))))
+        &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))
+        &&& spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))
+        &&& spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id))))
+    };
+    let pre = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_req = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& pending_req_in_flight_at_after_list_pods_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_req_msg = |req_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& req_msg_is_the_in_flight_list_req_at_after_list_pods_step(vrs, controller_id, req_msg)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_resp_in_flight_at_after_list_pods_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Deal with transition from init to listing the pods.
+    lemma_from_init_step_to_send_list_pods_req(vrs, spec, cluster, controller_id, diff);
+
+    assert forall |req_msg: Message|
+                 invariants implies #[trigger] spec.entails(list_req_msg(req_msg, diff).leads_to(list_resp(diff))) by {
+        lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(vrs, spec, cluster, controller_id, req_msg, diff);
+    };
+    leads_to_exists_intro(spec, |req_msg| list_req_msg(req_msg, diff), list_resp(diff));
+
+
+    assert_by(spec.entails(list_req(diff).leads_to(tla_exists(|req_msg| list_req_msg(req_msg, diff)))), {
+        assert forall |ex| #[trigger] list_req(diff).satisfied_by(ex)
+            implies tla_exists(|req_msg| list_req_msg(req_msg, diff)).satisfied_by(ex) by {
+            let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+            assert((|req_msg: Message| list_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+        };
+        entails_implies_leads_to(spec, list_req(diff), tla_exists(|req_msg| list_req_msg(req_msg, diff)));
+    });
+
+    leads_to_trans_n!(
+        spec,
+        pre(diff),
+        list_req(diff),
+        tla_exists(|req_msg| list_req_msg(req_msg, diff)),
+        list_resp(diff)
+    );
+
+    // Now we've listed the pods, perform different behaviors accoding to the difference.
+    if diff < 0 {
+        let create_resp = |diff: int| lift_state(
+            |s: ClusterState| {
+                &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, controller_id, abs(diff))(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        );
+
+        // Add first create pod request after listing pods to leads-to chain.
+        lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(vrs, spec, cluster, controller_id, diff);
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            list_resp(diff),
+            create_resp(diff + 1)
+        );
+
+        // Is this enough?
+        if diff + 1 == 0 {
+            // If so, pre(diff) ~> current_state_matches(vrs) trivially.
+            assert forall |ex| #![auto] create_resp(0).satisfied_by(ex) implies lift_state(current_state_matches(vrs)).satisfied_by(ex) by {
+                let s = ex.head();
+                let resources = s.resources();
+
+                // current_state_matches and num_diff_pods are defined subtly differently,
+                // needs equality asserted explicitly.
+                let f1 = |key: ObjectRef| {
+                    let obj = resources[key];
+                    &&& resources.contains_key(key)
+                    &&& owned_selector_match_is(vrs, obj)
+                };
+                let f2 = |key: ObjectRef| {
+                    &&& s.resources().contains_key(key)
+                    &&& owned_selector_match_is(vrs, s.resources()[key])
+                };
+
+                assert(f1 == f2);
+            }
+
+            entails_implies_leads_to(spec, create_resp(diff + 1), lift_state(current_state_matches(vrs)));
+            leads_to_trans_n!(
+                spec,
+                pre(diff),
+                create_resp(diff + 1),
+                lift_state(current_state_matches(vrs))
+            );
+            return;
+        }
+
+        // In this branch, we need to convert negative integers to natural numbers for
+        // the predicate to fit the rule leads_to_rank_step_one.
+        let ranking_pred = |n: nat| create_resp(-n);
+
+        // Useful assertions to let us chain in and out of ranking_pred
+        // TODO: triggering on `create_resp(-n)` lets verus panics
+        assert forall |n: nat| #![trigger ranking_pred(n)]
+                    spec.entails(create_resp(-n).leads_to(ranking_pred(n))) by {
+            entails_implies_leads_to(spec, create_resp(-n), ranking_pred(n));
+        };
+
+        assert forall |n: nat| #![trigger ranking_pred(n)]
+                    spec.entails(ranking_pred(n).leads_to(create_resp(-n))) by {
+            entails_implies_leads_to(spec, ranking_pred(n), create_resp(-n));
+        };
+
+         // Proving n > 0 => ranking_pred(n) ~> ranking_pred(n - 1)
+        assert forall |n: nat| #![trigger ranking_pred(n)]
+                    n > 0 implies spec.entails(ranking_pred(n).leads_to(ranking_pred((n - 1) as nat))) by {
+            let diff = -n;
+            lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp(vrs, spec, cluster, controller_id, diff);
+
+            leads_to_trans_n!(
+                spec,
+                ranking_pred(n),
+                create_resp(diff),
+                create_resp(diff + 1),
+                ranking_pred((n - 1) as nat)
+            );
+        };
+
+        // Apply ranking function lemma
+        leads_to_rank_step_one(spec, ranking_pred);
+
+        // Chain everything
+        assert forall |ex| #![auto] create_resp(0).satisfied_by(ex) implies lift_state(current_state_matches(vrs)).satisfied_by(ex) by {
+            let s = ex.head();
+            let resources = s.resources();
+
+            // current_state_matches and num_diff_pods are defined subtly differently,
+            // needs equality asserted explicitly.
+            let f1 = |key: ObjectRef| {
+                let obj = resources[key];
+                &&& resources.contains_key(key)
+                &&& owned_selector_match_is(vrs, obj)
+            };
+            let f2 = |key: ObjectRef| {
+                &&& s.resources().contains_key(key)
+                &&& owned_selector_match_is(vrs, s.resources()[key])
+            };
+
+            assert(f1 == f2);
+        }
+
+        entails_implies_leads_to(spec, create_resp(0), lift_state(current_state_matches(vrs)));
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            create_resp(diff + 1),
+            ranking_pred(-(diff + 1) as nat),
+            ranking_pred(0),
+            create_resp(0),
+            lift_state(current_state_matches(vrs))
+        );
+    } else if diff > 0 {
+        let delete_resp = |diff: int| lift_state(
+            |s: ClusterState| {
+                &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, abs(diff))(s)
+                &&& num_diff_pods_is(vrs, diff)(s)
+            }
+        );
+
+        // Add first delete pod request after listing pods to leads-to chain.
+        lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(vrs, spec, cluster, controller_id, diff);
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            list_resp(diff),
+            delete_resp(diff - 1)
+        );
+
+        // Is this enough?
+        if diff - 1 == 0 {
+            // If so, pre(diff) ~> current_state_matches(vrs) trivially.
+            assert forall |ex| #![auto] delete_resp(0).satisfied_by(ex) implies lift_state(current_state_matches(vrs)).satisfied_by(ex) by {
+                let s = ex.head();
+                let resources = s.resources();
+
+                // current_state_matches and num_diff_pods are defined subtly differently,
+                // needs equality asserted explicitly.
+                let f1 = |key: ObjectRef| {
+                    let obj = resources[key];
+                    &&& resources.contains_key(key)
+                    &&& owned_selector_match_is(vrs, obj)
+                };
+                let f2 = |key: ObjectRef| {
+                    &&& s.resources().contains_key(key)
+                    &&& owned_selector_match_is(vrs, s.resources()[key])
+                };
+
+                assert(f1 == f2);
+            }
+
+            entails_implies_leads_to(spec, delete_resp(diff - 1), lift_state(current_state_matches(vrs)));
+            leads_to_trans_n!(
+                spec,
+                pre(diff),
+                delete_resp(diff - 1),
+                lift_state(current_state_matches(vrs))
+            );
+            return;
+        }
+
+        let ranking_pred = |n: nat| delete_resp(n as int);
+
+        // Useful assertions to let us chain in and out of ranking_pred
+        assert forall |n: nat| #![trigger ranking_pred(n)]
+                    spec.entails(delete_resp(n as int).leads_to(ranking_pred(n))) by {
+            entails_implies_leads_to(spec, delete_resp(n as int), ranking_pred(n));
+        };
+
+        assert forall |n: nat| #![trigger ranking_pred(n)]
+                    spec.entails(ranking_pred(n).leads_to(delete_resp(n as int))) by {
+            entails_implies_leads_to(spec, ranking_pred(n), delete_resp(n as int));
+        };
+
+         // Proving n > 0 => ranking_pred(n) ~> ranking_pred(n - 1)
+        assert forall |n: nat| #![trigger ranking_pred(n)]
+                    n > 0 implies spec.entails(ranking_pred(n).leads_to(ranking_pred((n - 1) as nat))) by {
+            let diff = n as int;
+            lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp(vrs, spec, cluster, controller_id, diff);
+
+            leads_to_trans_n!(
+                spec,
+                ranking_pred(n),
+                delete_resp(diff),
+                delete_resp(diff - 1),
+                ranking_pred((n - 1) as nat)
+            );
+        };
+
+        // Apply ranking function lemma
+        leads_to_rank_step_one(spec, ranking_pred);
+
+        // Chain everything
+        assert forall |ex| #![auto] delete_resp(0).satisfied_by(ex) implies lift_state(current_state_matches(vrs)).satisfied_by(ex) by {
+            let s = ex.head();
+            let resources = s.resources();
+
+            // current_state_matches and num_diff_pods are defined subtly differently,
+            // needs equality asserted explicitly.
+            let f1 = |key: ObjectRef| {
+                let obj = resources[key];
+                &&& resources.contains_key(key)
+                &&& owned_selector_match_is(vrs, obj)
+            };
+            let f2 = |key: ObjectRef| {
+                &&& s.resources().contains_key(key)
+                &&& owned_selector_match_is(vrs, s.resources()[key])
+            };
+
+            assert(f1 == f2);
+        }
+
+        entails_implies_leads_to(spec, delete_resp(0), lift_state(current_state_matches(vrs)));
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            delete_resp(diff - 1),
+            ranking_pred((diff - 1) as nat),
+            ranking_pred(0),
+            delete_resp(0),
+            lift_state(current_state_matches(vrs))
+        );
+    } else {
+        // diff = 0
+        // list_resp(diff) ~> current_state_matches(vrs) trivially.
+        assert forall |ex| #![auto] list_resp(0).satisfied_by(ex) implies lift_state(current_state_matches(vrs)).satisfied_by(ex) by {
+            let s = ex.head();
+            let resources = s.resources();
+
+            // current_state_matches and num_diff_pods are defined subtly differently,
+            // needs equality asserted explicitly.
+            let f1 = |key: ObjectRef| {
+                let obj = resources[key];
+                &&& resources.contains_key(key)
+                &&& owned_selector_match_is(vrs, obj)
+            };
+            let f2 = |key: ObjectRef| {
+                &&& s.resources().contains_key(key)
+                &&& owned_selector_match_is(vrs, s.resources()[key])
+            };
+
+            assert(f1 == f2);
+        }
+
+        entails_implies_leads_to(spec, list_resp(diff), lift_state(current_state_matches(vrs)));
+        leads_to_trans_n!(
+            spec,
+            pre(diff),
+            list_resp(diff),
+            lift_state(current_state_matches(vrs))
+        );
+    }
+}
+
+// Create lemmas.
+
+pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
+    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        vrs.state_validation(),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& exists_resp_in_flight_at_after_list_pods_step(vrs, controller_id)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: ClusterState| {
+                        &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, controller_id, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff + 1)(s)
+                    }
+                )
+            )
+        ),
+{
+    let list_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_resp_in_flight_at_after_list_pods_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_resp_msg = |resp_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_req_msg = |req_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+        &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, controller_id, req_msg, (abs(diff) - 1) as nat)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_req = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& pending_req_in_flight_at_after_create_pod_step(vrs, controller_id, (abs(diff) - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp_msg = |resp_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, controller_id, resp_msg, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, controller_id, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Apply two lemmas relating to the first created pod.
+    assert forall |resp_msg: Message|
+                diff < 0 implies #[trigger] spec.entails(list_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
+        lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(vrs, spec, cluster, controller_id, resp_msg, diff);
+    };
+    assert forall |req_msg: Message|
+                diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
+        lemma_from_after_send_create_pod_req_to_receive_ok_resp(vrs, spec, cluster, controller_id, req_msg, diff);
+    };
+
+    // Chain lemmas by transitivity.
+    leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, diff), create_req(diff));
+    leads_to_exists_intro(spec, |req_msg: Message| create_req_msg(req_msg, diff), create_resp(diff + 1));
+    assert_by(
+        spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] list_resp(diff).satisfied_by(ex)
+                implies tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& resp_msg.content.get_list_response().res.is_Ok()
+                    &&& {
+                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                        // The matching pods must be a subset of the response.
+                        &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+                        &&& objects_to_pods(resp_objs).is_Some()
+                        &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                    }
+                };
+                assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)));
+        }
+    );
+    assert_by(
+        spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex)
+                implies tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                assert((|req_msg: Message| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)));
+        }
+    );
+    leads_to_trans_n!(
+        spec,
+        list_resp(diff),
+        tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)),
+        create_req(diff),
+        tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)),
+        create_resp(diff + 1)
+    );
+}
+
+pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp(
+    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        vrs.state_validation(),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
+        diff < 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, controller_id, abs(diff))(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: ClusterState| {
+                        &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, controller_id, (abs(diff) - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff + 1)(s)
+                    }
+                )
+            )
+        ),
+{
+    let create_req_msg = |req_msg: Message, diff: int| lift_state(|s: ClusterState| {
+        &&& req_msg_is_the_in_flight_create_request_at_after_create_pod_step(vrs, controller_id, req_msg, (abs(diff) - 1) as nat)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+    });
+    let create_req = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& pending_req_in_flight_at_after_create_pod_step(vrs, controller_id, (abs(diff) - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp_msg = |resp_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(vrs, controller_id, resp_msg, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let create_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_ok_resp_in_flight_at_after_create_pod_step(vrs, controller_id, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Apply two lemmas relating to subsequent created pods.
+    assert forall |resp_msg: Message|
+                diff < 0 implies #[trigger] spec.entails(create_resp_msg(resp_msg, diff).leads_to(create_req(diff))) by {
+        lemma_from_after_receive_ok_resp_to_send_create_pod_req(vrs, spec, cluster, controller_id, resp_msg, diff);
+    };
+    assert forall |req_msg: Message|
+                diff < 0 implies #[trigger] spec.entails(create_req_msg(req_msg, diff).leads_to(create_resp(diff + 1))) by {
+        lemma_from_after_send_create_pod_req_to_receive_ok_resp(vrs, spec, cluster, controller_id, req_msg, diff);
+    };
+
+    // Chain the lemmas by transitivity.
+    leads_to_exists_intro(spec, |resp_msg: Message| create_resp_msg(resp_msg, diff), create_req(diff));
+    leads_to_exists_intro(spec, |req_msg: Message| create_req_msg(req_msg, diff), create_resp(diff + 1));
+    assert_by(
+        spec.entails(create_req(diff).leads_to(tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] create_req(diff).satisfied_by(ex)
+                implies tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                assert((|req_msg: Message| create_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, create_req(diff), tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)));
+        }
+    );
+    assert_by(
+        spec.entails(create_resp(diff).leads_to(tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] create_resp(diff).satisfied_by(ex)
+                implies tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& resp_msg.content.get_create_response().res.is_Ok()
+                };
+                assert((|resp_msg: Message| create_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, create_resp(diff), tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, diff)));
+        }
+    );
+
+    leads_to_trans_n!(
+        spec,
+        create_resp(diff),
+        tla_exists(|resp_msg: Message| create_resp_msg(resp_msg, diff)),
+        create_req(diff),
+        tla_exists(|req_msg: Message| create_req_msg(req_msg, diff)),
+        create_resp(diff + 1)
+    );
+}
+
+// Delete lemmas.
+
+pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
+    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        vrs.state_validation(),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
+        diff > 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& exists_resp_in_flight_at_after_list_pods_step(vrs, controller_id)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: ClusterState| {
+                        &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, (diff - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff - 1)(s)
+                    }
+                )
+            )
+        ),
+{
+    let list_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_resp_in_flight_at_after_list_pods_step(vrs, controller_id)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let list_resp_msg = |resp_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let delete_req_msg = |req_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+        &&& req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step(vrs, controller_id, req_msg, (diff - 1) as nat)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let delete_req = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& pending_req_in_flight_at_after_delete_pod_step(vrs, controller_id, (diff - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let delete_resp_msg = |resp_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(vrs, controller_id, resp_msg, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let delete_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Apply two lemmas relating to the first deleted pod.
+    assert forall |resp_msg: Message|
+                diff > 0 implies #[trigger] spec.entails(list_resp_msg(resp_msg, diff).leads_to(delete_req(diff))) by {
+        lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(vrs, spec, cluster, controller_id, resp_msg, diff);
+    };
+    assert forall |req_msg: Message|
+                diff > 0 implies #[trigger] spec.entails(delete_req_msg(req_msg, diff).leads_to(delete_resp(diff - 1))) by {
+        lemma_from_after_send_delete_pod_req_to_receive_ok_resp(vrs, spec, cluster, controller_id, req_msg, diff);
+    };
+
+    // Chain lemmas by transitivity.
+    leads_to_exists_intro(spec, |resp_msg: Message| list_resp_msg(resp_msg, diff), delete_req(diff));
+    leads_to_exists_intro(spec, |req_msg: Message| delete_req_msg(req_msg, diff), delete_resp(diff - 1));
+    assert_by(
+        spec.entails(list_resp(diff).leads_to(tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] list_resp(diff).satisfied_by(ex)
+                implies tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& resp_msg.content.get_list_response().res.is_Ok()
+                    &&& {
+                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                        // The matching pods must be a subset of the response.
+                        &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+                        &&& objects_to_pods(resp_objs).is_Some()
+                        &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                    }
+                };
+                assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, list_resp(diff), tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)));
+        }
+    );
+    assert_by(
+        spec.entails(delete_req(diff).leads_to(tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] delete_req(diff).satisfied_by(ex)
+                implies tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                assert((|req_msg: Message| delete_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, delete_req(diff), tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)));
+        }
+    );
+    leads_to_trans_n!(
+        spec,
+        list_resp(diff),
+        tla_exists(|resp_msg: Message| list_resp_msg(resp_msg, diff)),
+        delete_req(diff),
+        tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)),
+        delete_resp(diff - 1)
+    );
+}
+
+pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp(
+    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+        vrs.state_validation(),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
+        spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
+        diff > 0,
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, diff as nat)(s)
+                    &&& num_diff_pods_is(vrs, diff)(s)
+                }
+            ).leads_to(
+                lift_state(
+                    |s: ClusterState| {
+                        &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, (diff - 1) as nat)(s)
+                        &&& num_diff_pods_is(vrs, diff - 1)(s)
+                    }
+                )
+            )
+        ),
+{
+    let delete_req_msg = |req_msg: Message, diff: int| lift_state(|s: ClusterState| {
+        &&& req_msg_is_the_in_flight_delete_request_at_after_delete_pod_step(vrs, controller_id, req_msg, (diff - 1) as nat)(s)
+        &&& num_diff_pods_is(vrs, diff)(s)
+    });
+    let delete_req = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& pending_req_in_flight_at_after_delete_pod_step(vrs, controller_id, (diff - 1) as nat)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let delete_resp_msg = |resp_msg: Message, diff: int| lift_state(
+        |s: ClusterState| {
+            &&& resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(vrs, controller_id, resp_msg, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+    let delete_resp = |diff: int| lift_state(
+        |s: ClusterState| {
+            &&& exists_ok_resp_in_flight_at_after_delete_pod_step(vrs, controller_id, abs(diff))(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // Apply two lemmas relating to subsequent deleted pods.
+    assert forall |resp_msg: Message|
+                diff > 0 implies #[trigger] spec.entails(delete_resp_msg(resp_msg, diff).leads_to(delete_req(diff))) by {
+        lemma_from_after_receive_ok_resp_to_send_delete_pod_req(vrs, spec, cluster, controller_id, resp_msg, diff);
+    };
+    assert forall |req_msg: Message|
+                diff > 0 implies #[trigger] spec.entails(delete_req_msg(req_msg, diff).leads_to(delete_resp(diff - 1))) by {
+        lemma_from_after_send_delete_pod_req_to_receive_ok_resp(vrs, spec, cluster, controller_id, req_msg, diff);
+    };
+
+    // Chain the lemmas by transitivity.
+    leads_to_exists_intro(spec, |resp_msg: Message| delete_resp_msg(resp_msg, diff), delete_req(diff));
+    leads_to_exists_intro(spec, |req_msg: Message| delete_req_msg(req_msg, diff), delete_resp(diff - 1));
+    assert_by(
+        spec.entails(delete_req(diff).leads_to(tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] delete_req(diff).satisfied_by(ex)
+                implies tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                assert((|req_msg: Message| delete_req_msg(req_msg, diff))(req_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, delete_req(diff), tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)));
+        }
+    );
+    assert_by(
+        spec.entails(delete_resp(diff).leads_to(tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, diff)))),
+        {
+            assert forall |ex| #[trigger] delete_resp(diff).satisfied_by(ex)
+                implies tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, diff)).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& resp_msg.content.get_delete_response().res.is_Ok()
+                };
+                assert((|resp_msg: Message| delete_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
+            };
+            entails_implies_leads_to(spec, delete_resp(diff), tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, diff)));
+        }
+    );
+
+    leads_to_trans_n!(
+        spec,
+        delete_resp(diff),
+        tla_exists(|resp_msg: Message| delete_resp_msg(resp_msg, diff)),
+        delete_req(diff),
+        tla_exists(|req_msg: Message| delete_req_msg(req_msg, diff)),
+        delete_resp(diff - 1)
+    );
+}
+
 // -------------------- WF1 Reasoning ----------------------
 
 // List lemmas
@@ -606,6 +1540,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
 }
 
 // TODO: Investigate flaky proof.
+#[verifier(rlimit(4000))]
 pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::temporal_logic::defs::*;
-use vstd::function::*;
 use vstd::map_lib::*;
 use vstd::prelude::*;
 
@@ -328,7 +327,8 @@ pub proof fn execution_equality<T>(ex1: Execution<T>, ex2: Execution<T>)
     requires forall |i: nat| #[trigger] (ex1.nat_to_state)(i) == (ex2.nat_to_state)(i),
     ensures ex1 == ex2,
 {
-    fun_ext::<nat, T>(ex1.nat_to_state, ex2.nat_to_state);
+    assert(ex1.nat_to_state =~= ex2.nat_to_state);
+    // fun_ext::<nat, T>(ex1.nat_to_state, ex2.nat_to_state);
 }
 
 pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
@@ -344,7 +344,8 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
             implies_contraposition_apply::<T>(ex, q, p);
         }
     };
-    fun_ext::<Execution<T>, bool>(p.pred, q.pred);
+    assert(p.pred =~= q.pred);
+    // fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
 pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
@@ -431,7 +432,8 @@ proof fn a_to_temp_pred_equality<T, A>(p: spec_fn(A) -> TempPred<T>, q: spec_fn(
     assert forall |a: A| #[trigger] p(a) == q(a) by {
         temp_pred_equality::<T>(p(a), q(a));
     };
-    fun_ext::<A, TempPred<T>>(p, q);
+    assert(p =~= q);
+    // fun_ext::<A, TempPred<T>>(p, q);
 }
 
 proof fn tla_exists_equality<T, A>(f: spec_fn(A, T) -> bool)
