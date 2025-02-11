@@ -222,6 +222,18 @@ pub proof fn seq_map_value_lemma<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
         (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]))
 {}
 
+pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filter_pred: spec_fn(A) -> bool)
+    requires forall |e: A| s.contains(e) ==> pred(e),
+    ensures forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)
+{
+    assert(forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)) by {
+        assert(forall |e: A| s.filter(filter_pred).contains(e) ==> #[trigger] s.contains(e)) by {
+            seq_filter_is_a_subset_of_original_seq(s, filter_pred);
+        }
+        assert(forall |e: A| s.contains(e) ==> pred(e));
+    }
+}
+
 pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
     ensures
         (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))
