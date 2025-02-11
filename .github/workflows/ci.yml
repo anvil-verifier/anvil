@@ -1,9 +1,10 @@
 name: Continuous integration
 run-name: Continuous integration run by ${{ github.actor }}
 on:
-  # push:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - main
+      - update_verus_ver
   #   paths-ignore:
   #     - "README.md"
   #     - ".gitignore"
@@ -80,7 +81,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify zookeeper controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 50
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
   vreplicaset-verification:
     runs-on: ubuntu-20.04
     steps:
@@ -149,7 +150,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify vdeployment controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimite 50 --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
@@ -256,7 +257,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify conformance of the executable model
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
   fluent-e2e-test:
     runs-on: ubuntu-20.04
     steps:
