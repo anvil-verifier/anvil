@@ -150,7 +150,7 @@ jobs:
           source ../tools/activate
           vargo build --release
       - name: Verify vdeployment controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimite 50 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
