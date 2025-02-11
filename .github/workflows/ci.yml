@@ -1,10 +1,9 @@
 name: Continuous integration
 run-name: Continuous integration run by ${{ github.actor }}
 on:
-  push:
-    branches:
-      - main
-      - update_verus_ver
+  # push:
+  #   branches:
+  #     - main
   #   paths-ignore:
   #     - "README.md"
   #     - ".gitignore"
