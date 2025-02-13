@@ -381,6 +381,33 @@ pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: Cu
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
+pub open spec fn ongoing_reconciles_is_finite(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        s.ongoing_reconciles(controller_id).dom().finite()
+    }
+}
+
+pub proof fn lemma_always_ongoing_reconciles_is_finite(self, spec: TempPred<ClusterState>, controller_id: int)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+    ensures spec.entails(always(lift_state(Self::ongoing_reconciles_is_finite(controller_id)))),
+{
+    let invariant = Self::ongoing_reconciles_is_finite(controller_id);
+    let stronger_next = |s, s_prime| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
+}
+
 pub open spec fn reconcile_id_counter_is(controller_id: int, reconcile_id: nat) -> StatePred<ClusterState> {
     |s: ClusterState| s.reconcile_id_allocator(controller_id).reconcile_id_counter == reconcile_id
 }

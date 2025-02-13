@@ -977,7 +977,7 @@ pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
 //     forall |a| |= stable(p -> q(a))
 // post:
 //     |= stable(tla_forall(|a| p -> q(a)))
-pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
+pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(p: TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
     requires forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a)))),
     ensures valid(stable(tla_forall(|a: A| p.leads_to(a_to_q(a))))),
 {
