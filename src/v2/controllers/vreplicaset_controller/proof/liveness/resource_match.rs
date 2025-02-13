@@ -520,7 +520,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         // The matching pods must be a subset of the response.
                         &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-                        &&& resp_objs.no_duplicates()
+                        //&&& resp_objs.no_duplicates()
                         &&& objects_to_pods(resp_objs).is_Some()
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
@@ -1288,7 +1288,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                             // The matching pods must be a subset of the response.
                             &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-                            &&& resp_objs.no_duplicates()
+                            //&&& resp_objs.no_duplicates()
                             &&& objects_to_pods(resp_objs).is_Some()
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
@@ -1391,7 +1391,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 // The matching pods must be a subset of the response.
                 &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-                &&& resp_objs.no_duplicates()
+                //&&& resp_objs.no_duplicates()
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()

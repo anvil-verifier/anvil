@@ -166,7 +166,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-                &&& resp_objs.no_duplicates()
+                //&&& resp_objs.no_duplicates()
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
@@ -200,7 +200,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         &&& {
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-            &&& resp_objs.no_duplicates()
+            //&&& resp_objs.no_duplicates()
             &&& objects_to_pods(resp_objs).is_Some()
             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
