@@ -1095,6 +1095,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -1143,6 +1144,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -1170,6 +1172,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -1204,7 +1207,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                 if msg == req_msg {
                     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-
+      
                     assert forall |o: DynamicObjectView| #![auto]
                     pre(s) && matching_pod_entries(vrs, s_prime.resources()).values().contains(o)
                     implies resp_objs.to_set().contains(o) by {
@@ -1221,7 +1224,8 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
                     assert forall |o: DynamicObjectView| #![auto]
                     pre(s) && resp_objs.contains(o)
-                    implies !PodView::unmarshal(o).is_err() by {
+                    implies !PodView::unmarshal(o).is_err()
+                            && o.metadata.namespace == vrs.metadata.namespace by {
                         // Tricky reasoning about .to_seq
                         let selector = |o: DynamicObjectView| {
                             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
@@ -1323,7 +1327,8 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
         assert forall |o: DynamicObjectView| #![auto]
         pre(s) && resp_objs.contains(o)
-        implies !PodView::unmarshal(o).is_err() by {
+        implies !PodView::unmarshal(o).is_err()
+                && o.metadata.namespace == vrs.metadata.namespace by {
             // Tricky reasoning about .to_seq
             let selector = |o: DynamicObjectView| {
                 &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
