@@ -140,6 +140,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
             &&& filtered_pods.no_duplicates()
+            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pods(vrs, s.resources()).len()
             &&& filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values()
         }),
 {
