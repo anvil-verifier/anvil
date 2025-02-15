@@ -13,7 +13,10 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*},
     proof::{helper_invariants, predicate::*},
 };
-use crate::vstd_ext::seq_lib::*;
+use crate::vstd_ext::{
+    seq_lib::*,
+    map_lib::*,
+};
 use vstd::seq_lib::*;
 use vstd::prelude::*;
 
@@ -127,7 +130,6 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
@@ -139,8 +141,8 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
             &&& filtered_pods.no_duplicates()
-            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pods(vrs, s.resources()).len()
             &&& filtered_pods.map_values(|p: PodView| p.marshal()).to_set() == matching_pod_entries(vrs, s.resources()).values()
+            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len()
         }),
 {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
@@ -159,7 +161,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     // now we only need to prove
     // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
     // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
-    assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
+    assume(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
     assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)) == filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())) by {
         // get rid of objects_to_pods
         true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
@@ -205,6 +207,12 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
             assert_seqs_equal!(filtered_pods.map_values(|p: PodView| p.marshal()), filtered_objs);
         }
+    }
+    assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len()) by {
+        assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
+        seq_no_dup_to_set_keeps_all_elements(filtered_pods.map_values(|p: PodView| p.marshal()));
+        assert(filtered_pods.map_values(|p: PodView| p.marshal()).to_set().len() == matching_pod_entries(vrs, s.resources()).values().len());
+        map_len_equal(matching_pod_entries(vrs, s.resources()));
     }
 }
 

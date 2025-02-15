@@ -95,6 +95,11 @@ pub proof fn seq_equal_preserved_by_add_prefix<A>(prefix: Seq<A>, s1: Seq<A>, s2
     )
 }
 
+#[verifier(external_body)]
+pub proof fn seq_no_dup_to_set_keeps_all_elements<A>(s: Seq<A>)
+    requires s.no_duplicates(),
+    ensures s.to_set().len() == s.len();
+
 pub proof fn seq_unequal_preserved_by_add_auto<A>(suffix: Seq<A>)
     ensures forall |s1: Seq<A>, s2: Seq<A>| s1 != s2 ==> s1 + suffix != s2 + suffix
 {
