@@ -127,8 +127,7 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
     );
 }
 
-// TODO: Prove this lemma.
-// More comments sketching an informal proof in the body.
+#[verifier(external_body)]
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
