@@ -12,6 +12,7 @@ use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
+use crate::vstd_ext::map_lib::*;
 use vstd::prelude::*;
 
 verus! {
@@ -165,10 +166,16 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
             &&& resp_msg.content.get_list_response().res.is_Ok()
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                // The matching pods must be a subset of the response.
-                &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+                let selector = |o: DynamicObjectView| {
+                    &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                    &&& o.object_ref().kind == PodView::kind()
+                };
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                &&& map_to_seq(s.resources(), selector) == resp_objs
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
             }
         }
     }
@@ -196,10 +203,16 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         &&& resp_msg.content.get_list_response().res.is_Ok()
         &&& {
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            // The matching pods must be a subset of the response.
-            &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+            let selector = |o: DynamicObjectView| {
+                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                &&& o.object_ref().kind == PodView::kind()
+            };
             &&& objects_to_pods(resp_objs).is_Some()
             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+            &&& map_to_seq(s.resources(), selector) == resp_objs
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
         }
     }
 }
