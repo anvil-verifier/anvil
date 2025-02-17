@@ -20,9 +20,4 @@ pub proof fn a_submap_of_a_finite_map_is_finite<K, V>(m1: Map<K, V>, m2: Map<K, 
     assert(m1.dom() === m2.dom().intersect(m1.dom()));
 }
 
-#[verifier(external_body)]
-pub proof fn map_len_equal<K, V>(m: Map<K, V>)
-    ensures
-        m.len() == m.dom().len() == m.values().len();
-
 }

@@ -518,16 +518,14 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                     &&& resp_msg.content.get_list_response().res.is_Ok()
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                            &&& o.object_ref().kind == PodView::kind()
-                        };
+                        // The matching pods must be a subset of the response.
+                        &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                        //&&& resp_objs.no_duplicates()
                         &&& objects_to_pods(resp_objs).is_Some()
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                        &&& map_to_seq(s.resources(), selector) == resp_objs
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
@@ -800,16 +798,10 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                     &&& resp_msg.content.get_list_response().res.is_Ok()
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                            &&& o.object_ref().kind == PodView::kind()
-                        };
+                        // The matching pods must be a subset of the response.
+                        &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
                         &&& objects_to_pods(resp_objs).is_Some()
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                        &&& map_to_seq(s.resources(), selector) == resp_objs
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
@@ -1234,7 +1226,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                     pre(s) && resp_objs.contains(o)
                     implies !PodView::unmarshal(o).is_err()
                             && o.metadata.namespace == vrs.metadata.namespace by {
-                        // Tricky reasoning aboutpost .to_seq
+                        // Tricky reasoning about .to_seq
                         let selector = |o: DynamicObjectView| {
                             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
                             &&& o.object_ref().kind == PodView::kind()
@@ -1298,16 +1290,14 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                         &&& resp_msg.content.get_list_response().res.is_Ok()
                         &&& {
                             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                            let selector = |o: DynamicObjectView| {
-                                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                                &&& o.object_ref().kind == PodView::kind()
-                            };
+                            // The matching pods must be a subset of the response.
+                            &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                            //&&& resp_objs.no_duplicates()
                             &&& objects_to_pods(resp_objs).is_Some()
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                            &&& map_to_seq(s.resources(), selector) == resp_objs
                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                         }
                     });
                     assert(post(s_prime));
@@ -1404,16 +1394,14 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
             &&& resp_msg.content.get_list_response().res.is_Ok()
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                let selector = |o: DynamicObjectView| {
-                    &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                    &&& o.object_ref().kind == PodView::kind()
-                };
+                // The matching pods must be a subset of the response.
+                &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                //&&& resp_objs.no_duplicates()
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                &&& map_to_seq(s.resources(), selector) == resp_objs
                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.unwrap() == vrs.metadata.namespace.unwrap()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
             }
         });
         assert(post(s_prime));
