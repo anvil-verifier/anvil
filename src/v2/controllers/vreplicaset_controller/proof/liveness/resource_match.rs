@@ -1283,7 +1283,26 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
                         assert(pods_seq.no_duplicates());
                     });
-
+                    assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()) by {
+                        // reveal API server spec
+                        let selector = |o: DynamicObjectView| {
+                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                            &&& o.object_ref().kind == PodView::kind()
+                        };
+                        assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                        // reveal matching_pod_entries logic
+                        assert(matching_pod_entries(vrs, s.resources()).values() == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                            assume(matching_pod_entries(vrs, s.resources()).values() == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                        }
+                        assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj) && selector(obj)) == matching_pod_entries(vrs, s.resources()).values());
+                        // merge 2 selectors
+                        assert((|obj| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj| owned_selector_match_is(vrs, obj)));
+                        // consistency of no_duplicates
+                        assume(resp_objs.no_duplicates());
+                        // get rid of DS conversion
+                        assume(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).to_seq());
+                        assume(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                    }
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)

@@ -167,7 +167,6 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]).is_Ok());
         PodView::marshal_preserves_integrity();
         PodView::marshal_preserves_metadata();
-        let resp_pods = objects_to_pods(resp_objs).unwrap();
         assert(resp_pods.len() == resp_objs.len());
         // prove 2 filters are equal
         true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
