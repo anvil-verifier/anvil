@@ -1290,18 +1290,59 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                             &&& o.object_ref().kind == PodView::kind()
                         };
                         assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                        // consistency of no_duplicates
+                        lemma_values_finite(s.resources());
+                        finite_set_to_finite_filtered_set(s.resources().values(), selector);
+                        finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
+                        assert(resp_objs.no_duplicates());
                         // reveal matching_pod_entries logic
-                        assert(matching_pod_entries(vrs, s.resources()).values() == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
-                            assume(matching_pod_entries(vrs, s.resources()).values() == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                        let matched_entries = matching_pod_entries(vrs, s.resources());
+                        assert(matched_entries.values() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                            assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_entries.values().contains(obj) by {
+                                assert(owned_selector_match_is(vrs, obj));
+                                assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
+                                assert(matched_entries.contains_key(obj.object_ref()) && matched_entries[obj.object_ref()] == obj);
+                            }
+                            assert forall |obj| matched_entries.values().contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
+                                assert(s.resources().contains_key(obj.object_ref()));
+                                assert(owned_selector_match_is(vrs, obj));
+                            }
+                            // optional if antisymmetry_of_set_equality is imported
+                            assert(forall |obj| matched_entries.values().contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
                         }
                         assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj) && selector(obj)) == matching_pod_entries(vrs, s.resources()).values());
                         // merge 2 selectors
                         assert((|obj| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj| owned_selector_match_is(vrs, obj)));
-                        // consistency of no_duplicates
-                        assume(resp_objs.no_duplicates());
-                        // get rid of DS conversion
-                        assume(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).to_seq());
-                        assume(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                        // get rid of DS conversion, basically babysitting Verus
+                        assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                            assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                            assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
+                            seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                            seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                            set_filter_is_subset_of_original_set(s.resources().values(), |obj| owned_selector_match_is(vrs, obj));
+                            set_filter_is_subset_of_original_set(s.resources().values().filter(selector), |obj| owned_selector_match_is(vrs, obj));
+                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
+                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                            assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
+                                &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                                &&& resp_objs.contains(obj)
+                                &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                                &&& s.resources().values().filter(selector).contains(obj)
+                                &&& s.resources().values().contains(obj)
+                                &&& owned_selector_match_is(vrs, obj)
+                                &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                            });
+                            assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
+                                &&& s.resources().values().contains(obj)
+                                &&& owned_selector_match_is(vrs, obj)
+                                &&& selector(obj)
+                                &&& s.resources().values().filter(selector).contains(obj)
+                                &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                                &&& resp_objs.contains(obj)
+                                &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                                &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
+                            });
+                        }
                     }
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -1309,8 +1350,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                         &&& resp_msg.content.get_list_response().res.is_Ok()
                         &&& {
                             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                            // The matching pods must be a subset of the response.
-                            &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                             //&&& resp_objs.no_duplicates()
                             &&& objects_to_pods(resp_objs).is_Some()
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
@@ -1406,15 +1445,69 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
             assert(pods_seq.no_duplicates());
         });
-
+        // copy-paste from the segment above
+        // TODO: avoid such
+        assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()) by {
+            let selector = |o: DynamicObjectView| {
+                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                &&& o.object_ref().kind == PodView::kind()
+            };
+            assert(resp_objs == s.resources().values().filter(selector).to_seq());
+            lemma_values_finite(s.resources());
+            finite_set_to_finite_filtered_set(s.resources().values(), selector);
+            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
+            assert(resp_objs.no_duplicates());
+            let matched_entries = matching_pod_entries(vrs, s.resources());
+            assert(matched_entries.values() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_entries.values().contains(obj) by {
+                    assert(owned_selector_match_is(vrs, obj));
+                    assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
+                    assert(matched_entries.contains_key(obj.object_ref()) && matched_entries[obj.object_ref()] == obj);
+                }
+                assert forall |obj| matched_entries.values().contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
+                    assert(s.resources().contains_key(obj.object_ref()));
+                    assert(owned_selector_match_is(vrs, obj));
+                }
+                assert(forall |obj| matched_entries.values().contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
+            }
+            assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj) && selector(obj)) == matching_pod_entries(vrs, s.resources()).values());
+            assert((|obj| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj| owned_selector_match_is(vrs, obj)));
+            assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
+                seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                set_filter_is_subset_of_original_set(s.resources().values(), |obj| owned_selector_match_is(vrs, obj));
+                set_filter_is_subset_of_original_set(s.resources().values().filter(selector), |obj| owned_selector_match_is(vrs, obj));
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
+                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                    &&& resp_objs.contains(obj)
+                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                    &&& s.resources().values().filter(selector).contains(obj)
+                    &&& s.resources().values().contains(obj)
+                    &&& owned_selector_match_is(vrs, obj)
+                    &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                });
+                assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
+                    &&& s.resources().values().contains(obj)
+                    &&& owned_selector_match_is(vrs, obj)
+                    &&& selector(obj)
+                    &&& s.resources().values().filter(selector).contains(obj)
+                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                    &&& resp_objs.contains(obj)
+                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
+                });
+            }
+        }
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_list_response().res.is_Ok()
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                // The matching pods must be a subset of the response.
-                &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                 //&&& resp_objs.no_duplicates()
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()

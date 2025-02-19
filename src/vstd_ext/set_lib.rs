@@ -7,9 +7,20 @@ use vstd::set_lib::*;
 
 verus! {
 
+pub proof fn finite_set_to_finite_filtered_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
+    requires s.finite(),
+    ensures s.filter(f).finite(),
+    decreases s.len()
+{
+    if s.len() != 0 {
+        let x = s.choose();
+        finite_set_to_finite_filtered_set(s.remove(x), f);
+    }
+}
+
 pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
     requires s.finite(),
-    ensures forall |e: A| #![auto] s.contains(e) <==> s.to_seq().contains(e)
+    ensures forall |e: A| #[trigger] s.contains(e) <==> #[trigger] s.to_seq().contains(e)
 {
     if s.len() != 0 {
         assert forall |e: A| #[trigger] s.contains(e) implies s.to_seq().contains(e) by {
@@ -65,5 +76,12 @@ proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
         }
     }
 }
+
+pub proof fn antisymmetry_of_set_equality<A>(s1: Set<A>, s2: Set<A>)
+    requires forall |e: A| #![auto] s1.contains(e) <==> s2.contains(e),
+    ensures s2 =~= s1;
+
+pub proof fn set_filter_is_subset_of_original_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
+    ensures s.filter(f).subset_of(s);
 
 }
