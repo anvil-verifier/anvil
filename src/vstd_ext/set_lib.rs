@@ -80,9 +80,11 @@ proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
 
 pub proof fn antisymmetry_of_set_equality<A>(s1: Set<A>, s2: Set<A>)
     requires forall |e: A| #![auto] s1.contains(e) <==> s2.contains(e),
-    ensures s2 =~= s1;
+    ensures s2 =~= s1
+{}
 
 pub proof fn set_filter_is_subset_of_original_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
-    ensures s.filter(f).subset_of(s);
+    ensures s.filter(f).subset_of(s)
+{}
 
 }
