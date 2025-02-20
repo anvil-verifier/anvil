@@ -42,6 +42,7 @@ pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: Set<A>)
         let x = s.choose();
         finite_set_to_seq_has_no_duplicates(s.remove(x));
         finite_set_to_seq_contains_all_set_elements(s.remove(x));
+        assert(!s.remove(x).to_seq().contains(x));
     }
 }
 
