@@ -268,6 +268,34 @@ pub proof fn lemma_always_etcd_is_finite(
     init_invariant(spec, self.init(), self.next(), Self::etcd_is_finite());
 }
 
+pub open spec fn names_in_etcd_in_used_names() -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.resources().contains_key(key)
+                ==> s.api_server.used_names.contains(key.name)
+    }
+}
+
+pub proof fn lemma_always_names_in_etcd_in_used_names(
+    self, spec: TempPred<ClusterState>,
+)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+    ensures spec.entails(always(lift_state(Self::names_in_etcd_in_used_names()))),
+{
+    let inv = Self::names_in_etcd_in_used_names();
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+    };
+    
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next())
+    );
+    init_invariant(spec, self.init(), stronger_next, inv);
+}
+
 }
 
 }

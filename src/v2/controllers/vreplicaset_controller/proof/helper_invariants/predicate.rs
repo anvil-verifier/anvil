@@ -52,6 +52,7 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
                 spec: req.obj.spec,
                 status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
             };
+            &&& obj.metadata.name.is_None()
             &&& obj.metadata.deletion_timestamp.is_None()
             &&& created_obj.metadata.namespace.is_Some()
             &&& content.get_create_request().namespace == created_obj.metadata.namespace.unwrap()
@@ -205,7 +206,9 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                     forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
                     (
                         filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                        && (s.resources().contains_key(filtered_pods[i].object_ref()) ==>
+                        && ((s.resources().contains_key(filtered_pods[i].object_ref())
+                                && s.resources()[filtered_pods[i].object_ref()].metadata.resource_version
+                                    == filtered_pods[i].metadata.resource_version) ==>
                             (s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
                                 triggering_cr.controller_owner_ref()
                                 )
@@ -216,12 +219,14 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                     )
                 // Special case: the above property holds on a list response to the
                 // appropriate request. 
-                &&& forall |msg| {
+                &&& state.reconcile_step.is_AfterListPods() ==> {
+                
+                    &&& forall |msg| {
                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                        &&& msg.content.is_list_response()
+                        //&&& msg.content.is_list_response()
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.get_list_response().res.is_Ok()
@@ -238,6 +243,33 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                                     < s.api_server.resource_version_counter
                         )
                     }
+                }
+
+                // archive
+                // // Special case: the above property holds on a list response to the
+                // // appropriate request. 
+                // &&& forall |msg| {
+                //         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                //         &&& #[trigger] s.in_flight().contains(msg)
+                //         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                //         &&& resp_msg_matches_req_msg(msg, req_msg)
+                //         &&& msg.content.is_list_response()
+                //     } ==> {
+                //         let resp_objs = msg.content.get_list_response().res.unwrap();
+                //         &&& msg.content.get_list_response().res.is_Ok()
+                //         &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                //         &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
+                //         (
+                //             resp_objs[i].metadata.namespace.is_some()
+                //             && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                //             && (s.resources().contains_key(resp_objs[i].object_ref()) ==>
+                //                     s.resources()[resp_objs[i].object_ref()].metadata
+                //                         == resp_objs[i].metadata)
+                //             && resp_objs[i].metadata.resource_version.is_some()
+                //             && resp_objs[i].metadata.resource_version.unwrap()
+                //                     < s.api_server.resource_version_counter
+                //         )
+                //     }
             }
     }
 }

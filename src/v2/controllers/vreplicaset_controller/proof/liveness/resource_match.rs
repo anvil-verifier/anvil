@@ -1790,6 +1790,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                 if msg == req_msg {
                     let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
                     let req = req_msg.content.get_create_request();
+                    assert(req.obj.metadata.name.is_None());
                     let created_obj = DynamicObjectView {
                         kind: req.obj.kind,
                         metadata: ObjectMetaView {
@@ -1813,6 +1814,8 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
 
                     // Asserts properties about the response message
                     generated_name_is_unique(s.api_server);
+                    // weird flakiness here
+                    assert(!s.resources().contains_key(created_obj.object_ref()));
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
@@ -1867,6 +1870,8 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
 
         // Asserts properties about the response message
         generated_name_is_unique(s.api_server);
+        // weird flakiness here
+        assert(!s.resources().contains_key(created_obj.object_ref()));
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
