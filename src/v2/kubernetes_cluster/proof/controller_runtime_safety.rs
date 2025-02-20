@@ -91,7 +91,6 @@ pub open spec fn state_comes_with_a_pending_request(self, controller_id: int, st
 }
 
 // TODO: Investigate flaky proof.
-#[verifier(rlimit(4000))]
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
