@@ -13,8 +13,8 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*},
     proof::{helper_invariants, predicate::*},
 };
-use crate::vstd_ext::seq_lib::*;
-use vstd::seq_lib::*;
+use crate::vstd_ext::{seq_lib::*, set_lib::*};
+use vstd::{seq_lib::*, map_lib::*};
 use vstd::prelude::*;
 
 verus! {
@@ -206,6 +206,14 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
             assert_seqs_equal!(filtered_pods.map_values(|p: PodView| p.marshal()), filtered_objs);
         }
+    }
+    assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pods(vrs, s.resources()).len()) by {
+        assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
+        assert(resp_objs.no_duplicates());
+        assume(matching_pod_entries(vrs, s.resources()).values().len() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).len());
+        assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)) == filtered_pods.map_values(|p: PodView| p.marshal()));
+        assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)).len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
+        assert(matching_pod_entries(vrs, s.resources()).len() == matching_pods(vrs, s.resources()).len());
     }
 }
 
