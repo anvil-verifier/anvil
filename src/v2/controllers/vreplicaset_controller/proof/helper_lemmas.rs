@@ -13,7 +13,7 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*},
     proof::{helper_invariants, predicate::*},
 };
-use crate::vstd_ext::{seq_lib::*, set_lib::*};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
 use vstd::{seq_lib::*, map_lib::*};
 use vstd::prelude::*;
 
@@ -134,6 +134,8 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     controller_id: int, resp_msg: Message
 )
     requires
+        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+        Cluster::etcd_is_finite()(s),
         resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
     ensures
         ({
@@ -211,8 +213,11 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
         assert(resp_objs.no_duplicates());
         assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).no_duplicates());
-        seq_no_duplicate_len_equal_to_set_len(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)));
-        assert(matching_pod_entries(vrs, s.resources()).len() == matching_pod_entries(vrs, s.resources()).values().len());
+        resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).unique_seq_to_set();
+        assert_by(matching_pod_entries(vrs, s.resources()).len() == matching_pod_entries(vrs, s.resources()).values().len(), {
+            a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
+            injective_finite_map_implies_dom_len_is_equal_to_values_len(matching_pod_entries(vrs, s.resources()));
+        });
         assert(matching_pod_entries(vrs, s.resources()).values().len() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).len());
         assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)) == filtered_pods.map_values(|p: PodView| p.marshal()));
         assert(resp_objs.filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj)).len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());

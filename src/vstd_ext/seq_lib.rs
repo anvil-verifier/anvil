@@ -250,19 +250,6 @@ pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, p
     }
 }
 
-pub proof fn seq_no_duplicate_len_equal_to_set_len<A>(s: Seq<A>)
-    requires s.no_duplicates(),
-    ensures s.len() == s.to_set().len(),
-    decreases s.len()
-{
-    if s.len() != 0 {
-        assert(s.drop_last().no_duplicates());
-        seq_no_duplicate_len_equal_to_set_len(s.drop_last());
-        assert(s.len() == s.drop_last().len() + 1);
-        assert(s.to_set().len() == s.drop_last().to_set().len() + 1);
-    }
-}
-
 // Q: Why reveal is required as filter is open spec
 pub proof fn commutativity_of_seq_map_and_filter<A, B>(s: Seq<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, map: spec_fn(A) -> B)
     // ensure filter on original sequence is identical to filter on mapped sequence
