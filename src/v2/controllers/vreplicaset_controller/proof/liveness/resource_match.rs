@@ -798,10 +798,12 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                     &&& resp_msg.content.get_list_response().res.is_Ok()
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        // The matching pods must be a subset of the response.
-                        &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
                         &&& objects_to_pods(resp_objs).is_Some()
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                        &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
@@ -1325,17 +1327,17 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                             finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
                             assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
                                 &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                                &&& resp_objs.contains(obj)
+                                &&& #[trigger] resp_objs.contains(obj)
                                 &&& s.resources().values().filter(selector).to_seq().contains(obj)
                                 &&& s.resources().values().filter(selector).contains(obj)
                                 &&& s.resources().values().contains(obj)
-                                &&& owned_selector_match_is(vrs, obj)
+                                &&& #[trigger] owned_selector_match_is(vrs, obj)
                                 &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
                             });
                             assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
                                 &&& s.resources().values().contains(obj)
                                 &&& owned_selector_match_is(vrs, obj)
-                                &&& selector(obj)
+                                &&& #[trigger] selector(obj)
                                 &&& s.resources().values().filter(selector).contains(obj)
                                 &&& s.resources().values().filter(selector).to_seq().contains(obj)
                                 &&& resp_objs.contains(obj)
@@ -1483,17 +1485,17 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
                 assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
                     &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                    &&& resp_objs.contains(obj)
+                    &&& #[trigger] resp_objs.contains(obj)
                     &&& s.resources().values().filter(selector).to_seq().contains(obj)
                     &&& s.resources().values().filter(selector).contains(obj)
                     &&& s.resources().values().contains(obj)
-                    &&& owned_selector_match_is(vrs, obj)
+                    &&& #[trigger] owned_selector_match_is(vrs, obj)
                     &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
                 });
                 assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
                     &&& s.resources().values().contains(obj)
                     &&& owned_selector_match_is(vrs, obj)
-                    &&& selector(obj)
+                    &&& #[trigger] selector(obj)
                     &&& s.resources().values().filter(selector).contains(obj)
                     &&& s.resources().values().filter(selector).to_seq().contains(obj)
                     &&& resp_objs.contains(obj)
