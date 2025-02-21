@@ -1323,8 +1323,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                             assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
                             seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
                             seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                            set_filter_is_subset_of_original_set(s.resources().values(), |obj| owned_selector_match_is(vrs, obj));
-                            set_filter_is_subset_of_original_set(s.resources().values().filter(selector), |obj| owned_selector_match_is(vrs, obj));
                             finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
                             finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
                             assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
@@ -1482,8 +1480,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                 assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
                 seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
                 seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                set_filter_is_subset_of_original_set(s.resources().values(), |obj| owned_selector_match_is(vrs, obj));
-                set_filter_is_subset_of_original_set(s.resources().values().filter(selector), |obj| owned_selector_match_is(vrs, obj));
                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
                 assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {

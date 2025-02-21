@@ -83,8 +83,4 @@ pub proof fn antisymmetry_of_set_equality<A>(s1: Set<A>, s2: Set<A>)
     ensures s2 =~= s1
 {}
 
-pub proof fn set_filter_is_subset_of_original_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
-    ensures s.filter(f).subset_of(s)
-{}
-
 }
