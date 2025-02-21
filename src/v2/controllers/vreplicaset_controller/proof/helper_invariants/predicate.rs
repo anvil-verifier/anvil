@@ -220,22 +220,30 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                 // Special case: the above property holds on a list response to the
                 // appropriate request. 
                 &&& state.reconcile_step.is_AfterListPods() ==> {
-                
+                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& req_msg.content.is_list_request()
+                    &&& req_msg.content.get_list_request() == ListRequest {
+                        kind: PodView::kind(),
+                        namespace: triggering_cr.metadata.namespace.unwrap(),
+                    }
                     &&& forall |msg| {
                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                        //&&& msg.content.is_list_response()
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
+                        &&& msg.content.is_list_response()
                         &&& msg.content.get_list_response().res.is_Ok()
                         &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
                         &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                         (
                             resp_objs[i].metadata.namespace.is_some()
                             && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            && (s.resources().contains_key(resp_objs[i].object_ref()) ==>
+                            && ((s.resources().contains_key(resp_objs[i].object_ref())
+                                  && s.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                  == resp_objs[i].metadata.resource_version) ==> 
                                     s.resources()[resp_objs[i].object_ref()].metadata
                                         == resp_objs[i].metadata)
                             && resp_objs[i].metadata.resource_version.is_some()
