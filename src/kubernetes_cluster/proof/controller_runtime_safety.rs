@@ -42,7 +42,7 @@ pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: Temp
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     strengthen_next(spec, Self::next(), Self::each_object_in_etcd_is_well_formed(), stronger_next);
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
+//        assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
         K::marshal_preserves_metadata();
     }
     init_invariant(spec, Self::init(), stronger_next, invariant);
@@ -104,77 +104,77 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
         &&& Self::next()(s, s_prime)
         &&& Self::pending_req_of_key_is_unique_with_unique_id(key)(s)
     };
-    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if Self::at_expected_reconcile_states(key, state)(s_prime) {
-            let next_step = choose |step| Self::next_step(s, s_prime, step);
-            assert(!next_step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.in_flight().contains(msg)
-                && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-            };
-            match next_step {
-                Step::ApiServerStep(input) => {
-                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        let resp_msg = Self::transition_by_etcd(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1;
-                        assert(s_prime.in_flight().contains(resp_msg));
-                    } else {
-                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                            assert(s_prime.in_flight().contains(resp));
-                        }
-                    }
-                }
-                Step::BuiltinControllersStep(input) => {
-                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                    } else {
-                        assert(s_prime.in_flight().contains(resp));
-                    }
-                }
-                Step::FailTransientlyStep(input) => {
-                    if input.0 == s.ongoing_reconciles()[key].pending_req_msg.get_Some_0() {
-                        let resp_msg = Message::form_matched_err_resp_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), input.1);
-                        assert(s_prime.in_flight().contains(resp_msg));
-                    } else {
-                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                            assert(s_prime.in_flight().contains(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                            assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        } else {
-                            assert(s_prime.in_flight().contains(resp));
-                        }
-                    } else {
-                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                    }
-                }
-                Step::ClientStep() => {
-                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                    } else {
-                        assert(s_prime.in_flight().contains(resp));
-                    }
-                }
-                Step::ExternalAPIStep(input) => {
-                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        let resp_msg = Self::handle_external_request_helper(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.external_api_state, s.kubernetes_api_state.resources).1;
-                        assert(s_prime.in_flight().contains(resp_msg));
-                    } else {
-                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                            assert(s_prime.in_flight().contains(resp));
-                        }
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
+//    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+//        if Self::at_expected_reconcile_states(key, state)(s_prime) {
+//            let next_step = choose |step| Self::next_step(s, s_prime, step);
+////            assert(!next_step.is_RestartController());
+//            let resp = choose |msg| {
+//                #[trigger] s.in_flight().contains(msg)
+//                && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+//            };
+//            match next_step {
+//                Step::ApiServerStep(input) => {
+//                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+//                        let resp_msg = Self::transition_by_etcd(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1;
+////                        assert(s_prime.in_flight().contains(resp_msg));
+//                    } else {
+//                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+////                            assert(s_prime.in_flight().contains(resp));
+//                        }
+//                    }
+//                }
+//                Step::BuiltinControllersStep(input) => {
+//                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+////                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+//                    } else {
+////                        assert(s_prime.in_flight().contains(resp));
+//                    }
+//                }
+//                Step::FailTransientlyStep(input) => {
+//                    if input.0 == s.ongoing_reconciles()[key].pending_req_msg.get_Some_0() {
+//                        let resp_msg = Message::form_matched_err_resp_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), input.1);
+////                        assert(s_prime.in_flight().contains(resp_msg));
+//                    } else {
+//                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+////                            assert(s_prime.in_flight().contains(resp));
+//                        }
+//                    }
+//                }
+//                Step::ControllerStep(input) => {
+//                    let cr_key = input.1.get_Some_0();
+//                    if cr_key != key {
+//                        if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+////                            assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+//                        } else {
+////                            assert(s_prime.in_flight().contains(resp));
+//                        }
+//                    } else {
+////                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+//                    }
+//                }
+//                Step::ClientStep() => {
+//                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+////                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+//                    } else {
+////                        assert(s_prime.in_flight().contains(resp));
+//                    }
+//                }
+//                Step::ExternalAPIStep(input) => {
+//                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+//                        let resp_msg = Self::handle_external_request_helper(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.external_api_state, s.kubernetes_api_state.resources).1;
+////                        assert(s_prime.in_flight().contains(resp_msg));
+//                    } else {
+//                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+////                            assert(s_prime.in_flight().contains(resp));
+//                        }
+//                    }
+//                }
+//                _ => {
+////                    assert(invariant(s_prime));
+//                }
+//            }
+//        }
+//    }
     strengthen_next::<Self>(spec, Self::next(), Self::pending_req_of_key_is_unique_with_unique_id(key), stronger_next);
     init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
@@ -189,17 +189,17 @@ pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(spec: TempPred<S
     ensures spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(key, state)))),
 {
     let invariant = Self::no_pending_req_msg_at_reconcile_state(key, state);
-    assert forall |s, s_prime: Self| invariant(s) &&
-    #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
-        if s_prime.ongoing_reconciles().contains_key(key) && state(s_prime.ongoing_reconciles()[key].local_state) {
-            if s.controller_state == s_prime.controller_state {
-                assert(s.ongoing_reconciles()[key].pending_req_msg.is_None());
-                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_None());
-            } else {
-                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_None());
-            }
-        }
-    }
+//    assert forall |s, s_prime: Self| invariant(s) &&
+//    #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
+//        if s_prime.ongoing_reconciles().contains_key(key) && state(s_prime.ongoing_reconciles()[key].local_state) {
+//            if s.controller_state == s_prime.controller_state {
+////                assert(s.ongoing_reconciles()[key].pending_req_msg.is_None());
+////                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_None());
+//            } else {
+////                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_None());
+//            }
+//        }
+//    }
     init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 

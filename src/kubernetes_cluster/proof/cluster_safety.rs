@@ -165,11 +165,11 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
                             K::marshal_preserves_kind();
                             K::object_ref_is_well_formed();
                         } else {
-                            assert(s.scheduled_reconciles().contains_key(key));
+//                            assert(s.scheduled_reconciles().contains_key(key));
                         }
                 },
                 _ => {
-                        assert(s.scheduled_reconciles().contains_key(key));
+//                        assert(s.scheduled_reconciles().contains_key(key));
                 }
             }
         }
@@ -206,17 +206,17 @@ pub proof fn lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_
 
     strengthen_next(spec, Self::next(), Self::each_scheduled_object_has_consistent_key_and_valid_metadata(), stronger_next);
 
-    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime)
-    implies invariant(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles().contains_key(key)
-        implies s_prime.ongoing_reconciles()[key].triggering_cr.object_ref() == key
-        && s_prime.ongoing_reconciles()[key].triggering_cr.metadata().well_formed() by {
-            if s.ongoing_reconciles().contains_key(key) {
-            } else {
-                assert(s.scheduled_reconciles().contains_key(key));
-            }
-        }
-    }
+//    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime)
+//    implies invariant(s_prime) by {
+////        assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles().contains_key(key)
+////        implies s_prime.ongoing_reconciles()[key].triggering_cr.object_ref() == key
+////        && s_prime.ongoing_reconciles()[key].triggering_cr.metadata().well_formed() by {
+////            if s.ongoing_reconciles().contains_key(key) {
+////            } else {
+//////                assert(s.scheduled_reconciles().contains_key(key));
+////            }
+////        }
+//    }
 
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }

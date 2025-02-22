@@ -395,7 +395,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec: T
             assert forall |ex| #[trigger] pending_requests_num_is_msg_num.satisfied_by(ex)
             implies tla_exists(pending_requests_num_is_msg_num_and_pending_req_in_flight).satisfied_by(ex) by {
                 let msg = ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id)).choose();
-                assert(ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) > 0);
+//                assert(ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) > 0);
                 assert(pending_requests_num_is_msg_num_and_pending_req_in_flight(msg).satisfied_by(ex));
             }
             temp_pred_equality(
@@ -447,65 +447,65 @@ proof fn pending_requests_num_decreases(spec: TempPred<Self>, rest_id: RestId, m
         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id))
     );
 
-    assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime)
-    implies pre(s_prime) || post(s_prime) by {
-        let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
-        let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
-        let step = choose |step| Self::next_step(s, s_prime, step);
-        match step {
-            Step::ApiServerStep(input) => {
-                if pending_req_multiset.count(input.get_Some_0()) > 0 {
-                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
-                } else {
-                    assert(pending_req_multiset =~= pending_req_multiset_prime);
-                }
-            },
-            Step::FailTransientlyStep(input) => {
-                if pending_req_multiset.count(input.0) > 0 {
-                    assert(pending_req_multiset.remove(input.0) =~= pending_req_multiset_prime);
-                } else {
-                    assert(pending_req_multiset =~= pending_req_multiset_prime);
-                }
-            },
-            Step::BuiltinControllersStep(input) => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            Step::ControllerStep(input) => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            Step::ClientStep() => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            Step::ExternalAPIStep(input) => {
-                if pending_req_multiset.count(input.get_Some_0()) > 0 {
-                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
-                } else {
-                    assert(pending_req_multiset =~= pending_req_multiset_prime);
-                }
-            },
-            _ => {}
-        }
-    }
+//    assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime)
+//    implies pre(s_prime) || post(s_prime) by {
+//        let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
+//        let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
+//        let step = choose |step| Self::next_step(s, s_prime, step);
+//        match step {
+//            Step::ApiServerStep(input) => {
+//                if pending_req_multiset.count(input.get_Some_0()) > 0 {
+////                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
+//                } else {
+////                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+//                }
+//            },
+//            Step::FailTransientlyStep(input) => {
+//                if pending_req_multiset.count(input.0) > 0 {
+////                    assert(pending_req_multiset.remove(input.0) =~= pending_req_multiset_prime);
+//                } else {
+////                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+//                }
+//            },
+//            Step::BuiltinControllersStep(input) => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            Step::ControllerStep(input) => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            Step::ClientStep() => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            Step::ExternalAPIStep(input) => {
+//                if pending_req_multiset.count(input.get_Some_0()) > 0 {
+////                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
+//                } else {
+////                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+//                }
+//            },
+//            _ => {}
+//        }
+//    }
 
     if msg.dst.is_ApiServer() {
-        assert forall |s, s_prime: Self|
-            pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
-        implies post(s_prime) by {
-            let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
-            let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
-            assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
-        }
+//        assert forall |s, s_prime: Self|
+//            pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
+//        implies post(s_prime) by {
+//            let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
+//            let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
+////            assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
+//        }
         Self::lemma_pre_leads_to_post_by_kubernetes_api(
             spec, input, stronger_next, Self::handle_request(), pre, post
         );
     } else {
-        assert forall |s, s_prime: Self|
-            pre(s) && #[trigger] stronger_next(s, s_prime) && Self::external_api_next().forward(input)(s, s_prime)
-        implies post(s_prime) by {
-            let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
-            let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
-            assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
-        }
+//        assert forall |s, s_prime: Self|
+//            pre(s) && #[trigger] stronger_next(s, s_prime) && Self::external_api_next().forward(input)(s, s_prime)
+//        implies post(s_prime) by {
+//            let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
+//            let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
+////            assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
+//        }
         Self::lemma_pre_leads_to_post_by_external_api(
             spec, input, stronger_next, Self::handle_external_request(), pre, post
         );

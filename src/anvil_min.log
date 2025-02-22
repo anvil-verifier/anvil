@@ -1,0 +1,1350 @@
+warning: unused variable: `tokens`
+    --> tools/minimize/src/main.rs:1511:55
+     |
+1511 |             Meta::List(MetaList { path, delimiter: _, tokens }) => {
+     |                                                       ^^^^^^ help: try ignoring the field: `tokens: _`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: `minimize` (bin "minimize") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 1.31s
+     Running `/local/abai/verus/source/target/release/minimize -d ./anvil-tmp /local/abai/anvil/src/anvil.d`
+   Compiling minimize v0.1.0 (/local/abai/verus/source/tools/minimize)
+warning: unused variable: `tokens`
+    --> tools/minimize/src/main.rs:1511:55
+     |
+1511 |             Meta::List(MetaList { path, delimiter: _, tokens }) => {
+     |                                                       ^^^^^^ help: try ignoring the field: `tokens: _`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: `minimize` (bin "minimize") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 6.09s
+     Running `/local/abai/verus/source/target/release/minimize -d ./anvil-tmp /local/abai/anvil/src/anvil.d`
+verus succeeded with time: 32046ms
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/2/executable_model/api_server.rs is completed
+minimization of ./anvil-tmp/0/anvil.rs is completed
+minimization of ./anvil-tmp/3/executable_model/api_server_state.rs is completed
+commenting out line Lines { lines: 470..=470 } in "./anvil-tmp/4/executable_model/common.rs"
+minimization of ./anvil-tmp/1/executable_model/mod.rs is completed
+minimization of ./anvil-tmp/6/executable_model/object_ref_set.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/5/executable_model/object_map.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/11/external_api/spec.rs is completed
+minimization of ./anvil-tmp/10/external_api/exec.rs is completed
+minimization of ./anvil-tmp/7/executable_model/prelude.rs is completed
+minimization of ./anvil-tmp/8/executable_model/string_set.rs is completed
+minimization of ./anvil-tmp/9/external_api/mod.rs is completed
+minimization of ./anvil-tmp/12/kubernetes_api_objects/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/15/kubernetes_api_objects/exec/affinity.rs is completed
+minimization of ./anvil-tmp/13/kubernetes_api_objects/error.rs is completed
+minimization of ./anvil-tmp/14/kubernetes_api_objects/exec/mod.rs is completed
+minimization of ./anvil-tmp/18/kubernetes_api_objects/exec/common.rs is completed
+minimization of ./anvil-tmp/16/kubernetes_api_objects/exec/api_method.rs is completed
+minimization of ./anvil-tmp/17/kubernetes_api_objects/exec/api_resource.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/19/kubernetes_api_objects/exec/config_map.rs is completed
+minimization of ./anvil-tmp/20/kubernetes_api_objects/exec/container.rs is completed
+minimization of ./anvil-tmp/21/kubernetes_api_objects/exec/daemon_set.rs is completed
+minimization of ./anvil-tmp/22/kubernetes_api_objects/exec/dynamic.rs is completed
+minimization of ./anvil-tmp/23/kubernetes_api_objects/exec/label_selector.rs is completed
+minimization of ./anvil-tmp/24/kubernetes_api_objects/exec/object_meta.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/27/kubernetes_api_objects/exec/pod.rs is completed
+minimization of ./anvil-tmp/25/kubernetes_api_objects/exec/owner_reference.rs is completed
+minimization of ./anvil-tmp/26/kubernetes_api_objects/exec/persistent_volume_claim.rs is completed
+minimization of ./anvil-tmp/29/kubernetes_api_objects/exec/preconditions.rs is completed
+minimization of ./anvil-tmp/28/kubernetes_api_objects/exec/pod_template_spec.rs is completed
+minimization of ./anvil-tmp/30/kubernetes_api_objects/exec/prelude.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/31/kubernetes_api_objects/exec/resource.rs is completed
+minimization of ./anvil-tmp/32/kubernetes_api_objects/exec/resource_requirements.rs is completed
+minimization of ./anvil-tmp/34/kubernetes_api_objects/exec/role_binding.rs is completed
+minimization of ./anvil-tmp/33/kubernetes_api_objects/exec/role.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/36/kubernetes_api_objects/exec/service.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/35/kubernetes_api_objects/exec/secret.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/39/kubernetes_api_objects/exec/toleration.rs is completed
+minimization of ./anvil-tmp/38/kubernetes_api_objects/exec/stateful_set.rs is completed
+minimization of ./anvil-tmp/37/kubernetes_api_objects/exec/service_account.rs is completed
+minimization of ./anvil-tmp/40/kubernetes_api_objects/exec/volume.rs is completed
+minimization of ./anvil-tmp/42/kubernetes_api_objects/spec/mod.rs is completed
+minimization of ./anvil-tmp/41/kubernetes_api_objects/exec/volume_resource_requirements.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus succeeded with time: 36371ms
+commenting out line Lines { lines: 471..=471 } in "./anvil-tmp/4/executable_model/common.rs"
+verus succeeded with time: 35323ms
+commenting out line Lines { lines: 486..=486 } in "./anvil-tmp/4/executable_model/common.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/4/executable_model/common.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/43/kubernetes_api_objects/spec/affinity.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/47/kubernetes_api_objects/spec/config_map.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/44/kubernetes_api_objects/spec/api_method.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/46/kubernetes_api_objects/spec/common.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/48/kubernetes_api_objects/spec/container.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/45/kubernetes_api_objects/spec/api_resource.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/49/kubernetes_api_objects/spec/daemon_set.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/50/kubernetes_api_objects/spec/dynamic.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/51/kubernetes_api_objects/spec/label_selector.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/52/kubernetes_api_objects/spec/object_meta.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/53/kubernetes_api_objects/spec/owner_reference.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/54/kubernetes_api_objects/spec/persistent_volume_claim.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/55/kubernetes_api_objects/spec/pod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/56/kubernetes_api_objects/spec/pod_template_spec.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/57/kubernetes_api_objects/spec/preconditions.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/58/kubernetes_api_objects/spec/prelude.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/59/kubernetes_api_objects/spec/resource.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/60/kubernetes_api_objects/spec/resource_requirements.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/61/kubernetes_api_objects/spec/role.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/62/kubernetes_api_objects/spec/role_binding.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/63/kubernetes_api_objects/spec/secret.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/64/kubernetes_api_objects/spec/service.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/65/kubernetes_api_objects/spec/service_account.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/68/kubernetes_api_objects/spec/volume.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/66/kubernetes_api_objects/spec/stateful_set.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/67/kubernetes_api_objects/spec/toleration.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/69/kubernetes_api_objects/spec/volume_resource_requirements.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/70/kubernetes_cluster/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/71/kubernetes_cluster/proof/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 135..=139 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+minimization of ./anvil-tmp/73/kubernetes_cluster/proof/api_server_safety.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 171..=171 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+minimization of ./anvil-tmp/75/kubernetes_cluster/proof/cluster.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus failed, reverting
+commenting out line Lines { lines: 169..=172 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+commenting out line Lines { lines: 74..=103 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus failed, reverting
+commenting out line Lines { lines: 148..=148 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 72..=104 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus failed, reverting
+commenting out line Lines { lines: 179..=179 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+minimization of ./anvil-tmp/77/kubernetes_cluster/proof/controller_runtime.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus failed, reverting
+commenting out line Lines { lines: 145..=149 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 167..=167 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+minimization of ./anvil-tmp/78/kubernetes_cluster/proof/controller_runtime_eventual_safety.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 346..=371 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+commenting out line Lines { lines: 44..=44 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 40479ms
+commenting out line Lines { lines: 183..=183 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus failed, reverting
+commenting out line Lines { lines: 184..=184 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus failed, reverting
+commenting out line Lines { lines: 290..=292 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+commenting out line Lines { lines: 115..=135 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+minimization of ./anvil-tmp/82/kubernetes_cluster/proof/external_api_liveness.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus failed, reverting
+verus succeeded with time: 46607ms
+commenting out line Lines { lines: 171..=171 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+commenting out line Lines { lines: 383..=383 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 46600ms
+commenting out line Lines { lines: 43..=46 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 48980ms
+commenting out line Lines { lines: 185..=185 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+commenting out line Lines { lines: 41..=41 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 169..=175 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 288..=293 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 376..=384 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 109..=109 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 58837ms
+commenting out line Lines { lines: 155..=174 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus succeeded with time: 56986ms
+commenting out line Lines { lines: 187..=187 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus succeeded with time: 54290ms
+commenting out line Lines { lines: 46..=46 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 313..=317 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 181..=181 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 457..=460 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 56014ms
+commenting out line Lines { lines: 118..=118 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus failed, reverting
+commenting out line Lines { lines: 153..=175 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus succeeded with time: 54625ms
+commenting out line Lines { lines: 191..=191 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus succeeded with time: 59078ms
+commenting out line Lines { lines: 47..=47 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 327..=327 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 178..=182 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 215..=215 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus succeeded with time: 50304ms
+commenting out line Lines { lines: 121..=121 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus failed, reverting
+commenting out line Lines { lines: 454..=461 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 50840ms
+commenting out line Lines { lines: 174..=194 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus succeeded with time: 51267ms
+commenting out line Lines { lines: 50..=50 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 324..=328 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 223..=223 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 52008ms
+commenting out line Lines { lines: 210..=217 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus succeeded with time: 53101ms
+commenting out line Lines { lines: 127..=127 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 54462ms
+commenting out line Lines { lines: 216..=227 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus failed, reverting
+commenting out line Lines { lines: 468..=468 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 355..=355 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 62097ms
+commenting out line Lines { lines: 51..=51 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 222..=224 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 51202ms
+commenting out line Lines { lines: 208..=218 } in "./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs"
+verus succeeded with time: 56835ms
+commenting out line Lines { lines: 129..=129 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus failed, reverting
+commenting out line Lines { lines: 255..=276 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus succeeded with time: 54238ms
+commenting out line Lines { lines: 470..=470 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 354..=356 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 53428ms
+commenting out line Lines { lines: 36..=57 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 221..=225 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 52775ms
+minimization of ./anvil-tmp/76/kubernetes_cluster/proof/cluster_safety.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 164..=184 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 58768ms
+commenting out line Lines { lines: 135..=135 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus failed, reverting
+commenting out line Lines { lines: 287..=287 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus succeeded with time: 56042ms
+commenting out line Lines { lines: 473..=473 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 35..=58 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 273..=276 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 353..=357 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 219..=225 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus failed, reverting
+verus succeeded with time: 55390ms
+commenting out line Lines { lines: 138..=138 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+commenting out line Lines { lines: 281..=288 } in "./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs"
+verus failed, reverting
+commenting out line Lines { lines: 123..=123 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 57209ms
+commenting out line Lines { lines: 474..=474 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 282..=282 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 462..=476 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 383..=388 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 231..=231 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 55420ms
+commenting out line Lines { lines: 146..=146 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/74/kubernetes_cluster/proof/builtin_controllers.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 114..=114 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 54901ms
+commenting out line Lines { lines: 124..=124 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 397..=397 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 53405ms
+commenting out line Lines { lines: 485..=488 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 57972ms
+commenting out line Lines { lines: 283..=283 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 228..=232 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 55417ms
+commenting out line Lines { lines: 148..=148 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 57728ms
+commenting out line Lines { lines: 116..=116 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 47218ms
+commenting out line Lines { lines: 126..=126 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 279..=284 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 56098ms
+commenting out line Lines { lines: 398..=398 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 482..=489 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 274..=274 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 56051ms
+commenting out line Lines { lines: 151..=151 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 51804ms
+commenting out line Lines { lines: 128..=128 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 54534ms
+commenting out line Lines { lines: 117..=117 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 381..=381 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 394..=399 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 496..=496 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 273..=275 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 54649ms
+commenting out line Lines { lines: 156..=156 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 57890ms
+commenting out line Lines { lines: 129..=129 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 56638ms
+commenting out line Lines { lines: 120..=120 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 457..=457 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 56667ms
+commenting out line Lines { lines: 388..=388 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 56259ms
+commenting out line Lines { lines: 498..=498 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 272..=276 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 48985ms
+commenting out line Lines { lines: 114..=135 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 55140ms
+commenting out line Lines { lines: 158..=158 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 54610ms
+commenting out line Lines { lines: 121..=124 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 51643ms
+commenting out line Lines { lines: 459..=459 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 56602ms
+commenting out line Lines { lines: 393..=393 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 52072ms
+commenting out line Lines { lines: 501..=501 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 330..=333 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 55598ms
+commenting out line Lines { lines: 112..=137 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 126..=126 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 59994ms
+commenting out line Lines { lines: 164..=164 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 52513ms
+commenting out line Lines { lines: 464..=464 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 54201ms
+commenting out line Lines { lines: 395..=395 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 55354ms
+commenting out line Lines { lines: 502..=502 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 339..=339 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 490..=504 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 50674ms
+commenting out line Lines { lines: 188..=188 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 49907ms
+commenting out line Lines { lines: 167..=167 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 54381ms
+commenting out line Lines { lines: 127..=130 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 55727ms
+commenting out line Lines { lines: 466..=466 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 58501ms
+commenting out line Lines { lines: 399..=399 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus succeeded with time: 56104ms
+commenting out line Lines { lines: 340..=340 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 56088ms
+commenting out line Lines { lines: 433..=509 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 51949ms
+commenting out line Lines { lines: 190..=190 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 55613ms
+commenting out line Lines { lines: 172..=172 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 54702ms
+commenting out line Lines { lines: 132..=132 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 51592ms
+commenting out line Lines { lines: 470..=470 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 336..=341 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 54718ms
+commenting out line Lines { lines: 402..=402 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 522..=522 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 52686ms
+commenting out line Lines { lines: 192..=192 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 55167ms
+commenting out line Lines { lines: 133..=133 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 55935ms
+commenting out line Lines { lines: 106..=176 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 51245ms
+commenting out line Lines { lines: 473..=473 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 449..=449 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 54474ms
+commenting out line Lines { lines: 405..=405 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 519..=523 } in "./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs"
+verus succeeded with time: 51924ms
+commenting out line Lines { lines: 193..=193 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 53129ms
+commenting out line Lines { lines: 195..=195 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 56975ms
+commenting out line Lines { lines: 134..=137 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 60277ms
+commenting out line Lines { lines: 476..=476 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 54276ms
+commenting out line Lines { lines: 456..=456 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 55489ms
+commenting out line Lines { lines: 408..=408 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/79/kubernetes_cluster/proof/controller_runtime_liveness.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 30..=35 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 52635ms
+commenting out line Lines { lines: 198..=198 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 55771ms
+commenting out line Lines { lines: 196..=196 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 54071ms
+commenting out line Lines { lines: 142..=142 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 55724ms
+commenting out line Lines { lines: 480..=480 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 56853ms
+commenting out line Lines { lines: 461..=461 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 51680ms
+commenting out line Lines { lines: 373..=412 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 44..=44 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 49092ms
+commenting out line Lines { lines: 200..=200 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 55405ms
+commenting out line Lines { lines: 144..=144 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 58610ms
+commenting out line Lines { lines: 198..=198 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 60039ms
+commenting out line Lines { lines: 482..=482 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 53109ms
+commenting out line Lines { lines: 463..=463 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 55425ms
+commenting out line Lines { lines: 419..=419 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 51..=56 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 48885ms
+commenting out line Lines { lines: 201..=201 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 58413ms
+commenting out line Lines { lines: 108..=150 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 58598ms
+commenting out line Lines { lines: 191..=201 } in "./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs"
+verus succeeded with time: 53863ms
+commenting out line Lines { lines: 449..=487 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 53949ms
+commenting out line Lines { lines: 467..=467 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 52222ms
+commenting out line Lines { lines: 413..=420 } in "./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs"
+verus failed, reverting
+commenting out line Lines { lines: 65..=65 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 57172ms
+commenting out line Lines { lines: 181..=205 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 218..=218 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 58137ms
+minimization of ./anvil-tmp/80/kubernetes_cluster/proof/controller_runtime_safety.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/87/kubernetes_cluster/spec/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/88/kubernetes_cluster/spec/api_server/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/89/kubernetes_cluster/spec/api_server/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/90/kubernetes_cluster/spec/api_server/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus succeeded with time: 56157ms
+commenting out line Lines { lines: 495..=495 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus failed, reverting
+commenting out line Lines { lines: 72..=79 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+minimization of ./anvil-tmp/91/kubernetes_cluster/spec/builtin_controllers/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/92/kubernetes_cluster/spec/builtin_controllers/daemon_set_controller.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus succeeded with time: 57183ms
+commenting out line Lines { lines: 470..=470 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+minimization of ./anvil-tmp/93/kubernetes_cluster/spec/builtin_controllers/garbage_collector.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/94/kubernetes_cluster/spec/builtin_controllers/stabilizer.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus failed, reverting
+verus succeeded with time: 57175ms
+minimization of ./anvil-tmp/81/kubernetes_cluster/proof/daemon_set_controller.rs is completed
+commenting out line Lines { lines: 177..=207 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/95/kubernetes_cluster/spec/builtin_controllers/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/96/kubernetes_cluster/spec/builtin_controllers/stateful_set_controller.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/97/kubernetes_cluster/spec/builtin_controllers/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/98/kubernetes_cluster/spec/client/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/99/kubernetes_cluster/spec/client/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/100/kubernetes_cluster/spec/client/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/101/kubernetes_cluster/spec/cluster.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/102/kubernetes_cluster/spec/cluster_state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/103/kubernetes_cluster/spec/controller/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/104/kubernetes_cluster/spec/controller/controller_runtime.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/105/kubernetes_cluster/spec/controller/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/106/kubernetes_cluster/spec/controller/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/107/kubernetes_cluster/spec/external_api/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/108/kubernetes_cluster/spec/external_api/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/109/kubernetes_cluster/spec/external_api/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/110/kubernetes_cluster/spec/message.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/111/kubernetes_cluster/spec/network/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/112/kubernetes_cluster/spec/network/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/113/kubernetes_cluster/spec/network/state_machine.rs is completed
+minimization of ./anvil-tmp/114/kubernetes_cluster/spec/pod_event/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/115/kubernetes_cluster/spec/pod_event/types.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/116/kubernetes_cluster/spec/pod_event/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/117/reconciler/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/118/reconciler/exec/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/119/reconciler/exec/io.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/120/reconciler/exec/reconciler.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/121/reconciler/exec/resource_builder.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/123/reconciler/spec/io.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/122/reconciler/spec/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/125/reconciler/spec/resource_builder.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/124/reconciler/spec/reconciler.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/126/shim_layer/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/127/shim_layer/controller_runtime.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/128/shim_layer/fault_injection.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/129/state_machine/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus succeeded with time: 52082ms
+commenting out line Lines { lines: 220..=220 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+minimization of ./anvil-tmp/130/state_machine/state_machine.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus failed, reverting
+verus failed, reverting
+verus succeeded with time: 46109ms
+commenting out line Lines { lines: 490..=496 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 46809ms
+commenting out line Lines { lines: 473..=473 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+commenting out line Lines { lines: 265..=265 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+commenting out line Lines { lines: 90..=90 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 36309ms
+commenting out line Lines { lines: 221..=221 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+minimization of ./anvil-tmp/131/state_machine/action.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/132/temporal_logic/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/133/temporal_logic/defs.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus failed, reverting
+commenting out line Lines { lines: 93..=93 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 47870ms
+commenting out line Lines { lines: 506..=506 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+verus succeeded with time: 47933ms
+commenting out line Lines { lines: 266..=266 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 47992ms
+commenting out line Lines { lines: 224..=224 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 50140ms
+commenting out line Lines { lines: 476..=476 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+commenting out line Lines { lines: 136..=138 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+minimization of ./anvil-tmp/135/vstd_ext/mod.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 19..=19 } in "./anvil-tmp/136/vstd_ext/map_lib.rs"
+verus failed, reverting
+verus succeeded with time: 50609ms
+commenting out line Lines { lines: 268..=268 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 51976ms
+commenting out line Lines { lines: 501..=507 } in "./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs"
+commenting out line Lines { lines: 96..=96 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 53348ms
+commenting out line Lines { lines: 225..=228 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 146..=148 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 56612ms
+commenting out line Lines { lines: 441..=480 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/136/vstd_ext/map_lib.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 11..=11 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 192..=192 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 56603ms
+commenting out line Lines { lines: 269..=269 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 104..=111 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus failed, reverting
+commenting out line Lines { lines: 230..=230 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 58906ms
+minimization of ./anvil-tmp/72/kubernetes_cluster/proof/api_server_liveness.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/138/vstd_ext/option_lib.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+verus succeeded with time: 58126ms
+commenting out line Lines { lines: 487..=487 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+commenting out line Lines { lines: 13..=13 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 21..=21 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 53229ms
+commenting out line Lines { lines: 191..=193 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+verus succeeded with time: 53075ms
+commenting out line Lines { lines: 270..=270 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+commenting out line Lines { lines: 122..=122 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 54713ms
+commenting out line Lines { lines: 231..=234 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 16..=16 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 56333ms
+commenting out line Lines { lines: 481..=488 } in "./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs"
+verus succeeded with time: 59050ms
+commenting out line Lines { lines: 19..=23 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 57899ms
+commenting out line Lines { lines: 199..=201 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 125..=125 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 57191ms
+commenting out line Lines { lines: 272..=272 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 57574ms
+commenting out line Lines { lines: 236..=236 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 18..=18 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 57375ms
+minimization of ./anvil-tmp/84/kubernetes_cluster/proof/stateful_set_controller.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 14..=16 } in "./anvil-tmp/140/vstd_ext/set_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 29..=29 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 214..=214 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 128..=128 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 56094ms
+commenting out line Lines { lines: 273..=273 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 32..=32 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 58963ms
+commenting out line Lines { lines: 237..=237 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 17..=19 } in "./anvil-tmp/140/vstd_ext/set_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 46..=46 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 54929ms
+commenting out line Lines { lines: 247..=259 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 131..=131 } in "./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs"
+verus succeeded with time: 56434ms
+commenting out line Lines { lines: 278..=278 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 55817ms
+commenting out line Lines { lines: 33..=33 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 45..=45 } in "./anvil-tmp/140/vstd_ext/set_lib.rs"
+verus succeeded with time: 55939ms
+commenting out line Lines { lines: 238..=241 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 50..=50 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 263..=265 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/86/kubernetes_cluster/proof/wf1_assistant.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/141/vstd_ext/string_map.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+minimization of ./anvil-tmp/142/vstd_ext/string_view.rs is completed
+deps hack: "/local/abai/anvil/src/deps_hack"
+commenting out line Lines { lines: 28..=31 } in "./anvil-tmp/143/vstd_ext/vec_lib.rs"
+verus succeeded with time: 50629ms
+commenting out line Lines { lines: 280..=280 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 46..=46 } in "./anvil-tmp/140/vstd_ext/set_lib.rs"
+verus succeeded with time: 56146ms
+commenting out line Lines { lines: 35..=35 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 56709ms
+commenting out line Lines { lines: 246..=246 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 242..=267 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 58886ms
+commenting out line Lines { lines: 53..=53 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 52166ms
+commenting out line Lines { lines: 281..=281 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/143/vstd_ext/vec_lib.rs is completed
+verus failed, reverting
+commenting out line Lines { lines: 49..=49 } in "./anvil-tmp/140/vstd_ext/set_lib.rs"
+verus succeeded with time: 56957ms
+commenting out line Lines { lines: 36..=36 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 56741ms
+commenting out line Lines { lines: 248..=248 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 317..=321 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 54..=54 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 46043ms
+commenting out line Lines { lines: 283..=283 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/140/vstd_ext/set_lib.rs is completed
+verus succeeded with time: 49368ms
+commenting out line Lines { lines: 30..=38 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 49817ms
+commenting out line Lines { lines: 259..=259 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 313..=322 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 45659ms
+commenting out line Lines { lines: 48..=56 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 44927ms
+commenting out line Lines { lines: 288..=288 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 44961ms
+commenting out line Lines { lines: 47..=47 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 44897ms
+commenting out line Lines { lines: 260..=260 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 329..=329 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43693ms
+commenting out line Lines { lines: 61..=61 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 42414ms
+commenting out line Lines { lines: 297..=297 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 48..=48 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 45946ms
+commenting out line Lines { lines: 262..=262 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 339..=345 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 62..=62 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 41202ms
+commenting out line Lines { lines: 299..=299 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 44805ms
+commenting out line Lines { lines: 50..=50 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 45208ms
+commenting out line Lines { lines: 265..=265 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus failed, reverting
+commenting out line Lines { lines: 346..=346 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+verus succeeded with time: 41141ms
+commenting out line Lines { lines: 294..=307 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+commenting out line Lines { lines: 63..=63 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 46996ms
+commenting out line Lines { lines: 51..=51 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 356..=358 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 45071ms
+commenting out line Lines { lines: 208..=269 } in "./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs"
+verus succeeded with time: 44767ms
+commenting out line Lines { lines: 59..=65 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 255..=308 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 49..=52 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 354..=359 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/85/kubernetes_cluster/proof/validation_rule.rs is completed
+verus failed, reverting
+verus failed, reverting
+verus failed, reverting
+verus failed, reverting
+commenting out line Lines { lines: 254..=309 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+commenting out line Lines { lines: 53..=53 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+commenting out line Lines { lines: 57..=66 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+commenting out line Lines { lines: 370..=370 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 331..=331 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+verus failed, reverting
+commenting out line Lines { lines: 69..=69 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+commenting out line Lines { lines: 76..=76 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 41542ms
+commenting out line Lines { lines: 368..=371 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41269ms
+commenting out line Lines { lines: 332..=332 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 78..=78 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 41468ms
+commenting out line Lines { lines: 70..=70 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 367..=372 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 39613ms
+commenting out line Lines { lines: 336..=336 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 79..=79 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 366..=373 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41010ms
+commenting out line Lines { lines: 72..=72 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 40188ms
+commenting out line Lines { lines: 337..=337 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 376..=376 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43286ms
+commenting out line Lines { lines: 74..=80 } in "./anvil-tmp/137/vstd_ext/multiset_lib.rs"
+verus succeeded with time: 41126ms
+commenting out line Lines { lines: 73..=73 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 38733ms
+commenting out line Lines { lines: 339..=339 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 346..=346 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/137/vstd_ext/multiset_lib.rs is completed
+verus succeeded with time: 40994ms
+commenting out line Lines { lines: 67..=75 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 42016ms
+commenting out line Lines { lines: 374..=377 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 385..=387 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 38658ms
+commenting out line Lines { lines: 84..=84 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 38944ms
+commenting out line Lines { lines: 347..=347 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 388..=388 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 85..=85 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 42231ms
+commenting out line Lines { lines: 349..=349 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 432..=432 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 38509ms
+commenting out line Lines { lines: 88..=88 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 39363ms
+commenting out line Lines { lines: 389..=391 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42490ms
+commenting out line Lines { lines: 439..=439 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 392..=392 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 38355ms
+commenting out line Lines { lines: 89..=89 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 42714ms
+commenting out line Lines { lines: 440..=440 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 87..=90 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 39705ms
+commenting out line Lines { lines: 384..=393 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42594ms
+commenting out line Lines { lines: 441..=441 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 91..=91 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 421..=423 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42587ms
+commenting out line Lines { lines: 427..=447 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 100..=102 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 431..=433 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 109..=115 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 42157ms
+commenting out line Lines { lines: 426..=448 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 434..=434 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 116..=121 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 447..=447 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41531ms
+commenting out line Lines { lines: 485..=485 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 136..=136 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 39044ms
+commenting out line Lines { lines: 448..=448 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 488..=488 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 135..=137 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 39327ms
+commenting out line Lines { lines: 450..=450 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42358ms
+commenting out line Lines { lines: 492..=492 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 141..=141 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 446..=451 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 45752ms
+commenting out line Lines { lines: 502..=502 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 140..=142 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 469..=469 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 45668ms
+commenting out line Lines { lines: 503..=503 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 139..=143 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 467..=471 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 158..=164 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 44615ms
+commenting out line Lines { lines: 504..=504 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 466..=472 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 155..=165 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 464..=473 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 44458ms
+commenting out line Lines { lines: 505..=505 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 168..=168 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 478..=481 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 45165ms
+commenting out line Lines { lines: 506..=506 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 38366ms
+commenting out line Lines { lines: 166..=169 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 477..=482 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 45768ms
+commenting out line Lines { lines: 507..=507 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 172..=172 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 475..=483 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 173..=173 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus succeeded with time: 45236ms
+commenting out line Lines { lines: 483..=509 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 505..=505 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 171..=175 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 503..=506 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 482..=510 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 211..=211 } in "./anvil-tmp/139/vstd_ext/seq_lib.rs"
+verus failed, reverting
+commenting out line Lines { lines: 501..=507 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 558..=558 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/139/vstd_ext/seq_lib.rs is completed
+verus failed, reverting
+commenting out line Lines { lines: 523..=523 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43451ms
+commenting out line Lines { lines: 563..=563 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 522..=524 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 566..=566 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 526..=526 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41127ms
+commenting out line Lines { lines: 568..=568 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 516..=527 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 535..=537 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40566ms
+commenting out line Lines { lines: 569..=569 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36640ms
+commenting out line Lines { lines: 557..=557 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41708ms
+commenting out line Lines { lines: 573..=573 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 556..=558 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40495ms
+commenting out line Lines { lines: 575..=575 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 552..=560 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41229ms
+commenting out line Lines { lines: 576..=576 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 569..=573 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41458ms
+commenting out line Lines { lines: 577..=578 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 588..=588 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 582..=590 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40360ms
+commenting out line Lines { lines: 580..=580 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 652..=654 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41355ms
+commenting out line Lines { lines: 581..=581 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 651..=655 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40844ms
+commenting out line Lines { lines: 583..=583 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 664..=667 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40888ms
+commenting out line Lines { lines: 587..=587 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 676..=679 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40883ms
+commenting out line Lines { lines: 589..=589 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 689..=689 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40421ms
+commenting out line Lines { lines: 590..=590 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36370ms
+commenting out line Lines { lines: 687..=690 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 700..=703 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40699ms
+commenting out line Lines { lines: 591..=591 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 699..=704 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40974ms
+commenting out line Lines { lines: 593..=593 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 716..=719 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42287ms
+commenting out line Lines { lines: 596..=596 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 734..=737 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41146ms
+commenting out line Lines { lines: 597..=597 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 945..=948 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 600..=600 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 958..=960 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 957..=961 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 601..=601 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 989..=989 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41621ms
+commenting out line Lines { lines: 555..=604 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 990..=990 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 554..=605 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 992..=992 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 653..=653 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 37563ms
+commenting out line Lines { lines: 987..=994 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40786ms
+commenting out line Lines { lines: 658..=658 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 985..=995 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 661..=661 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 984..=996 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1011..=1014 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40748ms
+commenting out line Lines { lines: 663..=663 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1085..=1091 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41044ms
+commenting out line Lines { lines: 664..=664 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1084..=1092 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41264ms
+commenting out line Lines { lines: 668..=668 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1107..=1110 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41487ms
+commenting out line Lines { lines: 670..=670 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 35912ms
+commenting out line Lines { lines: 1104..=1111 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41668ms
+commenting out line Lines { lines: 671..=671 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1125..=1128 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1152..=1154 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41023ms
+commenting out line Lines { lines: 672..=673 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1147..=1155 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41257ms
+commenting out line Lines { lines: 675..=675 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1195..=1216 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41413ms
+commenting out line Lines { lines: 676..=676 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1194..=1217 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40683ms
+commenting out line Lines { lines: 678..=678 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1240..=1240 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41187ms
+commenting out line Lines { lines: 682..=682 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36956ms
+commenting out line Lines { lines: 1239..=1247 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1238..=1248 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41052ms
+commenting out line Lines { lines: 684..=684 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1264..=1267 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41793ms
+commenting out line Lines { lines: 685..=685 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1294..=1297 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42427ms
+commenting out line Lines { lines: 686..=686 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1293..=1298 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41555ms
+commenting out line Lines { lines: 688..=688 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1314..=1317 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1331..=1339 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41001ms
+commenting out line Lines { lines: 691..=691 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1330..=1340 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41137ms
+commenting out line Lines { lines: 692..=692 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1329..=1341 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 695..=695 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1366..=1369 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 696..=696 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1359..=1371 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42421ms
+commenting out line Lines { lines: 650..=699 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1358..=1372 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 649..=700 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1387..=1393 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 754..=754 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1410..=1425 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1408..=1426 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41588ms
+commenting out line Lines { lines: 759..=759 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1483..=1488 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 762..=762 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1482..=1489 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42100ms
+commenting out line Lines { lines: 764..=764 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1610..=1612 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41239ms
+commenting out line Lines { lines: 767..=767 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1613..=1615 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1621..=1621 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42873ms
+commenting out line Lines { lines: 771..=771 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36990ms
+commenting out line Lines { lines: 1622..=1622 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43133ms
+commenting out line Lines { lines: 773..=773 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1623..=1623 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42912ms
+commenting out line Lines { lines: 774..=774 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36491ms
+commenting out line Lines { lines: 1624..=1624 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40671ms
+commenting out line Lines { lines: 775..=776 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 35734ms
+commenting out line Lines { lines: 1631..=1631 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 40171ms
+commenting out line Lines { lines: 778..=778 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36817ms
+commenting out line Lines { lines: 1632..=1632 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41457ms
+commenting out line Lines { lines: 779..=779 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36230ms
+commenting out line Lines { lines: 1633..=1633 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1640..=1640 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41946ms
+commenting out line Lines { lines: 781..=781 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 36737ms
+commenting out line Lines { lines: 1641..=1641 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43509ms
+commenting out line Lines { lines: 785..=785 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 37421ms
+commenting out line Lines { lines: 1643..=1643 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41768ms
+commenting out line Lines { lines: 787..=787 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1644..=1644 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41090ms
+commenting out line Lines { lines: 788..=788 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus succeeded with time: 34973ms
+commenting out line Lines { lines: 1639..=1647 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 41841ms
+commenting out line Lines { lines: 789..=789 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1609..=1649 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1608..=1650 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43163ms
+commenting out line Lines { lines: 791..=791 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1668..=1687 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42735ms
+commenting out line Lines { lines: 794..=794 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1667..=1688 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43072ms
+commenting out line Lines { lines: 795..=795 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1722..=1727 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43730ms
+commenting out line Lines { lines: 796..=796 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1721..=1729 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1707..=1732 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43251ms
+commenting out line Lines { lines: 799..=799 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1706..=1733 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 43839ms
+commenting out line Lines { lines: 800..=800 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1746..=1758 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 42186ms
+commenting out line Lines { lines: 749..=803 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1745..=1759 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 747..=804 } in "./anvil-tmp/83/kubernetes_cluster/proof/message.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1793..=1795 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1826..=1828 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/83/kubernetes_cluster/proof/message.rs is completed
+verus failed, reverting
+commenting out line Lines { lines: 1866..=1866 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 34036ms
+commenting out line Lines { lines: 1868..=1868 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1869..=1869 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus succeeded with time: 34628ms
+commenting out line Lines { lines: 1863..=1872 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1862..=1873 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1890..=1893 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+commenting out line Lines { lines: 1889..=1894 } in "./anvil-tmp/134/temporal_logic/rules.rs"
+verus failed, reverting
+minimization of ./anvil-tmp/134/temporal_logic/rules.rs is completed

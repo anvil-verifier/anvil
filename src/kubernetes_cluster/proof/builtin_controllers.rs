@@ -172,27 +172,27 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         assert(s_prime.in_flight().contains(delete_req_msg));
     }
 
-    assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || delete_msg_in_flight(s_prime) by {
-        let step = choose |step| Self::next_step(s, s_prime, step);
-        match step {
-            Step::BuiltinControllersStep(i) => {
-                if i == input {
-                    assert(Self::garbage_collector_deletion_enabled(key)(s));
-                    let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
-                        key, s.rest_id_allocator.allocate().1, None
-                    ));
-                    assert(s_prime.in_flight().contains(delete_req_msg));
-                    assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
-                    assert(delete_msg_in_flight(s_prime));
-                } else {
-                    assert(pre(s_prime));
-                }
-            },
-            _ => {
-                assert(pre(s_prime) || delete_msg_in_flight(s_prime));
-            }
-        }
-    }
+//    assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || delete_msg_in_flight(s_prime) by {
+//        let step = choose |step| Self::next_step(s, s_prime, step);
+//        match step {
+//            Step::BuiltinControllersStep(i) => {
+//                if i == input {
+////                    assert(Self::garbage_collector_deletion_enabled(key)(s));
+//                    let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
+//                        key, s.rest_id_allocator.allocate().1, None
+//                    ));
+//                    assert(s_prime.in_flight().contains(delete_req_msg));
+////                    assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
+////                    assert(delete_msg_in_flight(s_prime));
+//                } else {
+////                    assert(pre(s_prime));
+//                }
+//            },
+//            _ => {
+////                assert(pre(s_prime) || delete_msg_in_flight(s_prime));
+//            }
+//        }
+//    }
 
     Self::lemma_pre_leads_to_post_by_builtin_controllers(
         spec, input, stronger_next, Self::run_garbage_collector(), pre, delete_msg_in_flight

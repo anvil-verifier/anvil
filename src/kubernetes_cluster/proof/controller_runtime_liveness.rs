@@ -460,21 +460,21 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
                     &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                 });
             };
-            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
-            implies pre_1(s_prime) || post_1(s_prime) by {
-                let step = choose |step| Self::next_step(s, s_prime, step);
-                match step {
-                    Step::ApiServerStep(input) => {
-                        if input.get_Some_0() == req_msg {
-                            assert(post_1(s_prime));
-                        } else {
-                            assert(pre_1(s_prime));
-                        }
-                    }
-                    Step::ControllerStep(input) => { assert(pre_1(s_prime)); },
-                    _ => { assert(pre_1(s_prime)); }
-                }
-            };
+//            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+//            implies pre_1(s_prime) || post_1(s_prime) by {
+//                let step = choose |step| Self::next_step(s, s_prime, step);
+//                match step {
+//                    Step::ApiServerStep(input) => {
+//                        if input.get_Some_0() == req_msg {
+////                            assert(post_1(s_prime));
+//                        } else {
+////                            assert(pre_1(s_prime));
+//                        }
+//                    }
+////                    Step::ControllerStep(input) => { assert(pre_1(s_prime)); },
+//                    _ => { assert(pre_1(s_prime)); }
+//                }
+//            };
             Self::lemma_pre_leads_to_post_by_kubernetes_api(
                 spec, input, stronger_next, Self::handle_request(), pre_1, post_1
             );
@@ -488,21 +488,21 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
                     &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                 });
             };
-            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
-            implies pre_1(s_prime) || post_1(s_prime) by {
-                let step = choose |step| Self::next_step(s, s_prime, step);
-                match step {
-                    Step::ExternalAPIStep(input) => {
-                        if input.get_Some_0() == req_msg {
-                            assert(post_1(s_prime));
-                        } else {
-                            assert(pre_1(s_prime));
-                        }
-                    }
-                    Step::ControllerStep(input) => { assert(pre_1(s_prime)); },
-                    _ => { assert(pre_1(s_prime)); }
-                }
-            };
+//            assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+//            implies pre_1(s_prime) || post_1(s_prime) by {
+//                let step = choose |step| Self::next_step(s, s_prime, step);
+//                match step {
+//                    Step::ExternalAPIStep(input) => {
+//                        if input.get_Some_0() == req_msg {
+////                            assert(post_1(s_prime));
+//                        } else {
+////                            assert(pre_1(s_prime));
+//                        }
+//                    }
+////                    Step::ControllerStep(input) => { assert(pre_1(s_prime)); },
+//                    _ => { assert(pre_1(s_prime)); }
+//                }
+//            };
             Self::lemma_pre_leads_to_post_by_external_api(
                 spec, input, stronger_next, Self::handle_external_request(), pre_1, post_1
             );

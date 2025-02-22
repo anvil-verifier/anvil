@@ -39,17 +39,17 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec: 
             let id = msg.content.get_rest_id();
             let step = choose |step| Self::next_step(s, s_prime, step);
             if s.in_flight().contains(msg) {
-                assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
+//                assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
             } else {
                 match step {
                     Step::ControllerStep(_) => {},
                     Step::ApiServerStep(input) => {
-                        assert(s.in_flight().contains(input.get_Some_0()));
-                        assert(id == input.get_Some_0().content.get_rest_id());
+//                        assert(s.in_flight().contains(input.get_Some_0()));
+//                        assert(id == input.get_Some_0().content.get_rest_id());
                     },
                     Step::FailTransientlyStep(input) => {
-                        assert(s.in_flight().contains(input.0));
-                        assert(id == input.0.content.get_rest_id());
+//                        assert(s.in_flight().contains(input.0));
+//                        assert(id == input.0.content.get_rest_id());
                     },
                     Step::ExternalAPIStep(_) => {},
                     _ => {},
@@ -110,32 +110,32 @@ pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(spec: Temp
         spec, lift_action(next),
         lift_action(Self::next()), lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator())
     );
-    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        if s_prime.ongoing_reconciles().contains_key(key) && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() {
-            assert forall |other_key: ObjectRef|
-            #[trigger] s_prime.ongoing_reconciles().contains_key(other_key) && s_prime.ongoing_reconciles()[other_key].pending_req_msg.is_Some()
-            && key != other_key implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id()
-            != s_prime.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0().content.get_rest_id() by {
-                let step = choose |step| Self::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(input) => {
-                        let cr_key = input.1.get_Some_0();
-                        if cr_key == key {
-                            assert(s.ongoing_reconciles().contains_key(other_key) && s.ongoing_reconciles()[other_key].pending_req_msg.is_Some());
-                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
-                        } else {
-                            assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].pending_req_msg.is_Some());
-                            if s_prime.ongoing_reconciles().contains_key(cr_key) && s_prime.ongoing_reconciles()[cr_key].pending_req_msg.is_Some() {
-                                assert(s.ongoing_reconciles().contains_key(cr_key));
-                                assert(s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
-                            }
-                        }
-                    },
-                    _ => {}
-                }
-            }
-        }
-    }
+//    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+//        if s_prime.ongoing_reconciles().contains_key(key) && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() {
+////            assert forall |other_key: ObjectRef|
+////            #[trigger] s_prime.ongoing_reconciles().contains_key(other_key) && s_prime.ongoing_reconciles()[other_key].pending_req_msg.is_Some()
+////            && key != other_key implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id()
+////            != s_prime.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0().content.get_rest_id() by {
+////                let step = choose |step| Self::next_step(s, s_prime, step);
+////                match step {
+////                    Step::ControllerStep(input) => {
+////                        let cr_key = input.1.get_Some_0();
+////                        if cr_key == key {
+//////                            assert(s.ongoing_reconciles().contains_key(other_key) && s.ongoing_reconciles()[other_key].pending_req_msg.is_Some());
+//////                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+////                        } else {
+//////                            assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].pending_req_msg.is_Some());
+////                            if s_prime.ongoing_reconciles().contains_key(cr_key) && s_prime.ongoing_reconciles()[cr_key].pending_req_msg.is_Some() {
+//////                                assert(s.ongoing_reconciles().contains_key(cr_key));
+//////                                assert(s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+////                            }
+////                        }
+////                    },
+////                    _ => {}
+////                }
+////            }
+//        }
+//    }
     init_invariant(spec, Self::init(), next, inv);
 }
 
@@ -186,20 +186,20 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
                     Step::ControllerStep(input) => {
                         let cr_key = input.1.get_Some_0();
                         if cr_key == key {
-                            assert(pending_req.content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+//                            assert(pending_req.content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
                             if s.in_flight().contains(msg) {} else {}
-                            assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+//                            assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
                         } else {
-                            assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                            assert(pending_req.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+//                            assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                            assert(pending_req.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
                             if s.in_flight().contains(msg) {} else {}
                         }
                     },
                     _ => {
-                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                         if !s.in_flight().contains(msg) {
-                            assert(pending_req.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
-                            assert(msg.content.get_rest_id() == s.rest_id_allocator.rest_id_counter)
+//                            assert(pending_req.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+//                            assert(msg.content.get_rest_id() == s.rest_id_allocator.rest_id_counter)
                         }
                     }
                 }
@@ -263,30 +263,30 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
                         Step::ApiServerStep(input) => {
                             let req = input.get_Some_0();
                             let (_, resp) = Self::transition_by_etcd(req, s.kubernetes_api_state);
-                            assert(resp.content.get_rest_id() == req.content.get_rest_id());
-                            assert(s.in_flight().contains(req));
+//                            assert(resp.content.get_rest_id() == req.content.get_rest_id());
+//                            assert(s.in_flight().contains(req));
                             if s.in_flight().contains(msg) {
-                                assert(s.in_flight().count(msg) == 1);
-                                assert(msg.content.get_rest_id() != resp.content.get_rest_id());
-                                assert(s_prime.in_flight().count(msg) == 1);
+//                                assert(s.in_flight().count(msg) == 1);
+//                                assert(msg.content.get_rest_id() != resp.content.get_rest_id());
+//                                assert(s_prime.in_flight().count(msg) == 1);
                             } else {
-                                assert(msg == resp);
-                                assert(s_prime.in_flight().count(resp) == 1);
+//                                assert(msg == resp);
+//                                assert(s_prime.in_flight().count(resp) == 1);
                             }
                         },
                         Step::FailTransientlyStep(input) => {
                             let req = input.0;
-                            assert(s.in_flight().contains(req));
+//                            assert(s.in_flight().contains(req));
                             if s.in_flight().contains(msg) {
-                                assert(s.in_flight().count(msg) == 1);
-                                assert(s_prime.in_flight().count(msg) == 1);
+//                                assert(s.in_flight().count(msg) == 1);
+//                                assert(s_prime.in_flight().count(msg) == 1);
                             } else {
-                                assert(s_prime.in_flight().count(msg) == 1);
+//                                assert(s_prime.in_flight().count(msg) == 1);
                             }
                         },
                         _ => {
                             if (s.in_flight().contains(msg)) {
-                                assert(s.in_flight().count(msg) == 1);
+//                                assert(s.in_flight().count(msg) == 1);
                             }
                         },
                     }
@@ -295,9 +295,9 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>
             assert forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg implies
             msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
                 // At most one message will be added to the network_state.in_flight for each action.
-                assert(s.in_flight().contains(msg) || s.in_flight().contains(other_msg));
+//                assert(s.in_flight().contains(msg) || s.in_flight().contains(other_msg));
                 if (s.in_flight().contains(msg) && s.in_flight().contains(other_msg)) {
-                    assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
+//                    assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
                 } else {
                     if (s.in_flight().contains(msg)) {
                         Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, msg, other_msg);
@@ -329,13 +329,13 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
         match next_step {
             Step::ApiServerStep(input) => {
                 let req_msg = input.get_Some_0();
-                assert(s.network_state.in_flight.count(req_msg) <= 1);
-                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+//                assert(s.network_state.in_flight.count(req_msg) <= 1);
+//                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
             }
             Step::FailTransientlyStep(input) => {
                 let req_msg = input.0;
-                assert(s.network_state.in_flight.count(req_msg) <= 1);
-                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+//                assert(s.network_state.in_flight.count(req_msg) <= 1);
+//                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
             }
             _ => assert(false),
         }
@@ -344,8 +344,8 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
         match next_step {
             Step::ExternalAPIStep(input) => {
                 let req_msg = input.get_Some_0();
-                assert(s.network_state.in_flight.count(req_msg) <= 1);
-                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+//                assert(s.network_state.in_flight.count(req_msg) <= 1);
+//                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
             }
             _ => assert(false),
         }
@@ -424,29 +424,29 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
         spec, lift_action(next), lift_action(Self::next()),
         lift_state(Self::each_object_in_etcd_is_well_formed())
     );
-    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] Self::is_ok_get_response_msg()(msg) implies
-        msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
-        && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
-            let step = choose |step| Self::next_step(s, s_prime, step);
-            if s.in_flight().contains(msg) {
-                assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
-            } else {
-                let input = step.get_ApiServerStep_0().get_Some_0();
-                match input.content.get_APIRequest_0() {
-                    APIRequest::GetRequest(req) => {
-                        if Self::is_ok_get_response_msg()(msg) {
-                            let req_key = req.key;
-                            assert(s.resources().contains_key(req_key));
-                            assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resources()[req_key].metadata.resource_version.get_Some_0());
-                            assert(s.resources()[req_key].metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
-                        } else {}
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
+//    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+////        assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] Self::is_ok_get_response_msg()(msg) implies
+////        msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
+////        && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
+////            let step = choose |step| Self::next_step(s, s_prime, step);
+////            if s.in_flight().contains(msg) {
+//////                assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
+////            } else {
+////                let input = step.get_ApiServerStep_0().get_Some_0();
+////                match input.content.get_APIRequest_0() {
+////                    APIRequest::GetRequest(req) => {
+////                        if Self::is_ok_get_response_msg()(msg) {
+////                            let req_key = req.key;
+//////                            assert(s.resources().contains_key(req_key));
+//////                            assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resources()[req_key].metadata.resource_version.get_Some_0());
+//////                            assert(s.resources()[req_key].metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
+////                        } else {}
+////                    }
+////                    _ => {}
+////                }
+////            }
+////        }
+//    }
     init_invariant(spec, Self::init(), next, inv);
 }
 
@@ -486,11 +486,11 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
             assert(Self::is_ok_get_response_msg()(msg));
             if s.in_flight().contains(msg) {
                 if !s.resources().contains_key(key) || s.resources()[key] != s_prime.resources()[key] {
-                    assert(s_prime.resources()[key].metadata.resource_version.get_Some_0() != msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0())
+//                    assert(s_prime.resources()[key].metadata.resource_version.get_Some_0() != msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0())
                 }
             } else {
                 let step = choose |step| Self::next_step(s, s_prime, step);
-                assert(step.is_ApiServerStep());
+//                assert(step.is_ApiServerStep());
                 let req = step.get_ApiServerStep_0().get_Some_0();
                 match req.content.get_APIRequest_0() {
                     APIRequest::GetRequest(_) => {}
@@ -500,12 +500,12 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
                     APIRequest::UpdateRequest(_) => {}
                     APIRequest::UpdateStatusRequest(_) => {}
                 }
-                assert(msg == Self::handle_get_request_msg(req, s.kubernetes_api_state).1);
-                assert(s.resources().contains_key(req.content.get_get_request().key));
-                assert(msg.content.get_get_response().res.get_Ok_0() == s.resources()[req.content.get_get_request().key]);
-                assert(req.content.get_get_request().key == msg.content.get_get_response().res.get_Ok_0().object_ref());
-                assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
-                assert(s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0());
+//                assert(msg == Self::handle_get_request_msg(req, s.kubernetes_api_state).1);
+//                assert(s.resources().contains_key(req.content.get_get_request().key));
+//                assert(msg.content.get_get_response().res.get_Ok_0() == s.resources()[req.content.get_get_request().key]);
+//                assert(req.content.get_get_request().key == msg.content.get_get_response().res.get_Ok_0().object_ref());
+//                assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
+//                assert(s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0());
             }
         }
     }
@@ -556,7 +556,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)
         && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) implies
         Self::is_ok_get_response_msg_and_matches_key(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_get_request().key)(msg) by {
-            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_get_request());
+//            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_get_request());
             let req_key = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_get_request().key;
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
@@ -564,42 +564,42 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                     assert(s.in_flight().contains(msg));
                     let cr_key = input.1.get_Some_0();
                     if cr_key == key {
-                        assert(false);
+//                        assert(false);
                     } else {
-                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                        assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
+//                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                        assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::ApiServerStep(input) => {
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.content.is_get_response());
-                        assert(msg == Self::handle_get_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
-                        assert(msg.src.is_ApiServer()
-                        && msg.content.is_get_response());
+//                        assert(msg.content.is_get_response());
+//                        assert(msg == Self::handle_get_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
+//                        assert(msg.src.is_ApiServer()
+//                        && msg.content.is_get_response());
                         if msg.content.get_get_response().res.is_Ok() {
-                            assert(s.resources().contains_key(req_key));
-                            assert(s.resources()[req_key].object_ref() == req_key);
+//                            assert(s.resources().contains_key(req_key));
+//                            assert(s.resources()[req_key].object_ref() == req_key);
                         }
-                        assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
+//                        assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::FailTransientlyStep(input) => {
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_ApiServer());
-                        assert(msg.content.is_get_response());
-                        assert(msg.content.get_get_response().res.is_Err());
+//                        assert(msg.src.is_ApiServer());
+//                        assert(msg.content.is_get_response());
+//                        assert(msg.content.get_get_response().res.is_Err());
                     }
-                    assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
+//                    assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                 },
                 Step::ExternalAPIStep(input) => {
-                    assert(input.get_Some_0() != msg);
+//                    assert(input.get_Some_0() != msg);
                     assert(s.in_flight().contains(msg));
                 },
                 _ => {
                     assert(s.in_flight().contains(msg));
-                    assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
+//                    assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                 }
             }
         }
@@ -651,7 +651,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_update_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)
         && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) implies
         Self::is_ok_update_response_msg_and_matches_key(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_update_request().key())(msg) by {
-            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_update_request());
+//            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_update_request());
             let req_key = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_update_request().key();
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
@@ -659,42 +659,42 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                     assert(s.in_flight().contains(msg));
                     let cr_key = input.1.get_Some_0();
                     if cr_key == key {
-                        assert(false);
+//                        assert(false);
                     } else {
-                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
-                        assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
+//                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                        assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::ApiServerStep(input) => {
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.content.is_update_response());
-                        assert(msg == Self::handle_update_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
-                        assert(msg.src.is_ApiServer()
-                        && msg.content.is_update_response());
+//                        assert(msg.content.is_update_response());
+//                        assert(msg == Self::handle_update_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
+//                        assert(msg.src.is_ApiServer()
+//                        && msg.content.is_update_response());
                         if msg.content.get_update_response().res.is_Ok() {
-                            assert(s.resources().contains_key(req_key));
-                            assert(s.resources()[req_key].object_ref() == req_key);
+//                            assert(s.resources().contains_key(req_key));
+//                            assert(s.resources()[req_key].object_ref() == req_key);
                         }
-                        assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
+//                        assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::FailTransientlyStep(input) => {
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_ApiServer());
-                        assert(msg.content.is_update_response());
-                        assert(msg.content.get_update_response().res.is_Err());
+//                        assert(msg.src.is_ApiServer());
+//                        assert(msg.content.is_update_response());
+//                        assert(msg.content.get_update_response().res.is_Err());
                     }
-                    assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
+//                    assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
                 },
                 Step::ExternalAPIStep(input) => {
-                    assert(input.get_Some_0() != msg);
+//                    assert(input.get_Some_0() != msg);
                     assert(s.in_flight().contains(msg));
                 },
                 _ => {
                     assert(s.in_flight().contains(msg));
-                    assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
+//                    assert(Self::is_ok_update_response_msg_and_matches_key(req_key)(msg));
                 }
             }
         }
@@ -752,7 +752,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
         && create_req.obj.metadata.name.is_Some()
         implies s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().obj.metadata.name.is_Some() &&
         Self::is_ok_create_response_msg_and_matches_key(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().key())(msg) by {
-            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_create_request());
+//            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_create_request());
             let req_key = create_req.key();
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
@@ -760,45 +760,45 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                     assert(s.in_flight().contains(msg));
                     let cr_key = input.1.get_Some_0();
                     if cr_key == key {
-                        assert(false);
+//                        assert(false);
                     } else {
-                        assert(s.ongoing_reconciles()[key].pending_req_msg == s_prime.ongoing_reconciles()[key].pending_req_msg);
+//                        assert(s.ongoing_reconciles()[key].pending_req_msg == s_prime.ongoing_reconciles()[key].pending_req_msg);
                         // assert(create_req.obj.metadata.name.is_Some());
 
-                        assert(Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg));
+//                        assert(Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg));
                     }
                 },
                 Step::ApiServerStep(input) => {
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.content.is_create_response());
-                        assert(msg == Self::handle_create_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
-                        assert(msg.src.is_ApiServer()
-                        && msg.content.is_create_response());
+//                        assert(msg.content.is_create_response());
+//                        assert(msg == Self::handle_create_request_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
+//                        assert(msg.src.is_ApiServer()
+//                        && msg.content.is_create_response());
                         if msg.content.get_create_response().res.is_Ok() {
-                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().obj.metadata.name.is_Some());
-                            assert(s_prime.resources()[req_key].object_ref() == req_key);
+//                            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_create_request().obj.metadata.name.is_Some());
+//                            assert(s_prime.resources()[req_key].object_ref() == req_key);
                         }
-                        assert(Self::is_ok_create_response_msg_and_matches_key(req_key)(msg));
+//                        assert(Self::is_ok_create_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::FailTransientlyStep(input) => {
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
-                        assert(msg.src.is_ApiServer());
-                        assert(msg.content.is_create_response());
-                        assert(msg.content.get_create_response().res.is_Err());
+//                        assert(msg.src.is_ApiServer());
+//                        assert(msg.content.is_create_response());
+//                        assert(msg.content.get_create_response().res.is_Err());
                     }
-                    assert(Self::is_ok_create_response_msg_and_matches_key(req_key)(msg));
+//                    assert(Self::is_ok_create_response_msg_and_matches_key(req_key)(msg));
                 },
                 Step::ExternalAPIStep(input) => {
-                    assert(input.get_Some_0() != msg);
-                    assert(s.in_flight().contains(msg));
-                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+//                    assert(input.get_Some_0() != msg);
+//                    assert(s.in_flight().contains(msg));
+//                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                 },
                 _ => {
-                    assert(s.in_flight().contains(msg));
-                    assert(Self::is_ok_create_response_msg_and_matches_key(req_key)(msg));
+//                    assert(s.in_flight().contains(msg));
+//                    assert(Self::is_ok_create_response_msg_and_matches_key(req_key)(msg));
                 }
             }
         }

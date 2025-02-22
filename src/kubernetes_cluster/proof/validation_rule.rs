@@ -112,37 +112,37 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
             let step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
             match step {
                 Step::ApiServerStep(input) => {
-                    assert(s.scheduled_reconciles().contains_key(key) && s.scheduled_reconciles()[key] == s_prime.scheduled_reconciles()[key]);
+//                    assert(s.scheduled_reconciles().contains_key(key) && s.scheduled_reconciles()[key] == s_prime.scheduled_reconciles()[key]);
                     if !s.resources().contains_key(key) {
-                        assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
-                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() != s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0());
+//                        assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
+//                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() != s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0());
                     } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
-                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
+//                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
                         } else if input.get_Some_0().content.is_update_request() {
-                            assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(K::transition_validation(
-                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                K::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+//                            assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
+//                            assert(K::transition_validation(
+//                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+//                                K::unmarshal(s.resources()[key]).get_Ok_0()
+//                            ));
                         } else {
-                            assert(input.get_Some_0().content.is_update_status_request());
-                            assert(K::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
-                            assert(K::transition_validation(
-                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                K::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+//                            assert(input.get_Some_0().content.is_update_status_request());
+//                            assert(K::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
+//                            assert(K::transition_validation(
+//                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+//                                K::unmarshal(s.resources()[key]).get_Ok_0()
+//                            ));
                         }
                     }
                 },
                 Step::ScheduleControllerReconcileStep(input) => {
-                    assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
+//                    assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
                     if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                        assert(s_prime.scheduled_reconciles()[key] == K::unmarshal(s_prime.resources()[key]).get_Ok_0());
+//                        assert(s_prime.scheduled_reconciles()[key] == K::unmarshal(s_prime.resources()[key]).get_Ok_0());
                     }
                 },
                 _ => {}
@@ -216,37 +216,37 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() {
             match step {
                 Step::ApiServerStep(input) => {
-                    assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].triggering_cr == s_prime.ongoing_reconciles()[key].triggering_cr);
+//                    assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].triggering_cr == s_prime.ongoing_reconciles()[key].triggering_cr);
                     if !s.resources().contains_key(key) {
-                        assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
-                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() != s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0());
+//                        assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
+//                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() != s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0());
                     } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
-                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
+//                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
                         } else if input.get_Some_0().content.is_update_request() {
-                            assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(K::transition_validation(
-                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                K::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+//                            assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
+//                            assert(K::transition_validation(
+//                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+//                                K::unmarshal(s.resources()[key]).get_Ok_0()
+//                            ));
                         } else {
-                            assert(input.get_Some_0().content.is_update_status_request());
-                            assert(K::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
-                            assert(K::transition_validation(
-                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                K::unmarshal(s.resources()[key]).get_Ok_0()
-                            ));
+//                            assert(input.get_Some_0().content.is_update_status_request());
+//                            assert(K::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
+//                            assert(K::transition_validation(
+//                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+//                                K::unmarshal(s.resources()[key]).get_Ok_0()
+//                            ));
                         }
                     }
                 },
                 Step::ControllerStep(_) => {
-                    assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
+//                    assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
                     if !s.ongoing_reconciles().contains_key(key) || s.ongoing_reconciles()[key].triggering_cr != s_prime.ongoing_reconciles()[key].triggering_cr {
-                        assert(s_prime.ongoing_reconciles()[key].triggering_cr == s.scheduled_reconciles()[key]);
+//                        assert(s_prime.ongoing_reconciles()[key].triggering_cr == s.scheduled_reconciles()[key]);
                     }
                 },
                 _ => {}
@@ -257,13 +257,13 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
             match step {
                 Step::ScheduleControllerReconcileStep(_) => {
                     if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                        assert(K::transition_validation(s_prime.scheduled_reconciles()[key], K::unmarshal(s.resources()[key]).get_Ok_0()));
-                        assert(K::transition_validation(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
+//                        assert(K::transition_validation(s_prime.scheduled_reconciles()[key], K::unmarshal(s.resources()[key]).get_Ok_0()));
+//                        assert(K::transition_validation(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
                     }
-                    assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
+//                    assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 },
                 _ => {
-                    assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
+//                    assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 }
             }
         }

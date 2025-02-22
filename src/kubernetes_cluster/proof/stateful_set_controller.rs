@@ -337,7 +337,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
                 assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex)
                 implies tla_exists(pre_concrete_msg).satisfied_by(ex) by {
                     let msg = ex.head().in_flight().filter(update_status_msg_from_bc_for(key)).choose();
-                    assert(ex.head().in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0);
+//                    assert(ex.head().in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0);
                     assert(pre_concrete_msg(msg).satisfied_by(ex));
                 }
                 temp_pred_equality(tla_exists(pre_concrete_msg), lift_state(pre));
@@ -439,54 +439,54 @@ proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num
         lift_action(Self::obj_rv_stays_unchanged(cm_key))
     );
 
-    assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime)
-    implies pre(s_prime) || post(s_prime) by {
-        let pending_req_multiset = s.in_flight().filter(update_status_msg_from_bc_for(key));
-        let pending_req_multiset_prime = s_prime.in_flight().filter(update_status_msg_from_bc_for(key));
-        let step = choose |step| Self::next_step(s, s_prime, step);
-        match step {
-            Step::ApiServerStep(input) => {
-                if pending_req_multiset.count(input.get_Some_0()) > 0 {
-                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
-                } else {
-                    StatefulSetView::marshal_spec_preserves_integrity();
-                    StatefulSetView::marshal_status_preserves_integrity();
-                    if resource_create_request_msg(key)(input.get_Some_0()) {} else {}
-                    if resource_create_request_msg_without_name(key.kind, key.namespace)(input.get_Some_0()) {} else {}
-                    if resource_update_request_msg(key)(input.get_Some_0()) {} else {}
-                    assert(pending_req_multiset =~= pending_req_multiset_prime);
-                }
-            },
-            Step::FailTransientlyStep(input) => {
-                if pending_req_multiset.count(input.0) > 0 {
-                    assert(pending_req_multiset.remove(input.0) =~= pending_req_multiset_prime);
-                } else {
-                    assert(pending_req_multiset =~= pending_req_multiset_prime);
-                }
-            },
-            Step::BuiltinControllersStep(input) => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            Step::ControllerStep(input) => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            Step::ClientStep() => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            Step::ExternalAPIStep(input) => {
-                assert(pending_req_multiset =~= pending_req_multiset_prime);
-            },
-            _ => {}
-        }
-    }
-    assert forall |s, s_prime: Self|
-        pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
-    implies post(s_prime) by {
-        let pending_req_multiset = s.in_flight().filter(update_status_msg_from_bc_for(key));
-        let pending_req_multiset_prime = s_prime.in_flight().filter(update_status_msg_from_bc_for(key));
-        StatefulSetView::marshal_preserves_integrity();
-        assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
-    }
+//    assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime)
+//    implies pre(s_prime) || post(s_prime) by {
+//        let pending_req_multiset = s.in_flight().filter(update_status_msg_from_bc_for(key));
+//        let pending_req_multiset_prime = s_prime.in_flight().filter(update_status_msg_from_bc_for(key));
+//        let step = choose |step| Self::next_step(s, s_prime, step);
+//        match step {
+//            Step::ApiServerStep(input) => {
+//                if pending_req_multiset.count(input.get_Some_0()) > 0 {
+////                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
+//                } else {
+//                    StatefulSetView::marshal_spec_preserves_integrity();
+//                    StatefulSetView::marshal_status_preserves_integrity();
+//                    if resource_create_request_msg(key)(input.get_Some_0()) {} else {}
+//                    if resource_create_request_msg_without_name(key.kind, key.namespace)(input.get_Some_0()) {} else {}
+//                    if resource_update_request_msg(key)(input.get_Some_0()) {} else {}
+////                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+//                }
+//            },
+//            Step::FailTransientlyStep(input) => {
+//                if pending_req_multiset.count(input.0) > 0 {
+////                    assert(pending_req_multiset.remove(input.0) =~= pending_req_multiset_prime);
+//                } else {
+////                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+//                }
+//            },
+//            Step::BuiltinControllersStep(input) => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            Step::ControllerStep(input) => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            Step::ClientStep() => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            Step::ExternalAPIStep(input) => {
+////                assert(pending_req_multiset =~= pending_req_multiset_prime);
+//            },
+//            _ => {}
+//        }
+//    }
+//    assert forall |s, s_prime: Self|
+//        pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
+//    implies post(s_prime) by {
+//        let pending_req_multiset = s.in_flight().filter(update_status_msg_from_bc_for(key));
+//        let pending_req_multiset_prime = s_prime.in_flight().filter(update_status_msg_from_bc_for(key));
+//        StatefulSetView::marshal_preserves_integrity();
+////        assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
+//    }
     Self::lemma_pre_leads_to_post_by_kubernetes_api(
         spec, input, stronger_next, Self::handle_request(), pre, post
     );

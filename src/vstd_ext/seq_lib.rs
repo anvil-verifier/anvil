@@ -28,15 +28,15 @@ pub proof fn seq_equal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A
         {
             if s1 == s2 {
                 let len = s1.len();
-                assert forall |i| 0<= i < (s1 + suffix).len() implies (#[trigger] (s1 + suffix)[i]) == (s2 + suffix)[i] by {
-                    if i < len {
-                        assert((s1 + suffix)[i] == s1[i]);
-                        assert((s2 + suffix)[i] == s2[i]);
-                    } else {
-                        assert((s1 + suffix)[i] == suffix[i - len]);
-                        assert((s2 + suffix)[i] == suffix[i - len]);
-                    }
-                }
+//                assert forall |i| 0<= i < (s1 + suffix).len() implies (#[trigger] (s1 + suffix)[i]) == (s2 + suffix)[i] by {
+//                    if i < len {
+////                        assert((s1 + suffix)[i] == s1[i]);
+////                        assert((s2 + suffix)[i] == s2[i]);
+//                    } else {
+////                        assert((s1 + suffix)[i] == suffix[i - len]);
+////                        assert((s2 + suffix)[i] == suffix[i - len]);
+//                    }
+//                }
             }
 
         }
@@ -46,9 +46,9 @@ pub proof fn seq_equal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A
         {
             if s1 + suffix == s2 + suffix {
                 assert((s1 + suffix).len() == (s2 + suffix).len());
-                assert(s1.len() == s2.len());
+//                assert(s1.len() == s2.len());
                 assert forall |i| 0<= i < s1.len() implies (#[trigger] s1[i]) == s2[i] by {
-                    assert(s1[i] == (s1 + suffix)[i]);
+//                    assert(s1[i] == (s1 + suffix)[i]);
                     assert(s2[i] == (s2 + suffix)[i]);
                 }
                 assert(s1 =~= s2);
@@ -65,15 +65,15 @@ pub proof fn seq_equal_preserved_by_add_prefix<A>(prefix: Seq<A>, s1: Seq<A>, s2
         {
             if s1 == s2 {
                 let len = prefix.len();
-                assert forall |i| 0<= i < (prefix + s1).len() implies (#[trigger] (prefix + s1)[i]) == (prefix + s2)[i] by {
-                    if i < len {
-                        assert((prefix + s1)[i] == prefix[i]);
-                        assert((prefix + s2)[i] == prefix[i]);
-                    } else {
-                        assert((prefix + s1)[i] == s1[i - len]);
-                        assert((prefix + s2)[i] == s2[i - len]);
-                    }
-                }
+//                assert forall |i| 0<= i < (prefix + s1).len() implies (#[trigger] (prefix + s1)[i]) == (prefix + s2)[i] by {
+//                    if i < len {
+////                        assert((prefix + s1)[i] == prefix[i]);
+////                        assert((prefix + s2)[i] == prefix[i]);
+//                    } else {
+////                        assert((prefix + s1)[i] == s1[i - len]);
+////                        assert((prefix + s2)[i] == s2[i - len]);
+//                    }
+//                }
             }
 
         }
@@ -83,10 +83,10 @@ pub proof fn seq_equal_preserved_by_add_prefix<A>(prefix: Seq<A>, s1: Seq<A>, s2
         {
             if prefix + s1 == prefix + s2 {
                 assert((prefix + s1).len() == (prefix + s2).len());
-                assert(s1.len() == s2.len());
+//                assert(s1.len() == s2.len());
                 let len = prefix.len();
                 assert forall |i| 0<= i < s1.len() implies (#[trigger] s1[i]) == s2[i] by {
-                    assert(s1[i] == (prefix + s1)[i + len]);
+//                    assert(s1[i] == (prefix + s1)[i + len]);
                     assert(s2[i] == (prefix + s2)[i + len]);
                 }
                 assert(s1 =~= s2);
@@ -166,7 +166,7 @@ proof fn empty_filter_implies_seq_pred_false_on_all_elements<A>(s: Seq<A>, pred:
         }
         assert(s.filter(pred) == subseq.filter(pred)) by {
             reveal(Seq::filter);
-            assert(!pred(s.last()));
+//            assert(!pred(s.last()));
         }
         empty_filter_implies_seq_pred_false_on_all_elements(s.drop_last(), pred);
         assert forall |e: A| #![auto] s.contains(e) ==> !pred(e) by {
