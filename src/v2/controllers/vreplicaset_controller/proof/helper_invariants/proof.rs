@@ -945,6 +945,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
@@ -1038,6 +1039,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
@@ -1236,32 +1238,28 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
                                 )
                             } by {
                                 if (new_msgs.contains(msg)) {
-                                    let resp_objs = msg.content.get_list_response().res.unwrap();
-                                    let selector = |o: DynamicObjectView| {
-                                        &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
-                                        &&& o.object_ref().kind == PodView::kind()
-                                    };
-                                    assert(resp_objs == map_to_seq(s.resources(), selector));
-                                    assume(forall |i| #![auto] 0 <= i < resp_objs.len() ==> !PodView::unmarshal(resp_objs[i]).is_err());
-                                    seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
-                                        resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
-                                    );
-                                    assert(resp_objs.filter((|o: DynamicObjectView| PodView::unmarshal(o).is_err())).len() == 0);
-                                    assume(
-                                        forall |i| #![auto] 0 <= i < resp_objs.len() ==>
-                                (
-                                    resp_objs[i].metadata.namespace.is_some()
-                                    && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                                    && ((s_prime.resources().contains_key(resp_objs[i].object_ref())
-                                            && s_prime.resources()[resp_objs[i].object_ref()].metadata.resource_version
-                                            == resp_objs[i].metadata.resource_version) ==> 
-                                            s_prime.resources()[resp_objs[i].object_ref()].metadata
-                                                == resp_objs[i].metadata)
-                                    && resp_objs[i].metadata.resource_version.is_some()
-                                    && resp_objs[i].metadata.resource_version.unwrap()
-                                            < s_prime.api_server.resource_version_counter
-                                )
-                                    );
+                                    if current_req_msg == req_msg {
+                                        let resp_objs = msg.content.get_list_response().res.unwrap();
+                                        let selector = |o: DynamicObjectView| {
+                                            &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                            &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                        };
+
+                                        // assert(req_msg.content.get_list_request().kind == PodView::kind());
+                                        // assert(resp_objs =~= map_to_seq(s.resources(), selector));
+                                        // assert(forall |o: DynamicObjectView| s.resources.values.contains(o) && o.object_ref().kind == PodView::kind() ==> ! #[trigger] PodView::unmarshal(o).is_err());
+                                        // assume(false);
+                                        //assume(forall |o: DynamicObjectView| s.resources().values().filter(selector).contains(o) ==> ! #[trigger] PodView::unmarshal(o).is_err());
+                                        //assert(forall |i| #![auto] 0 <= i < resp_objs.len() ==> !PodView::unmarshal(resp_objs[i]).is_err());
+                                        assume(false);
+                                    
+                                        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                                            resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                                        );
+                                    } else {
+                                        assert(s.in_flight().contains(current_req_msg));
+                                        assert(current_req_msg.rpc_id != req_msg.rpc_id);
+                                    }
                                 } else {
                                     let msg_antecedent = {
                                         &&& s.in_flight().contains(msg)
@@ -1357,6 +1355,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
@@ -1375,7 +1374,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 
     cluster.lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(spec, controller_id, requirements);
-    assume(false);
     temp_pred_equality(
         lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)),
         lift_state(Cluster::every_ongoing_reconcile_satisfies(controller_id, requirements))
