@@ -247,16 +247,7 @@ pub proof fn lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(s
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::each_object_in_etcd_has_at_most_one_controller_owner())))
 {
-    let inv = Self::each_object_in_etcd_has_at_most_one_controller_owner();
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& self.next()(s, s_prime)
-    };
-
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(self.next())
-    );
-    init_invariant(spec, self.init(), stronger_next, inv);
+    init_invariant(spec, self.init(), self.next(), Self::each_object_in_etcd_has_at_most_one_controller_owner());
 }
 
 pub open spec fn etcd_is_finite() -> StatePred<ClusterState> {
@@ -271,16 +262,7 @@ pub proof fn lemma_always_etcd_is_finite(
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::etcd_is_finite()))),
 {
-    let inv = Self::etcd_is_finite();
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& self.next()(s, s_prime)
-    };
-    
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(self.next())
-    );
-    init_invariant(spec, self.init(), stronger_next, inv);
+    init_invariant(spec, self.init(), self.next(), Self::etcd_is_finite());
 }
 
 }
