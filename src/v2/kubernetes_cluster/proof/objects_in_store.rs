@@ -247,7 +247,10 @@ pub proof fn lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(s
         spec.entails(always(lift_action(self.next()))),
     ensures spec.entails(always(lift_state(Self::each_object_in_etcd_has_at_most_one_controller_owner())))
 {
-    init_invariant(spec, self.init(), self.next(), Self::each_object_in_etcd_has_at_most_one_controller_owner());
+    init_invariant(
+        spec, self.init(), self.next(),
+        Self::each_object_in_etcd_has_at_most_one_controller_owner()
+    );
 }
 
 pub open spec fn etcd_is_finite() -> StatePred<ClusterState> {
