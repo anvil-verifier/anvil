@@ -14,8 +14,8 @@ use crate::vreplicaset_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*},
     proof::{predicate::*, helper_lemmas, helper_invariants::{predicate::*}},
 };
-use crate::vstd_ext::{map_lib::*, seq_lib::*};
-use vstd::{map::*, multiset::*, prelude::*};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
+use vstd::{map::*, map_lib::*, multiset::*, prelude::*};
 
 verus!{
 
@@ -928,7 +928,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
     );
 }
 
-#[verifier(rlimit(4000))]
 pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -958,6 +957,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(Cluster::names_in_etcd_in_used_names()))),
         spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -1050,6 +1050,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
+        &&& Cluster::etcd_is_finite()(s)
         &&& Cluster::names_in_etcd_in_used_names()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
@@ -1092,7 +1093,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
                                     && requirements(key, s)
                                     && stronger_next(s, s_prime)
                                     implies
-                                    //s.api_server.used_names.contains(filtered_pods[i].object_ref().name)
                                     (filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                                     && ((s_prime.resources().contains_key(filtered_pods[i].object_ref())
                                         && s_prime.resources()[filtered_pods[i].object_ref()].metadata.resource_version
@@ -1240,22 +1240,56 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
                                 if (new_msgs.contains(msg)) {
                                     if current_req_msg == req_msg {
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
-                                        let selector = |o: DynamicObjectView| {
-                                            &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
-                                            &&& o.object_ref().kind == req_msg.content.get_list_request().kind
-                                        };
-
-                                        // assert(req_msg.content.get_list_request().kind == PodView::kind());
-                                        // assert(resp_objs =~= map_to_seq(s.resources(), selector));
-                                        // assert(forall |o: DynamicObjectView| s.resources.values.contains(o) && o.object_ref().kind == PodView::kind() ==> ! #[trigger] PodView::unmarshal(o).is_err());
-                                        // assume(false);
-                                        //assume(forall |o: DynamicObjectView| s.resources().values().filter(selector).contains(o) ==> ! #[trigger] PodView::unmarshal(o).is_err());
-                                        //assert(forall |i| #![auto] 0 <= i < resp_objs.len() ==> !PodView::unmarshal(resp_objs[i]).is_err());
-                                        assume(false);
-                                    
+                                        
+                                        assert forall |o: DynamicObjectView| #![auto]
+                                        requirements(key, s)
+                                        && stronger_next(s, s_prime)
+                                        && resp_objs.contains(o)
+                                        implies !PodView::unmarshal(o).is_err() by {
+                                            // Tricky reasoning about .to_seq
+                                            let selector = |o: DynamicObjectView| {
+                                                &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                                &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                            };
+                                            let selected_elements = s.resources().values().filter(selector);
+                                            lemma_values_finite(s.resources());
+                                            finite_set_to_seq_contains_all_set_elements(selected_elements);
+                                            assert(resp_objs =~= selected_elements.to_seq());
+                                            assert(selected_elements.contains(o));
+                                        }
                                         seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
-                                            resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                                            resp_objs, 
+                                            |o: DynamicObjectView| PodView::unmarshal(o).is_err()
                                         );
+
+                                        assert forall |i| #![auto] { 
+                                            0 <= i < resp_objs.len()
+                                            && requirements(key, s)
+                                            && stronger_next(s, s_prime)
+                                        } implies {
+                                            resp_objs[i].metadata.namespace.is_some()
+                                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                                            && ((s_prime.resources().contains_key(resp_objs[i].object_ref())
+                                                    && s_prime.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                                    == resp_objs[i].metadata.resource_version) ==> 
+                                                    s_prime.resources()[resp_objs[i].object_ref()].metadata
+                                                        == resp_objs[i].metadata)
+                                            && resp_objs[i].metadata.resource_version.is_some()
+                                            && resp_objs[i].metadata.resource_version.unwrap()
+                                                    < s_prime.api_server.resource_version_counter
+                                        } by {
+                                            // Tricky reasoning about .to_seq
+                                            let selector = |o: DynamicObjectView| {
+                                                &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                                &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                            };
+                                            let selected_elements = s.resources().values().filter(selector);
+                                            lemma_values_finite(s.resources());
+                                            finite_set_to_seq_contains_all_set_elements(selected_elements);
+                                            assert(resp_objs =~= selected_elements.to_seq());
+                                            assert(selected_elements.to_seq().contains(resp_objs[i]));
+                                            assert(selected_elements.contains(resp_objs[i]));
+                                        }
                                     } else {
                                         assert(s.in_flight().contains(current_req_msg));
                                         assert(current_req_msg.rpc_id != req_msg.rpc_id);
@@ -1367,6 +1401,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::names_in_etcd_in_used_names()),
+        lift_state(Cluster::etcd_is_finite()),
         lifted_vrs_non_interference_property_action(cluster, controller_id),
         lift_state(no_pending_update_or_update_status_request_on_pods()),
         lift_state(every_create_request_is_well_formed(cluster, controller_id)),
