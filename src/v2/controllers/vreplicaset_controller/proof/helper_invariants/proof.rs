@@ -843,9 +843,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                         // Show that pods[idx1] and objs[idx1] have the same metadata.
                         let unwrap_obj = |o: DynamicObjectView| PodView::unmarshal(o).unwrap();
                         assert(pods == objs.map_values(unwrap_obj));
-                        seq_map_value_lemma(
-                            objs, unwrap_obj
-                        );
                         assert(objs.contains(objs[idx1]));
                         seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                             objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
@@ -1116,9 +1113,6 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
                         // Show that pods[idx1] and objs[idx1] have the same key and metadata.
                         let unwrap_obj = |o: DynamicObjectView| PodView::unmarshal(o).unwrap();
                         assert(pods == objs.map_values(unwrap_obj));
-                        seq_map_value_lemma(
-                            objs, unwrap_obj
-                        );
                         assert(objs.contains(objs[idx1]));
                         seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
                             objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
