@@ -243,6 +243,37 @@ pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, p
     }
 }
 
+#[verifier(external_body)]
+pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, elt: A)
+    ensures s.push(elt).to_set() == s.to_set().insert(elt);
+
+#[verifier(external_body)]
+pub proof fn map_values_to_set_eq_to_set_mk_map_values<A, B>(s: Seq<A>, map: spec_fn(A) -> B)
+    ensures s.map_values(map).to_set() == s.to_set().mk_map(map).values(),
+    decreases s.len()
+{
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        map_values_to_set_eq_to_set_mk_map_values(subseq, map);
+        assert(s.to_set() == subseq.to_set().insert(s.last())) by {
+            push_to_set_eq_to_set_insert(subseq, s.last());
+            assert(s == subseq.push(s.last()));
+            assert(s.to_set() == subseq.to_set().insert(s.last()));
+        }
+        if subseq.contains(s.last()) {
+            assert(s.to_set() == subseq.to_set());
+            assert(subseq.map_values(map).contains(map(s.last())));
+            assert(s.map_values(map).to_set() == subseq.map_values(map).to_set());
+            assert(s.to_set().mk_map(map).values() == subseq.to_set().mk_map(map).values());
+        } else {
+            assert(s.to_set() == subseq.to_set().insert(s.last()));
+            assert(subseq.map_values(map).to_set() == subseq.to_set().mk_map(map).values());
+            assert(s.map_values(map).to_set() == subseq.map_values(map).to_set().insert(map(s.last())));
+            assert(s.to_set().mk_map(map).values() == subseq.to_set().mk_map(map).values().insert(map(s.last())));
+        }
+    }
+}
+
 // Q: Why reveal is required as filter is open spec
 pub proof fn commutativity_of_seq_map_and_filter<A, B>(s: Seq<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, map: spec_fn(A) -> B)
     // ensure filter on original sequence is identical to filter on mapped sequence
