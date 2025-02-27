@@ -2172,13 +2172,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                         s, vrs, cluster, controller_id, resp_msg
                     );
 
-                    let filtered_pods_as_objects = filtered_pods.map_values(|p: PodView| p.marshal());
-                    let filtered_pods_as_set = filtered_pods_as_objects.to_set();
-                    assert(filtered_pods_as_objects[diff - 1] == filtered_pods[diff - 1].marshal());
-                    assert(filtered_pods_as_set.contains(filtered_pods[diff - 1].marshal()));
-
-                    let key = filtered_pods[diff - 1].object_ref();
-                    let obj = s.resources()[key];
+                    let filtered_pods_as_set = filtered_pods.to_set();
+                    assert(filtered_pods_as_set.contains(filtered_pods[diff - 1]));
                 }
             },
             _ => {}
