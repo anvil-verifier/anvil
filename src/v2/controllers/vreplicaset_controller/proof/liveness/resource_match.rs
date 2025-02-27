@@ -1211,7 +1211,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                 if msg == req_msg {
                     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-      
                     assert forall |o: DynamicObjectView| #![auto]
                     pre(s) && matching_pod_entries(vrs, s_prime.resources()).values().contains(o)
                     implies resp_objs.to_set().contains(o) by {
