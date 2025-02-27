@@ -55,6 +55,8 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
     ensures
         spec.entails(
             lift_state(
@@ -93,6 +95,8 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
         &&& spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))
         &&& spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))
         &&& spec.entails(always(lift_state(helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id))))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_in_etcd_does_not_have_deletion_timestamp(vrs))))
+        &&& spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))
     };
     let pre = |diff: int| lift_state(
         |s: ClusterState| {
