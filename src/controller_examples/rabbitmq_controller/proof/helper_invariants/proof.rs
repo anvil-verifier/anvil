@@ -114,9 +114,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
     lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec, rabbitmq);
 }
 
-//#[verifier(spinoff_prover)]
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -544,9 +542,7 @@ proof fn object_in_response_at_after_update_resource_step_is_same_as_etcd_helper
     }
 }
 
-//#[verifier(spinoff_prover)]
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 proof fn lemma_always_request_at_after_get_request_step_is_resource_get_request(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
@@ -996,9 +992,7 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
     init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
 }
 
-//#[verifier(spinoff_prover)]
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
@@ -1229,9 +1223,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 //
 // Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 
-//#[verifier(spinoff_prover)]
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_resource_update_request_msg_implies_key_in_reconcile_equals(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster, msg: RMQMessage, step: RMQStep)
     requires
         !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
@@ -1826,8 +1818,6 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<RMQCluster>, rabb
 }
 
 // We can probably hide a lof of spec functions to make this lemma faster
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
 pub proof fn lemma_always_no_create_resource_request_msg_without_name_in_flight(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
