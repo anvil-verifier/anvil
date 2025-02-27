@@ -519,9 +519,14 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         // The matching pods must be a subset of the response.
-                        &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
+                        &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                        //&&& resp_objs.no_duplicates()
                         &&& objects_to_pods(resp_objs).is_Some()
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                        &&& resp_objs.no_duplicates()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
@@ -794,10 +799,13 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                     &&& resp_msg.content.get_list_response().res.is_Ok()
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        // The matching pods must be a subset of the response.
-                        &&& matching_pod_entries(vrs, s.resources()).values().subset_of(resp_objs.to_set())
                         &&& objects_to_pods(resp_objs).is_Some()
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                        &&& resp_objs.no_duplicates()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                        &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                     }
                 };
                 assert((|resp_msg: Message| list_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
@@ -1091,6 +1099,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -1139,6 +1148,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
@@ -1166,6 +1176,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
@@ -1200,7 +1211,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                 if msg == req_msg {
                     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-
                     assert forall |o: DynamicObjectView| #![auto]
                     pre(s) && matching_pod_entries(vrs, s_prime.resources()).values().contains(o)
                     implies resp_objs.to_set().contains(o) by {
@@ -1217,7 +1227,8 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
                     assert forall |o: DynamicObjectView| #![auto]
                     pre(s) && resp_objs.contains(o)
-                    implies !PodView::unmarshal(o).is_err() by {
+                    implies !PodView::unmarshal(o).is_err()
+                            && o.metadata.namespace == vrs.metadata.namespace by {
                         // Tricky reasoning about .to_seq
                         let selector = |o: DynamicObjectView| {
                             &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
@@ -1275,17 +1286,78 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
                         assert(pods_seq.no_duplicates());
                     });
-
+                    assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
+                        // reveal API server spec
+                        let selector = |o: DynamicObjectView| {
+                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                            &&& o.object_ref().kind == PodView::kind()
+                        };
+                        assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                        // consistency of no_duplicates
+                        lemma_values_finite(s.resources());
+                        finite_set_to_finite_filtered_set(s.resources().values(), selector);
+                        finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
+                        assert(resp_objs.no_duplicates());
+                        // reveal matching_pod_entries logic
+                        let matched_entries = matching_pod_entries(vrs, s.resources());
+                        assert(matched_entries.values() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                            assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_entries.values().contains(obj) by {
+                                assert(owned_selector_match_is(vrs, obj));
+                                assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
+                                assert(matched_entries.contains_key(obj.object_ref()) && matched_entries[obj.object_ref()] == obj);
+                            }
+                            assert forall |obj| matched_entries.values().contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
+                                assert(s.resources().contains_key(obj.object_ref()));
+                                assert(owned_selector_match_is(vrs, obj));
+                            }
+                            // optional if antisymmetry_of_set_equality is imported
+                            assert(forall |obj| matched_entries.values().contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
+                        }
+                        assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj) && selector(obj)) == matching_pod_entries(vrs, s.resources()).values());
+                        // merge 2 selectors
+                        assert((|obj| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj| owned_selector_match_is(vrs, obj)));
+                        // get rid of DS conversion, basically babysitting Verus
+                        assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                            assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                            assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
+                            seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                            seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
+                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                            assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
+                                &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                                &&& #[trigger] resp_objs.contains(obj)
+                                &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                                &&& s.resources().values().filter(selector).contains(obj)
+                                &&& s.resources().values().contains(obj)
+                                &&& #[trigger] owned_selector_match_is(vrs, obj)
+                                &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                            });
+                            assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
+                                &&& s.resources().values().contains(obj)
+                                &&& owned_selector_match_is(vrs, obj)
+                                &&& #[trigger] selector(obj)
+                                &&& s.resources().values().filter(selector).contains(obj)
+                                &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                                &&& resp_objs.contains(obj)
+                                &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                                &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
+                            });
+                        }
+                    }
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_list_response().res.is_Ok()
                         &&& {
                             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                            // The matching pods must be a subset of the response.
-                            &&& matching_pod_entries(vrs, s_prime.resources()).values().subset_of(resp_objs.to_set())
+                            //&&& resp_objs.no_duplicates()
                             &&& objects_to_pods(resp_objs).is_Some()
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                            &&& resp_objs.no_duplicates()
+                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                         }
                     });
                     assert(post(s_prime));
@@ -1315,7 +1387,8 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
         assert forall |o: DynamicObjectView| #![auto]
         pre(s) && resp_objs.contains(o)
-        implies !PodView::unmarshal(o).is_err() by {
+        implies !PodView::unmarshal(o).is_err()
+                && o.metadata.namespace == vrs.metadata.namespace by {
             // Tricky reasoning about .to_seq
             let selector = |o: DynamicObjectView| {
                 &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
@@ -1374,17 +1447,74 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
 
             assert(pods_seq.no_duplicates());
         });
-
+        // copy-paste from the segment above
+        // TODO: avoid such
+        assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
+            let selector = |o: DynamicObjectView| {
+                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
+                &&& o.object_ref().kind == PodView::kind()
+            };
+            assert(resp_objs == s.resources().values().filter(selector).to_seq());
+            lemma_values_finite(s.resources());
+            finite_set_to_finite_filtered_set(s.resources().values(), selector);
+            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
+            assert(resp_objs.no_duplicates());
+            let matched_entries = matching_pod_entries(vrs, s.resources());
+            assert(matched_entries.values() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_entries.values().contains(obj) by {
+                    assert(owned_selector_match_is(vrs, obj));
+                    assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
+                    assert(matched_entries.contains_key(obj.object_ref()) && matched_entries[obj.object_ref()] == obj);
+                }
+                assert forall |obj| matched_entries.values().contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
+                    assert(s.resources().contains_key(obj.object_ref()));
+                    assert(owned_selector_match_is(vrs, obj));
+                }
+                assert(forall |obj| matched_entries.values().contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
+            }
+            assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj) && selector(obj)) == matching_pod_entries(vrs, s.resources()).values());
+            assert((|obj| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj| owned_selector_match_is(vrs, obj)));
+            assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                assert(resp_objs == s.resources().values().filter(selector).to_seq());
+                assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
+                seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
+                assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
+                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                    &&& #[trigger] resp_objs.contains(obj)
+                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                    &&& s.resources().values().filter(selector).contains(obj)
+                    &&& s.resources().values().contains(obj)
+                    &&& #[trigger] owned_selector_match_is(vrs, obj)
+                    &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                });
+                assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
+                    &&& s.resources().values().contains(obj)
+                    &&& owned_selector_match_is(vrs, obj)
+                    &&& #[trigger] selector(obj)
+                    &&& s.resources().values().filter(selector).contains(obj)
+                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
+                    &&& resp_objs.contains(obj)
+                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
+                });
+            }
+        }
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_list_response().res.is_Ok()
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                // The matching pods must be a subset of the response.
-                &&& matching_pod_entries(vrs, s_prime.resources()).values().subset_of(resp_objs.to_set())
+                //&&& resp_objs.no_duplicates()
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+                &&& resp_objs.no_duplicates()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
             }
         });
         assert(post(s_prime));
@@ -2041,13 +2171,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                         s, vrs, cluster, controller_id, resp_msg
                     );
 
-                    let filtered_pods_as_objects = filtered_pods.map_values(|p: PodView| p.marshal());
-                    let filtered_pods_as_set = filtered_pods_as_objects.to_set();
-                    assert(filtered_pods_as_objects[diff - 1] == filtered_pods[diff - 1].marshal());
-                    assert(filtered_pods_as_set.contains(filtered_pods[diff - 1].marshal()));
-
-                    let key = filtered_pods[diff - 1].object_ref();
-                    let obj = s.resources()[key];
+                    let filtered_pods_as_set = filtered_pods.to_set();
+                    assert(filtered_pods_as_set.contains(filtered_pods[diff - 1]));
                 }
             },
             _ => {}

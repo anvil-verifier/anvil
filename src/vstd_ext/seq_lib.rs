@@ -215,10 +215,91 @@ pub proof fn seq_filter_is_a_subset_of_original_seq<A>(s: Seq<A>, pred: spec_fn(
     }
 }
 
-// TODO: remove this lemma
-pub proof fn seq_map_value_lemma<A, B>(s: Seq<A>, f: spec_fn(A) -> B)
-    ensures 
-        s.len() == s.map_values(f).len(),
-        (forall |i: int| 0 <= i < s.len() ==> #[trigger] s.map_values(f)[i] == f(s[i]))
-{}
+pub proof fn true_pred_on_seq_implies_true_pred_on_filtered_seq<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filter_pred: spec_fn(A) -> bool)
+    requires forall |e: A| s.contains(e) ==> pred(e),
+    ensures forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)
+{
+    assert(forall |e: A| s.filter(filter_pred).contains(e) ==> pred(e)) by {
+        assert(forall |e: A| s.filter(filter_pred).contains(e) ==> #[trigger] s.contains(e)) by {
+            seq_filter_is_a_subset_of_original_seq(s, filter_pred);
+        }
+        assert(forall |e: A| s.contains(e) ==> pred(e));
+    }
+}
+
+pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    ensures
+        (forall |obj: A| #[trigger] s.contains(obj) ==> pred(obj)) <==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))
+{
+    if s.len() != 0 {
+        assert((forall |i: int| 0 <= i < s.len() ==> pred(s[i])) ==> (forall |obj: A| s.contains(obj) ==> pred(obj)));
+        assert((forall |obj: A| s.contains(obj) ==> pred(obj)) ==> (forall |i: int| 0 <= i < s.len() ==> pred(s[i]))) by {
+            if (forall |obj: A| s.contains(obj) ==> pred(obj)) {
+                assert(forall |i: int| 0 <= i < s.len() ==> pred(s[i])) by {
+                    assert(forall |i: int| 0 <= i < s.len() ==> s.contains(#[trigger] s[i]) ==> pred(s[i]));
+                }
+            }
+        }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, elt: A)
+    ensures s.push(elt).to_set() == s.to_set().insert(elt);
+
+#[verifier(external_body)]
+pub proof fn map_values_to_set_eq_to_set_mk_map_values<A, B>(s: Seq<A>, map: spec_fn(A) -> B)
+    ensures s.map_values(map).to_set() == s.to_set().mk_map(map).values(),
+    decreases s.len()
+{
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        map_values_to_set_eq_to_set_mk_map_values(subseq, map);
+        assert(s.to_set() == subseq.to_set().insert(s.last())) by {
+            push_to_set_eq_to_set_insert(subseq, s.last());
+            assert(s == subseq.push(s.last()));
+            assert(s.to_set() == subseq.to_set().insert(s.last()));
+        }
+        if subseq.contains(s.last()) {
+            assert(s.to_set() == subseq.to_set());
+            assert(subseq.map_values(map).contains(map(s.last())));
+            assert(s.map_values(map).to_set() == subseq.map_values(map).to_set());
+            assert(s.to_set().mk_map(map).values() == subseq.to_set().mk_map(map).values());
+        } else {
+            assert(s.to_set() == subseq.to_set().insert(s.last()));
+            assert(subseq.map_values(map).to_set() == subseq.to_set().mk_map(map).values());
+            assert(s.map_values(map).to_set() == subseq.map_values(map).to_set().insert(map(s.last())));
+            assert(s.to_set().mk_map(map).values() == subseq.to_set().mk_map(map).values().insert(map(s.last())));
+        }
+    }
+}
+
+// Q: Why reveal is required as filter is open spec
+pub proof fn commutativity_of_seq_map_and_filter<A, B>(s: Seq<A>, pred: spec_fn(A) -> bool, pred_on_mapped: spec_fn(B) -> bool, map: spec_fn(A) -> B)
+    // ensure filter on original sequence is identical to filter on mapped sequence
+    requires forall |i: int| 0 <= i < s.len() ==> #[trigger] pred(s[i]) == #[trigger] pred_on_mapped(map(s[i])),
+    ensures s.map_values(map).filter(pred_on_mapped) == s.filter(pred).map_values(map),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        commutativity_of_seq_map_and_filter(subseq, pred, pred_on_mapped, map);
+        assert(pred(s.last()) == pred_on_mapped(map(s.last())));
+        assert(s.map_values(map).filter(pred_on_mapped) == s.filter(pred).map_values(map)) by {
+            assert(subseq.map_values(map).filter(pred_on_mapped) == subseq.filter(pred).map_values(map));
+            assert(s.map_values(map) == subseq.map_values(map).push(map(s.last())));
+            assert(s.map_values(map).drop_last() == subseq.map_values(map));
+            if !pred(s.last()) {
+                assert(s.map_values(map).filter(pred_on_mapped) == subseq.map_values(map).filter(pred_on_mapped)) by {
+                    assert(subseq.map_values(map).filter(pred_on_mapped) == subseq.map_values(map).push(map(s.last())).filter(pred_on_mapped));
+                }
+            } else {
+                // why this line the same as postcondition is required
+                assert(s.map_values(map).filter(pred_on_mapped) == s.filter(pred).map_values(map));
+            }
+        }
+    }
+}
+
 }

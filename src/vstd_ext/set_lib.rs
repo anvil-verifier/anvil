@@ -7,9 +7,20 @@ use vstd::set_lib::*;
 
 verus! {
 
+pub proof fn finite_set_to_finite_filtered_set<A>(s: Set<A>, f: spec_fn(A) -> bool)
+    requires s.finite(),
+    ensures s.filter(f).finite(),
+    decreases s.len()
+{
+    if s.len() != 0 {
+        let x = s.choose();
+        finite_set_to_finite_filtered_set(s.remove(x), f);
+    }
+}
+
 pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
     requires s.finite(),
-    ensures forall |e: A| #![auto] s.contains(e) <==> s.to_seq().contains(e)
+    ensures forall |e: A| #[trigger] s.contains(e) <==> #[trigger] s.to_seq().contains(e)
 {
     if s.len() != 0 {
         assert forall |e: A| #[trigger] s.contains(e) implies s.to_seq().contains(e) by {
@@ -31,6 +42,7 @@ pub proof fn finite_set_to_seq_has_no_duplicates<A>(s: Set<A>)
         let x = s.choose();
         finite_set_to_seq_has_no_duplicates(s.remove(x));
         finite_set_to_seq_contains_all_set_elements(s.remove(x));
+        assert(!s.remove(x).to_seq().contains(x));
     }
 }
 
