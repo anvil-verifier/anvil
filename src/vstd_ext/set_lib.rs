@@ -78,9 +78,4 @@ proof fn element_in_seq_exists_in_original_finite_set<A>(s: Set<A>, e: A)
     }
 }
 
-pub proof fn antisymmetry_of_set_equality<A>(s1: Set<A>, s2: Set<A>)
-    requires forall |e: A| #![auto] s1.contains(e) <==> s2.contains(e),
-    ensures s2 =~= s1
-{}
-
 }
