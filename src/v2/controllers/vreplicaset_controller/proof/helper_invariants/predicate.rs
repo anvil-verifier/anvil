@@ -257,11 +257,6 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
             }
     }
 }
-//
-// TODO: Prove this.
-//
-// No hints.
-//
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView, controller_id: int,
@@ -321,10 +316,5 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// Every delete request must be on an object with a resource version less than the resource version counter.
-//
 
 }

@@ -1068,8 +1068,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
             VReplicaSetView::marshal_preserves_integrity();
             if s.ongoing_reconciles(controller_id).contains_key(key) {
                 let step = choose |step| cluster.next_step(s, s_prime, step);
-
-                // Proof statements to assert non-message portion of invariant.
                 match step {
                     Step::ControllerStep((id, _, cr_key_opt)) => {
                         let cr_key = cr_key_opt.get_Some_0();
@@ -1415,7 +1413,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1432,23 +1429,589 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
+        spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
+        spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(Cluster::names_in_etcd_in_used_names()))),
+        spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
         spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
+        spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
+        spec.entails(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
         spec.entails(always(lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id))))),
-{}
-//
-// TODO: Prove this.
-//
+{
+    let requirements = |key: ObjectRef, s: ClusterState| {
+        let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+        let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+        let filtered_pods = state.filtered_pods.unwrap();
+        key == vrs.object_ref() ==> {
+            &&& triggering_cr.object_ref() == key
+            &&& triggering_cr.metadata().well_formed()
+            &&& forall |diff: nat| {
+                    #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
+                } ==> {
+                    let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                    let filtered_pods = state.filtered_pods.unwrap();
+                    let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                    &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                    &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                    &&& state.filtered_pods.is_Some()
+                    &&& diff <= filtered_pod_keys.len()
+                    &&& filtered_pod_keys.no_duplicates()
+                    &&& forall |i| #![auto] 0 <= i < diff ==> {
+                        &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
+                        &&& matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+                    }
+                }
+            &&& state.reconcile_step.is_AfterListPods() ==> {
+                let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.content.is_list_request()
+                &&& req_msg.content.get_list_request() == ListRequest {
+                    kind: PodView::kind(),
+                    namespace: triggering_cr.metadata.namespace.unwrap(),
+                }
+                &&& forall |msg| {
+                    let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& msg.src.is_APIServer()
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> {
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
+                    &&& msg.content.is_list_response()
+                    &&& msg.content.get_list_response().res.is_Ok()
+                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                    &&& resp_obj_keys.no_duplicates()
+                    &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==> {
+                        &&& matching_pod_entries(vrs, s.resources()).contains_key(resp_obj_keys[i])
+                        &&& matching_pod_entries(vrs, s.resources())[resp_obj_keys[i]] == resp_objs[i]
+                    }
+                }
+            }
+        }
+    };
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::crash_disabled(controller_id)(s)
+        &&& Cluster::req_drop_disabled()(s)
+        &&& Cluster::pod_monkey_disabled()(s)
+        &&& Cluster::every_in_flight_msg_has_unique_id()(s)
+        &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Cluster::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
+        &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
+        &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)(s)
+        &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
+        &&& Cluster::etcd_is_finite()(s)
+        &&& Cluster::names_in_etcd_in_used_names()(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+        &&& no_pending_update_or_update_status_request_on_pods()(s)
+        &&& every_create_request_is_well_formed(cluster, controller_id)(s)
+        &&& every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
+        &&& every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
+        &&& every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+    };
+    
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) ==> Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)(s, s_prime) by {
+        assert forall |key: ObjectRef| (!s.ongoing_reconciles(controller_id).contains_key(key) || requirements(key, s)) 
+        && #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key) && stronger_next(s, s_prime) implies requirements(key, s_prime) by {
+            VReplicaSetReconcileState::marshal_preserves_integrity();
+            VReplicaSetView::marshal_preserves_integrity();
+            if s.ongoing_reconciles(controller_id).contains_key(key) && key == vrs.object_ref() {
+                let step = choose |step| cluster.next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep((id, _, cr_key_opt)) => {
+                        let cr_key = cr_key_opt.get_Some_0();
+                        if id == controller_id && cr_key == key {
+                            assert forall |diff: nat| {
+                                #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                && requirements(key, s)
+                                && stronger_next(s, s_prime)
+                            } implies {
+                                let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                                let filtered_pods = state.filtered_pods.unwrap();
+                                let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                                &&& s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                                &&& VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                                &&& state.filtered_pods.is_Some()
+                                &&& diff <= filtered_pod_keys.len()
+                                &&& filtered_pod_keys.no_duplicates()
+                                &&& forall |i| #![auto] 0 <= i < diff ==> {
+                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
+                                    &&& matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+                                }
+                            } by {
+                                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                                let new_state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                                let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+
+                                let reconcile_step = state.reconcile_step;
+                                let new_reconcile_step = new_state.reconcile_step;
+                                if reconcile_step.is_AfterListPods() {
+                                    assume(false);
+                                    // let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                                    // let cr_msg = step.get_ControllerStep_0().1.get_Some_0();
+                                    // let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg.get_Some_0();
+                                    // let objs = cr_msg.content.get_list_response().res.unwrap();
+                                    // let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
+                                    // let pods_or_none = objects_to_pods(objs);
+                                    // let pods = pods_or_none.unwrap();
+                                    // let filtered_pods = filter_pods(pods, triggering_cr);
+
+                                    // assert forall |i| #![auto] 
+                                    //     0 <= i < filtered_pods.len()
+                                    //     && requirements(key, s)
+                                    //     && stronger_next(s, s_prime)
+                                    //     implies
+                                    //     (filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                                    //     && ((s_prime.resources().contains_key(filtered_pods[i].object_ref())
+                                    //         && s_prime.resources()[filtered_pods[i].object_ref()].metadata.resource_version
+                                    //             == filtered_pods[i].metadata.resource_version) ==>
+                                    //         (s_prime.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
+                                    //             triggering_cr.controller_owner_ref()
+                                    //             )
+                                    //             ))
+                                    //     && filtered_pods[i].metadata.resource_version.is_some()
+                                    //     && filtered_pods[i].metadata.resource_version.unwrap()
+                                    //         < s_prime.api_server.resource_version_counter) by {
+
+                                    //     assert({
+                                    //         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                    //         &&& s.in_flight().contains(cr_msg)
+                                    //         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                    //         &&& cr_msg.src.is_APIServer()
+                                    //         &&& resp_msg_matches_req_msg(cr_msg, req_msg)});
+                                        
+                                    //     seq_filter_contains_implies_seq_contains(
+                                    //         pods,
+                                    //         |pod: PodView|
+                                    //         pod.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
+                                    //         && triggering_cr.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                                    //         && pod.metadata.deletion_timestamp.is_None(),
+                                    //         filtered_pods[i]
+                                    //     );
+
+                                    //     // Show that pods[idx1] and filtered_pods[i] have the same metadata.
+                                    //     let idx1 = choose |j| 0 <= j < pods.len() && pods[j] == filtered_pods[i];
+                                    //     assert(pods[idx1].metadata == filtered_pods[i].metadata);
+
+                                    //     assert(objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 );
+                                    //     assert(objs.len() == pods.len());
+
+                                    //     // Show that pods[idx1] and objs[idx1] have the same metadata.
+                                    //     seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                                    //         objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                                    //     );
+                                    //     assert(objs.contains(objs[idx1]));
+                                    //     assert(PodView::unmarshal(objs[idx1]).is_ok());
+
+                                    //     let unwrap_obj = |o: DynamicObjectView| PodView::unmarshal(o).unwrap();
+                                    //     assert(pods == objs.map_values(unwrap_obj));
+                                    //     seq_map_value_lemma(
+                                    //         objs, unwrap_obj
+                                    //     );
+                                    //     assert(objs.contains(objs[idx1]));
+                                    //     assert(objs[idx1].metadata == pods[idx1].metadata);
+                                    // }
+                                } else {
+                                    assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime));
+                                    assert(new_reconcile_step.is_AfterDeletePod());
+                                    assert(new_reconcile_step.get_AfterDeletePod_0() == diff);
+                                    assert(reconcile_step.is_AfterDeletePod());
+                                    assert(reconcile_step.get_AfterDeletePod_0() == diff + 1);
+                                    assert({
+                                        let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
+                                        let local_state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                                        &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                                        &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).is_ok()
+                                        &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                                        &&& triggering_cr.object_ref() == vrs.object_ref()
+                                        &&& triggering_cr.spec() == vrs.spec()
+                                        &&& triggering_cr.metadata().uid == vrs.metadata().uid
+                                        &&& local_state.reconcile_step == VReplicaSetRecStepView::AfterDeletePod(diff + 1)
+                                    });
+                                    assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff + 1))(s));
+                                    // assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                    //     ==> at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod((diff + 1) as nat))(s));
+                                }
+                            }
+
+
+                            // prove that the newly sent message has no response.
+                            if s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                                assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
+                                assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
+                                assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) 
+                                    && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
+                                    && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
+                                    && msg != req_msg 
+                                    implies msg.rpc_id != req_msg.rpc_id by {
+                                    if !s.in_flight().contains(msg) {} // need this to invoke trigger.
+                                }
+                            }
+                        } else {
+                            let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+                            let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                            let triggering_cr = VReplicaSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                            let filtered_pods = state.filtered_pods.unwrap();
+                            if state.reconcile_step.is_AfterListPods() {
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                                assert forall |msg| {
+                                    let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                                    &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                    &&& msg.src.is_APIServer()
+                                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                                    &&& requirements(key, s)
+                                    &&& stronger_next(s, s_prime)
+                                } implies {
+                                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                                    let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
+                                    &&& msg.content.is_list_response()
+                                    &&& msg.content.get_list_response().res.is_Ok()
+                                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                    &&& resp_obj_keys.no_duplicates()
+                                    &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==> {
+                                        &&& matching_pod_entries(vrs, s.resources()).contains_key(resp_obj_keys[i])
+                                        &&& matching_pod_entries(vrs, s.resources())[resp_obj_keys[i]] == resp_objs[i]
+                                    }
+                                } by {
+                                    assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src.is_APIServer()));
+                                    if !new_msgs.contains(msg) {
+                                        assert(s.in_flight().contains(msg));
+                                    }
+                                }
+                            }
+
+                            // annoying maintenance of quantified invariant.
+                            assert forall |diff: nat| {
+                                #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                && requirements(key, s)
+                                && stronger_next(s, s_prime)
+                            } implies {
+                                let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                                let filtered_pods = state.filtered_pods.unwrap();
+                                let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                                &&& s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                                &&& VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                                &&& state.filtered_pods.is_Some()
+                                &&& diff <= filtered_pod_keys.len()
+                                &&& filtered_pod_keys.no_duplicates()
+                                &&& forall |i| #![auto] 0 <= i < diff ==> {
+                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
+                                    &&& matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+                                }
+                            } by {
+                                assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                    ==> at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s));
+                            }
+                        }
+
+                    },
+                    Step::APIServerStep(req_msg_opt) => {
+                        assume(false);
+                        let current_req_msg = req_msg_opt.unwrap();
+                        let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+                        if state.reconcile_step.is_AfterListPods() {
+                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                            let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                            assert forall |msg| {
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                &&& #[trigger] s_prime.in_flight().contains(msg)
+                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                &&& msg.src.is_APIServer()
+                                &&& resp_msg_matches_req_msg(msg, req_msg)
+                                &&& requirements(key, s)
+                                &&& stronger_next(s, s_prime)
+                            } implies {
+                                let resp_objs = msg.content.get_list_response().res.unwrap();
+                                let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
+                                &&& msg.content.is_list_response()
+                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                &&& resp_obj_keys.no_duplicates()
+                                &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==> {
+                                    &&& matching_pod_entries(vrs, s.resources()).contains_key(resp_obj_keys[i])
+                                    &&& matching_pod_entries(vrs, s.resources())[resp_obj_keys[i]] == resp_objs[i]
+                                }
+                            } by {
+                                assume(false);
+                                 // if (new_msgs.contains(msg)) {
+                                //     if current_req_msg == req_msg {
+                                //         let resp_objs = msg.content.get_list_response().res.unwrap();
+                                        
+                                //         assert forall |o: DynamicObjectView| #![auto]
+                                //         requirements(key, s)
+                                //         && stronger_next(s, s_prime)
+                                //         && resp_objs.contains(o)
+                                //         implies !PodView::unmarshal(o).is_err() by {
+                                //             // Tricky reasoning about .to_seq
+                                //             let selector = |o: DynamicObjectView| {
+                                //                 &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                //                 &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                //             };
+                                //             let selected_elements = s.resources().values().filter(selector);
+                                //             lemma_values_finite(s.resources());
+                                //             finite_set_to_seq_contains_all_set_elements(selected_elements);
+                                //             assert(resp_objs =~= selected_elements.to_seq());
+                                //             assert(selected_elements.contains(o));
+                                //         }
+                                //         seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+                                //             resp_objs, 
+                                //             |o: DynamicObjectView| PodView::unmarshal(o).is_err()
+                                //         );
+
+                                //         assert forall |i| #![auto] { 
+                                //             0 <= i < resp_objs.len()
+                                //             && requirements(key, s)
+                                //             && stronger_next(s, s_prime)
+                                //         } implies {
+                                //             resp_objs[i].metadata.namespace.is_some()
+                                //             && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                                //             && ((s_prime.resources().contains_key(resp_objs[i].object_ref())
+                                //                     && s_prime.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                //                     == resp_objs[i].metadata.resource_version) ==> 
+                                //                     s_prime.resources()[resp_objs[i].object_ref()].metadata
+                                //                         == resp_objs[i].metadata)
+                                //             && resp_objs[i].metadata.resource_version.is_some()
+                                //             && resp_objs[i].metadata.resource_version.unwrap()
+                                //                     < s_prime.api_server.resource_version_counter
+                                //         } by {
+                                //             // Tricky reasoning about .to_seq
+                                //             let selector = |o: DynamicObjectView| {
+                                //                 &&& o.object_ref().namespace == req_msg.content.get_list_request().namespace
+                                //                 &&& o.object_ref().kind == req_msg.content.get_list_request().kind
+                                //             };
+                                //             let selected_elements = s.resources().values().filter(selector);
+                                //             lemma_values_finite(s.resources());
+                                //             finite_set_to_seq_contains_all_set_elements(selected_elements);
+                                //             assert(resp_objs =~= selected_elements.to_seq());
+                                //             assert(selected_elements.to_seq().contains(resp_objs[i]));
+                                //             assert(selected_elements.contains(resp_objs[i]));
+                                //         }
+                                //     } else {
+                                //         assert(s.in_flight().contains(current_req_msg));
+                                //         assert(current_req_msg.rpc_id != req_msg.rpc_id);
+                                //     }
+                                // } else {
+                                //     let msg_antecedent = {
+                                //         &&& s.in_flight().contains(msg)
+                                //         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                //         &&& msg.src.is_APIServer()
+                                //         &&& resp_msg_matches_req_msg(msg, req_msg)
+                                //     };
+                                //     if msg_antecedent {
+                                //         let resp_objs = msg.content.get_list_response().res.unwrap();
+                                //         assert({
+                                //             &&& msg.content.is_list_response()
+                                //             &&& msg.content.get_list_response().res.is_Ok()
+                                //             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                //         });
+                                //         assert(forall |i| #![auto] 0 <= i < resp_objs.len() ==>
+                                //             (
+                                //                 resp_objs[i].metadata.namespace.is_some()
+                                //                 && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                                //                 && ((s_prime.resources().contains_key(resp_objs[i].object_ref())
+                                //                         && s_prime.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                //                         == resp_objs[i].metadata.resource_version) ==> 
+                                //                         s_prime.resources()[resp_objs[i].object_ref()].metadata
+                                //                             == resp_objs[i].metadata)
+                                //                 && resp_objs[i].metadata.resource_version.is_some()
+                                //                 && resp_objs[i].metadata.resource_version.unwrap()
+                                //                         < s_prime.api_server.resource_version_counter
+                                //             ));
+                                //     }
+                                // }
+                            }
+                        }
+
+                        // annoying maintenance of quantified invariant.
+                        assert forall |diff: nat| {
+                            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                            && requirements(key, s)
+                            && stronger_next(s, s_prime)
+                        } implies {
+                            let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                            let filtered_pods = state.filtered_pods.unwrap();
+                            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                            &&& s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                            &&& VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                            &&& state.filtered_pods.is_Some()
+                            &&& diff <= filtered_pod_keys.len()
+                            &&& filtered_pod_keys.no_duplicates()
+                            &&& forall |i| #![auto] 0 <= i < diff ==> {
+                                &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
+                                &&& matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+                            }
+                        } by {
+                            assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                ==> at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s));
+                            assume(false);
+                        }
+                    },
+                    Step::BuiltinControllersStep(..) => {
+                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+                        let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                        let triggering_cr = VReplicaSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                        let filtered_pods = state.filtered_pods.unwrap();
+                        if state.reconcile_step.is_AfterListPods() {
+                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                            assert forall |msg| {
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                &&& #[trigger] s_prime.in_flight().contains(msg)
+                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                &&& msg.src.is_APIServer()
+                                &&& resp_msg_matches_req_msg(msg, req_msg)
+                                &&& requirements(key, s)
+                                &&& stronger_next(s, s_prime)
+                            } implies {
+                                let resp_objs = msg.content.get_list_response().res.unwrap();
+                                let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
+                                &&& msg.content.is_list_response()
+                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                &&& resp_obj_keys.no_duplicates()
+                                &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==> {
+                                    &&& matching_pod_entries(vrs, s.resources()).contains_key(resp_obj_keys[i])
+                                    &&& matching_pod_entries(vrs, s.resources())[resp_obj_keys[i]] == resp_objs[i]
+                                }
+                            } by {
+                                assert(forall |msg| #[trigger] new_msgs.contains(msg) ==> !(#[trigger] msg.src.is_APIServer()));
+                                if !new_msgs.contains(msg) {
+                                    assert(s.in_flight().contains(msg));
+                                }
+                            }
+                        }
+
+                        // annoying maintenance of quantified invariant.
+                        assert forall |diff: nat| {
+                            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                            && requirements(key, s)
+                            && stronger_next(s, s_prime)
+                        } implies {
+                            let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                            let filtered_pods = state.filtered_pods.unwrap();
+                            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                            &&& s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                            &&& VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                            &&& state.filtered_pods.is_Some()
+                            &&& diff <= filtered_pod_keys.len()
+                            &&& filtered_pod_keys.no_duplicates()
+                            &&& forall |i| #![auto] 0 <= i < diff ==> {
+                                &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
+                                &&& matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+                            }
+                        } by {
+                            assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                ==> at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s));
+                        }
+                    },
+                    _ => {
+                        // annoying maintenance of quantified invariant.
+                        assert forall |diff: nat| {
+                            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                            && requirements(key, s)
+                            && stronger_next(s, s_prime)
+                        } implies {
+                            let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                            let filtered_pods = state.filtered_pods.unwrap();
+                            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                            &&& s_prime.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                            &&& VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                            &&& state.filtered_pods.is_Some()
+                            &&& diff <= filtered_pod_keys.len()
+                            &&& filtered_pod_keys.no_duplicates()
+                            &&& forall |i| #![auto] 0 <= i < diff ==> {
+                                &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
+                                &&& matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+                            }
+                        } by {
+                            assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s_prime)
+                                ==> at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s));
+                        }
+                    }
+                }
+            } 
+        }
+    }
+       
+
+    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+        spec, cluster, controller_id
+    );
+    invariant_n!(
+        spec, lift_action(stronger_next),
+        lift_action(Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)),
+        lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled()),
+        lift_state(Cluster::every_in_flight_msg_has_unique_id()),
+        lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
+        lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)),
+        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)),
+        lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
+        lift_state(Cluster::names_in_etcd_in_used_names()),
+        lift_state(Cluster::etcd_is_finite()),
+        lifted_vrs_non_interference_property_action(cluster, controller_id),
+        lift_state(no_pending_update_or_update_status_request_on_pods()),
+        lift_state(every_create_request_is_well_formed(cluster, controller_id)),
+        lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
+        lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
+        lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+    );
+
+    cluster.lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(spec, controller_id, requirements);
+    assume(false);
+    temp_pred_equality(
+        lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)),
+        lift_state(Cluster::every_ongoing_reconcile_satisfies(controller_id, requirements))
+    );
+    
+}
 
 pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,

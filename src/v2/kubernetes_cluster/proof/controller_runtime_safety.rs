@@ -3,6 +3,7 @@ use crate::kubernetes_cluster::spec::{
     api_server::state_machine::transition_by_etcd, cluster::*, controller::types::*,
     external::state_machine::*, message::*,
 };
+use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
@@ -377,6 +378,53 @@ pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: Cu
         lift_action(self.next()),
         lift_state(Self::cr_objects_in_etcd_satisfy_state_validation::<T>()),
         lift_state(Self::cr_objects_in_schedule_satisfy_state_validation::<T>(controller_id)),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, self.init(), stronger_next, inv);
+}
+
+pub open spec fn cr_states_are_unmarshallable<S: Marshallable, K: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            let unmarshal_result = 
+                S::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state);
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            && key.kind.is_CustomResourceKind()
+            && key.kind == K::kind()
+            ==> unmarshal_result.is_Ok()
+        }
+    }
+}
+
+pub proof fn lemma_always_cr_states_are_unmarshallable<R, S, K, EReq, EResp>(
+    self, spec: TempPred<ClusterState>, controller_id: int
+)
+    where
+        R: Reconciler<S, K, EReq, EResp>, 
+        K: CustomResourceView,
+        S: Marshallable,
+        EReq: Marshallable,
+        EResp: Marshallable,
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.type_is_installed_in_cluster::<K>(),
+        self.controller_models.contains_key(controller_id), 
+        self.controller_models[controller_id].reconcile_model == Self::installed_reconcile_model::<R, S, K, EReq, EResp>(),
+    ensures spec.entails(always(lift_state(Self::cr_states_are_unmarshallable::<S, K>(controller_id)))),
+{
+    let inv = Self::cr_states_are_unmarshallable::<S, K>(controller_id);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+
+    S::marshal_preserves_integrity();
+    K::marshal_preserves_integrity();
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
         lift_state(Self::there_is_the_controller_state(controller_id))
     );
     init_invariant(spec, self.init(), stronger_next, inv);
