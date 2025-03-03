@@ -297,21 +297,6 @@ pub proof fn lemma_always_cr_objects_in_schedule_satisfy_state_validation<T: Cus
     self.lemma_always_cr_objects_in_etcd_satisfy_state_validation::<T>(spec);
     self.lemma_always_there_is_the_controller_state(spec, controller_id);
 
-    let inv_matrix = |key: ObjectRef| |s: ClusterState| {
-        let unmarshal_result = 
-                T::unmarshal(s.scheduled_reconciles(controller_id)[key]);
-        s.scheduled_reconciles(controller_id).contains_key(key)
-        && key.kind.is_CustomResourceKind()
-        && key.kind == T::kind()
-        ==> unmarshal_result.is_Ok()
-            && unmarshal_result.unwrap().state_validation()
-    };
-    let inv_antecedent = |key: ObjectRef| |s: ClusterState| {
-        s.scheduled_reconciles(controller_id).contains_key(key)
-        && key.kind.is_CustomResourceKind()
-        && key.kind == T::kind()
-    };
-
     T::marshal_preserves_integrity();
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -356,21 +341,6 @@ pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: Cu
     self.lemma_always_cr_objects_in_etcd_satisfy_state_validation::<T>(spec);
     self.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<T>(spec, controller_id);
     self.lemma_always_there_is_the_controller_state(spec, controller_id);
-
-    let inv_matrix = |key: ObjectRef| |s: ClusterState| {
-        let unmarshal_result = 
-                T::unmarshal(s.scheduled_reconciles(controller_id)[key]);
-        s.scheduled_reconciles(controller_id).contains_key(key)
-        && key.kind.is_CustomResourceKind()
-        && key.kind == T::kind()
-        ==> unmarshal_result.is_Ok()
-            && unmarshal_result.unwrap().state_validation()
-    };
-    let inv_antecedent = |key: ObjectRef| |s: ClusterState| {
-        s.scheduled_reconciles(controller_id).contains_key(key)
-        && key.kind.is_CustomResourceKind()
-        && key.kind == T::kind()
-    };
 
     T::marshal_preserves_integrity();
     combine_spec_entails_always_n!(
