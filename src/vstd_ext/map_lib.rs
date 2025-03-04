@@ -52,7 +52,4 @@ pub proof fn injective_finite_map_implies_dom_len_is_equal_to_values_len<K, V>(m
     }
 }
 
-pub broadcast proof fn lemma_k_v<K, V>(m: Map<K, V>, k: K, v: V)
-    ensures (#[trigger] m.contains_key(k) && #[trigger] m[k] == v) <==> #[trigger] m.contains_pair(k, v);
-
 }

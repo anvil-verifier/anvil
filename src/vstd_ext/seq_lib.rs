@@ -303,8 +303,8 @@ pub proof fn map_values_to_set_eq_to_set_mk_map_values<A, B>(s: Seq<A>, map: spe
                            implies submap.insert(s.last(), map(s.last())).contains_value(v) by {
                         if v != map(s.last()) {
                             assert(submap.contains_value(v));
-                            assert(exists |k: A| #[trigger] submap.contains_key(k) && #[trigger] submap[k] == v);
-                            let k = choose |k: A| #[trigger] submap.contains_key(k) && #[trigger] submap[k] == v;
+                            assert(exists |k: A| #[trigger] submap.contains_key(k) && submap[k] == v);
+                            let k = choose |k: A| #[trigger] submap.contains_key(k) && submap[k] == v;
                             assert(k != s.last()) by {
                                 assert(!subseq.to_set().contains(s.last()));
                                 assert(!submap.contains_key(s.last()));
