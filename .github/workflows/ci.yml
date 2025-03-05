@@ -17,10 +17,9 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
-          rustup --version
-          rustup toolchain install
+          rustup toolchain install 1.82.0-x86_64-unknown-linux-gnu
       - name: Download Verus
         uses: actions/checkout@v2
         with:
@@ -29,11 +28,11 @@ jobs:
           ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Build Verus
         run: |
-          . "$HOME/.cargo/env"
           cd verus/source
           ./tools/get-z3.sh
+          . "$HOME/.cargo/env"
           . ../tools/activate
-          rustup show active-toolchain
+          vargo clean
           vargo build --release
       - name: Cache verus
         uses: actions/cache@v4
@@ -49,7 +48,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -64,7 +63,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -79,7 +78,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -94,7 +93,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -109,7 +108,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -124,7 +123,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -139,7 +138,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -156,7 +155,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -181,7 +180,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -196,7 +195,7 @@ jobs:
     steps:
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -217,7 +216,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy fluent controller
         run: ./local-test.sh fluent
       - name: Run fluent e2e tests
@@ -234,7 +233,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests
@@ -251,7 +250,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests for scaling
@@ -268,7 +267,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests for ephemeral
@@ -285,7 +284,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy zookeeper controller
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests
@@ -302,7 +301,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy zookeeper controller
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests for scaling
@@ -319,7 +318,7 @@ jobs:
         run: go install sigs.k8s.io/kind@v0.23.0
       - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Deploy vreplicaset controller
         run: ./local-test.sh vreplicaset
       - name: Run vreplicaset e2e tests
