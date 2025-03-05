@@ -33,6 +33,7 @@ jobs:
           cd verus/source
           ./tools/get-z3.sh
           . ../tools/activate
+          rustup show active-toolchain
           vargo build --release
       - name: Cache verus
         uses: actions/cache@v4
