@@ -32,6 +32,8 @@ jobs:
           ./tools/get-z3.sh
           . "$HOME/.cargo/env"
           . ../tools/activate
+          echo $VARGO_TOOLCHAIN
+          rustup show active-toolchain
           vargo clean
           vargo build --release
       - name: Cache verus
