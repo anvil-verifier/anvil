@@ -26,7 +26,7 @@ jobs:
           ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Build Verus
         run: |
-          cd ../verus/source
+          cd verus/source
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
