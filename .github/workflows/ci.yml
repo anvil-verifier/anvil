@@ -18,7 +18,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Download Verus
         uses: actions/checkout@v2
         with:
@@ -45,7 +45,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -60,7 +60,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -75,7 +75,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -90,7 +90,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -105,7 +105,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -120,7 +120,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -135,7 +135,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -152,7 +152,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -177,7 +177,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -192,7 +192,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -214,7 +214,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy fluent controller
         run: ./local-test.sh fluent
       - name: Run fluent e2e tests
@@ -232,7 +232,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests
@@ -250,7 +250,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests for scaling
@@ -268,7 +268,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests for ephemeral
@@ -286,7 +286,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy zookeeper controller
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests
@@ -304,7 +304,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy zookeeper controller
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests for scaling
@@ -322,7 +322,7 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain 1.82.0-x86_64-unknown-linux-gnu -y
-          . .cargo/env
+          . "$HOME/.cargo/env"
       - name: Deploy vreplicaset controller
         run: ./local-test.sh vreplicaset
       - name: Run vreplicaset e2e tests
