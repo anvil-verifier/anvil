@@ -10,7 +10,7 @@ on:
   #     - "doc/**"
   pull_request:
   merge_group:
-  workflow_dispatch:env:
+  workflow_dispatch:
 env:
   verus_commit: 6b278074651d520825ea62fe2079ed1e3959cb69
 
