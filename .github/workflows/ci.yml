@@ -170,8 +170,7 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Pin home to version 0.5.9 (workaround)
         run: |
-          mv verus ../verus
-          ls -al
+          sed -i "s/\.\.\/verus/verus/g" Cargo.toml
           cargo update home --precise 0.5.9
       - name: Run unit tests
         run: cargo test unit_tests
@@ -179,6 +178,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -200,8 +200,7 @@ jobs:
         run: kind create cluster
       - name: Pin home to version 0.5.9 (workaround)
         run: |
-          mv verus ../verus
-          ls -al
+          sed -i "s/\.\.\/verus/verus/g" Cargo.toml
           cargo update home --precise 0.5.9
       - name: Run conformance tests
         run: cargo test conformance_tests -- --nocapture
