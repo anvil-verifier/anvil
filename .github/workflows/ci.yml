@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Download Verus if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify fluent controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --time --rlimit 50
@@ -77,7 +77,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify rabbitmq controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
@@ -95,7 +95,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify zookeeper controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
@@ -113,7 +113,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh vreplicaset_controller.rs --time
@@ -131,7 +131,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
@@ -149,7 +149,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vdeployment controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
@@ -157,6 +157,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -166,7 +167,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Pin home to version 0.5.9 (workaround)
         run: cargo update home --precise 0.5.9
@@ -185,7 +186,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -213,7 +214,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil.rs --crate-type lib --time
@@ -231,7 +232,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus/target/release/
+            ../verus/source
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
