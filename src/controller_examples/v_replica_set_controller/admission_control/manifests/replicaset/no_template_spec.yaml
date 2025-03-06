@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: no-template-spec-reject
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app

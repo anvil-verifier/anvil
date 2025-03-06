@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: no-template-metadata-reject
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    spec:
+      containers:
+        - name: container-no-template-metadata-reject
+          image: nginx:latest
+          ports:
+            - containerPort: 80

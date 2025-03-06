@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: empty-matchlabels-reject
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {} # Empty matchLabels
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container-empty-matchlabels-reject
+          image: nginx:latest
+          ports:
+            - containerPort: 80

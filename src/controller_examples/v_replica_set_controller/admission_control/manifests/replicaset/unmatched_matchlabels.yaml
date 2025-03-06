@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: unmatched-matchlabels-reject
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+      env: dev
+  template:
+    metadata:
+      labels:
+        app: test-app
+        env: prod
+    spec:
+      containers:
+        - name: container-unmatched-matchlabels-reject
+          image: nginx:latest
+          ports:
+            - containerPort: 80
