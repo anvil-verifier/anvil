@@ -171,6 +171,7 @@ jobs:
       - name: Pin home to version 0.5.9 (workaround)
         run: |
           mv verus ../verus
+          ls -al
           cargo update home --precise 0.5.9
       - name: Run unit tests
         run: cargo test unit_tests
@@ -200,6 +201,7 @@ jobs:
       - name: Pin home to version 0.5.9 (workaround)
         run: |
           mv verus ../verus
+          ls -al
           cargo update home --precise 0.5.9
       - name: Run conformance tests
         run: cargo test conformance_tests -- --nocapture
