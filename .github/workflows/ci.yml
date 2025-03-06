@@ -19,8 +19,6 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
-          which rustup
-          rustup --version
           rustup toolchain install
       - name: Download Verus
         uses: actions/checkout@v2
@@ -30,18 +28,17 @@ jobs:
           ref: 6b278074651d520825ea62fe2079ed1e3959cb69
       - name: Build Verus
         run: |
-          cd verus/source
+          mv verus ../verus
+          cd ../verus/source
           ./tools/get-z3.sh
           . ../tools/activate
-          echo $VARGO_TOOLCHAIN
-          rustup show active-toolchain
           vargo clean
           vargo build --release
       - name: Cache verus
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
           restore-keys: |
             verus-
@@ -52,11 +49,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify fluent controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --time --rlimit 50
@@ -67,11 +66,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify rabbitmq controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
@@ -82,11 +83,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify zookeeper controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
@@ -97,11 +100,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh vreplicaset_controller.rs --time
@@ -112,11 +117,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
@@ -127,11 +134,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify vdeployment controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
@@ -142,11 +151,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Pin home to version 0.5.9 (workaround)
         run: cargo update home --precise 0.5.9
@@ -159,11 +170,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -184,11 +197,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil.rs --crate-type lib --time
@@ -199,11 +214,13 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            verus
+            ../verus
           key: verus-${{ hashFiles('source/Cargo.lock') }}
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
@@ -220,6 +237,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy fluent controller
         run: ./local-test.sh fluent
       - name: Run fluent e2e tests
@@ -237,6 +256,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests
@@ -254,6 +275,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests for scaling
@@ -271,6 +294,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy rabbitmq controller
         run: ./local-test.sh rabbitmq
       - name: Run rabbitmq e2e tests for ephemeral
@@ -288,6 +313,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy zookeeper controller
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests
@@ -305,6 +332,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy zookeeper controller
         run: ./local-test.sh zookeeper
       - name: Run zookeeper e2e tests for scaling
@@ -322,6 +351,8 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
       - name: Deploy vreplicaset controller
         run: ./local-test.sh vreplicaset
       - name: Run vreplicaset e2e tests
