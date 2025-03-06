@@ -10,38 +10,41 @@ on:
   #     - "doc/**"
   pull_request:
   merge_group:
-  workflow_dispatch:
+  workflow_dispatch:env:
+env:
+  verus_commit: 6b278074651d520825ea62fe2079ed1e3959cb69
+
 jobs:
   build-verus:
     runs-on: ubuntu-22.04
     steps:
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Download Verus
-        uses: actions/checkout@v2
+      - name: Find Verus build from cache
+        id: cache-verus
+        uses: actions/cache@v4
+        with:
+          path: |
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
+      - name: Download Verus if cache is missing
+        if: steps.cache-verus.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 6b278074651d520825ea62fe2079ed1e3959cb69
-      - name: Build Verus
+          ref: ${{ env.verus_commit }}
+      - name: Build Verus if cache is missing
+        if: steps.cache-verus.outputs.cache-hit != 'true'
         run: |
           mv verus ../verus
-          cd ../verus/source
+          cd ../verus
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
+          cd source
           ./tools/get-z3.sh
           . ../tools/activate
           vargo clean
           vargo build --release
-      - name: Cache verus
-        uses: actions/cache@v4
-        with:
-          path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
-          restore-keys: |
-            verus-
   fluent-verification:
     needs: build-verus
     runs-on: ubuntu-22.04
@@ -56,8 +59,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify fluent controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --time --rlimit 50
   rabbitmq-verification:
@@ -74,8 +77,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify rabbitmq controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
   zookeeper-verification:
@@ -92,8 +95,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify zookeeper controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
   vreplicaset-verification:
@@ -110,8 +113,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh vreplicaset_controller.rs --time
   v2-vreplicaset-verification:
@@ -128,8 +131,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
   v2-vdeployment-verification:
@@ -146,8 +149,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vdeployment controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
   unit-tests:
@@ -163,8 +166,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Pin home to version 0.5.9 (workaround)
         run: cargo update home --precise 0.5.9
       - name: Run unit tests
@@ -182,10 +185,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -210,8 +213,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil.rs --crate-type lib --time
   framework-v2-verification:
@@ -228,16 +231,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../verus
-          key: verus-${{ hashFiles('source/Cargo.lock') }}
+            ../verus/target/release/
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
   fluent-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -254,9 +257,9 @@ jobs:
   rabbitmq-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -273,9 +276,9 @@ jobs:
   rabbitmq-scaling-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -292,9 +295,9 @@ jobs:
   rabbitmq-ephemeral-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -311,9 +314,9 @@ jobs:
   zookeeper-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -330,9 +333,9 @@ jobs:
   zookeeper-scaling-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
@@ -349,9 +352,9 @@ jobs:
   vreplicaset-e2e-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
