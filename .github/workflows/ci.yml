@@ -46,6 +46,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -63,6 +64,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -80,6 +82,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -97,6 +100,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -114,6 +118,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -131,6 +136,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -194,6 +200,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
@@ -211,6 +218,7 @@ jobs:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
