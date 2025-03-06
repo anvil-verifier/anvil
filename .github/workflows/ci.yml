@@ -19,7 +19,9 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
-          rustup toolchain install 1.82.0-x86_64-unknown-linux-gnu
+          which rustup
+          rustup --version
+          rustup toolchain install
       - name: Download Verus
         uses: actions/checkout@v2
         with:
@@ -30,7 +32,6 @@ jobs:
         run: |
           cd verus/source
           ./tools/get-z3.sh
-          . "$HOME/.cargo/env"
           . ../tools/activate
           echo $VARGO_TOOLCHAIN
           rustup show active-toolchain
