@@ -1,48 +1,50 @@
-#![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::core::v1::{Pod, Service, ServiceAccount};
-use k8s_openapi::api::rbac::v1::RoleBinding;
-use k8s_openapi::api::{apps::v1::DaemonSet, rbac::v1::Role, apps::v1::ReplicaSet};
-use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
+use k8s_openapi::api::apps::v1::ReplicaSet;
 use kube::{
-    api::{
-        Api, AttachParams, AttachedProcess, DeleteParams, ListParams, Patch, PatchParams,
-        PostParams, ResourceExt,
-    },
-    core::crd::CustomResourceExt,
-    discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
-    Client, CustomResource,
+    api::{Api, PostParams},
+    Client
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::path::PathBuf;
-use std::thread;
-use std::time::{Duration, Instant};
-use tokio::time::sleep;
 use tracing::*;
 use std::fs;
-pub mod common;
-use common::Error;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Failed to get kube client: {0}")]
+    ClientGetFailed(#[from] kube_client::Error),
+
+    #[error("Failed to apply yaml file!")]
+    ApplyFailed,
+
+    #[error("Failed to parse the yaml file!")]
+    ParseYamlFailed(#[from] serde_yaml::Error),
+
+    #[error("Failed to parse the json format!")]
+    ParseJsonFailed(#[from] serde_json::Error),
+
+    #[error("Failed to find the yaml file in provided path!")]
+    GVKFailed(#[from] std::io::Error),
+
+    #[error("Failed to get CRD: {0}")]
+    CRDGetFailed(#[source] kube::Error),
+
+    #[error("ReplicaSet list generation failed!")]
+    ReplicaSetListFailed,
+
+    #[error("ReplicaSet creation failed!")]
+    ReplicaSetCreationFailed,
+
+    #[error("Valid ReplicaSet failed admission!")]
+    ReplicaSetValidAdmissionFailed,
+
+    #[error("Invalid ReplicaSet passed admission!")]
+    ReplicaSetInvalidAdmissionPassed,
+}
 
 #[tokio::main]
 async fn main()-> Result<(), Error>{
     tracing_subscriber::fmt::init();
     let client = Client::try_default().await?;
-
-    // Replace when using manifests for custom CRD
-
-    // let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
-    // let vrs_crd = crd_api.get("vreplicasets.anvil.dev").await;
-    // match vrs_crd {
-    //     Err(e) => {
-    //         error!("No CRD found, create one before run the e2e test.");
-    //         return Err(Error::CRDGetFailed(e));
-    //     }
-    //     Ok(crd) => {
-    //         info!("CRD found, continue to run the e2e test.");
-    //     }
-    // }
 
     let replicasets_api: Api<ReplicaSet> = Api::namespaced(client.clone(), "default");
 
@@ -84,11 +86,13 @@ async fn main()-> Result<(), Error>{
                     }
                     else {
                         error!("Manifest from {} created ReplicaSet when it should not have", path.display());
+                        return Err(Error::ReplicaSetInvalidAdmissionPassed);
                     }
                 }
                 Err(e) => {
                     if valid_manifest {
                         error!("Manifest from {} failed to create ReplicaSet when it should have been successful. {}", path.display(), e);
+                        return Err(Error::ReplicaSetValidAdmissionFailed);
                     }
                     else {
                         info!("Manifest from {} correctly failed to create ReplicaSet", path.display());
@@ -97,6 +101,6 @@ async fn main()-> Result<(), Error>{
             }
         }
     }
-
+    info!("All tests passed");
     Ok(())
 }
