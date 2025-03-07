@@ -7,7 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 COPY . .
 
-RUN apt install -y pkg-config libssl-dev
+RUN apt-get update && apt-get install -y pkg-config libssl-dev
 
 RUN VERUS_DIR=/verus ./build.sh ${APP}_controller.rs --no-verify --time
 RUN mv /anvil/src/${APP}_controller /anvil/src/controller
