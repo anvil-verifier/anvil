@@ -4,6 +4,7 @@
 use vstd::prelude::*;
 use vstd::seq::*;
 use vstd::seq_lib::*;
+use crate::vstd_ext::set_lib::*;
 
 verus! {
 
@@ -243,11 +244,33 @@ pub proof fn true_pred_on_all_element_equal_to_pred_on_all_index<A>(s: Seq<A>, p
     }
 }
 
-#[verifier(external_body)]
-pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, elt: A)
-    ensures s.push(elt).to_set() == s.to_set().insert(elt);
+pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, e: A)
+    ensures s.push(e).to_set() == s.to_set().insert(e)
+{
+    assert(s.push(e).to_set() =~= s.to_set().insert(e)) by {
+        assert forall |obj: A| s.push(e).to_set().contains(obj) implies #[trigger] s.to_set().insert(e).contains(obj) by {
+            assert(s.push(e).contains(obj));
+            if obj == e {
+                assert(s.to_set().insert(e).contains(e));
+            } else {
+                assert(s.contains(obj));
+                assert(s.to_set().contains(obj));
+                assert(s.to_set().insert(e).contains(obj));
+            }
+        }
+        assert forall |obj: A| s.to_set().insert(e).contains(obj) implies #[trigger] s.push(e).to_set().contains(obj) by {
+            if obj == e {
+                assert(s.push(e).last() == e); // why this trivial line is required
+                assert(s.push(e).contains(e));
+            } else {
+                assert(s.to_set().contains(obj));
+                assert(s.contains(obj));
+                assert(s == s.push(e).drop_last());
+            }
+        }
+    }
+}
 
-#[verifier(external_body)]
 pub proof fn map_values_to_set_eq_to_set_mk_map_values<A, B>(s: Seq<A>, map: spec_fn(A) -> B)
     ensures s.map_values(map).to_set() == s.to_set().mk_map(map).values(),
     decreases s.len()
@@ -255,23 +278,57 @@ pub proof fn map_values_to_set_eq_to_set_mk_map_values<A, B>(s: Seq<A>, map: spe
     if s.len() != 0 {
         let subseq = s.drop_last();
         map_values_to_set_eq_to_set_mk_map_values(subseq, map);
-        assert(s.to_set() == subseq.to_set().insert(s.last())) by {
+        assert(s.map_values(map).to_set() == subseq.map_values(map).to_set().insert(map(s.last()))) by {
+            push_to_set_eq_to_set_insert(subseq.map_values(map), map(s.last()));
+            assert(s.map_values(map) == subseq.map_values(map).push(map(s.last())));
+        }
+        let submap = subseq.to_set().mk_map(map);
+        assert(s.map_values(map).to_set() == submap.values().insert(map(s.last())));
+        assert(s.to_set().mk_map(map).values() == submap.values().insert(map(s.last()))) by {
             push_to_set_eq_to_set_insert(subseq, s.last());
             assert(s == subseq.push(s.last()));
             assert(s.to_set() == subseq.to_set().insert(s.last()));
-        }
-        if subseq.contains(s.last()) {
-            assert(s.to_set() == subseq.to_set());
-            assert(subseq.map_values(map).contains(map(s.last())));
-            assert(s.map_values(map).to_set() == subseq.map_values(map).to_set());
-            assert(s.to_set().mk_map(map).values() == subseq.to_set().mk_map(map).values());
-        } else {
-            assert(s.to_set() == subseq.to_set().insert(s.last()));
-            assert(subseq.map_values(map).to_set() == subseq.to_set().mk_map(map).values());
-            assert(s.map_values(map).to_set() == subseq.map_values(map).to_set().insert(map(s.last())));
-            assert(s.to_set().mk_map(map).values() == subseq.to_set().mk_map(map).values().insert(map(s.last())));
+            lemma_mk_map_insert_k(subseq.to_set(), s.last(), map);
+            assert(subseq.to_set().insert(s.last()).mk_map(map) == submap.insert(s.last(), map(s.last())));
+            assert(s.to_set().mk_map(map) == submap.insert(s.last(), map(s.last())));
+            if subseq.to_set().contains(s.last()) {
+                assert(submap.contains_pair(s.last(), map(s.last())));
+                assert(submap.values().contains(map(s.last())));
+                assert(submap.values().insert(map(s.last())) == submap.values());
+                assert(s.to_set() == subseq.to_set());
+                assert(s.to_set().mk_map(map).values() == submap.values());
+            } else {
+                assert(submap.values().insert(map(s.last())) =~= submap.insert(s.last(), map(s.last())).values()) by {
+                    assert forall |v: B| #[trigger] submap.values().insert(map(s.last())).contains(v)
+                           implies submap.insert(s.last(), map(s.last())).contains_value(v) by {
+                        if v != map(s.last()) {
+                            assert(submap.contains_value(v));
+                            assert(exists |k: A| #[trigger] submap.contains_key(k) && submap[k] == v);
+                            let k = choose |k: A| #[trigger] submap.contains_key(k) && submap[k] == v;
+                            assert(k != s.last()) by {
+                                assert(!subseq.to_set().contains(s.last()));
+                                assert(!submap.contains_key(s.last()));
+                                assert(submap.contains_key(k));
+                            }
+                            assert(submap.insert(s.last(), map(s.last())).contains_pair(k, v));
+                            assert(submap.insert(s.last(), map(s.last())).contains_value(v));
+                        } else {
+                            assert(submap.insert(s.last(), map(s.last())).contains_pair(s.last(), map(s.last())));
+                        }
+                    }
+                    assert(submap.insert(s.last(), map(s.last())).contains_pair(s.last(), map(s.last())));
+                    assert(submap.insert(s.last(), map(s.last())).values().contains(map(s.last())));
+                    assert forall |v: B| #[trigger] submap.insert(s.last(), map(s.last())).values().contains(v)
+                           implies submap.values().insert(map(s.last())).contains(v) by {
+                        if v != map(s.last()) {
+                            assert(submap.contains_value(v));
+                        }
+                    } 
+                }
+            }
         }
     }
+    assert(s.map_values(map).to_set() == s.to_set().mk_map(map).values()); // why it's required
 }
 
 // Q: Why reveal is required as filter is open spec
