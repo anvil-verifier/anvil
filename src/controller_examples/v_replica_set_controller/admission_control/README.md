@@ -48,7 +48,7 @@ You can test the admission controller using the provided manifests:
 kubectl apply -f manifests/replicaset/ok.yaml # should succeed
 kubectl apply -f manifests/replicaset/negative_replicas.yaml # should show "admission webhook "admission-server.default.svc" denied the request:..."
 ```
-We also provide an automated testing suite for every manifest provided. To execute, run:
+We also provide an automated testing suite for every manifest provided. Make sure to have a fresh local deployment. To execute, run:
 ```bash
 cd tests
 cargo run
