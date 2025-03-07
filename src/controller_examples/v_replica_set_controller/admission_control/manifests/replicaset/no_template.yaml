@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: no-template-reject
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
