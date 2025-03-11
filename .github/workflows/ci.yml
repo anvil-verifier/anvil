@@ -406,6 +406,7 @@ jobs:
           kind create cluster
           kind load docker-image admission_controller:v1
           ./setup.sh
+          kubectl get pods --all-namespaces
       - name: Check kind status
         run: kubectl get pods --all-namespaces
       - name: Run vreplicaset e2e tests for admission
