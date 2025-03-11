@@ -384,3 +384,27 @@ jobs:
         run: ./local-test.sh vreplicaset
       - name: Run vreplicaset e2e tests
         run: cd e2e && cargo run -- vreplicaset
+  vreplicaset-admission-e2e-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.20"
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.23.0
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
+      - name: Deploy vreplicaset admission controller
+        run: |
+          kind create cluster --config deploy/kind.yaml
+          cd src/controller_examples/v_replica_set_controller/admission_control
+          docker build -t admission_controller:v1 -f docker/Dockerfile .
+          kind load docker-image admission_controller:v1
+          ./setup.sh
+      - name: Run vreplicaset e2e tests for admission
+        run: cd src/controller_examples/v_replica_set_controller/admission_control/tests && cargo run

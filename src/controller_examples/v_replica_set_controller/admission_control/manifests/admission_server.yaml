@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-server
+  namespace: default
+  labels:
+    app: admission-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admission-server
+  template:
+    metadata:
+      labels:
+        app: admission-server
+    spec:
+      containers:
+        - name: admission-server
+          image: admission_controller:v1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: admission-server-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admission-server
+  namespace: default
+spec:
+  selector:
+    app: admission-server
+  ports:
+    - port: 443
+      targetPort: 8443
