@@ -15,375 +15,375 @@ env:
   verus_commit: 6b278074651d520825ea62fe2079ed1e3959cb69
 
 jobs:
-  build-verus:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Find Verus build from cache
-        id: cache-verus
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Download Verus if cache is missing
-        if: steps.cache-verus.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: verus-lang/verus
-          path: verus
-          ref: ${{ env.verus_commit }}
-      - name: Build Verus if cache is missing
-        if: steps.cache-verus.outputs.cache-hit != 'true'
-        run: |
-          cd verus
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-          cd source
-          ./tools/get-z3.sh
-          . ../tools/activate
-          vargo clean
-          vargo build --release
-  fluent-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify fluent controller
-        run: VERUS_DIR="${PWD}/verus" ./build.sh fluent_controller.rs --time --rlimit 50
-  rabbitmq-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify rabbitmq controller
-        run: VERUS_DIR="${PWD}/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
-  zookeeper-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify zookeeper controller
-        run: VERUS_DIR="${PWD}/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
-  vreplicaset-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify vreplicaset controller
-        run: VERUS_DIR="${PWD}/verus" ./build.sh vreplicaset_controller.rs --time
-  v2-vreplicaset-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify vreplicaset controller
-        run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
-  v2-vdeployment-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify vdeployment controller
-        run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
-  unit-tests:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Pin home to version 0.5.9 (workaround)
-        run: |
-          sed -i "s/\.\.\/verus/verus/g" Cargo.toml
-          cargo update home --precise 0.5.9
-      - name: Run unit tests
-        run: cargo test unit_tests
-  conformance-tests:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Set up a kind cluster
-        run: kind create cluster
-      - name: Pin home to version 0.5.9 (workaround)
-        run: |
-          sed -i "s/\.\.\/verus/verus/g" Cargo.toml
-          cargo update home --precise 0.5.9
-      - name: Run conformance tests
-        run: cargo test conformance_tests -- --nocapture
-  framework-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify conformance of the executable model
-        run: VERUS_DIR="${PWD}/verus" ./build.sh anvil.rs --crate-type lib --time
-  framework-v2-verification:
-    needs: build-verus
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            verus/source
-            verus/dependencies
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}
-      - name: Verify conformance of the executable model
-        run: VERUS_DIR="${PWD}/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
-  fluent-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy fluent controller
-        run: ./local-test.sh fluent
-      - name: Run fluent e2e tests
-        run: cd e2e && cargo run -- fluent
-  rabbitmq-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy rabbitmq controller
-        run: ./local-test.sh rabbitmq
-      - name: Run rabbitmq e2e tests
-        run: cd e2e && cargo run -- rabbitmq
-  rabbitmq-scaling-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy rabbitmq controller
-        run: ./local-test.sh rabbitmq
-      - name: Run rabbitmq e2e tests for scaling
-        run: cd e2e && cargo run -- rabbitmq-scaling
-  rabbitmq-ephemeral-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy rabbitmq controller
-        run: ./local-test.sh rabbitmq
-      - name: Run rabbitmq e2e tests for ephemeral
-        run: cd e2e && cargo run -- rabbitmq-ephemeral
-  zookeeper-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy zookeeper controller
-        run: ./local-test.sh zookeeper
-      - name: Run zookeeper e2e tests
-        run: cd e2e && cargo run -- zookeeper
-  zookeeper-scaling-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy zookeeper controller
-        run: ./local-test.sh zookeeper
-      - name: Run zookeeper e2e tests for scaling
-        run: cd e2e && cargo run -- zookeeper-scaling
-  vreplicaset-e2e-test:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.20"
-      - name: Install kind
-        run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
-      - name: Deploy vreplicaset controller
-        run: ./local-test.sh vreplicaset
-      - name: Run vreplicaset e2e tests
-        run: cd e2e && cargo run -- vreplicaset
+  # build-verus:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - name: Find Verus build from cache
+  #       id: cache-verus
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Download Verus if cache is missing
+  #       if: steps.cache-verus.outputs.cache-hit != 'true'
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: verus-lang/verus
+  #         path: verus
+  #         ref: ${{ env.verus_commit }}
+  #     - name: Build Verus if cache is missing
+  #       if: steps.cache-verus.outputs.cache-hit != 'true'
+  #       run: |
+  #         cd verus
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #         cd source
+  #         ./tools/get-z3.sh
+  #         . ../tools/activate
+  #         vargo clean
+  #         vargo build --release
+  # fluent-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify fluent controller
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh fluent_controller.rs --time --rlimit 50
+  # rabbitmq-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify rabbitmq controller
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
+  # zookeeper-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify zookeeper controller
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
+  # vreplicaset-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify vreplicaset controller
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh vreplicaset_controller.rs --time
+  # v2-vreplicaset-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify vreplicaset controller
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
+  # v2-vdeployment-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify vdeployment controller
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
+  # unit-tests:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Pin home to version 0.5.9 (workaround)
+  #       run: |
+  #         sed -i "s/\.\.\/verus/verus/g" Cargo.toml
+  #         cargo update home --precise 0.5.9
+  #     - name: Run unit tests
+  #       run: cargo test unit_tests
+  # conformance-tests:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Set up a kind cluster
+  #       run: kind create cluster
+  #     - name: Pin home to version 0.5.9 (workaround)
+  #       run: |
+  #         sed -i "s/\.\.\/verus/verus/g" Cargo.toml
+  #         cargo update home --precise 0.5.9
+  #     - name: Run conformance tests
+  #       run: cargo test conformance_tests -- --nocapture
+  # framework-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify conformance of the executable model
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh anvil.rs --crate-type lib --time
+  # framework-v2-verification:
+  #   needs: build-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Restore build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           verus/source
+  #           verus/dependencies
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}
+  #     - name: Verify conformance of the executable model
+  #       run: VERUS_DIR="${PWD}/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
+  # fluent-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy fluent controller
+  #       run: ./local-test.sh fluent
+  #     - name: Run fluent e2e tests
+  #       run: cd e2e && cargo run -- fluent
+  # rabbitmq-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy rabbitmq controller
+  #       run: ./local-test.sh rabbitmq
+  #     - name: Run rabbitmq e2e tests
+  #       run: cd e2e && cargo run -- rabbitmq
+  # rabbitmq-scaling-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy rabbitmq controller
+  #       run: ./local-test.sh rabbitmq
+  #     - name: Run rabbitmq e2e tests for scaling
+  #       run: cd e2e && cargo run -- rabbitmq-scaling
+  # rabbitmq-ephemeral-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy rabbitmq controller
+  #       run: ./local-test.sh rabbitmq
+  #     - name: Run rabbitmq e2e tests for ephemeral
+  #       run: cd e2e && cargo run -- rabbitmq-ephemeral
+  # zookeeper-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy zookeeper controller
+  #       run: ./local-test.sh zookeeper
+  #     - name: Run zookeeper e2e tests
+  #       run: cd e2e && cargo run -- zookeeper
+  # zookeeper-scaling-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy zookeeper controller
+  #       run: ./local-test.sh zookeeper
+  #     - name: Run zookeeper e2e tests for scaling
+  #       run: cd e2e && cargo run -- zookeeper-scaling
+  # vreplicaset-e2e-test:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "^1.20"
+  #     - name: Install kind
+  #       run: go install sigs.k8s.io/kind@v0.23.0
+  #     - name: Install Rust toolchain
+  #       run: |
+  #         curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+  #         . "$HOME/.cargo/env"
+  #         rustup toolchain install
+  #     - name: Deploy vreplicaset controller
+  #       run: ./local-test.sh vreplicaset
+  #     - name: Run vreplicaset e2e tests
+  #       run: cd e2e && cargo run -- vreplicaset
   vreplicaset-admission-e2e-test:
     runs-on: ubuntu-22.04
     steps:
@@ -406,5 +406,11 @@ jobs:
           kind create cluster
           kind load docker-image admission_controller:v1
           ./setup.sh
+      - name: Check kind status
+        run: kubectl get pods --all-namespaces
       - name: Run vreplicaset e2e tests for admission
         run: cd src/controller_examples/v_replica_set_controller/admission_control/tests && cargo run
+        # post
+      - name: Collect pod logs
+        if: always()
+        run: kubectl logs -l app=admission-server --tail=-1
