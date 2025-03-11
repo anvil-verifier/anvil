@@ -76,7 +76,6 @@ async fn main()-> Result<(), Error>{
             info!("Processing manifest: {:?}", path);
 
             let manifest: ReplicaSet = serde_yaml::from_str(&manifest_content).unwrap();
-
             // apply manifest
             let apply_result = replicasets_api.create(&PostParams::default(), &manifest).await;
             match apply_result {
