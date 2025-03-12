@@ -1135,9 +1135,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
 
                                     let unwrap_obj = |o: DynamicObjectView| PodView::unmarshal(o).unwrap();
                                     assert(pods == objs.map_values(unwrap_obj));
-                                    seq_map_value_lemma(
-                                        objs, unwrap_obj
-                                    );
                                     assert(objs.contains(objs[idx1]));
                                     assert(objs[idx1].metadata == pods[idx1].metadata);
                                 }
