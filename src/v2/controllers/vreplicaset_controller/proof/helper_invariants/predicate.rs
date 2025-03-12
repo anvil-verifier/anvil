@@ -193,6 +193,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
         forall |key: ObjectRef|
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
             ==> {
+                // Unlike the below invariant, this entire invariant is used in both proving itself as well as in other proofs.
                 let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                 let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                 let filtered_pods = state.filtered_pods.unwrap();
@@ -269,6 +270,8 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
             let filtered_pods = state.filtered_pods.unwrap();
             &&& triggering_cr.object_ref() == key
             &&& triggering_cr.metadata().well_formed()
+            // This portion of the predicate is used elsewhere throughout the proof: maintains an invariant on
+            // local state as well as any delete requests sent by that controller.
             &&& forall |diff: nat| {
                 #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
             } ==> {
@@ -290,6 +293,7 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                 }
             }
+            // This portion of the predicate is useful only in proving the invariant.
             &&& state.reconcile_step.is_AfterListPods() ==> {
                 let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
                 &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
