@@ -2359,9 +2359,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
     );
 
     cluster.lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(spec, controller_id, requirements);
-    assume(false);
+
     temp_pred_equality(
-        lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)),
+        lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)),
         lift_state(Cluster::every_ongoing_reconcile_satisfies(controller_id, requirements))
     );
     

@@ -262,36 +262,64 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |diff: nat| {
-            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
-        } ==> {
-            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+        s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
+            let key = vrs.object_ref();
+            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+            let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
             let filtered_pods = state.filtered_pods.unwrap();
-            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-            &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
-            &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
-            &&& state.filtered_pods.is_Some()
-            &&& diff <= filtered_pod_keys.len()
-            &&& filtered_pod_keys.no_duplicates()
-            &&& forall |i| #![auto] 0 <= i < diff ==> {
-                &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
-                &&& matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+            &&& triggering_cr.object_ref() == key
+            &&& triggering_cr.metadata().well_formed()
+            &&& forall |diff: nat| {
+                #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
+            } ==> {
+                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                let filtered_pods = state.filtered_pods.unwrap();
+                let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                &&& state.filtered_pods.is_Some()
+                &&& diff <= filtered_pod_keys.len()
+                &&& filtered_pod_keys.no_duplicates()
+                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.content.is_delete_request()
+                &&& forall |i| #![auto] 0 <= i < diff ==> {
+                    &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
+                    &&& PodView::unmarshal(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                    &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
+                }
+            }
+            &&& state.reconcile_step.is_AfterListPods() ==> {
+                let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.content.is_list_request()
+                &&& req_msg.content.get_list_request() == ListRequest {
+                    kind: PodView::kind(),
+                    namespace: triggering_cr.metadata.namespace.unwrap(),
+                }
+                &&& forall |msg| {
+                    let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& msg.src.is_APIServer()
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> {
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
+                    &&& msg.content.is_list_response()
+                    &&& msg.content.get_list_response().res.is_Ok()
+                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                    &&& resp_obj_keys.no_duplicates()
+                    &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                }
             }
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// We prove this by first showing that in the AfterListPods -> AfterDeletePod transition, that
-// the `filtered_pods` variable contains matching pods in etcd. Next, we show that for
-// AfterDeletePod(diff) => AfterDeletePod(diff - 1), that the pods `filtered_pods[i]`, for
-// i = 1..diff - 2 are unaffected, since `filtered_pods[diff - 1]` is deleted, and the invariant 
-// will hold after `diff` is decreased.
-// 
-// This invariant may have to be moved to a later phase, since I think this invariant will rely
-// on other invariants.
-//
 
 pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(
     vrs: VReplicaSetView, controller_id: int,
