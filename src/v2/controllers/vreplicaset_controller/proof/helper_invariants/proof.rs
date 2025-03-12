@@ -490,7 +490,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         vrs.metadata.deletion_timestamp.is_None(),
-        spec.entails(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))),
+        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))),
@@ -708,10 +708,9 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)))),
-        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
         //spec.entails(always(lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs)))),
         vrs.metadata.deletion_timestamp.is_None(),
-        spec.entails(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))),
+        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
 
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))),
 {
