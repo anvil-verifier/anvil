@@ -258,6 +258,11 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
             }
     }
 }
+//
+// TODO: See if we can split up this invariant into smaller ones.
+// Both parts are necessary outside of this proof, but maybe for presentation purposes it 
+// would be better to split them.
+//
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView, controller_id: int,
@@ -324,6 +329,10 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
         }
     }
 }
+//
+// TODO: See if we can write a more concise version of this invariant.
+// Much of this predicate is not used in other proofs.
+//
 
 pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(
     vrs: VReplicaSetView, controller_id: int,

@@ -251,7 +251,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
-pub open spec fn every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef| {
             let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
@@ -268,12 +268,12 @@ pub open spec fn every_in_flight_req_msg_has_different_id_from_all_pending_req_m
     }
 }
 
-pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(self, spec: TempPred<ClusterState>, controller_id: int)
+pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(self, spec: TempPred<ClusterState>, controller_id: int)
     requires
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
-    ensures spec.entails(always(lift_state(Self::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)))),
+    ensures spec.entails(always(lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
 {
     assert forall |key: ObjectRef| spec.entails(always(lift_state(#[trigger] Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key)))) by {
         self.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, controller_id, key);
@@ -283,7 +283,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_all_pend
         |key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))
     );
     assert forall |ex| tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))).satisfied_by(ex)
-        implies #[trigger] lift_state(Self::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id)).satisfied_by(ex) by {
+        implies #[trigger] lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)).satisfied_by(ex) by {
         let s = ex.head();
         assert forall |key: ObjectRef| tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))).satisfied_by(ex)
             implies 
@@ -305,7 +305,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_all_pend
     }
     temp_pred_equality(
         tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))),
-        lift_state(Self::every_in_flight_req_msg_has_different_id_from_all_pending_req_msg(controller_id))
+        lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))
     );
 }
 
