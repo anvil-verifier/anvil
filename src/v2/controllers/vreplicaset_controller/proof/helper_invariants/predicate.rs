@@ -52,6 +52,7 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
                 spec: req.obj.spec,
                 status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
             };
+            &&& obj.metadata.name.is_None()
             &&& obj.metadata.deletion_timestamp.is_None()
             &&& created_obj.metadata.namespace.is_Some()
             &&& content.get_create_request().namespace == created_obj.metadata.namespace.unwrap()
@@ -192,6 +193,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
         forall |key: ObjectRef|
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
             ==> {
+                // Unlike the below invariant, this entire invariant is used in both proving itself as well as in other proofs.
                 let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                 let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                 let filtered_pods = state.filtered_pods.unwrap();
@@ -202,10 +204,12 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                 // maintained across creates since all new keys with generate_name
                 // are unique, maintained across updates since there are
                 // no updates.
-                    forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
+                    forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len() ==>
                     (
                         filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                        && (s.resources().contains_key(filtered_pods[i].object_ref()) ==>
+                        && ((s.resources().contains_key(filtered_pods[i].object_ref())
+                                && s.resources()[filtered_pods[i].object_ref()].metadata.resource_version
+                                    == filtered_pods[i].metadata.resource_version) ==>
                             (s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
                                 triggering_cr.controller_owner_ref()
                                 )
@@ -216,21 +220,33 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                     )
                 // Special case: the above property holds on a list response to the
                 // appropriate request. 
-                &&& forall |msg| {
+                &&& state.reconcile_step.is_AfterListPods() ==> {
+                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.content.is_list_request()
+                    &&& req_msg.content.get_list_request() == ListRequest {
+                        kind: PodView::kind(),
+                        namespace: triggering_cr.metadata.namespace.unwrap(),
+                    }
+                    &&& forall |msg| {
                         let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
                         &&& #[trigger] s.in_flight().contains(msg)
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                        &&& msg.src.is_APIServer()
                         &&& resp_msg_matches_req_msg(msg, req_msg)
-                        &&& msg.content.is_list_response()
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
+                        &&& msg.content.is_list_response()
                         &&& msg.content.get_list_response().res.is_Ok()
                         &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
-                        &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
+                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                         (
                             resp_objs[i].metadata.namespace.is_some()
                             && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            && (s.resources().contains_key(resp_objs[i].object_ref()) ==>
+                            && ((s.resources().contains_key(resp_objs[i].object_ref())
+                                    && s.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                    == resp_objs[i].metadata.resource_version) ==> 
                                     s.resources()[resp_objs[i].object_ref()].metadata
                                         == resp_objs[i].metadata)
                             && resp_objs[i].metadata.resource_version.is_some()
@@ -238,48 +254,84 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                                     < s.api_server.resource_version_counter
                         )
                     }
+                }
             }
     }
 }
 //
-// TODO: Prove this.
-//
-// No hints.
+// TODO: See if we can split up this invariant into smaller ones.
+// Both parts are necessary outside of this proof, but maybe for presentation purposes it 
+// would be better to split them.
 //
 
 pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |diff: nat| {
-            #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
-        } ==> {
-            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+        s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
+            let key = vrs.object_ref();
+            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+            let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
             let filtered_pods = state.filtered_pods.unwrap();
-            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-            &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
-            &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
-            &&& state.filtered_pods.is_Some()
-            &&& diff <= filtered_pod_keys.len()
-            &&& filtered_pod_keys.no_duplicates()
-            &&& forall |i| #![auto] 0 <= i < diff ==> {
-                &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
-                &&& matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]] == filtered_pods[i].marshal()
+            &&& triggering_cr.object_ref() == key
+            &&& triggering_cr.metadata().well_formed()
+            // This portion of the predicate is used elsewhere throughout the proof: maintains an invariant on
+            // local state as well as any delete requests sent by that controller.
+            &&& forall |diff: nat| {
+                #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
+            } ==> {
+                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                let filtered_pods = state.filtered_pods.unwrap();
+                let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                &&& state.filtered_pods.is_Some()
+                &&& diff <= filtered_pod_keys.len()
+                &&& filtered_pod_keys.no_duplicates()
+                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.content.is_delete_request()
+                &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
+                    &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
+                    &&& PodView::unmarshal(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                    &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
+                }
+            }
+            // This portion of the predicate is useful only in proving the invariant.
+            &&& state.reconcile_step.is_AfterListPods() ==> {
+                let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                &&& req_msg.dst.is_APIServer()
+                &&& req_msg.content.is_list_request()
+                &&& req_msg.content.get_list_request() == ListRequest {
+                    kind: PodView::kind(),
+                    namespace: triggering_cr.metadata.namespace.unwrap(),
+                }
+                &&& forall |msg| {
+                    let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                    &&& #[trigger] s.in_flight().contains(msg)
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& msg.src.is_APIServer()
+                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                } ==> {
+                    let resp_objs = msg.content.get_list_response().res.unwrap();
+                    let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
+                    &&& msg.content.is_list_response()
+                    &&& msg.content.get_list_response().res.is_Ok()
+                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                    &&& resp_obj_keys.no_duplicates()
+                    &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+                    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                }
             }
         }
     }
 }
 //
-// TODO: Prove this.
-//
-// We prove this by first showing that in the AfterListPods -> AfterDeletePod transition, that
-// the `filtered_pods` variable contains matching pods in etcd. Next, we show that for
-// AfterDeletePod(diff) => AfterDeletePod(diff - 1), that the pods `filtered_pods[i]`, for
-// i = 1..diff - 2 are unaffected, since `filtered_pods[diff - 1]` is deleted, and the invariant 
-// will hold after `diff` is decreased.
-// 
-// This invariant may have to be moved to a later phase, since I think this invariant will rely
-// on other invariants.
+// TODO: See if we can write a more concise version of this invariant.
+// Much of this predicate is not used in other proofs.
 //
 
 pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(
@@ -305,10 +357,5 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
         }
     }
 }
-//
-// TODO: Prove this.
-//
-// Every delete request must be on an object with a resource version less than the resource version counter.
-//
 
 }

@@ -715,25 +715,25 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
 }
 
 pub open spec fn every_ongoing_reconcile_satisfies(
-    controller_id: int, requirements: spec_fn(OngoingReconcile, ClusterState) -> bool
+    controller_id: int, requirements: spec_fn(ObjectRef, ClusterState) -> bool
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef|
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-                ==> requirements(s.ongoing_reconciles(controller_id)[key], s) 
+                ==> requirements(key, s) 
     }
 }
 
 pub open spec fn every_new_ongoing_reconcile_satisfies(
-    controller_id: int, requirements: spec_fn(OngoingReconcile, ClusterState) -> bool
+    controller_id: int, requirements: spec_fn(ObjectRef, ClusterState) -> bool
 ) -> ActionPred<ClusterState> {
     |s: ClusterState, s_prime: ClusterState| {
         forall |key: ObjectRef|
             {
                 &&& (!s.ongoing_reconciles(controller_id).contains_key(key)
-                     || requirements(s.ongoing_reconciles(controller_id)[key], s))
+                     || requirements(key, s))
                 &&& #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key)
-            } ==> requirements(s_prime.ongoing_reconciles(controller_id)[key], s_prime)
+            } ==> requirements(key, s_prime)
     }
 }
 
@@ -756,7 +756,7 @@ pub proof fn lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(
     self, 
     spec: TempPred<ClusterState>,
     controller_id: int,
-    requirements: spec_fn(OngoingReconcile, ClusterState) -> bool
+    requirements: spec_fn(ObjectRef, ClusterState) -> bool
 )
     requires
         spec.entails(always(lift_action(self.next()))),
@@ -801,7 +801,7 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
     self, 
     spec: TempPred<ClusterState>,
     controller_id: int,
-    requirements: spec_fn(OngoingReconcile, ClusterState) -> bool,
+    requirements: spec_fn(ObjectRef, ClusterState) -> bool,
     reconcile_id: ReconcileId,
 )
     requires
@@ -905,7 +905,7 @@ pub proof fn lemma_some_reconcile_id_leads_to_always_every_ongoing_reconcile_sat
                 forall |key: ObjectRef| {
                     &&& #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
                     &&& s.ongoing_reconciles(controller_id)[key].reconcile_id >= reconcile_id
-                } ==> requirements(s.ongoing_reconciles(controller_id)[key], s)
+                } ==> requirements(key, s)
             };
             assert_by(
                 spec_with_reconcile_id.entails(always(lift_state(invariant))),

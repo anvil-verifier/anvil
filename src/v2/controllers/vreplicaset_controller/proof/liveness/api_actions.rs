@@ -18,6 +18,7 @@ use vstd::{map::*, map_lib::*, prelude::*};
 
 verus! {
    
+// TODO: get rid of diff parameter.
 pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     diff: int, msg: Message,

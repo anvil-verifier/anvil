@@ -251,7 +251,8 @@ pub closed spec fn generate_name(s: APIServerState) -> StringView;
 // For more details, see the implementation: https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L432-L443
 #[verifier(external_body)]
 pub proof fn generated_name_is_unique(s: APIServerState)
-    ensures forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s)
+    ensures 
+        forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s),
 {}
 
 #[verifier(inline)]

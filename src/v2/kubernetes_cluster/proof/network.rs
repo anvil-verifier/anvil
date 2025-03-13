@@ -251,6 +251,64 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
+pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
+            ==> {
+                forall |msg: Message|
+                    #[trigger] s.in_flight().contains(msg)
+                    && msg.content.is_APIRequest()
+                    && msg != pending_req
+                    ==> msg.rpc_id != pending_req.rpc_id
+            }
+        }
+    }
+}
+
+pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(self, spec: TempPred<ClusterState>, controller_id: int)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+    ensures spec.entails(always(lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
+{
+    assert forall |key: ObjectRef| spec.entails(always(lift_state(#[trigger] Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key)))) by {
+        self.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(spec, controller_id, key);
+    }
+    spec_entails_always_tla_forall(
+        spec,
+        |key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))
+    );
+    assert forall |ex| tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))).satisfied_by(ex)
+        implies #[trigger] lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)).satisfied_by(ex) by {
+        let s = ex.head();
+        assert forall |key: ObjectRef| tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))).satisfied_by(ex)
+            implies 
+            {
+                let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+                && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
+                ==> {
+                    forall |msg: Message|
+                        #[trigger] s.in_flight().contains(msg)
+                        && msg.content.is_APIRequest()
+                        && msg != pending_req
+                        ==> msg.rpc_id != pending_req.rpc_id
+                }
+            } by {
+            let tla_forall_closure = |key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key));
+            assert(tla_forall_closure(key).satisfied_by(ex));
+        }
+    }
+    temp_pred_equality(
+        tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))),
+        lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))
+    );
+}
+
 pub open spec fn every_in_flight_req_msg_from_controller_has_valid_controller_id(self) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message|
