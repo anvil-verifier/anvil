@@ -11,7 +11,6 @@ pub struct APIServerState {
     pub resources: StoredState,
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
-    pub used_names: Set<StringView>,
 }
 
 pub type InstalledTypes = Map<StringView, InstalledType>;

@@ -253,8 +253,6 @@ pub closed spec fn generate_name(s: APIServerState) -> StringView;
 pub proof fn generated_name_is_unique(s: APIServerState)
     ensures 
         forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s),
-        forall |key: ObjectRef| #[trigger] s.used_names.contains(key.name) ==> key.name != generate_name(s),
-
 {}
 
 #[verifier(inline)]
@@ -304,7 +302,6 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
                 resources: s.resources.insert(created_obj.object_ref(), created_obj),
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
-                used_names: s.used_names.insert(created_obj.object_ref().name),
                 ..s
             }, CreateResponse{res: Ok(created_obj)})
         }

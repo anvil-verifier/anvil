@@ -958,7 +958,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(Cluster::names_in_etcd_in_used_names()))),
         spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -980,7 +979,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         // no updates.
             forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
             (
-                //s.api_server.used_names.contains(filtered_pods[i].object_ref().name)
                 filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                 && ((s.resources().contains_key(filtered_pods[i].object_ref())
                     && s.resources()[filtered_pods[i].object_ref()].metadata.resource_version
@@ -1051,7 +1049,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& Cluster::names_in_etcd_in_used_names()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -1395,7 +1392,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
-        lift_state(Cluster::names_in_etcd_in_used_names()),
         lift_state(Cluster::etcd_is_finite()),
         lifted_vrs_non_interference_property_action(cluster, controller_id),
         lift_state(no_pending_update_or_update_status_request_on_pods()),
@@ -1442,7 +1438,6 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(Cluster::names_in_etcd_in_used_names()))),
         spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -1535,7 +1530,6 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& Cluster::names_in_etcd_in_used_names()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -2343,7 +2337,6 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
-        lift_state(Cluster::names_in_etcd_in_used_names()),
         lift_state(Cluster::etcd_is_finite()),
         lifted_vrs_non_interference_property_action(cluster, controller_id),
         lift_state(no_pending_update_or_update_status_request_on_pods()),
