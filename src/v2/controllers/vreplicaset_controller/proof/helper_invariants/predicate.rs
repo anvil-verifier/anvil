@@ -306,22 +306,6 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
     }
 }
 
-pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp (
-    vrs: VReplicaSetView,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.resources()[vrs.object_ref()].metadata.deletion_timestamp.is_None()
-    }
-}
-pub open spec fn vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp (
-    vrs: VReplicaSetView, controller_id: int,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr.metadata.deletion_timestamp.is_None()
-        &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp.is_None()
-    }
-}
-
 //
 // TODO: Prove this.
 //
