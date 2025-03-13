@@ -11,7 +11,8 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{predicate::*},
+    proof::helper_invariants,
+    predicate::*,
 };
 use vstd::prelude::*;
 

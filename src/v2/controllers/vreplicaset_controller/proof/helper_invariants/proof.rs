@@ -11,7 +11,8 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{predicate::*, helper_lemmas, helper_invariants::{predicate::*}},
+    proof::{helper_lemmas, helper_invariants::{predicate::*}},
+    predicate::*,
 };
 use crate::vstd_ext::seq_lib::*;
 use vstd::{map::*, prelude::*};
@@ -791,7 +792,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         &&& every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)(s)
         &&& vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
-        //&&& vrs_in_etcd_does_not_have_deletion_timestamp(vrs)(s)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -926,7 +926,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
         lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)),
         lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
-        //lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs))
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
