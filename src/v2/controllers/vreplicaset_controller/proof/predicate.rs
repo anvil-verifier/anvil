@@ -412,13 +412,6 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
     }
 }
 
-pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp (
-    vrs: VReplicaSetView,
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.resources()[vrs.object_ref()].metadata.deletion_timestamp.is_None()
-    }
-}
 pub open spec fn vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp (
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
