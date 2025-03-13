@@ -12,8 +12,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{helper_invariants, helper_lemmas, liveness::{api_actions::*}},
-    predicate::*,
+    proof::{helper_invariants, helper_lemmas, liveness::{api_actions::*}, predicate::*},
 };
 use vstd::prelude::*;
 
