@@ -2488,6 +2488,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
                 if input.0 == controller_id
                     && input.1 == Some(resp_msg) 
                     && input.2 == Some(vrs.object_ref()) {
+                    VReplicaSetView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                 }
             },

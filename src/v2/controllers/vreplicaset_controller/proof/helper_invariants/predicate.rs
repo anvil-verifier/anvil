@@ -204,7 +204,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                 // maintained across creates since all new keys with generate_name
                 // are unique, maintained across updates since there are
                 // no updates.
-                    forall |i| #![auto] 0 <= i < filtered_pods.len() ==>
+                    forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len() ==>
                     (
                         filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                         && ((s.resources().contains_key(filtered_pods[i].object_ref())
@@ -240,7 +240,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                         &&& msg.content.is_list_response()
                         &&& msg.content.get_list_response().res.is_Ok()
                         &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
-                        &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
+                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                         (
                             resp_objs[i].metadata.namespace.is_some()
                             && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
@@ -287,7 +287,7 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
                 &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
                 &&& req_msg.dst.is_APIServer()
                 &&& req_msg.content.is_delete_request()
-                &&& forall |i| #![auto] 0 <= i < diff ==> {
+                &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
                     &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
                     &&& PodView::unmarshal(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
