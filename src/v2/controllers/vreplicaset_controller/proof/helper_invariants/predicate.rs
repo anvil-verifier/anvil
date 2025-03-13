@@ -305,7 +305,6 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
         }
     }
 }
-
 //
 // TODO: Prove this.
 //
