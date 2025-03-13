@@ -24,7 +24,6 @@ pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<Clu
     |s: ClusterState| {
         &&& cr.metadata().name.is_Some()
         &&& cr.metadata().namespace.is_Some()
-        &&& cr.metadata().deletion_timestamp.is_None()
         // The object that has the same key with cr exists in etcd...
         &&& s.resources().contains_key(cr.object_ref())
         // and its uid is the same as cr...
