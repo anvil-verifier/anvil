@@ -362,21 +362,32 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         );
     }
 
-    // Fourth, prove that after_list_pods ~> reconcile_idle.
+    // Fourth, prove that after_list_pods | done ~> reconcile_idle.
     lemma_from_after_list_pods_to_reconcile_idle(spec, vrs, cluster, controller_id);
+    assert(spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done))
+        .leads_to(lift_state(reconcile_idle))));
+    or_leads_to_combine_n!(
+        spec,
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done));
+        lift_state(reconcile_idle)
+    );
+    temp_pred_equality(lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(),
+        |rs: ReconcileLocalState| (at_step_closure(VReplicaSetRecStepView::AfterListPods)(rs) || at_step_closure(VReplicaSetRecStepView::Done)(rs)))),
+        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)).or(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::Done)))
+    );
+    assert(spec.entails(lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), 
+        |rs: ReconcileLocalState| (at_step_closure(VReplicaSetRecStepView::AfterListPods)(rs) || at_step_closure(VReplicaSetRecStepView::Done)(rs))))
+        .leads_to(lift_state(reconcile_idle))));
 
     // Need some extra statements in V2 to prove the lemma.
     VReplicaSetReconcileState::marshal_preserves_integrity();
-    temp_pred_equality(
-        lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterListPods)),
-        lift_state(Cluster::at_expected_reconcile_states(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods)))
-    );
 
     // Fifth, prove that reconcile init state can reach AfterListPods.
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
         spec, controller_id, vrs.marshal(), 
         at_step_closure(VReplicaSetRecStepView::Init), 
-        at_step_closure(VReplicaSetRecStepView::AfterListPods)
+        |rs: ReconcileLocalState| (at_step_closure(VReplicaSetRecStepView::AfterListPods)(rs) || at_step_closure(VReplicaSetRecStepView::Done)(rs))
     );
 
     // Finally, combine all cases

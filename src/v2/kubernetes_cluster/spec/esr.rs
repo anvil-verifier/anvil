@@ -28,6 +28,8 @@ pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<Clu
         &&& s.resources().contains_key(cr.object_ref())
         // and its uid is the same as cr...
         &&& s.resources()[cr.object_ref()].metadata.uid == cr.metadata().uid
+        // and it has no deletion timestamp
+        &&& s.resources()[cr.object_ref()].metadata.deletion_timestamp.is_None()
         // and can be unmarshalled to T...
         &&& T::unmarshal(s.resources()[cr.object_ref()]).is_Ok()
         // and its spec is the same as cr.

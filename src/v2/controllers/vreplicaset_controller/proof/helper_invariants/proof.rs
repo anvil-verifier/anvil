@@ -491,6 +491,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))),
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
+        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))),
@@ -576,6 +577,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)(s)
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
+        &&& vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
@@ -667,6 +669,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
+        lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
         lifted_vrs_non_interference_property_action(cluster, controller_id)
     );
 
@@ -706,6 +709,8 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
         spec.entails(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)))),
+        spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))),
 {
     let key = vrs.object_ref();
@@ -784,9 +789,10 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         &&& every_create_request_is_well_formed(cluster, controller_id)(s)
         &&& every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)(s)
+        &&& vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
     };
     
-    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
             VReplicaSetReconcileState::marshal_preserves_integrity();
@@ -868,7 +874,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
                     ));
                     assert(controller_owners.contains(vrs.controller_owner_ref()));
                     assert(cr_key.name == key.name);
-
                     assert(at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(new_diff))(s_prime));
                     assert(requirements(msg, s_prime));
                 }
@@ -918,7 +923,8 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         lift_state(no_pending_update_or_update_status_request_on_pods()),
         lift_state(every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id))
+        lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)),
+        lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
