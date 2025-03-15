@@ -29,7 +29,6 @@ pub enum HostId {
     CustomController,
     ExternalAPI,
     Client,
-    PodEvent,
 }
 
 pub type RestId = nat;
@@ -259,10 +258,6 @@ pub open spec fn built_in_controller_req_msg(msg_content: MessageContent<I, O>) 
 
 pub open spec fn client_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
     Message::form_msg(HostId::Client, HostId::ApiServer, msg_content)
-}
-
-pub open spec fn pod_event_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
-    Message::form_msg(HostId::PodEvent, HostId::ApiServer, msg_content)
 }
 
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message<I, O>, req_msg: Message<I, O>) -> bool {
