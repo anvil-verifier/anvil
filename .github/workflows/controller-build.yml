@@ -80,3 +80,23 @@ jobs:
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
+  build-vreplicaset-admission-controller:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build vreplicaset admission controller image
+        run: |
+          cd src/controller_examples/v_replica_set_controller/admission_control/
+          cp docker/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
+      - name: Push vreplicaset admission controller image
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
