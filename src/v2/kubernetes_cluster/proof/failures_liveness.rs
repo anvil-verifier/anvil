@@ -53,4 +53,11 @@ pub open spec fn pod_monkey_disabled() -> StatePred<ClusterState> {
 
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_true_leads_to_pod_monkey_always_disabled(self, spec: TempPred<ClusterState>)
+    requires
+        spec.entails(always(lift_action(self.next()))),
+        spec.entails(self.disable_pod_monkey().weak_fairness(())),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::pod_monkey_disabled()))))
+
 }
