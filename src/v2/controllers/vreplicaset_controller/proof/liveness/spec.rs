@@ -1,72 +1,147 @@
+#![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::{
     spec::{
         api_server::{state_machine::*, types::*},
         cluster::*,
         controller::types::*,
-        message::*
+        message::*,
+        esr::*,
     },
-    proof::*,
+    proof::controller_runtime_liveness::*,
 };
 
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{helper_invariants::{predicate::*}, helper_lemmas, liveness::*, predicate::*},
+    proof::{helper_invariants::{predicate::*, proof::*}, helper_lemmas, liveness::*, predicate::*},
 };
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
 
-pub open spec fn assumption_and_invariants_of_all_phases(vrs: VReplicaSetView) -> TempPred<ClusterState> {
-    invariants(vrs)
-    .and(always(lift_state(desired_state_is(vrs))))
-    .and(invariants_since_phase_i(vrs))
-    .and(invariants_since_phase_ii(vrs))
-    .and(invariants_since_phase_iii(vrs))
-    .and(invariants_since_phase_iv(vrs))
-    .and(invariants_since_phase_v(vrs))
-    .and(invariants_since_phase_vi(vrs))
-    .and(invariants_since_phase_vii(vrs))
+pub open spec fn assumption_and_invariants_of_all_phases(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    invariants(spec, vrs, cluster, controller_id)
+    .and(always(lift_state(Cluster::desired_state_is(vrs))))
+    .and(invariants_since_phase_i(controller_id))
+    .and(invariants_since_phase_ii(controller_id, vrs))
+    .and(invariants_since_phase_iii(spec, vrs, cluster, controller_id))
+    .and(invariants_since_phase_iv(spec, vrs, cluster, controller_id))
+    .and(invariants_since_phase_v(vrs, cluster, controller_id))
+//    .and(invariants_since_phase_vi(vrs))
+//    .and(invariants_since_phase_vii(vrs))
 }
 
-pub open spec fn invariants_since_phase_n(n: nat, vrs: VReplicaSetView) -> TempPred<ClusterState> {
+pub open spec fn invariants_since_phase_n(n: nat, spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     if n == 0 {
-        invariants(vrs).and(always(lift_state(desired_state_is(vrs))))
+        invariants(spec, vrs, cluster, controller_id)
+        .and(always(lift_state(Cluster::desired_state_is(vrs))))
     } else if n == 1 {
-        invariants_since_phase_i(vrs)
+        invariants_since_phase_i(controller_id)
     } else if n == 2 {
-        invariants_since_phase_ii(vrs)
+        invariants_since_phase_ii(controller_id, vrs)
     } else if n == 3 {
-        invariants_since_phase_iii(vrs)
+        invariants_since_phase_iii(spec, vrs, cluster, controller_id)
     } else if n == 4 {
-        invariants_since_phase_iv(vrs)
+        invariants_since_phase_iv(spec, vrs, cluster, controller_id)
     } else if n == 5 {
-        invariants_since_phase_v(vrs)
-    } else if n == 6 {
-        invariants_since_phase_vi(vrs)
-    } else if n == 7 {
-        invariants_since_phase_vii(vrs)
+        invariants_since_phase_v(vrs, cluster, controller_id)
+//    } else if n == 6 {
+//        invariants_since_phase_vi(vrs)
+//    } else if n == 7 {
+//        invariants_since_phase_vii(vrs)
     } else {
         true_pred()
     }
 }
 
-pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView) -> TempPred<ClusterState>
+pub open spec fn spec_before_phase_n(n: nat, spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
     decreases n,
 {
     if n == 1 {
-        invariants(vrs).and(always(lift_state(desired_state_is(vrs))))
-    } else if 2 <= n <= 8 {
-        spec_before_phase_n((n-1) as nat, vrs).and(invariants_since_phase_n((n-1) as nat, vrs))
+        invariants(spec, vrs, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vrs))))
+    } else if 2 <= n <= 6 {
+        spec_before_phase_n((n-1) as nat, spec, vrs, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, spec, vrs, cluster, controller_id))
     } else {
         true_pred()
     }
 }
 
+pub open spec fn invariants_since_phase_i(controller_id: int) -> TempPred<ClusterState> {
+    always(lift_state(Cluster::crash_disabled(controller_id)))
+    .and(always(lift_state(Cluster::req_drop_disabled())))
+    .and(always(lift_state(Cluster::pod_monkey_disabled())))
+}
+
+pub proof fn invariants_since_phase_i_is_stable(controller_id: int)
+    ensures valid(stable(invariants_since_phase_i(controller_id))),
+{
+    stable_and_always_n!(
+        lift_state(Cluster::crash_disabled(controller_id)),
+        lift_state(Cluster::req_drop_disabled()),
+        lift_state(Cluster::pod_monkey_disabled())
+    );
+}
+
+pub open spec fn invariants_since_phase_ii(controller_id: int, vrs: VReplicaSetView) -> TempPred<ClusterState>
+{
+    always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))
+}
+
+pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vrs: VReplicaSetView)
+    ensures valid(stable(invariants_since_phase_ii(controller_id, vrs))),
+{
+    always_p_is_stable(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)));
+}
+
+pub open spec fn invariants_since_phase_iii(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(spec, cluster, controller_id)))
+    .and(always(lift_state(lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id))));
+}
+
+pub proof fn invariants_since_phase_iii_is_stable(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_iii(vrs, cluster, controller_id))),
+{
+    stable_and_always_n!(
+        lift_state(lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(spec, cluster, controller_id)),
+        lift_state(lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id))
+    );
+}
+
+pub open spec fn invariants_since_phase_iv(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(Cluster::lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(spec, vrs, cluster, controller_id)))
+    .and(always(lift_state(Cluster::lemma_eventually_always_every_create_matching_pod_request_implies_at_after_create_pod_step(spec, vrs, cluster, controller_id))))
+    .and(always(lift_state(Cluster::lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(spec, vrs, cluster, controller_id))))
+    .and(always(lift_state(Cluster::lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(vrs, cluster, controller_id))))
+}
+
+pub proof fn invariants_since_phase_iv_is_stable(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_iv(vrs, cluster, controller_id))),
+{
+    stable_and_always_n!(
+        lift_state(Cluster::lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(spec, vrs, cluster, controller_id)),
+        lift_state(Cluster::lemma_eventually_always_every_create_matching_pod_request_implies_at_after_create_pod_step(spec, vrs, cluster, controller_id)),
+        lift_state(Cluster::lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(spec, vrs, cluster, controller_id)),
+        lift_state(Cluster::lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(vrs, cluster, controller_id))
+    );
+}
+
+pub open spec fn invariants_since_phase_v(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(Cluster::lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, cluster, controller_id)))
+}
+
+pub proof fn invariants_since_phase_v_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_v(vrs, cluster, controller_id))),
+{
+    always_p_is_stable(lift_state(Cluster::lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, cluster, controller_id)));
+}
+
 #[verifier(external_body)]
-pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VReplicaSetView, cluster: Cluster, controller_id: int, cr: CustomResourceView, i: nat)
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VReplicaSetView, cluster: Cluster, controller_id: int, cr: VReplicaSetView, i: nat)
     requires 1 <= i <= 7,
     ensures spec_before_phase_n(i, vrs).entails(true_pred().leads_to(invariants_since_phase_n(i, vrs))),
 {
@@ -87,12 +162,11 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VRep
     } else {
         terminate::reconcile_eventually_terminates(spec, controller_id);
         if i == 2 {
-            lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id);
+            Cluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id);
         } else if i == 3 {
-            Cluster::lemma_eventually_always_every_create_request_is_well_formed(spec, cluster, controller_id);
-            Cluster::lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(spec, cluster, controller_id);
-            Cluster::lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id);
-            
+            invariants_since_phase_ii(controller_id, vrs)(spec, cluster, controller_id);
+            lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(spec, cluster, controller_id);
+            lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id);
         } else if i == 4 {
             Cluster::lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(spec, vrs, cluster, controller_id);
             Cluster::lemma_eventually_always_every_create_matching_pod_request_implies_at_after_create_pod_step(spec, vrs, cluster, controller_id);
@@ -104,23 +178,43 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VRep
     }
 }
 
+pub open spec fn next_with_wf(cluster: Cluster) -> TempPred<ClusterState> {
+    always(lift_state(Cluster::next()))
+    .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.controller_next().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.restart_controller().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.drop_req().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.pod_monkey_next().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.external_next().weak_fairness(input)))
+    .and(Cluster::disable_req_drop().weak_fairness(()))
+    .and(Cluster::disable_pod_monkey().weak_fairness(()))
+    .and(Cluster::stutter().weak_fairness(()))
+}
+
+#[verifier(external_body)]
+pub proof fn next_with_wf_is_stable(cluster: Cluster)
+    ensures valid(stable(next_with_wf(cluster)));
+
 // This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
 // We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
 //
 // The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
 // init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
-pub open spec fn invariants(cluster: Cluster) -> TempPred<ClusterState> {
-    next_with_wf().and(derived_invariants_since_beginning(cluster))
+pub open spec fn invariants(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    next_with_wf().and(derived_invariants_since_beginning(spec, vrs, cluster, controller_id))
 }
 
-pub proof fn invariants_is_stable(cluster: Cluster)
-    ensures valid(stable(invariants(cluster))),
+pub proof fn invariants_is_stable(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants(spec, vrs, cluster, controller_id))),
 {
-    next_with_wf_is_stable();
-    derived_invariants_since_beginning_is_stable(cluster);
+    next_with_wf_is_stable(cluster);
+    derived_invariants_since_beginning_is_stable(spec, vrs, cluster, controller_id);
     stable_and_n!(
-        next_with_wf(),
-        derived_invariants_since_beginning(cluster)
+        next_with_wf(cluster),
+        derived_invariants_since_beginning(spec, vrs, cluster, controller_id)
     );
 }
 
