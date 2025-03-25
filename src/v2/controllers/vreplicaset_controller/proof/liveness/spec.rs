@@ -1,11 +1,14 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{
-    api_server::{state_machine::*, types::*},
-    cluster::*,
-    controller::types::*,
-    message::*,
-    proof::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as
+use crate::kubernetes_cluster::{
+    spec::{
+        api_server::{state_machine::*, types::*},
+        cluster::*,
+        controller::types::*,
+        message::*
+    },
+    proof::*,
 };
+
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
@@ -63,7 +66,7 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView) -> TempPred<C
 }
 
 #[verifier(external_body)]
-pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VReplicaSetView, cluster: Cluster, controller_id: int, cr: T, i: nat)
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VReplicaSetView, cluster: Cluster, controller_id: int, cr: CustomResourceView, i: nat)
     requires 1 <= i <= 7,
     ensures spec_before_phase_n(i, vrs).entails(true_pred().leads_to(invariants_since_phase_n(i, vrs))),
 {
@@ -88,20 +91,41 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VRep
         } else if i == 3 {
             Cluster::lemma_eventually_always_every_create_request_is_well_formed(spec, cluster, controller_id);
             Cluster::lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(spec, cluster, controller_id);
-            Cluster::lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, conatroller_id);
+            Cluster::lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id);
             
         } else if i == 4 {
             Cluster::lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(spec, vrs, cluster, controller_id);
-            Cluster::lemma_eventually_always_every_create_matching_pod_request_implies_at_after_create_pod_step(spec, vrs, cluster, controller_id)
-            Cluster::lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(spec, vrs, cluster, controller_id)
-            Cluster::lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(vrs, cluster, controller_id)
+            Cluster::lemma_eventually_always_every_create_matching_pod_request_implies_at_after_create_pod_step(spec, vrs, cluster, controller_id);
+            Cluster::lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(spec, vrs, cluster, controller_id);
+            Cluster::lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(vrs, cluster, controller_id);
         } else if i == 5 {
-            Cluster::lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, cluster, controller_id)
+            Cluster::lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, cluster, controller_id);
         }
     }
 }
 
-pub open spec fn derived_invariants_since_beginning(cluster: Cluster) -> TempPred<ClusterState> {
+// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
+// We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
+//
+// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
+// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
+pub open spec fn invariants(cluster: Cluster) -> TempPred<ClusterState> {
+    next_with_wf().and(derived_invariants_since_beginning(cluster))
+}
+
+pub proof fn invariants_is_stable(cluster: Cluster)
+    ensures valid(stable(invariants(cluster))),
+{
+    next_with_wf_is_stable();
+    derived_invariants_since_beginning_is_stable(cluster);
+    stable_and_n!(
+        next_with_wf(),
+        derived_invariants_since_beginning(cluster)
+    );
+}
+
+pub open spec fn derived_invariants_since_beginning(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
     always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
     .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
@@ -118,7 +142,10 @@ pub open spec fn derived_invariants_since_beginning(cluster: Cluster) -> TempPre
     .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
     .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
     .and(always(lift_state(Cluster::etcd_is_finite())))
-    .and(Cluster::lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vrs.object_ref()))
+    .and(cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vrs.object_ref()))
 }
 
+#[verifier(external_body)]
+pub proof fn derived_invariants_since_beginning_is_stable(cluster: Cluster)
+    ensures valid(stable(derived_invariants_since_beginning(cluster)));
 }
