@@ -178,6 +178,15 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VRep
     }
 }
 
+#[verifier(external_body)]
+pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    ensures
+        valid(stable(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id))),
+        valid(stable(invariants(vrs, cluster, controller_id))),
+        forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id))),
+{
+}
+
 pub open spec fn next_with_wf(cluster: Cluster) -> TempPred<ClusterState> {
     always(lift_action(cluster.next()))
     .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
