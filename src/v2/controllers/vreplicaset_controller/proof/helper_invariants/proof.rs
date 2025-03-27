@@ -969,7 +969,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
         spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id))))),
 {
     let requirements = |key: ObjectRef, s: ClusterState| {
@@ -1061,7 +1060,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
         &&& no_pending_update_or_update_status_request_on_pods()(s)
         &&& every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) ==> Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)(s, s_prime) by {
@@ -1401,8 +1399,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         lift_state(Cluster::etcd_is_finite()),
         lifted_vrs_non_interference_property_action(cluster, controller_id),
         lift_state(no_pending_update_or_update_status_request_on_pods()),
-        lift_state(every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id))
+        lift_state(every_create_request_is_well_formed(cluster, controller_id))
     );
 
     cluster.lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(spec, controller_id, requirements);

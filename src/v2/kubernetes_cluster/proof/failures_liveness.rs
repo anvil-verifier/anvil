@@ -12,15 +12,14 @@ pub open spec fn crash_disabled(controller_id: int) -> StatePred<ClusterState> {
 
 pub proof fn lemma_true_leads_to_crash_always_disabled(self, spec: TempPred<ClusterState>, controller_id: int)
     requires
-        spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
+        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
         spec.entails(self.disable_crash().weak_fairness(controller_id)),
         self.controller_models.contains_key(controller_id)
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::crash_disabled(controller_id))))),
 {
     let true_state = |s: ClusterState| true;
     self.disable_crash().wf1(controller_id, spec, self.next(), true_state, Self::crash_disabled(controller_id));
-    self.lemma_always_there_is_the_controller_state(spec, controller_id);
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::there_is_the_controller_state(controller_id)(s)

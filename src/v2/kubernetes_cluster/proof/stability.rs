@@ -44,6 +44,36 @@ pub proof fn tla_forall_controller_next_weak_fairness_is_stable(
     always_p_is_stable(tla_forall(split_always));
 }
 
+// Prove weak_fairness for schedule_controller_reconcile is stable.
+pub proof fn tla_forall_schedule_controller_reconcile_weak_fairness_is_stable(
+    self, controller_id: int
+)
+    ensures
+        valid(stable(tla_forall(|i| self.schedule_controller_reconcile().weak_fairness((controller_id, i))))),
+{
+    let split_always = |i| {
+        always(lift_state(self.schedule_controller_reconcile().pre((controller_id, i))))
+            .implies(eventually(lift_action(self.schedule_controller_reconcile().forward((controller_id, i)))))
+    };
+    tla_forall_always_equality_variant(|i| self.schedule_controller_reconcile().weak_fairness((controller_id, i)), split_always);
+    always_p_is_stable(tla_forall(split_always));
+}
+
+// Prove weak_fairness for external_next is stable.
+pub proof fn tla_forall_external_next_weak_fairness_is_stable(
+    self, controller_id: int
+)
+    ensures
+        valid(stable(tla_forall(|i| self.external_next().weak_fairness((controller_id, i))))),
+{
+    let split_always = |i| {
+        always(lift_state(self.external_next().pre((controller_id, i))))
+            .implies(eventually(lift_action(self.external_next().forward((controller_id, i)))))
+    };
+    tla_forall_always_equality_variant(|i| self.external_next().weak_fairness((controller_id, i)), split_always);
+    always_p_is_stable(tla_forall(split_always));
+}
+
 }
 
 }
