@@ -197,7 +197,7 @@ pub proof fn invariants_since_phase_vii_is_stable(vrs: VReplicaSetView, cluster:
     always_p_is_stable(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)));
 }
 
-pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(vrs: VReplicaSetView, provided_spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, i: nat)
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, i: nat)
     requires 
         1 <= i <= 7,
         // The vrs type is installed in the cluster.
@@ -445,5 +445,16 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))
     );
 }
+
+#[verifier(external_body)]
+pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    ensures spec.entails(derived_invariants_since_beginning(vrs, cluster, controller_id)),
+{
+}
+//
+// TODO: Prove this.
+//
+// Main body for showing that invariants hold.
+//
 
 }
