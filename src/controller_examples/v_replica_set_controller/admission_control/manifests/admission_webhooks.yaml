@@ -14,9 +14,9 @@ webhooks:
         path: "/validate"
     rules:
       - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["apps"]
+        apiGroups: ["anvil.dev"]
         apiVersions: ["v1"]
-        resources: ["replicasets"]
+        resources: ["vreplicasets"]
     failurePolicy: Fail
     admissionReviewVersions: ["v1", "v1beta1"]
     sideEffects: None
