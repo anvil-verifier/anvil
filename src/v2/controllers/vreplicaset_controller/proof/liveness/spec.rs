@@ -314,14 +314,9 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
     .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
     .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
-    .and(tla_forall(|input| cluster.restart_controller().weak_fairness(input)))
     .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.drop_req().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.pod_monkey_next().weak_fairness(input)))
-    .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
     .and(cluster.disable_req_drop().weak_fairness(()))
     .and(cluster.disable_pod_monkey().weak_fairness(()))
-    .and(cluster.stutter().weak_fairness(()))
 }
 
 pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
@@ -332,28 +327,18 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.builtin_controllers_next());
     cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
     cluster.tla_forall_schedule_controller_reconcile_weak_fairness_is_stable(controller_id);
-    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.restart_controller());
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.disable_crash());
-    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.drop_req());
-    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.pod_monkey_next());
-    cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
     Cluster::action_weak_fairness_is_stable(cluster.disable_req_drop());
     Cluster::action_weak_fairness_is_stable(cluster.disable_pod_monkey());
-    Cluster::action_weak_fairness_is_stable(cluster.stutter());
     stable_and_n!(
         always(lift_action(cluster.next())),
         tla_forall(|input| cluster.api_server_next().weak_fairness(input)),
         tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
         tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
         tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
-        tla_forall(|input| cluster.restart_controller().weak_fairness(input)),
         tla_forall(|input| cluster.disable_crash().weak_fairness(input)),
-        tla_forall(|input| cluster.drop_req().weak_fairness(input)),
-        tla_forall(|input| cluster.pod_monkey_next().weak_fairness(input)),
-        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))),
         cluster.disable_req_drop().weak_fairness(()),
-        cluster.disable_pod_monkey().weak_fairness(()),
-        cluster.stutter().weak_fairness(())
+        cluster.disable_pod_monkey().weak_fairness(())
     );
 }
 
