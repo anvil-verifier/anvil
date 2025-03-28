@@ -3,8 +3,8 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*},
-    proof::{liveness::spec::*},
-    trusted::{liveness_theorem::*, spec_types::*},
+    proof::{liveness::{resource_match::*, spec::*}, predicate::*},
+    trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use vstd::prelude::*;
 
@@ -13,21 +13,12 @@ verus! {
 proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
-        // The cluster always takes an action, and each action satisfies weak fairness.
+        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
         spec.entails(next_with_wf(cluster, controller_id)),
         // The vrs type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vrs controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
-        // spec.entails(always(lift_action(cluster.next()))),
-        // // The fairness condition of the controller.
-        // spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-        // // The fairness condition of the API server.
-        // spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-        // // The fairness condition of the built-in controllers.
-        // spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-        // // The fairness condition of scheduling controller reconcile.
-        // spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
@@ -35,7 +26,7 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
         spec.entails(vrs_eventually_stable_reconciliation()),
 {
     assert forall |vrs: VReplicaSetView| #[trigger] spec.entails(vrs_eventually_stable_reconciliation_per_cr(vrs)) by {
-        eventually_stable_reconciliation_holds_per_cr(vrs, spec, cluster, controller_id);
+        eventually_stable_reconciliation_holds_per_cr(spec, vrs, cluster, controller_id);
     };
     spec_entails_tla_forall(spec, |vrs: VReplicaSetView| vrs_eventually_stable_reconciliation_per_cr(vrs));
     assert_by(
@@ -70,10 +61,11 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
     )
 }
 
-proof fn eventually_stable_reconciliation_holds_per_cr(vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
+#[verifier(external_body)]
+proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
-        // The cluster always takes an action, and each action satisfies weak fairness.
+        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
         spec.entails(next_with_wf(cluster, controller_id)),
         // The vrs type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -86,54 +78,213 @@ proof fn eventually_stable_reconciliation_holds_per_cr(vrs: VReplicaSetView, spe
         spec.entails(vrs_eventually_stable_reconciliation_per_cr(vrs)),
 {
     assumption_and_invariants_of_all_phases_is_stable(vrs, cluster, controller_id);
-    lemma_true_leads_to_always_current_state_matches(vrs, spec, cluster, controller_id);
-    reveal_with_fuel(spec_before_phase_n, 6);
+    lemma_true_leads_to_always_current_state_matches(spec, vrs, cluster, controller_id);
+    reveal_with_fuel(spec_before_phase_n, 8);
     
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(5, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(4, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(3, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(2, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(1, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(7, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(5, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(4, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(3, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(2, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(1, spec, vrs, cluster, controller_id);
 
     let assumption = always(lift_state(Cluster::desired_state_is(vrs)));
+    // TODO: rethink this a bit.
     unpack_conditions_from_spec(invariants(vrs, cluster, controller_id), assumption, true_pred(), always(lift_state(current_state_matches(vrs))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
+    assert_by(spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)).entails(invariants(vrs, cluster, controller_id)), {
+        assert(spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)).entails(derived_invariants_since_beginning(vrs, cluster, controller_id)));
+        assert(spec.entails(next_with_wf(cluster, controller_id)));
+        entails_and_different_temp(
+            spec, derived_invariants_since_beginning(vrs, cluster, controller_id),
+            next_with_wf(cluster, controller_id), true_pred(),
+        );
+        temp_pred_equality(next_with_wf(cluster, controller_id), next_with_wf(cluster, controller_id).and(true_pred()));
+        assert(spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)).entails(next_with_wf(cluster, controller_id)));
+        entails_and_temp(
+            spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)),
+            next_with_wf(cluster, controller_id),
+            derived_invariants_since_beginning(vrs, cluster, controller_id)
+        );
+    });
     entails_trans(
         spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)), invariants(vrs, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches(vrs))))
     );
-
-    assume(false);
+    spec_entails_all_invariants(spec, vrs, cluster, controller_id);
+    simplify_predicate(spec, derived_invariants_since_beginning(vrs, cluster, controller_id));
 }
 
 #[verifier(external_body)]
-proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
-        1 <= i <= 5,
+        1 <= i <= 7,
         valid(stable(spec_before_phase_n(i, vrs, cluster, controller_id))),
-        spec_before_phase_n(i + 1, vrs, cluster, controller_id).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs)))))
-    ensures spec_before_phase_n(i, vrs, cluster, controller_id).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
+        spec.and(spec_before_phase_n(i + 1, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs)))))
+    ensures spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
 }
 
-#[verifier(external_body)]
-proof fn lemma_true_leads_to_always_current_state_matches(vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int) 
+proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) 
     requires
-        spec.entails(lift_state(cluster.init())),
-        // The cluster always takes an action, and each action satisfies weak fairness.
-        spec.entails(next_with_wf(cluster, controller_id)),
+        provided_spec.entails(lift_state(cluster.init())),
+        // The cluster always takes an action, and the relevant actions satisfy weak fairness.
+        provided_spec.entails(next_with_wf(cluster, controller_id)),
         // The vrs type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vrs controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures
-        assumption_and_invariants_of_all_phases(vrs, cluster, controller_id).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
+        provided_spec.and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
+    let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id));
+    // assert non-interference property on combined spec.
+    assert forall |other_id| 
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))))
+        implies 
+        cluster.controller_models.remove(controller_id).contains_key(other_id) 
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))) by {
+        if cluster.controller_models.remove(controller_id).contains_key(other_id) {
+            assert(provided_spec.entails(always(lift_state(vrs_not_interfered_by(other_id)))));
+            entails_and_different_temp(
+                provided_spec,
+                assumption_and_invariants_of_all_phases(vrs, cluster, controller_id),
+                always(lift_state(vrs_not_interfered_by(other_id))),
+                true_pred()
+            );
+            assert(spec.entails(always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred())));
+            temp_pred_equality(
+                always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred()),
+                always(lift_state(vrs_not_interfered_by(other_id)))
+            );
+        }
+    }
 
+    let reconcile_idle = lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) });
+    let reconcile_scheduled = lift_state(|s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vrs.object_ref())
+    });
+    let at_init = lift_state(no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init));
+    let diff_at_init = |diff| lift_state(
+        |s: ClusterState| {
+            &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
+            &&& num_diff_pods_is(vrs, diff)(s)
+        }
+    );
+
+    // The use of termination property ensures spec |= true ~> reconcile_idle.
+    // TODO: Assume this for a bit, convert back.
+    //terminate::reconcile_eventually_terminates(spec, vrs);
+    assume(
+        spec.entails(tla_forall(|vrs: VReplicaSetView| 
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))
+        ))
+    );
+
+    // Then we can continue to show that spec |= reconcile_idle ~> []current_state_matches(vrs).
+
+    // The following two lemmas show that spec |= reconcile_idle ~> init /\ no_pending_req.
+    lemma_from_reconcile_idle_to_scheduled(spec, vrs, cluster, controller_id);
+    lemma_from_scheduled_to_init_step(spec, vrs, cluster, controller_id);
+
+    // Show that true == exists |diff| num_diff_pods_is(diff).
+    assert_by(true_pred::<ClusterState>() == tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))), {
+        let exists_num_diff_pods_is = tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff)));
+        assert forall |ex: Execution<ClusterState>|
+        true_pred::<ClusterState>().satisfied_by(ex) implies #[trigger] exists_num_diff_pods_is.satisfied_by(ex) by {
+            let s = ex.head();
+            let pods = matching_pods(vrs, s.resources());
+            let diff = pods.len() - vrs.spec.replicas.unwrap_or(0);
+
+            // Instantiate exists statement.
+            assert((|diff| lift_state(num_diff_pods_is(vrs, diff)))(diff).satisfied_by(ex));
+        }
+        assert(valid(true_pred::<ClusterState>().implies(exists_num_diff_pods_is)));
+        temp_pred_equality(true_pred::<ClusterState>(), tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))));
+    });
+
+    // Show that init /\ no_pending_req ~> exists |diff| (num_diff_pods_is(diff) /\ init)
+    assert_by(spec.entails(at_init.leads_to(tla_exists(diff_at_init))), {
+        assert forall |ex: Execution<ClusterState>|
+        at_init.satisfied_by(ex) implies #[trigger] tla_exists(diff_at_init).satisfied_by(ex) by {
+            assert(tla_exists(|diff| lift_state(num_diff_pods_is(vrs, diff))).satisfied_by(ex));
+            let diff = choose |diff| lift_state(#[trigger] num_diff_pods_is(vrs, diff)).satisfied_by(ex);
+            assert(diff_at_init(diff).satisfied_by(ex));
+        }
+        always_implies_to_leads_to(spec, at_init, tla_exists(diff_at_init));
+    });
+
+    // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
+    assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(current_state_matches(vrs)))) by {
+        lemma_from_diff_and_init_to_current_state_matches(vrs, spec, cluster, controller_id, diff);
+    }
+    leads_to_exists_intro(spec, diff_at_init, lift_state(current_state_matches(vrs)));
+
+    // Chain everything together
+    leads_to_trans_n!(
+        spec,
+        true_pred(),
+        reconcile_idle,
+        reconcile_scheduled,
+        at_init,
+        tla_exists(diff_at_init),
+        lift_state(current_state_matches(vrs))
+    );
+
+    // Further prove stability
+    lemma_current_state_matches_is_stable(spec, vrs, true_pred(), cluster, controller_id);
+}
+
+#[verifier(external_body)]
+proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(next_with_wf(cluster, controller_id)),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+    ensures
+        spec.entails(lift_state(|s: ClusterState| { !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) })
+        .leads_to(lift_state(|s: ClusterState| {
+            &&& !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+            &&& s.scheduled_reconciles(controller_id).contains_key(vrs.object_ref())
+        }))),
+{
+}
+
+#[verifier(external_body)]
+proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(next_with_wf(cluster, controller_id)),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+    ensures
+        spec.entails(lift_state(|s: ClusterState| {
+            &&& !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+            &&& s.scheduled_reconciles(controller_id).contains_key(vrs.object_ref())
+        }).leads_to(lift_state(|s: ClusterState| {
+            no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
+        }))),
+{
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_current_state_matches_is_stable(
+    spec: TempPred<ClusterState>, 
+    vrs: VReplicaSetView, 
+    p: TempPred<ClusterState>,
+    cluster: Cluster,
+    controller_id: int
+)
+    requires
+        spec.entails(p.leads_to(lift_state(current_state_matches(vrs)))),
+        spec.entails(always(lift_action(cluster.next()))),
+    ensures
+        spec.entails(p.leads_to(always(lift_state(current_state_matches(vrs))))),
+{
 }
 
 }
