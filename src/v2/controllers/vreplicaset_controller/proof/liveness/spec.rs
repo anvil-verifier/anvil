@@ -188,13 +188,13 @@ pub proof fn invariants_since_phase_vi_is_stable(vrs: VReplicaSetView, cluster: 
 
 pub open spec fn invariants_since_phase_vii(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))
+    always(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))
 }
 
 pub proof fn invariants_since_phase_vii_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_vii(vrs, cluster, controller_id))),
 {
-    always_p_is_stable(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)));
+    always_p_is_stable(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)));
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, i: nat)
@@ -268,12 +268,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))),
             vrs
         );
-        always_tla_forall_apply(
-            spec,
-            |vrs: VReplicaSetView|
-                lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-            vrs
-        );
         if i == 2 {
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, vrs);
         } else if i == 3 {
@@ -303,7 +297,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
             );
         } else if i == 7 {
-            lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(spec, vrs, cluster, controller_id);
+            lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(spec, vrs, cluster, controller_id);
         }
     }
 }
@@ -383,6 +377,7 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
     .and(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))))
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))))
+    .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
@@ -407,6 +402,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
     always_p_is_stable(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)));
+    always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)));
 
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
@@ -427,7 +423,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         always(lift_state(Cluster::etcd_is_finite())),
         always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
-        always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))
+        always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))),
+        always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)))
     );
 }
 
@@ -464,6 +461,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     //cluster.lemma_always_there_is_no_request_msg_to_external(spec, controller_id);
     assume(spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))));
+    assume(spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)))));
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -484,7 +482,8 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
         lift_state(Cluster::etcd_is_finite()),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))
+        lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))
     );
 }
 }
