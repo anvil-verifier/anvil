@@ -2538,5 +2538,35 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
     );
 }
 
+proof fn lemma_always_vrs_in_etcd_does_not_have_deletion_timestamp(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+ensures
+    spec.entails(always(lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)))),
+{
+    assert(forall |s: ClusterState| #[trigger] Cluster::desired_state_is(vrs)(s) ==> vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)(s));
+    always_weaken(
+        spec,
+        lift_state(Cluster::desired_state_is(vrs)),
+        lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id))
+    );
+}
 
+#[verifier(external_body)]
+proof fn lemma_always_vrs_in_schedule_does_not_have_deletion_timestamp(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+ensures
+    spec.entails(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)))),
+{
+    
+}
 }

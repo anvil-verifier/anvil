@@ -429,14 +429,15 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
 }
 
 pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.controller_models.contains_key(controller_id),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     ensures spec.entails(derived_invariants_since_beginning(vrs, cluster, controller_id)),
 {
-    assume(spec.entails(lift_state(cluster.init())));
-    assume(spec.entails(always(lift_action(cluster.next()))));
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    assume(cluster.controller_models.contains_key(controller_id));
-    assume(cluster.type_is_installed_in_cluster::<VReplicaSetView>());
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
@@ -444,12 +445,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
     assume(spec.entails(always(lift_state(#[trigger] vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))));
-    // by {
-    //    let invariant = vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id);
-    //    assert(forall |s, s_prime| invariant(s) && #[trigger] cluster.next()(s, s_prime) ==> invariant(s_prime));
-    //    init_invariant(spec, cluster.init(), cluster.next(), invariant);
-    //}
-    //cluster.lemma_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, controller_id);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
@@ -459,7 +454,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_etcd_is_finite(spec);
     cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vrs.object_ref());
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    //cluster.lemma_always_there_is_no_request_msg_to_external(spec, controller_id);
     assume(spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))));
     assume(spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)))));
     entails_always_and_n!(
