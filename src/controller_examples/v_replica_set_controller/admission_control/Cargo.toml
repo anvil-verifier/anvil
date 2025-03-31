@@ -3,10 +3,6 @@ name = "admission_control"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "admission_control"
-path = "src/admission.rs"
-
 [dependencies]
 kube = { version = "0.98.0", features = ["runtime", "derive", "admission"] }
 k8s-openapi = { version = "0.24.0", features = ["latest"] }

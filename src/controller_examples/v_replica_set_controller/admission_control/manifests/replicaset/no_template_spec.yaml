@@ -1,5 +1,5 @@
-apiVersion: apps/v1
-kind: ReplicaSet
+apiVersion: anvil.dev/v1
+kind: VReplicaSet
 metadata:
   name: no-template-spec-reject
 spec:
