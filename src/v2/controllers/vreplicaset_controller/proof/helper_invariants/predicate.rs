@@ -361,7 +361,7 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
 pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp (
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
-    |s: ClusterState| {
+    |s: ClusterState| s.resources().contains_key(vrs.object_ref()) ==> {
         &&& s.resources()[vrs.object_ref()].metadata.deletion_timestamp.is_None()
         &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
     }
