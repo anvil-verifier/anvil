@@ -6,9 +6,9 @@ use crate::kubernetes_api_objects::exec::{
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vreplicaset_controller::trusted::spec_types;
+use crate::vstd_ext::string_map::StringMap;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
-
 verus! {
 
 #[verifier(external_body)]
@@ -118,6 +118,42 @@ impl VReplicaSetSpec {
             Some(t) => Some(PodTemplateSpec::from_kube(t.clone())),
             None => None
         }
+    }
+
+    pub fn state_validation(&self) -> bool {
+        
+        // replicas exists and non-negative
+        if let Some(replicas) = self.replicas() {
+            if replicas < 0 {
+                return false;
+            }
+        }
+
+        // Check if selector's match_labels exist and are non-empty
+        if let Some(match_labels) = self.selector().match_labels() {
+            if match_labels.len() <= 0 {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        // template, metadata, and spec exist
+        if let Some(template) = self.template() {
+            if template.metadata().is_none() || template.spec().is_none() {
+                return false;
+            }
+            
+            // Map::empty() did not compile
+            if !self.selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+                return false;
+            }
+
+        } else {
+            return false;
+        }
+    
+        true
     }
 }
 
