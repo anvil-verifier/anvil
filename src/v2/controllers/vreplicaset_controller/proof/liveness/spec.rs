@@ -303,6 +303,22 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
     }
 }
 
+pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    next_with_wf(cluster, controller_id)
+    .and(always(lifted_vrs_non_interference_property(cluster, controller_id)))
+}
+
+pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
+    ensures valid(stable(stable_spec(cluster, controller_id))),
+{
+    next_with_wf_is_stable(cluster, controller_id);
+    always_p_is_stable(lifted_vrs_non_interference_property(cluster, controller_id));
+    stable_and_n!(
+        next_with_wf(cluster, controller_id),
+        always(lifted_vrs_non_interference_property(cluster, controller_id))
+    );
+}
+
 pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     always(lift_action(cluster.next()))
     .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
