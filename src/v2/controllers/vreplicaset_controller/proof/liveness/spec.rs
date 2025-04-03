@@ -252,11 +252,11 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
         // PROVE THEIR EQUIVALENCE
-        assume(
-            spec.entails(tla_forall(|key| 
-                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
-            ))
-        );
+        // assume(
+        //     spec.entails(tla_forall(|key| 
+        //         true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
+        //     ))
+        // );
         use_tla_forall(
             spec,
             |vrs: VReplicaSetView| 

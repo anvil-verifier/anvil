@@ -964,7 +964,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
+        spec.entails(tla_forall(|vrs: VReplicaSetView| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
         spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
@@ -1032,6 +1032,9 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
             }
         }
     };
+
+    // Technical side-condition: prove two forms of termination property are equivalent
+    helper_lemmas::termination_property_for_all_vrs_is_equivalent_to_termination_property_for_all_keys(controller_id);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -1441,7 +1444,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
+        spec.entails(tla_forall(|vrs: VReplicaSetView| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
         spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
@@ -1510,6 +1513,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
             }
         }
     };
+
+    // Technical side-condition: prove two forms of termination property are equivalent
+    helper_lemmas::termination_property_for_all_vrs_is_equivalent_to_termination_property_for_all_keys(controller_id);
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)

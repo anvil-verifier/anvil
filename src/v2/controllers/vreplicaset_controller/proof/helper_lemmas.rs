@@ -127,6 +127,43 @@ pub proof fn vrs_non_interference_property_equivalent_to_lifted_vrs_non_interfer
     );
 }
 
+#[verifier(external_body)]
+pub proof fn termination_property_for_all_vrs_is_equivalent_to_termination_property_for_all_keys(controller_id: int)
+    ensures
+        tla_forall(|vrs: VReplicaSetView| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))))
+        == tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))
+{
+    // comments indicate my approximate progress
+    // let p = tla_forall(|vrs: VReplicaSetView| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))));
+    // let q = tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))));
+
+    // assert forall |ex| #[trigger] p.satisfied_by(ex) implies q.satisfied_by(ex) by {
+    //     let reconcile_idle = |key| |s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key));
+    //     assert forall |key| p.satisfied_by(ex) 
+    //         implies #[trigger] true_pred().leads_to(lift_state(reconcile_idle(key))).satisfied_by(ex) by {
+    //         assume(false);
+    //     }
+    //     assert(forall |key| #[trigger] true_pred().leads_to(lift_state(reconcile_idle(key))).satisfied_by(ex));
+    //     assert(forall |key| (|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key))) == #[trigger] reconcile_idle(key));
+    //     assert(
+    //         forall |key| {
+    //             let ri_on_key = |s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key));
+    //             #[trigger] true_pred().leads_to(lift_state(ri_on_key)).satisfied_by(ex)
+    //         }
+    //     );
+            
+    //     assert(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key))))).satisfied_by(ex));
+    //     //assume(false);
+    // }
+    // assert forall |ex| #[trigger] q.satisfied_by(ex) implies p.satisfied_by(ex) by {
+    //     assume(false);
+    // }
+    // temp_pred_equality(
+    //     tla_forall(|vrs: VReplicaSetView| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))))),
+    //     tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key))))),
+    // );
+}
+
 // TODO: Prove this lemma.
 // More comments sketching an informal proof in the body.
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
