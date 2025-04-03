@@ -4,7 +4,7 @@ use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    proof::{liveness::{resource_match::*, spec::*}, predicate::*},
+    proof::{helper_lemmas::*, liveness::{resource_match::*, spec::*, terminate}, predicate::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
 };
 use vstd::prelude::*;
@@ -62,7 +62,6 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
     )
 }
 
-#[verifier(external_body)]
 proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -78,9 +77,25 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     ensures
         spec.entails(vrs_eventually_stable_reconciliation_per_cr(vrs)),
 {
+    // There are two specs we wish to deal with: one, `spec`, has `cluster.init()` true,
+    // while the other spec, `stable_spec`, has it false.
+    assume(false);
+    let stable_spec = stable_spec(cluster, controller_id);
+
+    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+        spec, cluster, controller_id
+    );
+    assert(spec.entails(stable_spec));
+    
+    // assert(spec.entails(stable_spec(cluster, controller_id)));
+    // vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    //     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+    // )
+
     assumption_and_invariants_of_all_phases_is_stable(vrs, cluster, controller_id);
     lemma_true_leads_to_always_current_state_matches(spec, vrs, cluster, controller_id);
     reveal_with_fuel(spec_before_phase_n, 8);
+
     
     spec_before_phase_n_entails_true_leads_to_current_state_matches(7, spec, vrs, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(6, spec, vrs, cluster, controller_id);
@@ -114,6 +129,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
         spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)), invariants(vrs, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches(vrs))))
     );
+    //assert(spec.entails(next_with_wf(cluster, )));
     spec_entails_all_invariants(spec, vrs, cluster, controller_id);
     simplify_predicate(spec, derived_invariants_since_beginning(vrs, cluster, controller_id));
 }
@@ -192,19 +208,22 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             &&& num_diff_pods_is(vrs, diff)(s)
         }
     );
+    let stronger_post = |s: ClusterState| {
+        &&& current_state_matches(vrs)(s)
+        &&& at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+    };
 
     // The use of termination property ensures spec |= true ~> reconcile_idle.
-    // TODO: Assume this for a bit, convert back.
-    //terminate::reconcile_eventually_terminates(spec, vrs);
-    assume(
-        spec.entails(tla_forall(|vrs: VReplicaSetView| 
-            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))
-        ))
-    );
+    terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
     use_tla_forall(
         spec,
         |vrs: VReplicaSetView| 
             true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))),
+        vrs
+    );
+    always_tla_forall_apply(
+        spec,
+        |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         vrs
     );
 
@@ -242,10 +261,10 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     });
 
     // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
-    assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(current_state_matches(vrs)))) by {
+    assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(stronger_post))) by {
         lemma_from_diff_and_init_to_current_state_matches(vrs, spec, cluster, controller_id, diff);
     }
-    leads_to_exists_intro(spec, diff_at_init, lift_state(current_state_matches(vrs)));
+    leads_to_exists_intro(spec, diff_at_init, lift_state(stronger_post));
 
     // Chain everything together
     leads_to_trans_n!(
@@ -255,7 +274,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         reconcile_scheduled,
         at_init,
         tla_exists(diff_at_init),
-        lift_state(current_state_matches(vrs))
+        lift_state(stronger_post)
     );
 
     // Further prove stability
