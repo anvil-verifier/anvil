@@ -2513,7 +2513,10 @@ pub proof fn lemma_current_state_matches_is_stable(
     controller_id: int
 )
     requires
-        spec.entails(p.leads_to(lift_state(current_state_matches(vrs)))),
+        spec.entails(p.leads_to(lift_state(|s: ClusterState| {
+            &&& current_state_matches(vrs)(s)
+            &&& at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        }))),
         spec.entails(always(lift_action(cluster.next()))),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
@@ -2527,6 +2530,8 @@ pub proof fn lemma_current_state_matches_is_stable(
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -2547,9 +2552,18 @@ pub proof fn lemma_current_state_matches_is_stable(
     ensures
         spec.entails(p.leads_to(always(lift_state(current_state_matches(vrs))))),
 {
-    let post = |s: ClusterState| {
+    let pre_post = |s: ClusterState| {
         &&& current_state_matches(vrs)(s)
-        &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
+        &&& at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+    };
+    let post = |s: ClusterState| {
+        let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
+        &&& current_state_matches(vrs)(s)
+        &&& { 
+            &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+            &&& triggering_cr.spec() == vrs.spec()
+            &&& triggering_cr.metadata().uid == vrs.metadata().uid
+        } ==> {
             &&& {
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Init)(s)
                 ||| at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s)
@@ -2585,7 +2599,11 @@ pub proof fn lemma_current_state_matches_is_stable(
             }
         }
     };
-    assume(spec.entails(p.leads_to(lift_state(post))));
+    let final_post = current_state_matches(vrs);
+    
+    entails_implies_leads_to(spec, lift_state(pre_post), lift_state(post));
+    leads_to_trans(spec, p, lift_state(pre_post), lift_state(post));
+
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::desired_state_is(vrs)(s)
@@ -2597,6 +2615,8 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& Cluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
+        &&& Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
@@ -2630,6 +2650,8 @@ pub proof fn lemma_current_state_matches_is_stable(
         lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id)),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)),
+        lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
@@ -2939,7 +2961,10 @@ pub proof fn lemma_current_state_matches_is_stable(
                 }
             },
             Step::ControllerStep(input) => {
+                let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
                 if s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                    && triggering_cr.spec() == vrs.spec()
+                    && triggering_cr.metadata().uid == vrs.metadata().uid
                     && input.0 == controller_id
                     && input.2 == Some(vrs.object_ref()) {
                     let resp_msg = input.1.get_Some_0();
@@ -3245,9 +3270,9 @@ pub proof fn lemma_current_state_matches_is_stable(
                             }
                         }
                     }
-                } else {
-                    assume(false);
-                }           
+                } else if !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
+                    // this empty case speeds up verification.
+                }         
             },
             _ => {
                 let new_msgs = s_prime.in_flight().sub(s.in_flight());
@@ -3288,7 +3313,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     }
 
     leads_to_stable(spec, lift_action(stronger_next), p, lift_state(post));
-    assume(false);
+    leads_to_always_enhance(spec, true_pred(), p, lift_state(post), lift_state(final_post));
 }
 
 }
