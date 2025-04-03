@@ -250,13 +250,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vrs))
         );
     } else {
-        //terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        // TODO IMPORTANT REMOVE THIS
-        assume(
-            spec.entails(tla_forall(|vrs: VReplicaSetView| 
-                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))
-            ))
-        );
+        terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
         // PROVE THEIR EQUIVALENCE
         assume(
             spec.entails(tla_forall(|key| 
@@ -328,6 +322,7 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
     .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
     .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
+    .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
     .and(cluster.disable_req_drop().weak_fairness(()))
     .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
@@ -340,6 +335,7 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.builtin_controllers_next());
     cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
     cluster.tla_forall_schedule_controller_reconcile_weak_fairness_is_stable(controller_id);
+    cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
     Cluster::tla_forall_action_weak_fairness_is_stable(cluster.disable_crash());
     Cluster::action_weak_fairness_is_stable(cluster.disable_req_drop());
     Cluster::action_weak_fairness_is_stable(cluster.disable_pod_monkey());
@@ -350,6 +346,7 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
         tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
         tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
         tla_forall(|input| cluster.disable_crash().weak_fairness(input)),
+        tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))),
         cluster.disable_req_drop().weak_fairness(()),
         cluster.disable_pod_monkey().weak_fairness(())
     );
@@ -495,7 +492,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_every_ongoing_reconcile_has_lower_id_than_allocator(spec, controller_id);
     cluster.lemma_always_ongoing_reconciles_is_finite(spec, controller_id);
     cluster.lemma_always_etcd_is_finite(spec);
-    assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))) by {
+    assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, #[trigger] vrs.object_ref())))) by {
         cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vrs.object_ref());
     }
     spec_entails_always_tla_forall(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())));
@@ -504,11 +501,11 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     assume(spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))));
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VReplicaSetReconcileState::marshal_preserves_integrity();
-    assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))) by {
+    assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))) by {
         cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init));
     }
     spec_entails_always_tla_forall(spec, |vrs: VReplicaSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))));
-    assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))))) by {
+    assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))))) by {
         cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods));
     }
     spec_entails_always_tla_forall(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))));
