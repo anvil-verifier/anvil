@@ -207,29 +207,29 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))),
     ensures provided_spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)).entails(true_pred().leads_to(invariants_since_phase_n(i, vrs, cluster, controller_id))),
 {
     let spec = provided_spec.and(spec_before_phase_n(i, vrs, cluster, controller_id));
     // assert non-interference property on combined spec.
     assert forall |other_id| 
         (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))))
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))))
         implies 
         cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))) by {
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
-            assert(provided_spec.entails(always(lift_state(vrs_not_interfered_by(other_id)))));
+            assert(provided_spec.entails(always(lift_state(vrs_not_interfered_by(controller_id, other_id)))));
             entails_and_different_temp(
                 provided_spec,
                 spec_before_phase_n(i, vrs, cluster, controller_id),
-                always(lift_state(vrs_not_interfered_by(other_id))),
+                always(lift_state(vrs_not_interfered_by(controller_id, other_id))),
                 true_pred()
             );
-            assert(spec.entails(always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred())));
+            assert(spec.entails(always(lift_state(vrs_not_interfered_by(controller_id, other_id))).and(true_pred())));
             temp_pred_equality(
-                always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred()),
-                always(lift_state(vrs_not_interfered_by(other_id)))
+                always(lift_state(vrs_not_interfered_by(controller_id, other_id))).and(true_pred()),
+                always(lift_state(vrs_not_interfered_by(controller_id, other_id)))
             );
         }
     }

@@ -34,20 +34,19 @@ pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjec
 }
 
 // TODO: the current not_interfered_by invariant is radically strong. Weaken it later.
-pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState> {
+pub open spec fn vrs_not_interfered_by(controller_id: int, other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
             &&& msg.src == HostId::Controller(other_id)
-        } ==> match msg.content.get_APIRequest_0() {
+        } ==> (msg.dst != HostId::External(controller_id) && match msg.content.get_APIRequest_0() {
             APIRequest::CreateRequest(req) => req.obj.kind != Kind::PodKind,
             APIRequest::UpdateRequest(req) => req.obj.kind != Kind::PodKind,
             APIRequest::UpdateStatusRequest(req) => req.obj.kind != Kind::PodKind,
             APIRequest::DeleteRequest(req) => req.key.kind != Kind::PodKind,
             _ => true,
-        }
+        })
     }
 }
-
 }
