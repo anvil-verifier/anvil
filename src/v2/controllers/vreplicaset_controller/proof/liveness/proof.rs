@@ -367,20 +367,4 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VR
     );
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_current_state_matches_is_stable(
-    spec: TempPred<ClusterState>, 
-    vrs: VReplicaSetView, 
-    p: TempPred<ClusterState>,
-    cluster: Cluster,
-    controller_id: int
-)
-    requires
-        spec.entails(p.leads_to(lift_state(current_state_matches(vrs)))),
-        spec.entails(always(lift_action(cluster.next()))),
-    ensures
-        spec.entails(p.leads_to(always(lift_state(current_state_matches(vrs))))),
-{
-}
-
 }
