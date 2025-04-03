@@ -15,8 +15,9 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{helper_invariants::{predicate::*, proof::*}, helper_lemmas, liveness::*, predicate::*},
+    proof::{helper_invariants::{predicate::*, proof::*}, liveness::*, predicate::*},
 };
+use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
 verus! {
@@ -302,6 +303,66 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
     }
 }
 
+pub proof fn lemma_always_for_init_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
+requires
+    cluster.controller_models.contains_key(controller_id),
+    cluster.state_comes_with_a_pending_request(controller_id, at_step_closure(VReplicaSetRecStepView::Init)),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
+ensures spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, at_step_closure(VReplicaSetRecStepView::Init))))),
+{
+    cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, key, at_step_closure(VReplicaSetRecStepView::Init));
+}
+
+pub proof fn lemma_always_for_after_list_pod_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
+requires
+    cluster.controller_models.contains_key(controller_id),
+    cluster.state_comes_with_a_pending_request(controller_id, at_step_closure(VReplicaSetRecStepView::AfterListPods)),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
+ensures spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, at_step_closure(VReplicaSetRecStepView::AfterListPods))))),
+{
+    cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, key, at_step_closure(VReplicaSetRecStepView::AfterListPods));
+}
+
+pub proof fn lemma_always_for_after_create_pod_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
+requires
+    cluster.controller_models.contains_key(controller_id),
+    cluster.state_comes_with_a_pending_request(controller_id, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+    )),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
+ensures spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, unwrap_local_state_closure(
+    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+))))),
+{
+    cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, key, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+    ));
+}
+
+pub proof fn lemma_always_for_after_delete_pod_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, key: ObjectRef)
+requires
+    cluster.controller_models.contains_key(controller_id),
+    cluster.state_comes_with_a_pending_request(controller_id, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+    )),
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
+ensures spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+    ))))),
+{
+    cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, key, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+    ));
+}
+
 pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     always(lift_action(cluster.next()))
     .and(tla_forall(|input| cluster.api_server_next().weak_fairness(input)))
@@ -378,6 +439,14 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))))
+    .and(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init)))))
+    .and(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods)))))
+    .and(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+    )))))
+    .and(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+    )))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
@@ -403,6 +472,14 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)));
     always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)));
+    always_p_is_stable(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))));
+    always_p_is_stable(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))));
+    always_p_is_stable(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+    ))));
+    always_p_is_stable(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+    ))));
 
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
@@ -424,32 +501,35 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
         always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))),
-        always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)))
+        always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))),
+        always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init)))),
+        always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods)))),
+        always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+        )))),
+        always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+        ))))
     );
 }
 
 pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
     ensures spec.entails(derived_invariants_since_beginning(vrs, cluster, controller_id)),
 {
-    assume(spec.entails(lift_state(cluster.init())));
-    assume(spec.entails(always(lift_action(cluster.next()))));
     cluster.lemma_always_every_in_flight_msg_has_unique_id(spec);
     cluster.lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    assume(cluster.controller_models.contains_key(controller_id));
-    assume(cluster.type_is_installed_in_cluster::<VReplicaSetView>());
     cluster.lemma_always_every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(spec, controller_id);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     cluster.lemma_always_each_builtin_object_in_etcd_is_well_formed(spec);
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(spec);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
-    assume(spec.entails(always(lift_state(#[trigger] vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))));
-    // by {
-    //    let invariant = vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id);
-    //    assert(forall |s, s_prime| invariant(s) && #[trigger] cluster.next()(s, s_prime) ==> invariant(s_prime));
-    //    init_invariant(spec, cluster.init(), cluster.next(), invariant);
-    //}
-    //cluster.lemma_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, controller_id);
+    lemma_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
@@ -459,9 +539,22 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_etcd_is_finite(spec);
     cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vrs.object_ref());
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    //cluster.lemma_always_there_is_no_request_msg_to_external(spec, controller_id);
-    assume(spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))));
-    assume(spec.entails(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)))));
+    // not yet proved
+    cluster.lemma_always_there_is_no_request_msg_to_external(spec, controller_id);
+    cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
+    //cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init));
+    assume(cluster.state_comes_with_a_pending_request(controller_id, at_step_closure(VReplicaSetRecStepView::Init)));
+    assume(cluster.state_comes_with_a_pending_request(controller_id, at_step_closure(VReplicaSetRecStepView::AfterListPods)));
+    assume(cluster.state_comes_with_a_pending_request(controller_id, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+    )));
+    assume(cluster.state_comes_with_a_pending_request(controller_id, unwrap_local_state_closure(
+        |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+    )));
+    lemma_always_for_init_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, cluster, controller_id, vrs.object_ref());
+    lemma_always_for_after_list_pod_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, cluster, controller_id, vrs.object_ref());
+    lemma_always_for_after_create_pod_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, cluster, controller_id, vrs.object_ref());
+    lemma_always_for_after_delete_pod_step_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, cluster, controller_id, vrs.object_ref());
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -483,7 +576,16 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)),
-        lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))
+        //lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
+        lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))),
+        lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))),
+        lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
+        ))),
+        lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
+            |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
+        )))
     );
 }
 }
