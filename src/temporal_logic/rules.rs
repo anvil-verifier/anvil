@@ -538,6 +538,7 @@ pub proof fn tla_forall_apply<T, A>(a_to_p: spec_fn(A) -> TempPred<T>, a: A)
     }
 }
 
+// TODO: rename it to be use_always_tla_forall and add another always_tla_forall_apply
 pub proof fn always_tla_forall_apply<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a: A)
     requires spec.entails(always(tla_forall(a_to_p))),
     ensures spec.entails(always(a_to_p(a))),

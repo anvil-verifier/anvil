@@ -243,6 +243,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 
     // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
     assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(current_state_matches(vrs)))) by {
+        always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
         lemma_from_diff_and_init_to_current_state_matches(vrs, spec, cluster, controller_id, diff);
     }
     leads_to_exists_intro(spec, diff_at_init, lift_state(current_state_matches(vrs)));
