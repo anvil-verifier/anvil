@@ -76,8 +76,43 @@ impl VReplicaSet {
         }
     }
 
-    pub fn state_validation(&self) -> bool {
-        self.spec().state_validation()
+    pub fn state_validation(&self) -> (res: bool) 
+        ensures
+            res == self@.state_validation()
+    {
+        
+        // replicas exists and non-negative
+        if let Some(replicas) = self.spec().replicas() {
+            if replicas < 0 {
+                return false;
+            }
+        }
+
+        // Check if selector's match_labels exist and are non-empty
+        if let Some(match_labels) = self.spec().selector().match_labels() {
+            if match_labels.len() <= 0 {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        // template, metadata, and spec exist
+        if let Some(template) = self.spec().template() {
+            if template.metadata().is_none() || template.spec().is_none() {
+                return false;
+            }
+            
+            // Map::empty() did not compile
+            if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+                return false;
+            }
+
+        } else {
+            return false;
+        }
+    
+        true
     }
 }
 
@@ -122,42 +157,6 @@ impl VReplicaSetSpec {
             Some(t) => Some(PodTemplateSpec::from_kube(t.clone())),
             None => None
         }
-    }
-
-    pub fn state_validation(&self) -> bool {
-        
-        // replicas exists and non-negative
-        if let Some(replicas) = self.replicas() {
-            if replicas < 0 {
-                return false;
-            }
-        }
-
-        // Check if selector's match_labels exist and are non-empty
-        if let Some(match_labels) = self.selector().match_labels() {
-            if match_labels.len() <= 0 {
-                return false;
-            }
-        } else {
-            return false;
-        }
-
-        // template, metadata, and spec exist
-        if let Some(template) = self.template() {
-            if template.metadata().is_none() || template.spec().is_none() {
-                return false;
-            }
-            
-            // Map::empty() did not compile
-            if !self.selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
-                return false;
-            }
-
-        } else {
-            return false;
-        }
-    
-        true
     }
 }
 
