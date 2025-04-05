@@ -11,7 +11,11 @@ pub mod temporal_logic;
 pub mod v_replica_set_controller;
 pub mod vstd_ext;
 
-use crate::v_replica_set_controller::exec::validator::validate_state;
+use crate::v_replica_set_controller::{
+    exec::validator::validate_replicas,
+    trusted::exec_types::VReplicaSet,
+};
+use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -20,18 +24,18 @@ use deps_hack::tokio;
 use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
-
 use deps_hack::kube::core::{
     admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},
-    DynamicObject, ResourceExt,
+    DynamicObject as KubeDynamicObject, ResourceExt,
 };
+use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use deps_hack::tracing::*;
-use deps_hack::warp;
-use deps_hack::warp::{reply, Filter, Reply};
+use deps_hack::warp::*;
+// use deps_hack::warp::{reply, Filter, Reply};
 use std::convert::Infallible;
 
 pub async fn validate_handler(
-    body: AdmissionReview<DynamicObject>,
+    body: AdmissionReview<KubeDynamicObject>,
 ) -> Result<impl Reply, Infallible> {
     let req: AdmissionRequest<_> = match body.try_into() {
         Ok(req) => req,
@@ -46,16 +50,31 @@ pub async fn validate_handler(
     let mut res = AdmissionResponse::from(&req);
     if let Some(obj) = req.object {
         let name = obj.name_any();
-        res = match validate_state(res.clone(), &obj) {
-            Ok(res) => {
-                info!("accepted: {:?} on resource {}", req.operation, name);
-                res
-            }
-            Err(err) => {
-                warn!("denied: {:?} on {} ({})", req.operation, name, err);
-                res.deny(err.to_string())
-            }
-        };
+        let local_obj = DynamicObject::from_kube(obj.clone());
+
+        // Use unmarshal function to convert DynamicObject to VReplicaSet
+        let vrs_result = VReplicaSet::unmarshal(local_obj);
+        if let Ok(vrs) = vrs_result {
+            res = match validate_replicas(&vrs) {
+                Ok(()) => {
+                    info!("accepted: {:?} on resource {}", req.operation, name);
+                    res
+                }
+                Err(err) => {
+                    warn!("denied: {:?} on {} ({})", req.operation, name, err);
+                    res.deny(err.to_string())
+                }
+            };
+        } else {
+            warn!("Failed to unmarshal VReplicaSet");
+            res = res.deny("Failed to unmarshal VReplicaSet".to_string());
+        }
+        // if vrs_result.is_err() {
+        //     res.deny("Failed to unmarshal VReplicaSet".to_string())
+        // }
+
+        // // Get the VReplicaSet instance and its spec
+        // let vrs = vrs_result.unwrap();
     };
     Ok(reply::json(&res.into_review()))
 }
@@ -64,12 +83,12 @@ pub async fn validate_handler(
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let routes = warp::path("validate")
-        .and(warp::body::json())
+    let routes = path("validate")
+        .and(body::json())
         .and_then(validate_handler)
-        .with(warp::trace::request());
+        .with(trace::request());
 
-    warp::serve(warp::post().and(routes))
+    serve(post().and(routes))
         .tls()
         .cert_path("/certs/tls.crt")
         .key_path("/certs/tls.key")
