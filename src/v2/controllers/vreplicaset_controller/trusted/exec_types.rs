@@ -75,6 +75,10 @@ impl VReplicaSet {
             Err(())
         }
     }
+
+    pub fn state_validation(&self) -> bool {
+        self.spec().state_validation()
+    }
 }
 
 #[verifier(external)]
