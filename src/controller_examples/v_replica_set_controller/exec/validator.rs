@@ -1,8 +1,9 @@
-use deps_hack::kube::core::{admission::AdmissionResponse, DynamicObject as KubeDynamicObject};
-use std::error::Error;
-use crate::v_replica_set_controller::trusted::exec_types::{VReplicaSet, VReplicaSetSpec};
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
 use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
+use crate::v_replica_set_controller::trusted::exec_types::{VReplicaSet, VReplicaSetSpec};
+use deps_hack::kube::core::{admission::AdmissionResponse, DynamicObject as KubeDynamicObject};
+use std::error::Error;
+
 
 pub fn validate_state(
     res: AdmissionResponse,
@@ -12,17 +13,17 @@ pub fn validate_state(
     // We assume there's a method to convert from KubeDynamicObject to local DynamicObject
     // According to the unmarshal function in exec_types.rs, it expects a DynamicObject type
     let local_obj = DynamicObject::from_kube(obj.clone());
-    
+
     // Use unmarshal function to convert DynamicObject to VReplicaSet
     let vrs_result = VReplicaSet::unmarshal(local_obj);
     if vrs_result.is_err() {
         return Err("Failed to unmarshal VReplicaSet".into());
     }
-    
+
     // Get the VReplicaSet instance and its spec
     let vrs = vrs_result.unwrap();
     let spec = vrs.spec();
-    
+
     // Validation part remains unchanged
     validate_replicas(&spec)?;
     validate_selector(&spec)?;
@@ -56,30 +57,32 @@ pub fn validate_template(spec: &VReplicaSetSpec) -> Result<(), Box<dyn Error>> {
     if template_opt.is_none() {
         return Err("Missing 'spec.template' field".into());
     }
-    
+
     let template = template_opt.unwrap();
     if template.metadata().is_none() {
         return Err("Missing 'spec.template.metadata' field".into());
     }
-    
+
     if template.spec().is_none() {
         return Err("Missing 'spec.template.spec' field".into());
     }
-    
+
     let selector = spec.selector();
-    let match_labels = selector.match_labels().ok_or("Missing 'spec.selector.matchLabels'")?;
+    let match_labels = selector
+        .match_labels()
+        .ok_or("Missing 'spec.selector.matchLabels'")?;
     let tmpl_meta_opt = template.metadata();
     let tmpl_labels_opt = tmpl_meta_opt.unwrap().labels();
-    
+
     if tmpl_labels_opt.is_none() {
         return Err("Invalid 'spec.template.metadata.labels': must be an object".into());
     }
-    
+
     let tmpl_labels = tmpl_labels_opt.unwrap();
-    
+
     // From the error messages, StringMap doesn't have an iter() method and doesn't support indexing
     // We need to use the get method, and we need to provide a reference to String
-    
+
     // Get all keys from match_labels
     // Assuming StringMap has a keys() method
     for key in match_labels.keys() {
@@ -90,16 +93,16 @@ pub fn validate_template(spec: &VReplicaSetSpec) -> Result<(), Box<dyn Error>> {
                     return Err(format!(
                         "Selector matchLabel '{}' value mismatch in template labels",
                         key
-                    ).into());
+                    )
+                    .into());
                 }
             } else {
-                return Err(format!(
-                    "Selector matchLabel '{}' not found in template labels",
-                    key
-                ).into());
+                return Err(
+                    format!("Selector matchLabel '{}' not found in template labels", key).into(),
+                );
             }
         }
     }
-    
+
     Ok(())
 }
