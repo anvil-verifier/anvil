@@ -21,12 +21,18 @@ pub fn validate_state(
     
     // Get the VReplicaSet instance and its spec
     let vrs = vrs_result.unwrap();
+
+    // Call executable state validation
+    let state_valid = vrs.state_validation();
     let spec = vrs.spec();
     
+    if state_valid == false {
+        return Err("Invalid VReplicaset".into())
+    }
     // Validation part remains unchanged
-    validate_replicas(&spec)?;
-    validate_selector(&spec)?;
-    validate_template(&spec)?;
+    // validate_replicas(&spec)?;
+    // validate_selector(&spec)?;
+    // validate_template(&spec)?;
     Ok(res)
 }
 
