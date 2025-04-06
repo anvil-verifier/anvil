@@ -16,8 +16,8 @@ pub mod vreplicaset_controller;
 pub mod vstd_ext;
 
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
-use crate::v_replica_set_controller::{
-    exec::validator::validate_replicas, trusted::exec_types::VReplicaSet,
+use crate::vreplicaset_controller::{
+    exec::validator::validate_state, trusted::exec_types::VReplicaSet,
 };
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
@@ -58,7 +58,7 @@ pub async fn validate_handler(
         // Use unmarshal function to convert DynamicObject to VReplicaSet
         let vrs_result = VReplicaSet::unmarshal(local_obj);
         if let Ok(vrs) = vrs_result {
-            res = match validate_replicas(&vrs) {
+            res = match validate_state(&vrs) {
                 Ok(()) => {
                     info!("accepted: {:?} on resource {}", req.operation, name);
                     res
