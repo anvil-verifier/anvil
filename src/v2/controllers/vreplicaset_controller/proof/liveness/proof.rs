@@ -22,7 +22,7 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures
         spec.entails(vrs_eventually_stable_reconciliation()),
 {
@@ -73,7 +73,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures
         spec.entails(vrs_eventually_stable_reconciliation_per_cr(vrs)),
 {
@@ -143,7 +143,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
     reveal_with_fuel(spec_before_phase_n, 8);
@@ -168,7 +168,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))),
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
     ensures
         provided_spec.and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
 {
@@ -176,22 +176,22 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     // assert non-interference property on combined spec.
     assert forall |other_id| 
         (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))))
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))))
         implies 
         cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(controller_id, other_id)))) by {
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
-            assert(provided_spec.entails(always(lift_state(vrs_not_interfered_by(controller_id, other_id)))));
+            assert(provided_spec.entails(always(lift_state(vrs_not_interfered_by(other_id)))));
             entails_and_different_temp(
                 provided_spec,
                 assumption_and_invariants_of_all_phases(vrs, cluster, controller_id),
-                always(lift_state(vrs_not_interfered_by(controller_id, other_id))),
+                always(lift_state(vrs_not_interfered_by(other_id))),
                 true_pred()
             );
-            assert(spec.entails(always(lift_state(vrs_not_interfered_by(controller_id, other_id))).and(true_pred())));
+            assert(spec.entails(always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred())));
             temp_pred_equality(
-                always(lift_state(vrs_not_interfered_by(controller_id, other_id))).and(true_pred()),
-                always(lift_state(vrs_not_interfered_by(controller_id, other_id)))
+                always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred()),
+                always(lift_state(vrs_not_interfered_by(other_id)))
             );
         }
     }
@@ -262,6 +262,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 
     // The following shows exists |diff| (num_diff_pods_is(diff) /\ init) ~> current_state_matches(vrs)
     assert forall |diff| #[trigger] spec.entails(diff_at_init(diff).leads_to(lift_state(stronger_post))) by {
+        always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
         lemma_from_diff_and_init_to_current_state_matches(vrs, spec, cluster, controller_id, diff);
     }
     leads_to_exists_intro(spec, diff_at_init, lift_state(stronger_post));
