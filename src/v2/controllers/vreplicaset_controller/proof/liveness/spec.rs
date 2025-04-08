@@ -15,7 +15,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::{helper_invariants::{predicate::*, proof::*}, liveness::*, predicate::*},
+    proof::{helper_invariants::{predicate::*, proof::*}, helper_lemmas::*, liveness::*, predicate::*},
 };
 use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
@@ -61,6 +61,38 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetV
         invariants_since_phase_vi(vrs, cluster, controller_id),
         invariants_since_phase_vii(vrs, cluster, controller_id)
     );
+}
+
+pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    requires
+        valid(stable(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id))),
+        valid(stable(invariants(vrs, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id))),
+    ensures
+        valid(stable(stable_spec(cluster, controller_id))),
+        valid(stable(stable_spec(cluster, controller_id).and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id)))),
+        valid(stable(stable_spec(cluster, controller_id).and(invariants(vrs, cluster, controller_id)))),
+        forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vrs, cluster, controller_id)))),
+{
+    stable_spec_is_stable(cluster, controller_id);
+    stable_and_n!(
+        stable_spec(cluster, controller_id),
+        assumption_and_invariants_of_all_phases(vrs, cluster, controller_id)
+    );
+    stable_and_n!(
+        stable_spec(cluster, controller_id),
+        invariants(vrs, cluster, controller_id)
+    );
+    assert forall |i: nat| 
+        0 <= i <= 7 
+        && valid(stable(stable_spec(cluster, controller_id)))
+        && forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id)))
+        implies valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vrs, cluster, controller_id)))) by {
+        stable_and_n!(
+            stable_spec(cluster, controller_id),
+            spec_before_phase_n(i, vrs, cluster, controller_id)
+        );
+    }
 }
 
 pub open spec fn invariants_since_phase_n(n: nat, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
@@ -251,12 +283,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         );
     } else {
         terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        // PROVE THEIR EQUIVALENCE
-        // assume(
-        //     spec.entails(tla_forall(|key| 
-        //         true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
-        //     ))
-        // );
         use_tla_forall(
             spec,
             |key: ObjectRef|
@@ -312,6 +338,65 @@ pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     stable_and_n!(
         next_with_wf(cluster, controller_id),
         always(lifted_vrs_non_interference_property(cluster, controller_id))
+    );
+}
+
+pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(next_with_wf(cluster, controller_id)),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+    ensures 
+        spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id))
+            .entails(stable_spec(cluster, controller_id).and(invariants(vrs, cluster, controller_id))),
+{
+    let pre = spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id));
+
+    // Proof of stable_spec
+    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+        spec,
+        cluster,
+        controller_id
+    );
+    entails_and_n!(
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lifted_vrs_non_interference_property(cluster, controller_id))
+    );
+    
+    entails_and_different_temp(
+        spec,
+        derived_invariants_since_beginning(vrs, cluster, controller_id),
+        stable_spec(cluster, controller_id),
+        true_pred()
+    );
+    temp_pred_equality(
+        stable_spec(cluster, controller_id).and(true_pred()),
+        stable_spec(cluster, controller_id)
+    );
+
+    // Proof of invariants
+    entails_and_different_temp(
+        spec,
+        derived_invariants_since_beginning(vrs, cluster, controller_id),
+        next_with_wf(cluster, controller_id),
+        true_pred()
+    );
+    temp_pred_equality(
+        next_with_wf(cluster, controller_id).and(true_pred()),
+        next_with_wf(cluster, controller_id)
+    );
+    entails_and_n!(
+        pre,
+        next_with_wf(cluster, controller_id),
+        derived_invariants_since_beginning(vrs, cluster, controller_id)
+    );
+    
+    entails_and_n!(
+        pre,
+        stable_spec(cluster, controller_id),
+        invariants(vrs, cluster, controller_id)
     );
 }
 

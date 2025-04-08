@@ -79,66 +79,54 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
 {
     // There are two specs we wish to deal with: one, `spec`, has `cluster.init()` true,
     // while the other spec, `stable_spec`, has it false.
-    assume(false);
     let stable_spec = stable_spec(cluster, controller_id);
-
-    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
-        spec, cluster, controller_id
-    );
-    assert(spec.entails(stable_spec));
-    
-    // assert(spec.entails(stable_spec(cluster, controller_id)));
-    // vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
-    //     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
-    // )
-
     assumption_and_invariants_of_all_phases_is_stable(vrs, cluster, controller_id);
-    lemma_true_leads_to_always_current_state_matches(spec, vrs, cluster, controller_id);
+    stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(vrs, cluster, controller_id);
+    
+    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+        stable_spec, cluster, controller_id
+    );
+    lemma_true_leads_to_always_current_state_matches(stable_spec, vrs, cluster, controller_id);
     reveal_with_fuel(spec_before_phase_n, 8);
 
-    
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(7, spec, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, spec, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(5, spec, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(4, spec, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(3, spec, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(2, spec, vrs, cluster, controller_id);
-    spec_before_phase_n_entails_true_leads_to_current_state_matches(1, spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(7, stable_spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, stable_spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(5, stable_spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(4, stable_spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(3, stable_spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(2, stable_spec, vrs, cluster, controller_id);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(1, stable_spec, vrs, cluster, controller_id);
 
     let assumption = always(lift_state(Cluster::desired_state_is(vrs)));
-    // TODO: rethink this a bit.
-    unpack_conditions_from_spec(invariants(vrs, cluster, controller_id), assumption, true_pred(), always(lift_state(current_state_matches(vrs))));
+    temp_pred_equality(
+        stable_spec.and(spec_before_phase_n(1, vrs, cluster, controller_id)),
+        stable_spec.and(invariants(vrs, cluster, controller_id))
+            .and(assumption)
+    );
+    unpack_conditions_from_spec(stable_spec.and(invariants(vrs, cluster, controller_id)), assumption, true_pred(), always(lift_state(current_state_matches(vrs))));
     temp_pred_equality(true_pred().and(assumption), assumption);
 
-    assert_by(spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)).entails(invariants(vrs, cluster, controller_id)), {
-        assert(spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)).entails(derived_invariants_since_beginning(vrs, cluster, controller_id)));
-        assert(spec.entails(next_with_wf(cluster, controller_id)));
-        entails_and_different_temp(
-            spec, derived_invariants_since_beginning(vrs, cluster, controller_id),
-            next_with_wf(cluster, controller_id), true_pred(),
-        );
-        temp_pred_equality(next_with_wf(cluster, controller_id), next_with_wf(cluster, controller_id).and(true_pred()));
-        assert(spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)).entails(next_with_wf(cluster, controller_id)));
-        entails_and_temp(
-            spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)),
-            next_with_wf(cluster, controller_id),
-            derived_invariants_since_beginning(vrs, cluster, controller_id)
-        );
-    });
+    // Annoying non-automatic unpacking of the spec for one precondition.
     entails_trans(
-        spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)), invariants(vrs, cluster, controller_id),
-        always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches(vrs))))
+        spec,
+        next_with_wf(cluster, controller_id),
+        always(lift_action(cluster.next()))
     );
-    //assert(spec.entails(next_with_wf(cluster, )));
     spec_entails_all_invariants(spec, vrs, cluster, controller_id);
     simplify_predicate(spec, derived_invariants_since_beginning(vrs, cluster, controller_id));
+
+    spec_and_invariants_entails_stable_spec_and_invariants(spec, vrs, cluster, controller_id);
+    entails_trans(
+        spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id)), 
+        stable_spec.and(invariants(vrs, cluster, controller_id)),
+        always(lift_state(Cluster::desired_state_is(vrs))).leads_to(always(lift_state(current_state_matches(vrs))))
+    );
 }
 
-#[verifier(external_body)]
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
         1 <= i <= 7,
-        valid(stable(spec_before_phase_n(i, vrs, cluster, controller_id))),
+        valid(stable(spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)))),
         spec.and(spec_before_phase_n(i + 1, vrs, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vrs))))),
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
@@ -153,13 +141,16 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
             .and(invariants_since_phase_n(i, vrs, cluster, controller_id))
     );
     spec_of_previous_phases_entails_eventually_new_invariants(spec, vrs, cluster, controller_id, i);
-    //unpack_conditions_from_spec(spec.entails(spec_before_phase_n), )
-    assume(false);
+    unpack_conditions_from_spec(spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)), invariants_since_phase_n(i, vrs, cluster, controller_id), true_pred(), always(lift_state(current_state_matches(vrs))));
+    temp_pred_equality(
+        true_pred().and(invariants_since_phase_n(i, vrs, cluster, controller_id)),
+        invariants_since_phase_n(i, vrs, cluster, controller_id)
+    );
+    leads_to_trans(spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)), true_pred(), invariants_since_phase_n(i, vrs, cluster, controller_id), always(lift_state(current_state_matches(vrs))));
 }
 
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) 
     requires
-        provided_spec.entails(lift_state(cluster.init())),
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
         provided_spec.entails(next_with_wf(cluster, controller_id)),
         // The vrs type is installed in the cluster.
