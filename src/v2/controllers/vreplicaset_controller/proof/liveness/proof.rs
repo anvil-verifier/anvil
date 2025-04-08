@@ -217,9 +217,9 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
     use_tla_forall(
         spec,
-        |vrs: VReplicaSetView| 
-            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))),
-        vrs
+        |key: ObjectRef| 
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
+        vrs.object_ref()
     );
     always_tla_forall_apply(
         spec,

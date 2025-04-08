@@ -259,9 +259,9 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         // );
         use_tla_forall(
             spec,
-            |vrs: VReplicaSetView| 
-                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))),
-            vrs
+            |key: ObjectRef|
+                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
+            vrs.object_ref()
         );
         if i == 2 {
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, vrs);
@@ -389,6 +389,7 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
     .and(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))))
     .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
     .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
+    .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id))))
     .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))))
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
@@ -422,6 +423,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
     always_p_is_stable(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)));
     always_p_is_stable(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)));
     always_p_is_stable(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)));
+    always_p_is_stable(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)));
     always_p_is_stable(lift_state(Cluster::etcd_is_finite()));
     always_p_is_stable(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
@@ -452,6 +454,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))),
         always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))),
         always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))),
+        always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id))),
         always(lift_state(Cluster::etcd_is_finite())),
         always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
@@ -491,6 +494,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec, controller_id);
     cluster.lemma_always_every_ongoing_reconcile_has_lower_id_than_allocator(spec, controller_id);
     cluster.lemma_always_ongoing_reconciles_is_finite(spec, controller_id);
+    cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_etcd_is_finite(spec);
     assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, #[trigger] vrs.object_ref())))) by {
         cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vrs.object_ref());
@@ -542,6 +546,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)),
         lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)),
+        lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
         tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
