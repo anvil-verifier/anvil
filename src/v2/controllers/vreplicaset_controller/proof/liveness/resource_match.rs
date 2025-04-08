@@ -1151,7 +1151,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
     );
 }
 
-
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, 
     req_msg: Message, diff: int
@@ -3062,6 +3062,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>, 
     vrs: VReplicaSetView, 
