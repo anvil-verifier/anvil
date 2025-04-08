@@ -49,13 +49,13 @@ pub proof fn reconcile_eventually_terminates(
                 at_step_closure(VReplicaSetRecStepView::Init)
             ))))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterListPods)
             ))))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -63,7 +63,7 @@ pub proof fn reconcile_eventually_terminates(
                 )
             ))))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -103,13 +103,13 @@ pub proof fn reconcile_eventually_terminates(
                 at_step_closure(VReplicaSetRecStepView::Init)
             )))))
         &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterListPods)
             )))))
         &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -117,7 +117,7 @@ pub proof fn reconcile_eventually_terminates(
                 )
             )))))
         &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -166,7 +166,7 @@ pub proof fn reconcile_eventually_terminates(
 
         assert forall |vrs: VReplicaSetView| #![auto]
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterListPods)
@@ -174,7 +174,7 @@ pub proof fn reconcile_eventually_terminates(
             always_tla_forall_apply::<ClusterState, VReplicaSetView>(
                 spec,
                 |vrs: VReplicaSetView| 
-                lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                     controller_id,
                     vrs.object_ref(),
                     at_step_closure(VReplicaSetRecStepView::AfterListPods)
@@ -185,7 +185,7 @@ pub proof fn reconcile_eventually_terminates(
 
         assert forall |vrs: VReplicaSetView| #![auto]
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -195,7 +195,7 @@ pub proof fn reconcile_eventually_terminates(
             always_tla_forall_apply::<ClusterState, VReplicaSetView>(
                 spec,
                 |vrs: VReplicaSetView| 
-                lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                     controller_id,
                     vrs.object_ref(),
                     unwrap_local_state_closure(
@@ -208,7 +208,7 @@ pub proof fn reconcile_eventually_terminates(
 
         assert forall |vrs: VReplicaSetView| #![auto]
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -218,7 +218,7 @@ pub proof fn reconcile_eventually_terminates(
             always_tla_forall_apply::<ClusterState, VReplicaSetView>(
                 spec,
                 |vrs: VReplicaSetView| 
-                lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                     controller_id,
                     vrs.object_ref(),
                     unwrap_local_state_closure(
@@ -323,13 +323,13 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
                 at_step_closure(VReplicaSetRecStepView::Init)
             )))),
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterListPods)
             )))),
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -337,7 +337,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
                 )
             )))),
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -534,7 +534,7 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         // Makes sure there is a message in flight, so we can progress to the next state.
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -542,7 +542,7 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
                 )
             )))),
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -639,7 +639,7 @@ pub proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -725,7 +725,7 @@ pub proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -811,7 +811,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         // Make sure there is a message in flight, so we can progress to the next state.
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterListPods)
@@ -993,7 +993,7 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
 )
     requires
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -1002,20 +1002,20 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_create_to
             )))),
     ensures
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
             )))),
 {
-    let pre = lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id,
         vrs.object_ref(),
         unwrap_local_state_closure(
             |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
         )
     ));
-    let post = lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id,
         vrs.object_ref(),
         at_step_closure(VReplicaSetRecStepView::AfterCreatePod(n))
@@ -1036,7 +1036,7 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
 )
     requires
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 unwrap_local_state_closure(
@@ -1045,20 +1045,20 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
             )))),
     ensures
         spec.entails(always(
-            lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
                 controller_id,
                 vrs.object_ref(),
                 at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))
             )))),
 {
-    let pre = lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+    let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id,
         vrs.object_ref(),
         unwrap_local_state_closure(
             |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
         )
     ));
-    let post = lift_state(cluster.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+    let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         controller_id,
         vrs.object_ref(),
         at_step_closure(VReplicaSetRecStepView::AfterDeletePod(n))

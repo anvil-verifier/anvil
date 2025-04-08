@@ -100,9 +100,9 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
-    ensures spec.entails(always(lift_state(self.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, state)))),
+    ensures spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, state)))),
 {
-    let invariant = self.pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, state);
+    let invariant = Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, key, state);
     let stronger_next = |s, s_prime| {
         &&& self.next()(s, s_prime)
         &&& Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)(s)
