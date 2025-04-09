@@ -420,10 +420,11 @@ jobs:
           rustup toolchain install
       - name: Deploy vreplicaset admission controller
         run: |
+          cp docker/controller/Dockerfile .
+          docker build -t local/vreplicaset-admission-controller:v0.1.0 --build-arg APP=v2_vreplicaset_admission .
           kind create cluster --config deploy/kind.yaml
+          kind load docker-image local/vreplicaset-admission-controller:v0.1.0
           cd src/controller_examples/v_replica_set_controller/admission_control
-          docker build -t admission_controller:v1 -f docker/Dockerfile .
-          kind load docker-image admission_controller:v1
           ./setup.sh
       - name: Run vreplicaset e2e tests for admission
         run: cd src/controller_examples/v_replica_set_controller/admission_control/tests && cargo run
