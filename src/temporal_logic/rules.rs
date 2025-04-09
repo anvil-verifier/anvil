@@ -1099,7 +1099,7 @@ pub proof fn unpack_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
 //     spec |= p /\ c ~> q
 // post:
 //     spec /\ []c |= p ~> q
-proof fn pack_conditions_to_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn pack_conditions_to_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires spec.entails(p.and(c).leads_to(q)),
     ensures spec.and(always(c)).entails(p.leads_to(q)),
 {

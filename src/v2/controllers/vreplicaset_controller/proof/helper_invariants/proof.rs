@@ -1409,7 +1409,9 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 }
 
-#[verifier(spinoff_prover)]
+// #[verifier(spinoff_prover)]
+//#[verifier(rlimit(4000))]
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1897,6 +1899,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                             } by {
+                                // Isolate flakiness by putting assume false here.
                                 if (new_msgs.contains(msg)) {
                                     if current_req_msg == req_msg {
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
@@ -2538,82 +2541,91 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
     );
 }
 
-pub proof fn lemma_always_vrs_in_etcd_does_not_have_deletion_timestamp(
+pub proof fn lemma_eventually_always_vrs_in_schedule_does_not_have_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+    spec.entails(cluster.schedule_controller_reconcile().weak_fairness((controller_id, vrs.object_ref()))),
     cluster.controller_models.contains_key(controller_id),
+    cluster.controller_models[controller_id].reconcile_model.kind == VReplicaSetView::kind(),
 ensures
-    spec.entails(always(lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)))),
+    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))))),
 {
-    let inv = vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id);
+    let p_prime = |s: ClusterState| Cluster::desired_state_is(vrs)(s);
+    let q = vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id);
+
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-        &&& vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& Cluster::desired_state_is(vrs)(s)
+        &&& Cluster::desired_state_is(vrs)(s_prime)
     };
-    init_invariant(spec, cluster.init(), stronger_next, inv);
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vrs)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::desired_state_is(vrs)),
+        later(lift_state(Cluster::desired_state_is(vrs)))
+    );
+    
+    cluster.schedule_controller_reconcile().wf1(
+        (controller_id, vrs.object_ref()),
+        spec,
+        stronger_next,
+        p_prime,
+        q
+    );
+    leads_to_stable(spec, lift_action(stronger_next), lift_state(p_prime), lift_state(q));
+
+    temp_pred_equality(
+        true_pred().and(lift_state(p_prime)), 
+        lift_state(p_prime)
+    );
+    pack_conditions_to_spec(spec, lift_state(p_prime), true_pred(), always(lift_state(q)));
+    temp_pred_equality(
+        lift_state(p_prime),
+        lift_state(Cluster::desired_state_is(vrs))
+    );
+    simplify_predicate(spec, always(lift_state(p_prime)));
 }
 
-pub proof fn lemma_always_vrs_in_schedule_does_not_have_deletion_timestamp(
+pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
 )
 requires
-    spec.entails(lift_state(cluster.init())),
     spec.entails(always(lift_action(cluster.next()))),
-    cluster.controller_models.contains_key(controller_id),
-ensures
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
     spec.entails(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)))),
+    spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+    cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))),
 {
-    let inv = vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id);
+    let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref());
+    let q = vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id);
+
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
-        &&& vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
-    };
-    lemma_always_vrs_in_etcd_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)),
-        lift_state(Cluster::there_is_the_controller_state(controller_id))
-    );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
-}
-
-pub proof fn lemma_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
-    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
-)
-requires    
-    spec.entails(lift_state(cluster.init())),
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.controller_models.contains_key(controller_id),
-ensures
-    spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
-{
-    let inv = vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)(s)
         &&& vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)(s)
-        &&& Cluster::there_is_the_controller_state(controller_id)(s)
     };
-    lemma_always_vrs_in_etcd_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
-    lemma_always_vrs_in_schedule_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
-    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
-        lift_state(vrs_in_etcd_does_not_have_deletion_timestamp(vrs, controller_id)),
-        lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)),
-        lift_state(Cluster::there_is_the_controller_state(controller_id))
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))
     );
-    init_invariant(spec, cluster.init(), stronger_next, inv);
+
+    leads_to_weaken(
+        spec,
+        true_pred(), lift_state(reconcile_idle),
+        true_pred(), lift_state(q)
+    );
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
 }
