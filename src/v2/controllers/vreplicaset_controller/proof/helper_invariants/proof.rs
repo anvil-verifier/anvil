@@ -1897,7 +1897,6 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                             } by {
-                                // Isolate flakiness by putting assume false here.
                                 if (new_msgs.contains(msg)) {
                                     if current_req_msg == req_msg {
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
@@ -2630,5 +2629,51 @@ ensures
     );
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
+
+pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+ensures
+    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+{
+    let inv = Cluster::there_is_no_request_msg_to_external_from_controller(controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(
+        spec, controller_id
+    );
+
+    VReplicaSetReconcileState::marshal_preserves_integrity();
+    VReplicaSetView::marshal_preserves_integrity();
+
+    assert forall|s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) 
+        implies inv(s_prime) by {
+        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+        assert forall |msg: Message| 
+            inv(s)
+            && s_prime.in_flight().contains(msg)
+            && #[trigger] msg.src == HostId::Controller(controller_id)
+            implies msg.dst != HostId::External(controller_id) by {
+            if new_msgs.contains(msg) {
+                // Empty if statement required to trigger quantifiers.
+            }
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+}
+
 
 }
