@@ -456,22 +456,14 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
 pub open spec fn there_is_no_request_msg_to_external(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message|
-            #[trigger] s.in_flight().contains(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] msg.src == HostId::Controller(controller_id)
             ==> msg.dst != HostId::External(controller_id)
     }
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_always_there_is_no_request_msg_to_external(self, spec: TempPred<ClusterState>, controller_id: int)
-    requires
-        self.controller_models.contains_key(controller_id),
-        spec.entails(always(lift_action(self.next()))),
-        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-    ensures spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external(controller_id))));
-
 // this has dependency over the "no request message to external not owned by the controller",
 // which will be completed in another PR on controller state machine
-#[verifier(external_body)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
