@@ -934,6 +934,7 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
     );
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )

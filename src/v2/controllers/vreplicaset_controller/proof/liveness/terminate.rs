@@ -30,7 +30,7 @@ pub proof fn reconcile_eventually_terminates(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -84,7 +84,7 @@ pub proof fn reconcile_eventually_terminates(
         &&& spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)))
         &&& spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))))
         &&& spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i))))
-        &&& spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))))
+        &&& spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
         &&& spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
         &&& spec.entails(always(lift_state(Cluster::crash_disabled(controller_id))))
         &&& spec.entails(always(lift_state(Cluster::req_drop_disabled())))
@@ -305,7 +305,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -521,7 +521,7 @@ pub proof fn lemma_from_after_create_or_delete_pod_rank_zero_to_reconcile_idle(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -627,7 +627,7 @@ pub proof fn lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -713,7 +713,7 @@ pub proof fn lemma_from_after_delete_pod_rank_n_to_delete_pod_rank_n_minus_1(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
@@ -798,7 +798,7 @@ pub proof fn lemma_from_after_list_pods_to_reconcile_idle(
         spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
         spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
