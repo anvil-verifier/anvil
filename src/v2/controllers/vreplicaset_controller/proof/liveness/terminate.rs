@@ -40,6 +40,7 @@ pub proof fn reconcile_eventually_terminates(
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
             lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
@@ -70,64 +71,16 @@ pub proof fn reconcile_eventually_terminates(
                 )
             ))))),
     ensures
-        spec.entails(tla_forall(|vrs: VReplicaSetView| 
-            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))
+        spec.entails(tla_forall(|key: ObjectRef| 
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
         )),
 {
-    let pre = {
-        &&& spec.entails(always(lift_action(cluster.next())))
-        &&& cluster.type_is_installed_in_cluster::<VReplicaSetView>()
-        &&& cluster.controller_models.contains_pair(controller_id, vrs_controller_model())
-        &&& spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
-        &&& spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))
-        &&& spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i)))
-        &&& spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i))))
-        &&& spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i))))
-        &&& spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))))
-        &&& spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
-        &&& spec.entails(always(lift_state(Cluster::crash_disabled(controller_id))))
-        &&& spec.entails(always(lift_state(Cluster::req_drop_disabled())))
-        &&& spec.entails(always(lift_state(Cluster::pod_monkey_disabled())))
-        &&& spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id())))
-        &&& spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
-        &&& spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
-        &&& spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())))
-        &&& spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id))))
-        &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))))
-        &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-                controller_id,
-                vrs.object_ref(),
-                at_step_closure(VReplicaSetRecStepView::Init)
-            )))))
-        &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id,
-                vrs.object_ref(),
-                at_step_closure(VReplicaSetRecStepView::AfterListPods)
-            )))))
-        &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id,
-                vrs.object_ref(),
-                unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterCreatePod()
-                )
-            )))))
-        &&& spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
-            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id,
-                vrs.object_ref(),
-                unwrap_local_state_closure(
-                    |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
-                )
-            )))))
-    };
+    let post = |key: ObjectRef|
+        true_pred().leads_to(lift_state(
+            |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
+        ));
 
-    assert forall |vrs: VReplicaSetView| #![trigger vrs.object_ref()] pre implies 
-        spec.entails(true_pred().leads_to(
-            lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()))
-        )) by {
+    assert forall |key: ObjectRef| spec.entails(#[trigger] post(key)) by {
         
         // Unwrap tla_foralls for all relevant preconditions.
         assert forall |vrs: VReplicaSetView| #![auto]
@@ -227,15 +180,66 @@ pub proof fn reconcile_eventually_terminates(
         }
         // End unwrapping foralls.
 
-        reconcile_eventually_terminates_on_vrs_object(
-            spec, vrs, cluster, controller_id
-        );
+        if key.kind == VReplicaSetView::kind() {
+            let vrs = make_vrs(); // havoc for VReplicaSetView
+            let vrs_with_key = VReplicaSetView {
+                metadata: ObjectMetaView {
+                    name: Some(key.name),
+                    namespace: Some(key.namespace),
+                    ..vrs.metadata
+                },
+                ..vrs
+            };
+            assert(key == vrs_with_key.object_ref());
+            
+            reconcile_eventually_terminates_on_vrs_object(
+                spec, vrs_with_key, cluster, controller_id
+            );
+        } else {
+            always_weaken(
+                spec, 
+                lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VReplicaSetView>(controller_id)),
+                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
+            );
+
+
+            let terminated_vrs = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
+            assert forall |ex|
+                spec.entails(always(lift_state(terminated_vrs)))
+                implies 
+                    #[trigger] spec.implies(always(
+                        true_pred().and(true_pred()).and(true_pred())
+                        .implies(later(lift_state(terminated_vrs)))
+                    )).satisfied_by(ex) by {
+                if spec.satisfied_by(ex) {
+                    assert forall |n: nat| 
+                        spec.satisfied_by(ex)
+                        && spec.entails(always(lift_state(terminated_vrs)))
+                        implies 
+                            #[trigger] true_pred().and(true_pred()).and(true_pred())
+                            .implies(later(lift_state(terminated_vrs))).satisfied_by(ex.suffix(n)) by {
+                        assert(valid(spec.implies(always(lift_state(terminated_vrs)))));
+                        assert(spec.implies(always(lift_state(terminated_vrs))).satisfied_by(ex));
+                        assert(always(lift_state(terminated_vrs)).satisfied_by(ex));
+                        assert(lift_state(terminated_vrs).satisfied_by(ex.suffix(n + 1)));
+                    }
+                }
+            }
+
+            entails_implies_leads_to(spec, always(true_pred()), true_pred());
+            wf1_variant_temp(
+                spec,
+                true_pred(),
+                true_pred(),
+                true_pred(),
+                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)),
+            );
+        }
     }
 
     spec_entails_tla_forall(
         spec,
-        |vrs: VReplicaSetView| 
-        true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))
+        post
     );
 }
 
@@ -1019,5 +1023,8 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
         }
     }
 }
+
+// Havoc function for VReplicaSetView.
+spec fn make_vrs() -> VReplicaSetView;
 
 }
