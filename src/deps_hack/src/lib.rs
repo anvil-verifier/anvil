@@ -18,6 +18,7 @@ pub use tokio;
 pub use tracing;
 pub use tracing_subscriber;
 pub use zookeeper;
+pub use warp;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
