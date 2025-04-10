@@ -436,9 +436,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         lift_state(FBCCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-//#[verifier(spinoff_prover)]
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_no_update_status_request_msg_in_flight(spec: TempPred<FBCCluster>, sub_resource: SubResource, fbc: FluentBitConfigView)
     requires
         spec.entails(lift_state(FBCCluster::init())),

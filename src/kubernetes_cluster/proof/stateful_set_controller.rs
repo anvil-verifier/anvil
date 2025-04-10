@@ -352,8 +352,6 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
     }
 }
 
-// TODO: broken by pod_event; Xudong will fix it later
-#[verifier(external_body)]
 proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num_decreases(
     spec: TempPred<Self>, key: ObjectRef, cm_key: ObjectRef, make_fn: spec_fn(rv: StringView) -> StatefulSetView, msg_num: nat, msg: MsgType<E>
 )
