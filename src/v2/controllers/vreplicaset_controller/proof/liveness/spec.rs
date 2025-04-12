@@ -487,7 +487,6 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
     .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())))
     .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id))))
     .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
-    //.and(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))
     .and(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())))
     .and(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id))))
     .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))))
@@ -498,7 +497,7 @@ pub open spec fn derived_invariants_since_beginning(vrs: VReplicaSetView, cluste
     .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))))
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
-    .and(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))))
+    .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))))
     .and(always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))))
     .and(always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))))))
@@ -521,7 +520,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
     always_p_is_stable(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()));
     always_p_is_stable(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)));
     always_p_is_stable(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()));
-    //always_p_is_stable(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)));
     always_p_is_stable(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()));
     always_p_is_stable(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)));
     always_p_is_stable(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)));
@@ -532,7 +530,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
     always_p_is_stable(lift_state(Cluster::etcd_is_finite()));
     always_p_is_stable(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
-    always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)));
+    always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)));
     always_p_is_stable(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init)))));
     always_p_is_stable(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods)))));
@@ -552,7 +550,6 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>())),
         always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id))),
         always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
-        //always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))),
         always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())),
         always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id))),
         always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))),
@@ -563,7 +560,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vrs: VReplicaSetView, 
         always(lift_state(Cluster::etcd_is_finite())),
         always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
-        always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id))),
+        always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
         always(lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id))),
         always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))),
         always(tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods))))),
@@ -592,7 +589,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(spec);
     cluster.lemma_always_cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_every_in_flight_req_msg_from_controller_has_valid_controller_id(spec);
-    //lemma_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(spec, controller_id);
     cluster.lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec, controller_id);
@@ -606,8 +602,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     }
     spec_entails_always_tla_forall(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())));
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    // TODO: not yet proved, should be included in non-interference property and (further) constrained in state_machine.rs
-    assume(spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)))));
+    lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     VReplicaSetReconcileState::marshal_preserves_integrity();
     assert forall |vrs: VReplicaSetView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init))))) by {
@@ -644,7 +639,6 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        //lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id)),
@@ -655,7 +649,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
         lift_state(Cluster::etcd_is_finite()),
         tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref()))),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        lift_state(Cluster::there_is_no_request_msg_to_external(controller_id)),
+        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
         tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::Init)))),
         tla_forall(|vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), at_step_closure(VReplicaSetRecStepView::AfterListPods)))),

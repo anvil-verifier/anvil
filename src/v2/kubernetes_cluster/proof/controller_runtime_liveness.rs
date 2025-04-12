@@ -247,6 +247,8 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(sel
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
         spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+        // If external model does not exist, then the controller never sends it request messages.
+        self.controller_models[controller_id].external_model.is_None() ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         // If external model exists, then the external state always exists.
         self.controller_models[controller_id].external_model.is_Some() ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         // Current state is not the terminating state (done or error), meaning that reconcile will continue.
@@ -280,6 +282,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
         spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+        self.controller_models[controller_id].external_model.is_None() ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         self.controller_models[controller_id].external_model.is_Some() ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
         forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] next_state((self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
@@ -369,6 +372,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(self, 
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, cr.object_ref())))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+        self.controller_models[controller_id].external_model.is_None() ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         self.controller_models[controller_id].external_model.is_Some() ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
         forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] next_state((self.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0),
@@ -453,25 +457,17 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     );
 }
 
-pub open spec fn there_is_no_request_msg_to_external(controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message|
-            #[trigger] s.in_flight().contains(msg)
+            s.in_flight().contains(msg)
+            && #[trigger] msg.src == HostId::Controller(controller_id)
             ==> msg.dst != HostId::External(controller_id)
     }
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_always_there_is_no_request_msg_to_external(self, spec: TempPred<ClusterState>, controller_id: int)
-    requires
-        self.controller_models.contains_key(controller_id),
-        spec.entails(always(lift_action(self.next()))),
-        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
-    ensures spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external(controller_id))));
-
 // this has dependency over the "no request message to external not owned by the controller",
 // which will be completed in another PR on controller state machine
-#[verifier(external_body)]
 pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_matches_pending_req_at_some_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -483,6 +479,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
         spec.entails(always(lift_state(Self::req_drop_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+        self.controller_models[controller_id].external_model.is_None() ==> spec.entails(always(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)))),
         self.controller_models[controller_id].external_model.is_Some() ==> spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
         forall |s| (#[trigger] current_state(s)) ==> !(self.reconcile_model(controller_id).error)(s) && !(self.reconcile_model(controller_id).done)(s),
     ensures spec.entails(lift_state(Self::pending_req_in_flight_at_reconcile_state(controller_id, cr.object_ref(), current_state)).leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(controller_id, cr.object_ref(), current_state)))),
@@ -572,8 +569,8 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
                 };
                 self.lemma_pre_leads_to_post_by_external(spec, controller_id, input, stronger_next_for_external, ExternalStep::HandleExternalRequest, pre_1, post_1);
             } else {
-                temp_pred_equality(lift_state(pre_1).and(lift_state(Self::there_is_no_request_msg_to_external(controller_id))), false_pred());
-                vacuous_leads_to(spec, lift_state(pre_1), lift_state(post_1), lift_state(Self::there_is_no_request_msg_to_external(controller_id)));
+                temp_pred_equality(lift_state(pre_1).and(lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id))), false_pred());
+                vacuous_leads_to(spec, lift_state(pre_1), lift_state(post_1), lift_state(Self::there_is_no_request_msg_to_external_from_controller(controller_id)));
                 assert(spec.entails(lift_state(pre_1).leads_to(lift_state(post_1))));
             }
         } else {
