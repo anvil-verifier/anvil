@@ -49,5 +49,4 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
         }
     }
 }
-
 }

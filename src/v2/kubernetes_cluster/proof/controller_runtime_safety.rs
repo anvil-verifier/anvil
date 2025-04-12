@@ -400,6 +400,81 @@ pub proof fn lemma_always_cr_states_are_unmarshallable<R, S, K, EReq, EResp>(
     init_invariant(spec, self.init(), stronger_next, inv);
 }
 
+pub open spec fn cr_objects_in_schedule_have_correct_kind<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
+            ==> key.kind == T::kind()
+        }
+    }
+}
+
+pub proof fn lemma_always_cr_objects_in_schedule_have_correct_kind<T: CustomResourceView>(
+    self, spec: TempPred<ClusterState>, controller_id: int
+)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.type_is_installed_in_cluster::<T>(),
+        self.controller_models.contains_key(controller_id), 
+        self.controller_models[controller_id].reconcile_model.kind == T::kind(),
+    ensures spec.entails(always(lift_state(Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id)))),
+{
+    let inv = Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+
+    T::marshal_preserves_integrity();
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, self.init(), stronger_next, inv);
+}
+
+pub open spec fn cr_objects_in_reconcile_have_correct_kind<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef| {
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            ==> key.kind == T::kind()
+        }
+    }
+}
+
+pub proof fn lemma_always_cr_objects_in_reconcile_have_correct_kind<T: CustomResourceView>(
+    self, spec: TempPred<ClusterState>, controller_id: int
+)
+    requires
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        self.type_is_installed_in_cluster::<T>(),
+        self.controller_models.contains_key(controller_id), 
+        self.controller_models[controller_id].reconcile_model.kind == T::kind(),
+    ensures spec.entails(always(lift_state(Self::cr_objects_in_reconcile_have_correct_kind::<T>(controller_id)))),
+{
+    let inv = Self::cr_objects_in_reconcile_have_correct_kind::<T>(controller_id);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& self.next()(s, s_prime)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+        &&& Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id)(s)
+    };
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    self.lemma_always_cr_objects_in_schedule_have_correct_kind::<T>(spec, controller_id);
+
+    T::marshal_preserves_integrity();
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(self.next()),
+        lift_state(Self::there_is_the_controller_state(controller_id)),
+        lift_state(Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id))
+    );
+    init_invariant(spec, self.init(), stronger_next, inv);
+} 
+
 pub open spec fn ongoing_reconciles_is_finite(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.ongoing_reconciles(controller_id).dom().finite()

@@ -964,12 +964,11 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
+        spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
         spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
         spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id))))),
 {
     let requirements = |key: ObjectRef, s: ClusterState| {
@@ -1061,7 +1060,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
         &&& no_pending_update_or_update_status_request_on_pods()(s)
         &&& every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) ==> Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)(s, s_prime) by {
@@ -1401,8 +1399,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         lift_state(Cluster::etcd_is_finite()),
         lifted_vrs_non_interference_property_action(cluster, controller_id),
         lift_state(no_pending_update_or_update_status_request_on_pods()),
-        lift_state(every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id))
+        lift_state(every_create_request_is_well_formed(cluster, controller_id))
     );
 
     cluster.lemma_true_leads_to_always_every_ongoing_reconcile_satisfies(spec, controller_id, requirements);
@@ -1412,7 +1409,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 }
 
-#[verifier(rlimit(4000))]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1444,7 +1440,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id)))),
         spec.entails(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id)))),
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(tla_forall(|key| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
+        spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
         spec.entails(always(lift_state(no_pending_update_or_update_status_request_on_pods()))),
@@ -1994,25 +1990,30 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                 seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
                                                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
                                                 finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
-                                                assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
-                                                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                                                    &&& #[trigger] resp_objs.contains(obj)
-                                                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
-                                                    &&& s.resources().values().filter(selector).contains(obj)
-                                                    &&& s.resources().values().contains(obj)
-                                                    &&& #[trigger] owned_selector_match_is(vrs, obj)
-                                                    &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                                                });
-                                                assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
-                                                    &&& s.resources().values().contains(obj)
-                                                    &&& owned_selector_match_is(vrs, obj)
-                                                    &&& #[trigger] selector(obj)
-                                                    &&& s.resources().values().filter(selector).contains(obj)
-                                                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
-                                                    &&& resp_objs.contains(obj)
-                                                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                                                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
-                                                });
+                                                // Fix to get rid of flaky proof.
+                                                assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)] 
+                                                    resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
+                                                    implies 
+                                                    s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
+                                                    assert(resp_objs.contains(obj));
+                                                    assert(s.resources().values().filter(selector).to_seq().contains(obj));
+                                                    assert(s.resources().values().filter(selector).contains(obj));
+                                                    assert(s.resources().values().contains(obj));
+                                                    assert(owned_selector_match_is(vrs, obj));
+                                                    assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
+                                                }
+                                                assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)] 
+                                                    s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) 
+                                                    implies 
+                                                    resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) by {
+                                                    assert(s.resources().values().contains(obj));
+                                                    assert(selector(obj));
+                                                    assert(s.resources().values().filter(selector).contains(obj));
+                                                    assert(s.resources().values().filter(selector).to_seq().contains(obj));
+                                                    assert(resp_objs.contains(obj));
+                                                    assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
+                                                    assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj));
+                                                }
                                             }
                                         }
                                         
@@ -2541,5 +2542,91 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
     );
 }
 
+pub proof fn lemma_eventually_always_vrs_in_schedule_does_not_have_deletion_timestamp(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
+    spec.entails(cluster.schedule_controller_reconcile().weak_fairness((controller_id, vrs.object_ref()))),
+    cluster.controller_models.contains_key(controller_id),
+    cluster.controller_models[controller_id].reconcile_model.kind == VReplicaSetView::kind(),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))))),
+{
+    let p_prime = |s: ClusterState| Cluster::desired_state_is(vrs)(s);
+    let q = vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& Cluster::desired_state_is(vrs)(s)
+        &&& Cluster::desired_state_is(vrs)(s_prime)
+    };
+    always_to_always_later(spec, lift_state(Cluster::desired_state_is(vrs)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(Cluster::desired_state_is(vrs)),
+        later(lift_state(Cluster::desired_state_is(vrs)))
+    );
+    
+    cluster.schedule_controller_reconcile().wf1(
+        (controller_id, vrs.object_ref()),
+        spec,
+        stronger_next,
+        p_prime,
+        q
+    );
+    leads_to_stable(spec, lift_action(stronger_next), lift_state(p_prime), lift_state(q));
+
+    temp_pred_equality(
+        true_pred().and(lift_state(p_prime)), 
+        lift_state(p_prime)
+    );
+    pack_conditions_to_spec(spec, lift_state(p_prime), true_pred(), always(lift_state(q)));
+    temp_pred_equality(
+        lift_state(p_prime),
+        lift_state(Cluster::desired_state_is(vrs))
+    );
+    simplify_predicate(spec, always(lift_state(p_prime)));
+}
+
+pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
+    spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+    spec.entails(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)))),
+    spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())))),
+    cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
+ensures
+    spec.entails(true_pred().leads_to(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))),
+{
+    let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref());
+    let q = vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id);
+
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))
+    );
+
+    leads_to_weaken(
+        spec,
+        true_pred(), lift_state(reconcile_idle),
+        true_pred(), lift_state(q)
+    );
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
+}
 
 }
