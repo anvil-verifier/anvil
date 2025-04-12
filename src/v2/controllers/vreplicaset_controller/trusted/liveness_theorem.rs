@@ -34,7 +34,6 @@ pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjec
 }
 
 // TODO: the current not_interfered_by invariant is radically strong. Weaken it later.
-// TODO: remove the external requirement and weaken it in state_machine
 pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {

@@ -1896,7 +1896,6 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                             } by {
-                                // Isolate flakiness by putting assume false here.
                                 if (new_msgs.contains(msg)) {
                                     if current_req_msg == req_msg {
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
