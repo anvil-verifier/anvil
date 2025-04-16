@@ -1,9 +1,9 @@
 use crate::kubernetes_api_objects::exec::prelude::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vdeployment_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::trusted::*;
-use vstd::prelude::*;
+use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
+use crate::vdeployment_controller::trusted::{spec_types::*, step::*};
+use vstd::{prelude::*, hash_map::*};
 
 
 verus! {
@@ -11,8 +11,8 @@ verus! {
     pub struct VDeploymentReconciler {}
     
     pub struct VDeploymentReconcileState {
-        pub reconcile_step: VDeploymentRecStepView,
-        pub filtered_pods: Option<Seq<PodView>>,
+        pub reconcile_step: VDeploymentReconcileStepView,
+        pub vrs_pod_map: Option<HashMapWithView<VReplicaSetView, Seq<PodView>>>,
     }
     
     impl Reconciler<VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidERespView> for VDeploymentReconciler {
@@ -35,21 +35,21 @@ verus! {
     
     pub open spec fn reconcile_init_state() -> VDeploymentReconcileState {
         VDeploymentReconcileState {
-            reconcile_step: VDeploymentRecStepView::Init,
+            reconcile_step: VDeploymentReconcileStepView::Init,
             filtered_pods: None,
         }
     }
     
     pub open spec fn reconcile_done(state: VDeploymentReconcileState) -> bool {
         match state.reconcile_step {
-            VDeploymentRecStepView::Done => true,
+            VDeploymentReconcileStepView::Done => true,
             _ => false,
         }
     }
     
     pub open spec fn reconcile_error(state: VDeploymentReconcileState) -> bool {
         match state.reconcile_step {
-            VDeploymentRecStepView::Error => true,
+            VDeploymentReconcileStepView::Error => true,
             _ => false,
         }
     }
@@ -60,7 +60,7 @@ verus! {
     pub open spec fn error_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState)
     {
         VDeploymentReconcileState {
-            reconcile_step: VDeploymentRecStepView::Error,
+            reconcile_step: VDeploymentReconcileStepView::Error,
             ..state
         }
     }
