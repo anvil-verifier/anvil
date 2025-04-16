@@ -984,9 +984,9 @@ pub proof fn tla_forall_a_p_leads_to_q_a_is_stable<T, A>(p: TempPred<T>, a_to_q:
 {
     let target = tla_forall(|a: A| p.leads_to(a_to_q(a)));
     assert forall |ex| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies #[trigger] stable(target).satisfied_by(ex) by {
-        assert forall |i| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies 
+        assert forall |i| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies
                     (target.satisfied_by(ex) ==> #[trigger] target.satisfied_by(ex.suffix(i))) by {
-            assert forall |a: A| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies 
+            assert forall |a: A| (forall |a: A| #[trigger] valid(stable(p.leads_to(a_to_q(a))))) implies
                         (p.leads_to(a_to_q(a)).satisfied_by(ex) ==> #[trigger] p.leads_to(a_to_q(a)).satisfied_by(ex.suffix(i))) by {
                 assert(valid(stable(p.leads_to(a_to_q(a)))));
                 assert(stable(p.leads_to(a_to_q(a))).satisfied_by(ex));
@@ -1892,6 +1892,61 @@ pub proof fn leads_to_by_borrowing_inv<T>(spec: TempPred<T>, p: TempPred<T>, q: 
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
             instantiate_entailed_always(ex, i, spec, inv);
             instantiate_entailed_leads_to(ex, i, spec, p.and(inv), q);
+        }
+    }
+}
+
+// Get a new leads-to condition with an until condition.
+// pre:
+//      spec |= p1 ~> q1
+//      spec |= [](p2 /\ next => p2' \/ q2')
+//      spec |= []next
+// post:
+//      spec |= p1 /\ p2 ~> (q1 /\ p2) \/ q2
+//
+// This lemma can be used in compositional proof.
+// Suppose that a system consists of two concurrent components A and B,
+// and we want to prove that the entire system makes P1 ~> P3.
+// If we have already proved that (1) A makes P1 ~> P2 hold, and
+// (2) P2 holds until P3 holds, and
+// (3) if P2 holds until P3 holds, then B makes P2 ~> P3
+// (in other words, B requires that P2 should hold until B makes P3 hold),
+// then we can apply this lemma and prove that the entire system makes P2 ~> P3,
+// then by transitivity we have P1 ~> P3.
+// Such a case could happen between components with liveness dependencies:
+// A at some point needs to delegate the task to B and A needs to wait until B finish
+// so A can start the next task, meanwhile when B is working A should not disable B's
+// progress (i.e., A should make sure P2 holds until P3 holds).
+pub proof fn transform_leads_to_with_until<T>(spec: TempPred<T>, next: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+    requires
+        spec.entails(p1.leads_to(q1)),
+        spec.entails(always(p2.and(next).implies(later(p2).or(later(q2))))),
+        spec.entails(always(next)),
+    ensures
+        spec.entails(p1.and(p2).leads_to((q1.and(p2)).or(q2))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p1.and(p2).leads_to((q1.and(p2)).or(q2)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p1.and(p2).satisfied_by(ex.suffix(i))
+        implies eventually((q1.and(p2)).or(q2)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(next));
+            implies_apply::<T>(ex, spec, always(p2.and(next).implies(later(p2).or(later(q2)))));
+
+            always_p_or_eventually_q::<T>(ex, next, p2, q2);
+            implies_apply::<T>(ex.suffix(i), p2, always(p2).or(eventually(q2)));
+
+            implies_apply::<T>(ex, spec, p1.leads_to(q1));
+            implies_apply::<T>(ex.suffix(i), p1, eventually(q1));
+
+            if eventually(q2).satisfied_by(ex.suffix(i)) {
+                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), q2);
+                eventually_proved_by_witness::<T>(ex.suffix(i), (q1.and(p2)).or(q2), witness_idx);
+            } else {
+                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), q1);
+                always_unfold::<T>(ex.suffix(i), p2);
+                assert(p2.satisfied_by(ex.suffix(i).suffix(witness_idx)));
+                assert(q1.and(p2).satisfied_by(ex.suffix(i).suffix(witness_idx)));
+                eventually_proved_by_witness::<T>(ex.suffix(i), (q1.and(p2)).or(q2), witness_idx);
+            }
         }
     }
 }
