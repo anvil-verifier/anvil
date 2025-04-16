@@ -12,6 +12,8 @@ pub mod temporal_logic;
 #[path = "v2/controllers/vdeployment_controller/mod.rs"]
 pub mod vdeployment_controller;
 pub mod vstd_ext;
+#[path = "v2/controllers/vreplicaset_controller/mod.rs"]
+pub mod vreplicaset_controller;
 
 // use crate::external_shim_layer::VoidExternalShimLayer;
 // use crate::vdeployment_controller::exec::reconciler::VDeploymentReconciler;

@@ -1,20 +1,15 @@
 use vstd::prelude::*;
+use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView, exec_types::VReplicaSet};
 
 verus! {
 
-#[is_variant]
 pub enum VDeploymentReconcileStep {
     Init,
     AfterGetReplicaSets,
     AfterGetPodMap,
+    ScaleReplicaSet(VReplicaSet, int),
     Done,
-    ScaleReplicaSet(VReplicaSet, ScaleOperation),
     Error,
-}
-
-pub enum ScaleOperation {
-    Up,
-    Down,
 }
 
 impl std::marker::Copy for VDeploymentReconcileStep {}
@@ -25,7 +20,7 @@ impl std::clone::Clone for VDeploymentReconcileStep {
     { *self }
 }
 
-impl View for VReplicaSetReconcileStep {
+impl View for VDeploymentReconcileStep {
     type V = VDeploymentReconcileStepView;
 
     open spec fn view(&self) -> VDeploymentReconcileStepView {
@@ -34,7 +29,7 @@ impl View for VReplicaSetReconcileStep {
             VDeploymentReconcileStep::AfterGetReplicaSets => VDeploymentReconcileStepView::AfterGetReplicaSets,
             VDeploymentReconcileStep::AfterGetPodMap => VDeploymentReconcileStepView::AfterGetPodMap,
             VDeploymentReconcileStep::Done => VDeploymentReconcileStepView::Done,
-            VDeploymentReconcileStep::ScaleReplicaSet(rs, operation) => ScaleReplicaSet(rs.view(), *operation as nat),
+            VDeploymentReconcileStep::ScaleReplicaSet(rs, i) => VDeploymentReconcileStepView::ScaleReplicaSet(rs.view(), i),
             VDeploymentReconcileStep::Error => VDeploymentReconcileStepView::Error,
         }
     }
@@ -46,7 +41,7 @@ pub enum VDeploymentReconcileStepView {
     AfterGetReplicaSets,
     AfterGetPodMap,
     Done,
-    ScaleReplicaSet(VReplicaSetView, nat),
+    ScaleReplicaSet(VReplicaSetView, int),
     Error,
 }
 
