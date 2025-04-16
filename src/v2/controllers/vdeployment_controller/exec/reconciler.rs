@@ -145,6 +145,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 state.vrs_pod_map[vrs] = filter_pods(pods, vrs);
             }
             // second, do we need to update new vrs?
+            // TODO: support different policy (order of scaling of new and old vrs)
             let new_vrs, old_vrs = filter_old_and_new_vrs(state.vrs_pod_map.keys().cloned().collect(), vd);
             if new_vrs.is_Some() {
                 let diff = vd.spec.replicas - new_vrs.spec.replicas;
