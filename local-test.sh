@@ -6,11 +6,12 @@
 
 set -xeu
 
-app=$1
+app=$(echo "$1" | tr '_' '-')
+app_filename=$(echo "$app" | tr '-' '_')
 
 # Copy the Dockerfile and build the docker image of the controller
 cp docker/controller/Dockerfile .
-docker build -t local/$app-controller:v0.1.0 --build-arg APP=$app .
+docker build -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
 rm Dockerfile
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml
