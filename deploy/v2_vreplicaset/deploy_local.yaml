@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: v2-vreplicaset-controller
+  namespace: v2-vreplicaset
+  labels:
+    app.kubernetes.io/name: v2-vreplicaset-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: v2-vreplicaset-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: v2-vreplicaset-controller
+    spec:
+      containers:
+        - image: local/v2-vreplicaset-controller:v0.1.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+      serviceAccountName: v2-vreplicaset-controller
