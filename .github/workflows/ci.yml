@@ -424,7 +424,7 @@ jobs:
           docker build -t local/vreplicaset-admission-controller:v0.1.0 --build-arg APP=v2_vreplicaset_admission .
           kind create cluster --config deploy/kind.yaml
           kind load docker-image local/vreplicaset-admission-controller:v0.1.0
-          cd src/controller_examples/v_replica_set_controller/admission_control
+          cd src/v2/controllers/vreplicaset_controller/admission_control
           ./setup.sh
       - name: Run vreplicaset e2e tests for admission
-        run: cd src/controller_examples/v_replica_set_controller/admission_control/tests && cargo run
+        run: cd src/v2/controllers/vreplicaset_controller/admission_control/tests && cargo run
