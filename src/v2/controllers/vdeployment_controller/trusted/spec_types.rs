@@ -69,7 +69,7 @@ impl ResourceView for VDeploymentView {
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
-            metadata: self.metadata,
+            metadata: self.metvdadata,
             spec: VDeploymentView::marshal_spec(self.spec),
             status: VDeploymentView::marshal_status(self.status),
         }

@@ -6,7 +6,7 @@ verus! {
 pub enum VDeploymentReconcileStep {
     Init,
     AfterGetReplicaSets,
-    AfterGetPodMap,
+    AfterGetPods,
     ScaleReplicaSet(VReplicaSet, int),
     Done,
     Error,
@@ -27,7 +27,7 @@ impl View for VDeploymentReconcileStep {
         match self {
             VDeploymentReconcileStep::Init => VDeploymentReconcileStepView::Init,
             VDeploymentReconcileStep::AfterGetReplicaSets => VDeploymentReconcileStepView::AfterGetReplicaSets,
-            VDeploymentReconcileStep::AfterGetPodMap => VDeploymentReconcileStepView::AfterGetPodMap,
+            VDeploymentReconcileStep::AfterGetPods => VDeploymentReconcileStepView::AfterGetPods,
             VDeploymentReconcileStep::Done => VDeploymentReconcileStepView::Done,
             VDeploymentReconcileStep::ScaleReplicaSet(rs, i) => VDeploymentReconcileStepView::ScaleReplicaSet(rs.view(), i),
             VDeploymentReconcileStep::Error => VDeploymentReconcileStepView::Error,
@@ -39,7 +39,7 @@ impl View for VDeploymentReconcileStep {
 pub enum VDeploymentReconcileStepView {
     Init,
     AfterGetReplicaSets,
-    AfterGetPodMap,
+    AfterGetPods,
     Done,
     ScaleReplicaSet(VReplicaSetView, int),
     Error,

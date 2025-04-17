@@ -4,13 +4,13 @@ use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::{trusted::exec_types::VReplicaSet};
 use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
-use vstd::{prelude::*, map};
+use vstd::{prelude::*, map::*, hash_map::*};
 
 verus! {
 
 pub struct VDeploymentReconcileState {
     pub reconcile_step: VDeploymentReconcileStep,
-    pub vrs_pod_map: Option<Map<VReplicaSet, Vec<Pod>>>,
+    pub vrs_pod_map: Option<HashMapWithView<VReplicaSet, Vec<Pod>>>,
 }
 
 impl View for VDeploymentReconcileState {
@@ -95,7 +95,6 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
     match state.reconcile_step {
         VDeploymentReconcileStep::Init => {
             let req = KubeAPIRequest::ListRequest(KubeListRequest {
-                // VReplicaSet instead of ReplicaSet here ???
                 api_resource: VReplicaSet::api_resource(),
                 namespace: namespace,
             });
@@ -118,12 +117,12 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
             let vrs_list = vrs_list_or_none.unwrap();
             let filtered_vrs_list = filter_vrs_list(vrs_list, vd);
-            let mut vrs_pod_map = Map<VReplicaSet, Vec<Pod>>::new();
+            let mut vrs_pod_map = HashMapWithView::<VReplicaSet, Vec<Pod>>::new();
             for idx in 0..filtered_vrs_list.len() {
                 vrs_pod_map.insert(filtered_vrs_list[idx].clone(), Vec::new());
             }
             let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::AfterGetPodMap,
+                reconcile_step: VDeploymentReconcileStep::AfterGetPods,
                 vrs_pod_map: Some(vrs_pod_map),
                 ..state
             };
@@ -133,7 +132,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             });
             return (state_prime, Some(Request::KubeAPIRequest(req)));
         },
-        VDeploymentReconcileStep::AfterGetPodMap => {
+        VDeploymentReconcileStep::AfterGetPods => {
             // first, group pods by vrs
             if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
@@ -146,7 +145,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
             // second, do we need to update new vrs?
             // TODO: support different policy (order of scaling of new and old vrs)
-            let new_vrs, old_vrs = filter_old_and_new_vrs(state.vrs_pod_map.keys().cloned().collect(), vd);
+            let (new_vrs, old_vrs) = filter_old_and_new_vrs(state.vrs_pod_map.keys().cloned().collect(), vd);
             if new_vrs.is_Some() {
                 let diff = vd.spec.replicas - new_vrs.spec.replicas;
                 if diff != 0 {
@@ -194,7 +193,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 }
             });
             // figure out if there's other vrs to update
-            let new vrs, old_vrs = filter_old_and_new_vrs(state.vrs_pod_map.keys().cloned().collect(), vd);
+            let (new_vrs, old_vrs) = filter_old_and_new_vrs(state.vrs_pod_map.keys().cloned().collect(), vd);
             if new_vrs.is_Some() && new_vrs.spec.replicas != vd.spec.replicas {
                 let state_prime = VDeploymentReconcileState {
                     reconcile_step: VDeploymentReconcileStep::ScaleReplicaSet(new_vrs.get_Some_0(), vd.spec.replicas - new_vrs.spec.replicas),
@@ -241,7 +240,7 @@ fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Ve
 #[verifier(external_body)]
 fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
     requires vd@.well_formed(),
-    ensures option_vec_view(vrs_or_none) == model_reconciler::filter_vrs_list(objs@map_values(|vrs: VReplicaSet| vrs@), vd@),
+    ensures option_vec_view(vrs_or_none) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
 {
     let mut filtered_vrs_list = Vec::new();
     let mut idx = 0;
@@ -257,7 +256,7 @@ fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vr
     filtered_vrs_list
 }
 
-fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (new_vrs: Option<VReplicaSet>, old_vrs_list: Vec<VReplicaSet>)
+fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Option<VReplicaSet>, Vec<VReplicaSet>)
 {
     let mut new_vrs = None;
     let mut old_vrs_list = Vec::new();
