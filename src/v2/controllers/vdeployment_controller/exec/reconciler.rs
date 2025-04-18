@@ -10,7 +10,8 @@ verus! {
 
 pub struct VDeploymentReconcileState {
     pub reconcile_step: VDeploymentReconcileStep,
-    pub vrs_pod_map: Option<HashMapWithView<VReplicaSet, Vec<Pod>>>,
+    pub vrs_list: Vec<VReplicaSet>,
+    pub pod_list: Vec<Pod>,
 }
 
 impl View for VDeploymentReconcileState {
@@ -19,11 +20,8 @@ impl View for VDeploymentReconcileState {
     open spec fn view(&self) -> model_reconciler::VDeploymentReconcileState {
         model_reconciler::VDeploymentReconcileState {
             reconcile_step: self.reconcile_step@,
-            vrs_pod_map: match self.vrs_pod_map {
-                // this is so cursed
-                //Some(rpm) => Some(rpm@.dom().mk_map(|rs: VReplicaSet| rs@).values().mk_map()),
-                None => None,
-            },
+            vrs_list: self.vrs_list@,
+            pod_list: self.pod_list@,
         }
     }
 }
@@ -182,6 +180,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 (error_state, None)
             }
             let req = KubeAPIRequest::UpdateRequest(UpdateRequest {
+                api_resource: VReplicaSet::api_resource(),
                 namespace: namespace,
                 name: rs.metadata.name,
                 obj: VReplicaSet {
@@ -221,17 +220,14 @@ fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Ve
         vrs_list.is_Some() ==> vrs_list.get_Some_0()@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::objects_to_vrs_list(objs@),
 {
     let mut vrs_list: Vec<VReplicaSet> = Vec::new();
-    let mut idx = 0;
-
-    while idx < objs.len() {
-        let vrs_or_error = VReplicaSet::unmarshal(objs[idx].clone());
+    for obj in objs.iter() {
+        let vrs_or_error = VReplicaSet::unmarshal(obj.clone());
         if vrs_or_error.is_OK() {
             vrs_list.push(vrs_or_error.unwrap());
         }
         else {
             return None;
         }
-        idx = idx + 1;
     }
     Some(vrs_list)
 }
@@ -240,34 +236,94 @@ fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Ve
 #[verifier(external_body)]
 fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
     requires vd@.well_formed(),
-    ensures option_vec_view(vrs_or_none) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+    ensures filtered_vrs_list@ == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
 {
     let mut filtered_vrs_list = Vec::new();
-    let mut idx = 0;
-    while idx < vrs_list.len() {
-        let vrs = &vrs_list[idx];
+    for vrs in vrs_list.iter() {
         // double check
         if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
         && !vrs.metadata().has_deletion_timestamp() {
             filtered_vrs_list.push(vrs.clone());
         }
-        idx = idx + 1;
     }
     filtered_vrs_list
 }
 
 fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Option<VReplicaSet>, Vec<VReplicaSet>)
+    requires vd@.well_formed(),
 {
     let mut new_vrs = None;
     let mut old_vrs_list = Vec::new();
-    for vrs in vrs_list {
-        if vrs.spec.template == vd.spec.template {
+    let pod_template_hash = vd.metadata().resource_version().unwrap();
+    let vrs_template_match = |vrs: VReplicaSet| {
+        vrs.spec.template == PodTemplateSpecView{
+            "phd-template-hash": pod_template_hash,
+            ..vd.spec.template
+        }
+    };
+    for vrs in vrs_list.iter() {
+        if vrs_template_match(vrs) {
             new_vrs = Some(vrs);
         } else if vrs.spec.replicas > 0 {
             old_vrs_list.push(vrs);
         }
     }
     (new_vrs, old_vrs_list)
+}
+
+// TODO
+// proof lemma_filter_old_and_new_vrs_match_model();
+
+fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet) {
+    let pod_template_hash = vd.metadata().resource_version().unwrap();
+    let template = PodTemplateSpec{
+        metadata: Some(ObjectMeta {
+            labels: Some(
+                "pod-template-hash": pod_template_hash,
+                ..vd.spec().template().metadata().labels(),
+            ),
+            ..vd.spec().template().metadata()
+        }),
+        spec: Some(vd.spec().template().spec()),
+        ..PodTemplateSpec::default()
+    };
+    let spec = VReplicaSetSpec {
+        replicas: Some(vd.spec().replicas()),
+        selector: LabelSelector {
+            match_labels: Some(
+                "pod-template-hash": pod_template_hash,
+                ..vd.spec().selector().match_labels().unwrap(),
+            ),
+        }
+        template: Some(template),
+        ..VReplicaSetSpec::default()
+    };
+    let metadata = ObjectMeta {
+        name: Some(vd.metadata().name() + '-' + pod_template_hash),
+        namespace: vd.metadata().namespace(),
+        owner_references: Some(make_owner_references(vd)),
+        ..vd.metadata()
+    };
+    VReplicaSet {
+        metadata: metadata,
+        spec: spec,
+        ..VReplicaSet::default()
+    }
+}
+
+pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerReference>)
+    requires vd@.well_formed(),
+    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_reconciler::make_owner_references(vd@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(vd.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            model_reconciler::make_owner_references(vd@)
+        );
+    }
+    owner_references
 }
 
 } // verus!
