@@ -42,7 +42,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
         } ==> match msg.content.get_APIRequest_0() {
             // Other controllers don't create pods owned by a VReplicaSet.
             APIRequest::CreateRequest(req) => !{
-                let owner_references = req.obj.metadata.owner_references.unwrap();
+                let owner_references = req.obj.metadata.owner_references.get_Some_0();
                 &&& req.obj.kind == Kind::PodKind
                 &&& req.obj.metadata.namespace.is_Some()
                 &&& req.obj.metadata.owner_references.is_Some()
@@ -52,7 +52,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
             // Other controllers don't try to update pods owned by a VReplicaSet.
             APIRequest::UpdateRequest(req) => !{
                 let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.unwrap();
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 &&& req.obj.kind == Kind::PodKind
                 &&& s.resources().contains_key(req.key())
                 &&& etcd_obj.metadata.resource_version.is_Some()
@@ -64,7 +64,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
             // Dealt with similarly to update requests.
             APIRequest::UpdateStatusRequest(req) => !{
                 let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.unwrap();
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 &&& req.obj.kind == Kind::PodKind
                 &&& s.resources().contains_key(req.key())
                 &&& etcd_obj.metadata.resource_version.is_Some()
@@ -80,7 +80,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
                 && req.preconditions.get_Some_0().resource_version.is_Some()
                 && !{
                     let etcd_obj = s.resources()[req.key];
-                    let owner_references = etcd_obj.metadata.owner_references.unwrap();
+                    let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                     &&& req.key.kind == Kind::PodKind
                     &&& s.resources().contains_key(req.key)
                     &&& etcd_obj.metadata.resource_version.is_Some()
