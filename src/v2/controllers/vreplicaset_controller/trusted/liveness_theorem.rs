@@ -33,7 +33,6 @@ pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjec
     &&& obj.metadata.deletion_timestamp.is_None()
 }
 
-// TODO: the current not_interfered_by invariant is radically strong. Weaken it later.
 pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
@@ -41,10 +40,56 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
             &&& msg.content.is_APIRequest()
             &&& msg.src == HostId::Controller(other_id)
         } ==> match msg.content.get_APIRequest_0() {
-            APIRequest::CreateRequest(req) => req.obj.kind != Kind::PodKind,
-            APIRequest::UpdateRequest(req) => req.obj.kind != Kind::PodKind,
-            APIRequest::UpdateStatusRequest(req) => req.obj.kind != Kind::PodKind,
-            APIRequest::DeleteRequest(req) => req.key.kind != Kind::PodKind,
+            // Other controllers don't create pods owned by a VReplicaSet.
+            APIRequest::CreateRequest(req) => !{
+                let owner_references = req.obj.metadata.owner_references.unwrap();
+                &&& req.obj.kind == Kind::PodKind
+                &&& req.obj.metadata.namespace.is_Some()
+                &&& req.obj.metadata.owner_references.is_Some()
+                &&& exists |i: int| 0 <= i < owner_references.len() ==>
+                        #[trigger] owner_references[i].kind == VReplicaSetView::kind()
+            },
+            // Other controllers don't try to update pods owned by a VReplicaSet.
+            APIRequest::UpdateRequest(req) => !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.unwrap();
+                &&& req.obj.kind == Kind::PodKind
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |i: int| 0 <= i < owner_references.len() ==>
+                        #[trigger] owner_references[i].kind == VReplicaSetView::kind()
+            },
+            // Dealt with similarly to update requests.
+            APIRequest::UpdateStatusRequest(req) => !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.unwrap();
+                &&& req.obj.kind == Kind::PodKind
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |i: int| 0 <= i < owner_references.len() ==>
+                        #[trigger] owner_references[i].kind == VReplicaSetView::kind()
+            },
+            // All delete requests carry a precondition on the resource version,
+            // and other controllers don't try to delete pods owned by a VReplicaSet.
+            APIRequest::DeleteRequest(req) => 
+                req.preconditions.is_Some()
+                && req.preconditions.get_Some_0().resource_version.is_Some()
+                && !{
+                    let etcd_obj = s.resources()[req.key];
+                    let owner_references = etcd_obj.metadata.owner_references.unwrap();
+                    &&& req.key.kind == Kind::PodKind
+                    &&& s.resources().contains_key(req.key)
+                    &&& etcd_obj.metadata.resource_version.is_Some()
+                    &&& etcd_obj.metadata.resource_version
+                        == req.preconditions.get_Some_0().resource_version
+                    &&& etcd_obj.metadata.owner_references.is_Some()
+                    &&& exists |i: int| 0 <= i < owner_references.len() ==>
+                            #[trigger] owner_references[i].kind == VReplicaSetView::kind()
+                },
             _ => true,
         }
     }
