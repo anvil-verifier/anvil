@@ -110,7 +110,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
         VDeploymentReconcileStep::AfterGetReplicaSets => {
             if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_Ok()) {
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok()) {
                 return (error_state(state), None);
             }
             let objs = resp_o.unwrap().into_k_response().into_list_response().res.unwrap();
@@ -127,56 +127,69 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             (state_prime, None)
         },
         VDeploymentReconcileStep::RollReplicas => {
-            // second, do we need to update new vrs?
             // TODO: support different policy (order of scaling of new and old vrs)
-            let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::RollReplicas,
-                ..state
-            };
-            let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(state.vrs_list, vd);
-            if new_vrs_or_none.is_none() {
-                // create new vrs
-                let new_vrs = make_replica_set(vd);
-                let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                    api_resource: VReplicaSet::api_resource(),
-                    namespace: namespace,
-                    obj: new_vrs.marshal(),
-                });
-                (state_prime, Some(Request::KRequest(req)))
-            }
-            else if new_vrs_or_none.is_Some() && new_vrs_or_none.get_Some_0().spec().replicas().unwrap() != vd.spec().replicas().unwrap(    ) {
-                let new_vrs = new_vrs_or_none.get_Some_0();
-                let new_spec = new_vrs.spec();
-                new_spec.set_replicas(vd.spec().replicas().unwrap());
-                new_vrs.set_spec(new_spec);
-                let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                    api_resource: VReplicaSet::api_resource(),
-                    namespace: namespace,
-                    name: new_vrs.metadata().name().unwrap(),
-                    obj: new_vrs.marshal()
-                });
-                (state_prime, Some(Request::KRequest(req)))
-            }
-            else if old_vrs_list.len() > 0 {
-                let old_vrs = old_vrs_list[0];
-                let new_spec = old_vrs.spec();
-                new_spec.set_replicas(0);
-                old_vrs.set_spec(new_spec);
-                let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                    api_resource: VReplicaSet::api_resource(),
-                    namespace: namespace,
-                    name: old_vrs.metadata().name().unwrap(),
-                    obj: old_vrs.marshal()
-                });
-                (state_prime, Some(Request::KRequest(req)))
-            }
-            else {
-                // all good
-                let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStep::Done,
-                    ..state
-                };
-                (state_prime, None)
+            //       and maxSurge and maxUnavailable
+            match filter_old_and_new_vrs(state.vrs_list.clone(), vd) {
+                (None, _) => {
+                    // create the new vrs
+                    let new_vrs = make_replica_set(vd);
+                    let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: VReplicaSet::api_resource(),
+                        namespace: namespace,
+                        obj: new_vrs.marshal(),
+                    });
+                    let state_prime = VDeploymentReconcileState {
+                        reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                        ..state
+                    };
+                    (state_prime, Some(Request::KRequest(req)))
+                },
+                (Some(mut new_vrs), old_vrs_list) => {
+                    // update existing new vrs
+                    if new_vrs.spec().replicas().unwrap() != vd.spec().replicas().unwrap() {
+                        let mut new_spec = new_vrs.spec();
+                        new_spec.set_replicas(vd.spec().replicas().unwrap());
+                        new_vrs.set_spec(new_spec);
+                        let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: VReplicaSet::api_resource(),
+                            namespace: namespace,
+                            name: new_vrs.metadata().name().unwrap(),
+                            obj: new_vrs.marshal()
+                        });
+                        let state_prime = VDeploymentReconcileState {
+                            reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                            ..state
+                        };
+                        (state_prime, Some(Request::KRequest(req)))
+                    }
+                    else if old_vrs_list.len() > 0 {
+                        // scale down old vrs to zero
+                        let mut old_vrs = old_vrs_list[0].clone();
+                        let mut new_spec = old_vrs.spec();
+                        new_spec.set_replicas(0);
+                        old_vrs.set_spec(new_spec);
+                        let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: VReplicaSet::api_resource(),
+                            namespace: namespace,
+                            name: old_vrs.metadata().name().unwrap(),
+                            obj: old_vrs.marshal()
+
+                        });
+                        let state_prime = VDeploymentReconcileState {
+                            reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                            ..state
+                        };
+                        (state_prime, Some(Request::KRequest(req)))
+                    }
+                    else {
+                        // all good
+                        let state_prime = VDeploymentReconcileState {
+                            reconcile_step: VDeploymentReconcileStep::Done,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                }
             }
         },
         _ => {
@@ -185,7 +198,9 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
     }
 }
 
-pub open spec fn error_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState) {
+pub fn error_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState)
+    ensures state_prime@ == model_reconciler::error_state(state@),
+{
     VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::Error,
         ..state
@@ -195,16 +210,17 @@ pub open spec fn error_state(state: VDeploymentReconcileState) -> (state_prime: 
 #[verifier(external_body)]
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
     ensures
-    vrs_list_or_none.is_Some() ==> vrs_list_or_none.get_Some_0()@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)).get_Some_0(),
+    vrs_list_or_none.is_some() ==> vrs_list_or_none.unwrap()@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)).unwrap(),
 {
     let mut vrs_list_or_none: Vec<VReplicaSet> = Vec::new();
     for obj in objs.into_iter() {
-        let vrs_or_error = VReplicaSet::unmarshal(obj);
-        if vrs_or_error.is_Ok() {
-            vrs_list_or_none.push(vrs_or_error.unwrap());
-        }
-        else {
-            return None;
+        match VReplicaSet::unmarshal(obj) {
+            Ok(vrs) => {
+                vrs_list_or_none.push(vrs);
+            },
+            Err(_) => {
+                return None;
+            }
         }
     }
     Some(vrs_list_or_none)
@@ -216,7 +232,7 @@ fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vr
     requires vd@.well_formed(),
     ensures filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
 {
-    let filtered_vrs_list = Vec::new();
+    let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
     for vrs in vrs_list.into_iter() {
         // double check
         if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
@@ -227,16 +243,14 @@ fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vr
     filtered_vrs_list
 }
 
+#[verifier(external_body)]
 fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Option<VReplicaSet>, Vec<VReplicaSet>)
     requires vd@.well_formed(),
 {
     let mut new_vrs = None;
     let old_vrs_list = Vec::new();
     let pod_template_hash = vd.metadata().resource_version().unwrap();
-    // the trait `vstd::pervasive::ForLoopGhostIteratorNew` is not implemented for `std::vec::IntoIter<vreplicaset_controller::trusted::exec_types::VReplicaSet>`
-    let idx = 0;
-    while idx < vrs_list.len() {
-        let vrs = vrs_list[idx];
+    for vrs in vrs_list.into_iter() {
         if vrs.spec().template().unwrap().eq(&template_with_hash(vd)) {
             new_vrs = Some(vrs);
         } else if vrs.spec().replicas().unwrap() > 0 {
@@ -252,20 +266,21 @@ fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Opti
 fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet) {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let template = template_with_hash(vd);
-    let labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
+    let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
     labels.insert("pod_template_hash".to_string(), pod_template_hash);
-    let spec = VReplicaSetSpec::default();
+    let mut spec = VReplicaSetSpec::default();
     spec.set_replicas(vd.spec().replicas().unwrap());
-    let label_selector = LabelSelector::default();
+    let mut label_selector = LabelSelector::default();
     label_selector.set_match_labels(labels);
     spec.set_selector(label_selector);
     let template = template_with_hash(vd);
     spec.set_template(template);
-    let metadata = vd.metadata();
-    metadata.set_name(vd.metadata().name().unwrap() + "-" + &pod_template_hash);
+    let mut metadata = vd.metadata();
+    // concatenation of (String, String) not yet supported in Verus
+    metadata.set_name(vd.metadata().name().unwrap().concat("-"));//.concat(&pod_template_hash));
     metadata.set_namespace(vd.metadata().namespace().unwrap());
     metadata.set_owner_references(make_owner_references(vd));
-    let vrs = VReplicaSet::default();
+    let mut vrs = VReplicaSet::default();
     vrs.set_metadata(metadata);
     vrs.set_spec(spec);
     vrs
@@ -273,11 +288,11 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet) {
 
 pub fn template_with_hash(vd: &VDeployment) -> PodTemplateSpec {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
-    let labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
+    let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
     labels.insert("pod_template_hash".to_string(), pod_template_hash);
-    let template_meta = ObjectMeta::default();
+    let mut template_meta = ObjectMeta::default();
     template_meta.set_labels(labels);
-    let pod_template_spec = PodTemplateSpec::default();
+    let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(template_meta);
     pod_template_spec.set_spec(vd.spec().template().unwrap().spec().unwrap());
     pod_template_spec

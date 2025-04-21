@@ -23,6 +23,13 @@ impl View for VReplicaSet {
     spec fn view(&self) -> spec_types::VReplicaSetView;
 }
 
+impl std::clone::Clone for VReplicaSet {
+    #[verifier(external_body)]
+    fn clone(&self) -> Self {
+        VReplicaSet { inner: self.inner.clone() }
+    }
+}
+
 impl VReplicaSet {
     #[verifier(external_body)]
     pub fn default() -> (vreplicaset: VReplicaSet)
@@ -218,8 +225,10 @@ impl VReplicaSetSpec {
         self.inner.template = Some(template.into_kube());
     }
 
+    #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::VReplicaSetSpec { self.inner }
 
+    #[verifier(external)]
     pub fn from_kube(inner: deps_hack::VReplicaSetSpec) -> VReplicaSetSpec { VReplicaSetSpec { inner: inner } }
 
 }
