@@ -8,6 +8,7 @@ use crate::kubernetes_api_objects::spec::{
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::trusted::{spec_types::*, step::*};
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -92,60 +93,64 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             (state_prime, None)
         },
         VDeploymentReconcileStepView::RollReplicas => {
-            // first, do we need to create/update new vrs?
-            // TODO: support maxSurge and maxUnavailable
+            // TODO: support different policy (order of scaling of new and old vrs)
+            //       and maxSurge and maxUnavailable
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStepView::RollReplicas,
                 ..state
             };
-            let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(state.vrs_list, vd);
-            if new_vrs_or_none.is_None() {
-                // create the new vrs
-                let new_vrs = make_replica_set(vd);
-                let req = APIRequest::CreateRequest(CreateRequest {
-                    namespace: namespace,
-                    obj: new_vrs.marshal(),
-                });
-                (state_prime, Some(RequestView::KRequest(req)))
-            }
-            else if new_vrs_or_none.is_Some() && new_vrs_or_none.get_Some_0().spec.replicas != vd.spec.replicas {
-                let new_vrs = new_vrs_or_none.get_Some_0();
-                // scale up new vrs up/down to desired replicas
-                let req = APIRequest::UpdateRequest(UpdateRequest {
-                    name: new_vrs.metadata.name.unwrap(),
-                    namespace: namespace,
-                    obj: VReplicaSetView {
-                        spec: VReplicaSetSpecView {
-                            replicas: Some(vd.spec.replicas.unwrap() - new_vrs.spec.replicas.unwrap()),
-                            ..new_vrs.spec
-                        },
-                        ..new_vrs
-                    }.marshal(),
-                });
-                (state_prime, Some(RequestView::KRequest(req)))
-            }
-            else if old_vrs_list.len() > 0 {
-                // scale down old vrs down to 0 replicas
-                let old_vrs = old_vrs_list[0];
-                let req = APIRequest::UpdateRequest(UpdateRequest {
-                    name: old_vrs.metadata.name.unwrap(),
-                    namespace: namespace,
-                    obj: VReplicaSetView {
-                        spec: VReplicaSetSpecView {
-                            replicas: Some(0),
-                            ..old_vrs.spec
-                        },
-                        ..old_vrs
-                    }.marshal(),
-                });
-                (state_prime, None)
-            } else {
-                // all good
-                let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::Done,
-                    ..state
-                };
-                (state_prime, None)
+            match filter_old_and_new_vrs(state.vrs_list, vd) {
+                (None, _) => {
+                    // create the new vrs
+                    let new_vrs = make_replica_set(vd);
+                    let req = APIRequest::CreateRequest(CreateRequest {
+                        namespace: namespace,
+                        obj: new_vrs.marshal(),
+                    });
+                    (state_prime, Some(RequestView::KRequest(req)))
+                },
+                (Some(mut new_vrs), old_vrs_list) => {
+                    // update existing new vrs
+                    if new_vrs.spec.replicas != vd.spec.replicas {
+                        let req = APIRequest::UpdateRequest(UpdateRequest {
+                            name: new_vrs.metadata.name.unwrap(),
+                            namespace: namespace,
+                            obj: VReplicaSetView {
+                                spec: VReplicaSetSpecView {
+                                    replicas: Some(vd.spec.replicas.unwrap()),
+                                    ..new_vrs.spec
+                                },
+                                ..new_vrs
+                            }.marshal(),
+                        });
+                        (state_prime, Some(RequestView::KRequest(req)))
+                    } else if old_vrs_list.len() > 0 {
+                        // scale down old vrs down to 0 replicas
+                        let old_vrs = old_vrs_list[0];
+                        let req = APIRequest::UpdateRequest(UpdateRequest {
+                            name: old_vrs.metadata.name.unwrap(),
+                            namespace: namespace,
+                            obj: VReplicaSetView {
+                                spec: VReplicaSetSpecView {
+                                    replicas: Some(0),
+                                    ..old_vrs.spec
+                                },
+                                ..old_vrs
+                            }.marshal(),
+                        });
+                        (state_prime, Some(RequestView::KRequest(req)))
+                    } else {
+                        // all good
+                        let state_prime = VDeploymentReconcileState {
+                            reconcile_step: VDeploymentReconcileStepView::Done,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                },
+                _ => {
+                    (error_state(state), None)
+                }
             }
         },
         _ => {
@@ -195,10 +200,10 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
 // TODO: now we scale up the new vrs' replicas at once,
 // we may consider existing pods in old vrs later to satisfy maxSurge
 pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView) {
-    let pod_template_hash = (vd.metadata.resource_version.unwrap() as i64).to_string();
+    let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
     let template = template_with_hash(vd);
     let labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap();
-    labels.insert("pod-template-hash"@, pod_template_hash@);
+    labels.insert("pod-template-hash"@, pod_template_hash);
     let spec = VReplicaSetSpecView {
         replicas: Some(vd.spec.replicas.unwrap()),
         selector: LabelSelectorView {
@@ -207,7 +212,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
         template: Some(template)
     };
     let metadata = ObjectMetaView {
-        name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash@),
+        name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
         namespace: vd.metadata.namespace,
         owner_references: Some(make_owner_references(vd)),
         ..vd.metadata
@@ -220,10 +225,10 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
 }
 
 pub open spec fn template_with_hash(vd: VDeploymentView) -> PodTemplateSpecView {
-    let pod_template_hash = (vd.metadata.resource_version.unwrap() as i64).to_string();
+    let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
     let metadata = ObjectMetaView::default();
     let labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap();
-    labels.insert("pod-template-hash"@, pod_template_hash@);
+    labels.insert("pod-template-hash"@, pod_template_hash);
     PodTemplateSpecView {
         metadata: Some(ObjectMetaView {
             labels: Some(labels),
