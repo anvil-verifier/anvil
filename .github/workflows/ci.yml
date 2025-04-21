@@ -102,7 +102,7 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify zookeeper controller
         run: VERUS_DIR="${PWD}/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
-  v2-vreplicaset-verification:
+  vreplicaset-verification:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
@@ -121,7 +121,7 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vreplicaset controller
         run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
-  v2-vdeployment-verification:
+  vdeployment-verification:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
@@ -140,7 +140,7 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vdeployment controller
         run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
-  v2-vreplicaset-admission-verification:
+  vreplicaset-admission-verification:
     needs: build-verus
     runs-on: ubuntu-22.04
     steps:
@@ -390,7 +390,7 @@ jobs:
           ./setup.sh
       - name: Run vreplicaset e2e tests for admission
         run: cd src/v2/controllers/vreplicaset_controller/admission_control/tests && cargo run
-  v2-vreplicaset-e2e-test:
+  vreplicaset-e2e-test:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
