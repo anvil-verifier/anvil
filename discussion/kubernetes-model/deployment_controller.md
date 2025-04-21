@@ -31,11 +31,26 @@ Reconciliation is performed by `syncDeployment`, which can be modeled as state m
 
 ## Reconciliation State Machine
 
+**Rolling Update**
+
 ```mermaid
 graph LR
-	1(Get RS)-->2("Get RS-Pod map")
-	2-->|make decision based on<br>update policy and state|3("Scale Up/Down RS<br>(RS, diffReplicas)")
-	3-->4(Done)
-	3-->3
+	1((init))-->|list rs|2((list rs))
+	2-->|ε|3((roll rs))
+	3-->|scale new rs<br>scale old rs|3
+	3-->4((done))
+```
+
+**Rollout Update**
+
+> we need to figure out how to add a "barrier" of waiting till all old pods stop running, then add new rs
+
+```mermaid
+graph LR
+	1((init))-->|list rs|2((after list rs))
+	2-->|list pod|3((after list pod))
+	3-->|ε|4((roll rs))
+	4-->|scale new rs<br>stop old rs|4
+	4-->5((done))
 ```
 
