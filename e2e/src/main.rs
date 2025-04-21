@@ -4,7 +4,6 @@ pub mod common;
 pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
 pub mod v2_vreplicaset_e2e;
-pub mod vreplicaset_e2e;
 pub mod zookeeper_e2e;
 
 use common::Error;
@@ -14,7 +13,6 @@ use std::str::FromStr;
 use std::{env, sync::Arc};
 use tracing::*;
 use v2_vreplicaset_e2e::v2_vreplicaset_e2e_test;
-use vreplicaset_e2e::vreplicaset_e2e_test;
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
 
 #[tokio::main]
