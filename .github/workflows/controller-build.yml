@@ -74,7 +74,7 @@ jobs:
       - name: Build vreplicaset controller image
         run: |
           cp docker/controller/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg APP=vreplicaset .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest --build-arg APP=v2_vreplicaset .
           docker tag ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-controller:${{ github.sha }}
       - name: Push vreplicaset controller image
         run: |
