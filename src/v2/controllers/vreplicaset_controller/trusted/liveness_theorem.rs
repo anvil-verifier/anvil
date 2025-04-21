@@ -45,7 +45,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
                 let owner_references = req.obj.metadata.owner_references.get_Some_0();
                 &&& req.obj.kind == Kind::PodKind
                 &&& req.obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSet| 
+                &&& exists |vrs: VReplicaSetView| 
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             },
             // Other controllers don't try to update pods owned by a VReplicaSet.
@@ -57,7 +57,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
                 &&& etcd_obj.metadata.resource_version.is_Some()
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSet| 
+                &&& exists |vrs: VReplicaSetView| 
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             },
             // Dealt with similarly to update requests.
@@ -71,7 +71,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
                 &&& etcd_obj.metadata.resource_version.is_Some()
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSet| 
+                &&& exists |vrs: VReplicaSetView| 
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             },
             // All delete requests to  carry a precondition on the resource version,
@@ -89,7 +89,7 @@ pub open spec fn vrs_not_interfered_by(other_id: int) -> StatePred<ClusterState>
                     &&& etcd_obj.metadata.resource_version
                         == req.preconditions.get_Some_0().resource_version
                     &&& etcd_obj.metadata.owner_references.is_Some()
-                    &&& exists |vrs: VReplicaSet| 
+                    &&& exists |vrs: VReplicaSetView| 
                         #[trigger] owner_references.contains(vrs.controller_owner_ref())
                 },
             _ => true,

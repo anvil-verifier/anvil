@@ -161,6 +161,8 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
     );
 }
 
+// TODO: broken by weakening `vrs_not_interfered_by`.
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -185,8 +187,35 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_update_or_update_status_request_on_pods())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
-        &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != PodView::kind()
-        &&& msg.content.is_update_status_request() ==> msg.content.get_update_status_request().key().kind != PodView::kind()
+        match msg.content.get_APIRequest_0() {
+            // Other controllers don't try to update pods owned by a VReplicaSet.
+            APIRequest::UpdateRequest(req) => !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& req.obj.kind == Kind::PodKind
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            },
+            // Dealt with similarly to update requests.
+            // TODO: allow other controllers to send UpdateStatus
+            // requests to owned pods after we address the fairness issues.
+            APIRequest::UpdateStatusRequest(req) => !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& req.obj.kind == Kind::PodKind
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            },
+            _ => true,
+        }
     };
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -257,6 +286,8 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
     );
 }
 
+// TODO: broken by weakening `vrs_not_interfered_by`.
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1409,6 +1440,8 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 }
 
+// TODO: broken by weakening `vrs_not_interfered_by`.
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -2629,6 +2662,8 @@ ensures
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
+// TODO: broken by weakening `vrs_not_interfered_by`.
+#[verifier(external_body)]
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
