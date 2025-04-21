@@ -22,6 +22,7 @@ pub struct LabelSelector {
 }
 
 impl LabelSelector {
+
     pub spec fn view(&self) -> LabelSelectorView;
 
     #[verifier(external_body)]

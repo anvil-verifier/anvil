@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
+    label_selector::*, pod_template_spec::*, prelude::*,
 };
-use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::vdeployment_controller::trusted::step::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -69,7 +66,7 @@ impl ResourceView for VDeploymentView {
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
-            metadata: self.metvdadata,
+            metadata: self.metadata,
             spec: VDeploymentView::marshal_spec(self.spec),
             status: VDeploymentView::marshal_status(self.status),
         }

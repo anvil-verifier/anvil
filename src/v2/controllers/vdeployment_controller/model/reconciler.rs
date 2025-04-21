@@ -1,7 +1,12 @@
-use crate::kubernetes_api_objects::exec::prelude::*;
-use crate::kubernetes_api_objects::spec::prelude::*;
+#![allow(unused_imports)]
+
+use crate::kubernetes_api_objects::spec::{
+    prelude::*,
+    pod_template_spec::PodTemplateSpecView,
+    label_selector::LabelSelectorView,
+};
 use crate::reconciler::spec::{io::*, reconciler::*};
-use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView};
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::trusted::{spec_types::*, step::*};
 use vstd::prelude::*;
 
@@ -12,7 +17,6 @@ pub struct VDeploymentReconciler {}
 pub struct VDeploymentReconcileState {
     pub reconcile_step: VDeploymentReconcileStepView,
     pub vrs_list: Seq<VReplicaSetView>,
-    pub pod_list: Seq<PodView>,
 }
 
 impl Reconciler<VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidERespView> for VDeploymentReconciler {
@@ -36,14 +40,14 @@ impl Reconciler<VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidER
 pub open spec fn reconcile_init_state() -> VDeploymentReconcileState {
     VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::Init,
-        filtered_pods: None,
+        vrs_list: Seq::empty(),
     }
 }
 
 pub open spec fn reconcile_done(state: VDeploymentReconcileState) -> bool {
     match state.reconcile_step {
         VDeploymentReconcileStepView::Done => true,
-        _ => false,filtered_vrs_list
+        _ => false,
     }
 }
 
@@ -54,11 +58,11 @@ pub open spec fn reconcile_error(state: VDeploymentReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView<VoidERespView>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<ResponseView<VoidERespView>>)) {
+pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView<VoidERespView>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let namespace = vd.metadata.namespace.unwrap();
     match state.reconcile_step {
         VDeploymentReconcileStepView::Init => {
-            let req = APIRequest::ListRequest(KubeListRequest {
+            let req = APIRequest::ListRequest(ListRequest {
                 kind: VReplicaSetView::kind(),
                 namespace: namespace,
             });
@@ -66,121 +70,87 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 reconcile_step: VDeploymentReconcileStepView::AfterGetReplicaSets,
                 ..state
             };
-            return (state_prime, Some(RequestView::KRequest(req)));
+            (state_prime, Some(RequestView::KRequest(req)))
         },
         VDeploymentReconcileStepView::AfterGetReplicaSets => {
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok()) {
-                return (error_state(state), None);
+            if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
+            && resp_o.get_Some_0().get_KResponse_0().is_ListResponse()
+            && resp_o.get_Some_0().get_KResponse_0().get_ListResponse_0().res.is_ok()) {
+                return (error_state(state), None)
             }
-            let objs = resp_o.unwrap().into_k_response().into_list_response().res.unwrap();
+            let objs = resp_o.unwrap().get_KResponse_0().get_ListResponse_0().res.unwrap();
             let vrs_list_or_none = objects_to_vrs_list(objs);
             if vrs_list_or_none.is_none() { // error in unmarshalling
-                return (error_state(state), None);
+                return (error_state(state), None)
             }
             let vrs_list = filter_vrs_list(vrs_list_or_none.unwrap(), vd);
             let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStepView::AfterGetPods,
+                reconcile_step: VDeploymentReconcileStepView::RollReplicas,
                 vrs_list: vrs_list,
                 ..state
             };
-            let req = APIRequest::ListRequest(KubeListRequest {
-                kind: PodView::kind(),
-                namespace: namespace,
-            });
-            return (state_prime, Some(RequestView::KRequest(req)));
+            (state_prime, None)
         },
-        VDeploymentReconcileStepView::AfterGetPods => {
-            // first, group pods by vrs
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok()) {
-                return (error_state(state), None);
-            }
-            let pods_or_none = objects_to_pods(resp_o.unwrap().into_k_response().into_list_response().res.unwrap());
-            if pods_or_none.is_none() { // error in unmarshalling
-                return (error_state(state), None);
-            }
-            let pods = pods_or_none.unwrap();
-            // second, do we need to update new vrs?
-            // TODO: support different policy (order of scaling of new and old vrs)
-            let (new_vrs, old_vrs) = filter_old_and_new_vrs(state.vrs_list, vd);
-            if new_vrs.is_None() {
+        VDeploymentReconcileStepView::RollReplicas => {
+            // first, do we need to create/update new vrs?
+            // TODO: support maxSurge and maxUnavailable
+            let state_prime = VDeploymentReconcileState {
+                reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                ..state
+            };
+            let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(state.vrs_list, vd);
+            if new_vrs_or_none.is_None() {
                 // create the new vrs
                 let new_vrs = make_replica_set(vd);
-                let req = APIRequest::CreateRequest(KubeCreateRequest {
-                    kind: VReplicaSetView::kind(),
+                let req = APIRequest::CreateRequest(CreateRequest {
                     namespace: namespace,
-                    obj: vrs.marshal(),
+                    obj: new_vrs.marshal(),
                 });
+                (state_prime, Some(RequestView::KRequest(req)))
             }
-            if new_vrs.is_Some() {
-                let diff = vd.spec.replicas - new_vrs.spec.replicas;
-                if diff != 0 {
-                    // scale up new vrs up to desired vrs
-                    let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStepView::ScaleReplicaSet(new_vrs.get_Some_0(), diff),
-                        ..state
-                    };
-                    (state_prime, None)
-                } else if old_vrs.len() > 0 {
-                    // scale down old vrs down to 0 replicas
-                    let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStepView::ScaleReplicaSet(old_vrs[0], -old_vrs[0].spec.replicas),
-                        ..state
-                    };
-                    (state_prime, None)
-                } else {
-                    // all good
-                    let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStepView::Done,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
+            else if new_vrs_or_none.is_Some() && new_vrs_or_none.get_Some_0().spec.replicas != vd.spec.replicas {
+                let new_vrs = new_vrs_or_none.get_Some_0();
+                // scale up new vrs up/down to desired replicas
+                let req = APIRequest::UpdateRequest(UpdateRequest {
+                    name: new_vrs.metadata.name.unwrap(),
+                    namespace: namespace,
+                    obj: VReplicaSetView {
+                        spec: VReplicaSetSpecView {
+                            replicas: Some(vd.spec.replicas.unwrap() - new_vrs.spec.replicas.unwrap()),
+                            ..new_vrs.spec
+                        },
+                        ..new_vrs
+                    }.marshal(),
+                });
+                (state_prime, Some(RequestView::KRequest(req)))
             }
-        },
-        VDeploymentReconcileStepView::ScaleReplicaSet(rs, diff) => {
-            if diff == 0 {
-                let error_state = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::Error,
-                    ..state
-                };
-                (error_state, None)
-            }
-            let req = APIRequest::UpdateRequest(UpdateRequest {
-                kind: VReplicaSetView::kind(),
-                name: rs.metadata.name,
-                namespace: namespace,
-                obj: VReplicaSet {
-                    spec: VReplicaSetSpec {
-                        replicas: Some(rs.spec.replicas + diff),
-                        ..rs.spec
-                    },
-                    ..rs
-                }
-            });
-            // figure out if there's other vrs to update
-            let (new_vrs, old_vrs) = filter_old_and_new_vrs(state.vrs_list, vd);
-            if new_vrs.is_Some() && new_vrs.spec.replicas != vd.spec.replicas {
-                let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::ScaleReplicaSet(new_vrs.get_Some_0(), vd.spec.replicas - new_vrs.spec.replicas),
-                    ..state
-                };
-            } else if old_vrs.len() > 0 {
-                let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::ScaleReplicaSet(old_vrs[0], -old_vrs[0].spec.replicas),
-                    ..state
-                };
+            else if old_vrs_list.len() > 0 {
+                // scale down old vrs down to 0 replicas
+                let old_vrs = old_vrs_list[0];
+                let req = APIRequest::UpdateRequest(UpdateRequest {
+                    name: old_vrs.metadata.name.unwrap(),
+                    namespace: namespace,
+                    obj: VReplicaSetView {
+                        spec: VReplicaSetSpecView {
+                            replicas: Some(0),
+                            ..old_vrs.spec
+                        },
+                        ..old_vrs
+                    }.marshal(),
+                });
+                (state_prime, None)
             } else {
+                // all good
                 let state_prime = VDeploymentReconcileState {
                     reconcile_step: VDeploymentReconcileStepView::Done,
                     ..state
                 };
+                (state_prime, None)
             }
-            (state_prime, Some(RequestView::KRequest(req)))
         },
+        _ => {
+            (state, None)
+        }
     }
 }
 
@@ -207,10 +177,10 @@ pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeployment
 
 pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (Option<VReplicaSetView>, Seq<VReplicaSetView>)
 // we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
-    recommends vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas > 0).len() <= 1,
+    recommends vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap() > 0).len() <= 1,
 {
-    let new_vrs = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas > 0);
-    let old_vrs = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas == 0);
+    let new_vrs = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap() > 0);
+    let old_vrs = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap() == 0);
     if new_vrs.len() > 0 {
         (Some(new_vrs[0]), old_vrs)
     } else {
@@ -225,39 +195,42 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
 // TODO: now we scale up the new vrs' replicas at once,
 // we may consider existing pods in old vrs later to satisfy maxSurge
 pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView) {
-    let pod_template_hash = vd.metadata.resource_version.unwrap().to_string();
-    let template = PodTemplateSpecView {
-        metadata: Some(ObjectMetaView {
-            labels: Some(
-                "pod-template-hash": pod_template_hash,
-                ..vd.spec.template.metadata.labels,
-            ),
-            ..vd.spec.template.metadata,
-        });
-        spec: Some(vd.spec.template.spec),
-        ..PodTemplateSpecView::default()
-    };
+    let pod_template_hash = (vd.metadata.resource_version.unwrap() as i64).to_string();
+    let template = template_with_hash(vd);
+    let labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap();
+    labels.insert("pod-template-hash"@, pod_template_hash@);
     let spec = VReplicaSetSpecView {
-        replicas: Some(vd.spec.replicas),
+        replicas: Some(vd.spec.replicas.unwrap()),
         selector: LabelSelectorView {
-            match_labels: Some(
-                "pod-template-hash": pod_template_hash,
-                ..vd.spec.selector.match_labels.unwrap()
-            ),
-        }
-        template: Some(template),
-        ..VReplicaSetSpecView::default()
+            match_labels: Some(labels),
+        },
+        template: Some(template)
     };
     let metadata = ObjectMetaView {
-        name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
+        name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash@),
         namespace: vd.metadata.namespace,
         owner_references: Some(make_owner_references(vd)),
-        ..vd.metadata,
+        ..vd.metadata
     };
     VReplicaSetView {
         metadata: metadata,
         spec: spec,
         ..VReplicaSetView::default()
+    }
+}
+
+pub open spec fn template_with_hash(vd: VDeploymentView) -> PodTemplateSpecView {
+    let pod_template_hash = (vd.metadata.resource_version.unwrap() as i64).to_string();
+    let metadata = ObjectMetaView::default();
+    let labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap();
+    labels.insert("pod-template-hash"@, pod_template_hash@);
+    PodTemplateSpecView {
+        metadata: Some(ObjectMetaView {
+            labels: Some(labels),
+            ..metadata
+        }),
+        spec: Some(vd.spec.template.unwrap().spec.unwrap()),
+        ..PodTemplateSpecView::default()
     }
 }
 

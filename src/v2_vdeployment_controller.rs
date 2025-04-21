@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 #[path = "v2/external_shim_layer/mod.rs"]
 pub mod external_shim_layer;
 pub mod kubernetes_api_objects;

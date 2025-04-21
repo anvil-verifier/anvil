@@ -29,6 +29,20 @@ impl VReplicaSetView {
             uid: self.metadata.uid.get_Some_0(),
         }
     }
+
+    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> VReplicaSetView {
+        VReplicaSetView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
+    pub open spec fn set_spec(self, spec: VReplicaSetSpecView) -> VReplicaSetView {
+        VReplicaSetView {
+            spec: spec,
+            ..self
+        }
+    }
 }
 
 impl ResourceView for VReplicaSetView {
@@ -150,6 +164,37 @@ pub struct VReplicaSetSpecView {
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
     pub template: Option<PodTemplateSpecView>,
+}
+
+impl VReplicaSetSpecView {
+    pub open spec fn default() -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            replicas: None,
+            selector: LabelSelectorView::default(),
+            template: None,
+        }
+    }
+
+    pub open spec fn set_replicas(self, replicas: int) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            replicas: Some(replicas),
+            ..self
+        }
+    }
+
+    pub open spec fn set_selector(self, selector: LabelSelectorView) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            selector: selector,
+            ..self
+        }
+    }
+
+    pub open spec fn set_template(self, template: PodTemplateSpecView) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            template: Some(template),
+            ..self
+        }
+    }
 }
 
 }
