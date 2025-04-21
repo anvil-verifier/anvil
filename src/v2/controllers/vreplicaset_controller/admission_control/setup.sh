@@ -7,7 +7,7 @@ kubectl delete -f manifests/admission_webhooks.yaml || true
 kubectl delete -f manifests/admission_server.yaml || true
 kubectl -n default delete secret admission-server-tls || true
 
-kubectl create -f ../../../../../deploy/vreplicaset/crd.yaml || true
+kubectl create -f ../../../../../deploy/v2_vreplicaset/crd.yaml || true
 
 echo "Creating Webhook Server Certs"
 mkdir -p certs
