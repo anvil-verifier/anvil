@@ -5,8 +5,7 @@ use crate::kubernetes_api_objects::exec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
-use crate::vdeployment_controller::trusted::{spec_types, step::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vdeployment_controller::trusted::spec_types;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 

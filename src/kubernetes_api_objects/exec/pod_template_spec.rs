@@ -15,6 +15,13 @@ impl PodTemplateSpec {
     pub spec fn view(&self) -> PodTemplateSpecView;
 
     #[verifier(external_body)]
+    pub fn eq(&self, other: &Self) -> (b: bool)
+        ensures b == (self.view() == other.view())
+    {
+        self.inner == other.inner
+    }
+
+    #[verifier(external_body)]
     pub fn default() -> (pod_template_spec: PodTemplateSpec)
         ensures pod_template_spec@ == PodTemplateSpecView::default(),
     {

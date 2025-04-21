@@ -25,6 +25,23 @@ impl View for VReplicaSet {
 
 impl VReplicaSet {
     #[verifier(external_body)]
+    pub fn default() -> (vreplicaset: VReplicaSet)
+        ensures vreplicaset@ == spec_types::VReplicaSetView::default(),
+    {
+        VReplicaSet {
+            // how to implement default for deps_hack?
+            inner: deps_hack::VReplicaSet{
+                metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+                spec: deps_hack::VReplicaSetSpec {
+                    replicas: None,
+                    selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
+                    template: None,
+                },
+            },
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
     {
@@ -51,6 +68,20 @@ impl VReplicaSet {
     {
         // We can safely unwrap here because the trait method implementation always returns a Some(...)
         OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
+        ensures self@ == old(self)@.set_metadata(metadata@),
+    {
+        self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: VReplicaSetSpec)
+        ensures self@ == old(self)@.set_spec(spec@),
+    {
+        self.inner.spec = spec.into_kube();
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -126,6 +157,19 @@ impl VReplicaSetSpec {
     pub spec fn view(&self) -> spec_types::VReplicaSetSpecView;
 
     #[verifier(external_body)]
+    pub fn default() -> (vreplicaset_spec: VReplicaSetSpec)
+        ensures vreplicaset_spec@ == spec_types::VReplicaSetSpecView::default(),
+    {
+        VReplicaSetSpec {
+            inner: deps_hack::VReplicaSetSpec {
+                replicas: None,
+                selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
+                template: None,
+            },
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
             replicas.is_Some() == self@.replicas.is_Some(),
@@ -152,6 +196,32 @@ impl VReplicaSetSpec {
             None => None
         }
     }
+
+    #[verifier(external_body)]
+    pub fn set_replicas(&mut self, replicas: i32)
+        ensures self@ == old(self)@.set_replicas(replicas as int),
+    {
+        self.inner.replicas = Some(replicas);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_selector(&mut self, selector: LabelSelector)
+       ensures self@ == old(self)@.set_selector(selector@),
+    {
+        self.inner.selector = selector.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_template(&mut self, template: PodTemplateSpec)
+        ensures self@ == old(self)@.set_template(template@),
+    {
+        self.inner.template = Some(template.into_kube());
+    }
+
+    pub fn into_kube(self) -> deps_hack::VReplicaSetSpec { self.inner }
+
+    pub fn from_kube(inner: deps_hack::VReplicaSetSpec) -> VReplicaSetSpec { VReplicaSetSpec { inner: inner } }
+
 }
 
 }

@@ -1,13 +1,11 @@
 use vstd::prelude::*;
-use crate::vreplicaset_controller::trusted::{spec_types::VReplicaSetView, exec_types::VReplicaSet};
 
 verus! {
 
 pub enum VDeploymentReconcileStep {
     Init,
     AfterGetReplicaSets,
-    AfterGetPods,
-    ScaleReplicaSet(VReplicaSet, int),
+    RollReplicas,
     Done,
     Error,
 }
@@ -27,9 +25,8 @@ impl View for VDeploymentReconcileStep {
         match self {
             VDeploymentReconcileStep::Init => VDeploymentReconcileStepView::Init,
             VDeploymentReconcileStep::AfterGetReplicaSets => VDeploymentReconcileStepView::AfterGetReplicaSets,
-            VDeploymentReconcileStep::AfterGetPods => VDeploymentReconcileStepView::AfterGetPods,
+            VDeploymentReconcileStep::RollReplicas => VDeploymentReconcileStepView::RollReplicas,
             VDeploymentReconcileStep::Done => VDeploymentReconcileStepView::Done,
-            VDeploymentReconcileStep::ScaleReplicaSet(rs, i) => VDeploymentReconcileStepView::ScaleReplicaSet(rs.view(), i),
             VDeploymentReconcileStep::Error => VDeploymentReconcileStepView::Error,
         }
     }
@@ -39,9 +36,8 @@ impl View for VDeploymentReconcileStep {
 pub enum VDeploymentReconcileStepView {
     Init,
     AfterGetReplicaSets,
-    AfterGetPods,
+    RollReplicas,
     Done,
-    ScaleReplicaSet(VReplicaSetView, int),
     Error,
 }
 
