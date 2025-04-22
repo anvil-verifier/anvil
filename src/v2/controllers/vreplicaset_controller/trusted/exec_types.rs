@@ -36,8 +36,10 @@ impl VReplicaSet {
         ensures vreplicaset@ == spec_types::VReplicaSetView::default(),
     {
         VReplicaSet {
-            // how to implement default for deps_hack?
-            inner: deps_hack::VReplicaSet::default(),
+            inner: deps_hack::VReplicaSet {
+                metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+                spec: deps_hack::VReplicaSetSpec::default(),
+            }
         }
     }
 
