@@ -90,7 +90,6 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 // https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment
 // 2. User manages deployments, dc updates pods by rollout or rollback. There should be a user-monkey step just like pod-monkey
 // 2.5 How rollout and rollback works with rs
-#[verifier(external_body)]
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(vd@, option_view(resp_o), state@),
@@ -210,14 +209,14 @@ pub fn error_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymen
     }
 }
 
-#[verifier(external_body)]
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
-    ensures
+ensures
     vrs_list_or_none.is_some() ==> vrs_list_or_none.unwrap()@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)).unwrap(),
 {
     let mut vrs_list_or_none: Vec<VReplicaSet> = Vec::new();
-    for obj in objs.into_iter() {
-        match VReplicaSet::unmarshal(obj) {
+    let mut idx = 0;
+    while idx < objs.len() {
+        match VReplicaSet::unmarshal(objs[idx].clone()) {
             Ok(vrs) => {
                 vrs_list_or_none.push(vrs);
             },
@@ -225,40 +224,47 @@ fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Ve
                 return None;
             }
         }
+        idx += 1;
     }
     Some(vrs_list_or_none)
 }
 
 // what's the correct way of encoding owner reference?
-#[verifier(external_body)]
 fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
-    requires vd@.well_formed(),
-    ensures filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+requires
+    vd@.well_formed(),
+    forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
+ensures filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
-    for vrs in vrs_list.into_iter() {
-        // double check
+    let mut idx = 0;
+    while idx < vrs_list.len() {
+        let vrs = &vrs_list[idx];
         if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
         && !vrs.metadata().has_deletion_timestamp() {
-            filtered_vrs_list.push(vrs);
+            filtered_vrs_list.push(vrs.clone());
         }
+        idx += 1;
     }
     filtered_vrs_list
 }
 
-#[verifier(external_body)]
 fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Option<VReplicaSet>, Vec<VReplicaSet>)
-    requires vd@.well_formed(),
+requires
+    vd@.well_formed(),
+    forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
 // TODO: how to write postcondition here as named tuple is not supported
 {
     let mut new_vrs = None;
     let mut old_vrs_list = Vec::new();
+    let mut idx = 0;
     let pod_template_hash = vd.metadata().resource_version().unwrap();
-    for vrs in vrs_list.into_iter() {
+    while idx < vrs_list.len() {
+        let vrs = &vrs_list[idx];
         if vrs.spec().template().unwrap().eq(&template_with_hash(vd)) {
-            new_vrs = Some(vrs);
-        } else if vrs.spec().replicas().unwrap() > 0 {
-            old_vrs_list.push(vrs);
+            new_vrs = Some(vrs.clone());
+        } else if vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 {
+            old_vrs_list.push(vrs.clone());
         }
     }
     (new_vrs, old_vrs_list)
@@ -266,8 +272,6 @@ fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Opti
 
 // TODO
 // proof lemma_filter_old_and_new_vrs_match_model();
-
-#[verifier(external_body)]
 fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
     requires vd@.well_formed(),
     ensures vrs@ == model_reconciler::make_replica_set(vd@),
@@ -294,7 +298,6 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
     vrs
 }
 
-#[verifier(external_body)]
 pub fn template_with_hash(vd: &VDeployment) -> (pod_template_spec: PodTemplateSpec)
     requires vd@.well_formed(),
     ensures pod_template_spec@ == model_reconciler::template_with_hash(vd@),

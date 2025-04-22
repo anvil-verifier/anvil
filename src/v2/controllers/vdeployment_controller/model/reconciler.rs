@@ -113,13 +113,15 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 },
                 (Some(mut new_vrs), old_vrs_list) => {
                     // update existing new vrs
-                    if new_vrs.spec.replicas != vd.spec.replicas {
+                    let existing_replicas = if new_vrs.spec.replicas.is_None() {1} else {new_vrs.spec.replicas.unwrap()};
+                    let expected_replicas = if vd.spec.replicas.is_None() {1} else {vd.spec.replicas.unwrap()};
+                    if existing_replicas != expected_replicas {
                         let req = APIRequest::UpdateRequest(UpdateRequest {
                             name: new_vrs.metadata.name.unwrap(),
                             namespace: namespace,
                             obj: VReplicaSetView {
                                 spec: VReplicaSetSpecView {
-                                    replicas: Some(vd.spec.replicas.unwrap()),
+                                    replicas: Some(expected_replicas),
                                     ..new_vrs.spec
                                 },
                                 ..new_vrs
@@ -189,14 +191,14 @@ pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeployment
 
 pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (Option<VReplicaSetView>, Seq<VReplicaSetView>)
 // we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
-    recommends vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap() > 0).len() <= 1,
 {
-    let new_vrs = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap() > 0);
-    let old_vrs = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap() == 0);
-    if new_vrs.len() > 0 {
-        (Some(new_vrs[0]), old_vrs)
+    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.template.unwrap() == template_with_hash(vd));
+    let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.template.unwrap() != template_with_hash(vd)
+        && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0));
+    if new_vrs_list.len() > 0 {
+        (Some(new_vrs_list[0]), old_vrs_list)
     } else {
-        (None, old_vrs)
+        (None, old_vrs_list)
     }
 }
 
@@ -206,44 +208,34 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
 //
 // TODO: now we scale up the new vrs' replicas at once,
 // we may consider existing pods in old vrs later to satisfy maxSurge
-#[verifier(external_body)]
-// err: expected pure mathematical expression
-pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView) {
+pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
+{
     let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
-    let template = template_with_hash(vd);
-    let labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap();
-    labels.insert("pod-template-hash"@, pod_template_hash);
-    let spec = VReplicaSetSpecView {
-        replicas: Some(vd.spec.replicas.unwrap()),
-        selector: LabelSelectorView {
-            match_labels: Some(labels),
-        },
-        template: Some(template)
-    };
-    let metadata = ObjectMetaView {
-        name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
-        namespace: vd.metadata.namespace,
-        owner_references: Some(make_owner_references(vd)),
-        ..vd.metadata
-    };
     VReplicaSetView {
-        metadata: metadata,
-        spec: spec,
+        metadata: ObjectMetaView {
+            name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
+            namespace: vd.metadata.namespace,
+            owner_references: Some(make_owner_references(vd)),
+            ..vd.metadata
+        },
+        spec: VReplicaSetSpecView {
+            replicas: Some(vd.spec.replicas.unwrap()),
+            selector: LabelSelectorView {
+                match_labels: Some(vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash)),
+            },
+            template: Some(template_with_hash(vd))
+        },
         ..VReplicaSetView::default()
     }
 }
 
-#[verifier(external_body)]
-// err: expected pure mathematical expression
-pub open spec fn template_with_hash(vd: VDeploymentView) -> PodTemplateSpecView {
+pub open spec fn template_with_hash(vd: VDeploymentView) -> PodTemplateSpecView
+{
     let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
-    let metadata = ObjectMetaView::default();
-    let labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap();
-    labels.insert("pod-template-hash"@, pod_template_hash);
     PodTemplateSpecView {
         metadata: Some(ObjectMetaView {
-            labels: Some(labels),
-            ..metadata
+            labels: Some(vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash)),
+            ..ObjectMetaView::default()
         }),
         spec: Some(vd.spec.template.unwrap().spec.unwrap()),
         ..PodTemplateSpecView::default()
