@@ -96,7 +96,7 @@ impl ObjectMeta {
 }
 
 impl DynamicObjectView {
-    pub open spec fn unset_deletion_timestamp(self) -> DynamicObjectView {
+    pub open spec fn without_deletion_timestamp(self) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 deletion_timestamp: None,
@@ -136,14 +136,14 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_spec(self, spec: Value) -> DynamicObjectView {
+    pub open spec fn with_spec(self, spec: Value) -> DynamicObjectView {
         DynamicObjectView {
             spec: spec,
             ..self
         }
     }
 
-    pub open spec fn set_status(self, status: Value) -> DynamicObjectView {
+    pub open spec fn with_status(self, status: Value) -> DynamicObjectView {
         DynamicObjectView {
             status: status,
             ..self
