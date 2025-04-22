@@ -51,6 +51,6 @@ graph LR
 	2-->|list pod|3((after list pod))
 	3-->|ε|4((roll rs))
 	4-->|scale new rs<br>stop old rs|4
-	4-->5((done))
+	4-->|any old pods running<br>/all set|5((done))
 ```
 

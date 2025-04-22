@@ -211,7 +211,8 @@ pub fn error_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymen
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
 ensures
-    vrs_list_or_none.is_some() ==> vrs_list_or_none.unwrap()@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)).unwrap(),
+    vrs_list_or_none.is_some() ==> vrs_list_or_none.unwrap()@.map_values(|vrs: VReplicaSet| vrs@)
+    == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)).unwrap(),
 {
     let mut vrs_list_or_none: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
