@@ -84,7 +84,7 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             &&& obj.metadata.annotations == M::make_config_map(zookeeper).metadata.annotations
         },
         SubResource::StatefulSet => {
-            let key = M::make_stateful_set_key(zookeeper);
+            let key = M::make_stateful_with_key(zookeeper);
             let obj = resources[key];
             let cm_key = M::make_config_map_key(zookeeper);
             let cm_obj = resources[cm_key];

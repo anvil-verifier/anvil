@@ -104,9 +104,9 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
 
 pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
     let ports = seq![
-        ServicePortView::default().set_name("amqp"@).with_port(5672).set_app_protocol("amqp"@),
-        ServicePortView::default().set_name("management"@).with_port(15672).set_app_protocol("http"@),
-        ServicePortView::default().set_name("prometheus"@).with_port(15692).set_app_protocol("prometheus.io/metrics"@),
+        ServicePortView::default().with_name("amqp"@).with_port(5672).with_app_protocol("amqp"@),
+        ServicePortView::default().with_name("management"@).with_port(15672).with_app_protocol("http"@),
+        ServicePortView::default().with_name("prometheus"@).with_port(15692).with_app_protocol("prometheus.io/metrics"@),
     ];
     make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)
 }

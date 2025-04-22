@@ -99,11 +99,11 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView {
     let ports = seq![
-        ServicePortView::default().set_name("tcp-client"@).with_port(zk.spec.ports.client),
-        ServicePortView::default().set_name("tcp-quorum"@).with_port(zk.spec.ports.quorum),
-        ServicePortView::default().set_name("tcp-leader-election"@).with_port(zk.spec.ports.leader_election),
-        ServicePortView::default().set_name("tcp-metrics"@).with_port(zk.spec.ports.metrics),
-        ServicePortView::default().set_name("tcp-admin-server"@).with_port(zk.spec.ports.admin_server)
+        ServicePortView::default().with_name("tcp-client"@).with_port(zk.spec.ports.client),
+        ServicePortView::default().with_name("tcp-quorum"@).with_port(zk.spec.ports.quorum),
+        ServicePortView::default().with_name("tcp-leader-election"@).with_port(zk.spec.ports.leader_election),
+        ServicePortView::default().with_name("tcp-metrics"@).with_port(zk.spec.ports.metrics),
+        ServicePortView::default().with_name("tcp-admin-server"@).with_port(zk.spec.ports.admin_server)
     ];
 
     make_service(zk, make_headless_service_name(zk), ports, false)

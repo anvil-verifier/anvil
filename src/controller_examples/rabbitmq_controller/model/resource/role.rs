@@ -96,16 +96,16 @@ pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView
 
 pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView {
     RoleView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_role_name(rabbitmq))
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(make_owner_references(rabbitmq))
-            .set_labels(make_labels(rabbitmq))
-            .set_annotations(rabbitmq.spec.annotations)
-        ).set_rules(
+        .with_metadata(ObjectMetaView::default()
+            .with_name(make_role_name(rabbitmq))
+            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_owner_references(make_owner_references(rabbitmq))
+            .with_labels(make_labels(rabbitmq))
+            .with_annotations(rabbitmq.spec.annotations)
+        ).with_rules(
             seq![
-                PolicyRuleView::default().set_api_groups(seq![""@]).set_resources(seq!["endpoints"@]).set_verbs(seq!["get"@]),
-                PolicyRuleView::default().set_api_groups(seq![""@]).set_resources(seq!["events"@]).set_verbs(seq!["create"@]),
+                PolicyRuleView::default().with_api_groups(seq![""@]).with_resources(seq!["endpoints"@]).with_verbs(seq!["get"@]),
+                PolicyRuleView::default().with_api_groups(seq![""@]).with_resources(seq!["events"@]).with_verbs(seq!["create"@]),
             ]
         )
 }

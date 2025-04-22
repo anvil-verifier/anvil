@@ -79,10 +79,10 @@ pub open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef {
 
 pub open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView {
     SecretView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_secret_name(fbc))
-            .set_owner_references(make_owner_references(fbc))
-        ).set_data(Map::empty()
+        .with_metadata(ObjectMetaView::default()
+            .with_name(make_secret_name(fbc))
+            .with_owner_references(make_owner_references(fbc))
+        ).with_data(Map::empty()
             .insert("fluent-bit.conf"@, fbc.spec.fluentbit_config)
             .insert("parsers.conf"@, fbc.spec.parsers_config)
         )

@@ -124,7 +124,7 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             &&& obj.metadata.annotations == M::make_role_binding(rabbitmq).metadata.annotations
         },
         SubResource::StatefulSet => {
-            let key = M::make_stateful_set_key(rabbitmq);
+            let key = M::make_stateful_with_key(rabbitmq);
             let obj = resources[key];
             let cm_key = M::make_server_config_map_key(rabbitmq);
             let cm_obj = resources[cm_key];

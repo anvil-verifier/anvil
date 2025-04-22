@@ -23,31 +23,31 @@ pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<Own
 
 pub open spec fn make_secret(rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>) -> SecretView {
     SecretView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(name)
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(make_owner_references(rabbitmq))
-            .set_labels(make_labels(rabbitmq))
-            .set_annotations(rabbitmq.spec.annotations)
-        ).set_data(data)
+        .with_metadata(ObjectMetaView::default()
+            .with_name(name)
+            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_owner_references(make_owner_references(rabbitmq))
+            .with_labels(make_labels(rabbitmq))
+            .with_annotations(rabbitmq.spec.annotations)
+        ).with_data(data)
 }
 
 pub open spec fn make_service(rabbitmq: RabbitmqClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool) -> ServiceView {
     ServiceView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(name)
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(make_owner_references(rabbitmq))
-            .set_labels(make_labels(rabbitmq))
-            .set_annotations(rabbitmq.spec.annotations)
-        ).set_spec({
+        .with_metadata(ObjectMetaView::default()
+            .with_name(name)
+            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_owner_references(make_owner_references(rabbitmq))
+            .with_labels(make_labels(rabbitmq))
+            .with_annotations(rabbitmq.spec.annotations)
+        ).with_spec({
             let spec = ServiceSpecView::default()
-                .set_ports(ports)
-                .set_selector(Map::empty()
+                .with_ports(ports)
+                .with_selector(Map::empty()
                     .insert("app"@, rabbitmq.metadata.name.get_Some_0())
-                ).set_publish_not_ready_addresses(true);
+                ).with_publish_not_ready_addresses(true);
             if !cluster_ip {
-                spec.set_cluster_ip("None"@)
+                spec.with_cluster_ip("None"@)
             } else {
                 spec
             }
