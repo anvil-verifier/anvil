@@ -28,7 +28,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: StatefulSet::api_resource(),
-            name: make_stateful_with_name(rabbitmq),
+            name: make_stateful_set_name(rabbitmq),
             namespace: rabbitmq.metadata().namespace().unwrap(),
         }
     }
@@ -132,11 +132,11 @@ pub fn sts_restart_annotation() -> (anno: String)
     "anvil.dev/lastRestartAt".to_string()
 }
 
-pub fn make_stateful_with_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires
         rabbitmq@.well_formed(),
         rabbitmq@.metadata.namespace.is_Some(),
-    ensures name@ == model_resource::make_stateful_with_name(rabbitmq@),
+    ensures name@ == model_resource::make_stateful_set_name(rabbitmq@),
 {
     rabbitmq.metadata().name().unwrap().concat("-server")
 }
@@ -150,7 +150,7 @@ pub fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> 
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(make_stateful_with_name(rabbitmq));
+        metadata.set_name(make_stateful_set_name(rabbitmq));
         metadata.set_namespace(rabbitmq.metadata().namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));

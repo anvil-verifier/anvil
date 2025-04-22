@@ -409,7 +409,7 @@ impl Maker for ZookeeperMaker {
 
     open spec fn make_config_map_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_config_map_key(zookeeper) }
 
-    open spec fn make_stateful_with_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_stateful_with_key(zookeeper) }
+    open spec fn make_stateful_set_key(zookeeper: ZookeeperClusterView) -> ObjectRef { make_stateful_set_key(zookeeper) }
 
     open spec fn make_headless_service(zookeeper: ZookeeperClusterView) -> ServiceView { make_headless_service(zookeeper) }
 

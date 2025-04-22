@@ -27,7 +27,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
     fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: StatefulSet::api_resource(),
-            name: make_stateful_with_name(zk),
+            name: make_stateful_set_name(zk),
             namespace: zk.metadata().namespace().unwrap(),
         }
     }
@@ -101,9 +101,9 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
     }
 }
 
-pub fn make_stateful_with_name(zk: &ZookeeperCluster) -> (name: String)
+pub fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     requires zk@.well_formed(),
-    ensures name@ == model_resource::make_stateful_with_name(zk@),
+    ensures name@ == model_resource::make_stateful_set_name(zk@),
 {
     zk.metadata().name().unwrap()
 }
@@ -143,7 +143,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(make_stateful_with_name(zk));
+        metadata.set_name(make_stateful_set_name(zk));
         metadata.set_labels(make_labels(zk));
         metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references(make_owner_references(zk));

@@ -94,7 +94,7 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         if s_prime.resources().contains_key(key) && s_prime.resources().contains_key(sts_key) {
             if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
                 if !s.resources().contains_key(key) {
@@ -302,7 +302,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
     );
     assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         assert forall |msg| s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && #[trigger] resource_create_request_msg(sts_key)(msg)
         implies certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);

@@ -31,7 +31,7 @@ pub open spec fn safety<M: Maker>(rabbitmq: RabbitmqClusterView) -> TempPred<RMQ
 // in current state.
 pub open spec fn stateful_set_not_scaled_down<M: Maker>(rabbitmq: RabbitmqClusterView) -> ActionPred<RMQCluster> {
     |s: RMQCluster, s_prime: RMQCluster| {
-        let sts_key = M::make_stateful_with_key(rabbitmq);
+        let sts_key = M::make_stateful_set_key(rabbitmq);
         s.resources().contains_key(sts_key)
         && s_prime.resources().contains_key(sts_key)
         ==> replicas_of_stateful_set(s_prime.resources()[sts_key]) >= replicas_of_stateful_set(s.resources()[sts_key])

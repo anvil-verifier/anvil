@@ -60,7 +60,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     assert forall |s, s_prime| #[trigger] next(s, s_prime) implies stateful_set_not_scaled_down::<RabbitmqMaker>(rabbitmq)(s, s_prime) by {
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         if s.resources().contains_key(sts_key) && s_prime.resources().contains_key(sts_key) {
             if s.resources()[sts_key].spec != s_prime.resources()[sts_key].spec {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -86,7 +86,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
 
 spec fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
             && resource_update_request_msg(sts_key)(msg)
@@ -104,7 +104,7 @@ proof fn lemma_always_replicas_of_stateful_set_update_request_msg_is_no_smaller_
 {
     let inv = replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq);
     // let key = rabbitmq.object_ref();
-    let sts_key = make_stateful_with_key(rabbitmq);
+    let sts_key = make_stateful_set_key(rabbitmq);
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
@@ -191,7 +191,7 @@ spec fn replicas_of_rabbitmq(obj: DynamicObjectView) -> int
 
 spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         s.resources().contains_key(sts_key) ==> replicas_satisfies_order(s.resources()[sts_key], rabbitmq)(s)
     }
 }
@@ -226,7 +226,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         if s_prime.resources().contains_key(sts_key) {
             if s.resources().contains_key(sts_key) && s.resources()[sts_key] == s_prime.resources()[sts_key] {
                 if s_prime.resources().contains_key(key) {
@@ -258,7 +258,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
 
 spec fn replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        let sts_key = make_stateful_with_key(rabbitmq);
+        let sts_key = make_stateful_set_key(rabbitmq);
         forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
             ==> (
@@ -278,7 +278,7 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
     ensures spec.entails(always(lift_state(replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)))),
 {
     let inv = replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq);
-    let sts_key = make_stateful_with_key(rabbitmq);
+    let sts_key = make_stateful_set_key(rabbitmq);
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
@@ -328,12 +328,12 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
         object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(SubResource::StatefulSet, rabbitmq)(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
-        resource_create_request_msg(make_stateful_with_key(rabbitmq))(msg),
+        resource_create_request_msg(make_stateful_set_key(rabbitmq))(msg),
     ensures replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime),
 {
     let step = choose |step| RMQCluster::next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();
-    let sts_key = make_stateful_with_key(rabbitmq);
+    let sts_key = make_stateful_set_key(rabbitmq);
     match step {
         Step::ApiServerStep(input) => {
             assert(s.controller_state == s_prime.controller_state);
@@ -380,12 +380,12 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         // no_create_resource_request_msg_without_name_in_flight(SubResource::StatefulSet, rabbitmq)(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
-        resource_update_request_msg(make_stateful_with_key(rabbitmq))(msg),
+        resource_update_request_msg(make_stateful_set_key(rabbitmq))(msg),
     ensures replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime),
 {
     let step = choose |step| RMQCluster::next_step(s, s_prime, step);
     let key = rabbitmq.object_ref();
-    let sts_key = make_stateful_with_key(rabbitmq);
+    let sts_key = make_stateful_set_key(rabbitmq);
     match step {
         Step::ApiServerStep(input) => {
             assert(s.in_flight().contains(msg));

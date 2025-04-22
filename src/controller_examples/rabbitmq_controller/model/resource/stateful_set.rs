@@ -24,7 +24,7 @@ pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSetBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
-        GetRequest { key: make_stateful_with_key(rabbitmq) }
+        GetRequest { key: make_stateful_set_key(rabbitmq) }
     }
 
     open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
@@ -73,15 +73,15 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 }
 
-pub open spec fn make_stateful_with_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
+pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: StatefulSetView::kind(),
-        name: make_stateful_with_name(rabbitmq),
+        name: make_stateful_set_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
     }
 }
 
-pub open spec fn make_stateful_with_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server"@ }
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server"@ }
 
 pub open spec fn sts_restart_annotation() -> StringView { "anvil.dev/lastRestartAt"@ }
 
@@ -107,7 +107,7 @@ pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_statef
 
 pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView {
     let name = rabbitmq.metadata.name.get_Some_0();
-    let sts_name = make_stateful_with_name(rabbitmq);
+    let sts_name = make_stateful_set_name(rabbitmq);
     let namespace = rabbitmq.metadata.namespace.get_Some_0();
 
     let labels = Map::empty().insert("app"@, name);

@@ -21,7 +21,7 @@ pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for StatefulSetBuilder {
     open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
-        GetRequest { key: make_stateful_with_key(zk) }
+        GetRequest { key: make_stateful_set_key(zk) }
     }
 
     open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
@@ -86,15 +86,15 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
     }
 }
 
-pub open spec fn make_stateful_with_key(zk: ZookeeperClusterView) -> ObjectRef {
+pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: StatefulSetView::kind(),
-        name: make_stateful_with_name(zk),
+        name: make_stateful_set_name(zk),
         namespace: zk.metadata.namespace.get_Some_0(),
     }
 }
 
-pub open spec fn make_stateful_with_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() }
+pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() }
 
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView, rv: StringView) -> StatefulSetView {
     StatefulSetView {
@@ -116,7 +116,7 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
 }
 
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> StatefulSetView {
-    let name = make_stateful_with_name(zk);
+    let name = make_stateful_set_name(zk);
     let namespace = zk.metadata.namespace.get_Some_0();
 
     let metadata = ObjectMetaView::default()

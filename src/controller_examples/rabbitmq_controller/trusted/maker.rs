@@ -19,7 +19,7 @@ pub trait Maker {
     spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef;
     spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef;
     spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef;
-    spec fn make_stateful_with_key(rabbitmq: RabbitmqClusterView) -> ObjectRef;
+    spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef;
 
     spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView;
     spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView;

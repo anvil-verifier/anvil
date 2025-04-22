@@ -13,7 +13,7 @@ pub trait Maker {
     spec fn make_client_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef;
     spec fn make_admin_server_service_key(zookeeper: ZookeeperClusterView) -> ObjectRef;
     spec fn make_config_map_key(zookeeper: ZookeeperClusterView) -> ObjectRef;
-    spec fn make_stateful_with_key(zookeeper: ZookeeperClusterView) -> ObjectRef;
+    spec fn make_stateful_set_key(zookeeper: ZookeeperClusterView) -> ObjectRef;
 
     spec fn make_headless_service(zookeeper: ZookeeperClusterView) -> ServiceView;
     spec fn make_client_service(zookeeper: ZookeeperClusterView) -> ServiceView;

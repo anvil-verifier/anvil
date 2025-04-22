@@ -270,7 +270,7 @@ impl Maker for RabbitmqMaker {
 
     open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_role_binding_key(rabbitmq) }
 
-    open spec fn make_stateful_with_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_stateful_with_key(rabbitmq) }
+    open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef { make_stateful_set_key(rabbitmq) }
 
     open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView { make_headless_service(rabbitmq) }
 
