@@ -69,9 +69,34 @@ pub open spec fn no_pending_update_or_update_status_request_on_pods() -> StatePr
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
-        } ==> {
-            &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != PodView::kind()
-            &&& msg.content.is_update_status_request() ==> msg.content.get_update_status_request().key().kind != PodView::kind()
+        } ==> match msg.content.get_APIRequest_0() {
+            // Other controllers don't try to update pods owned by a VReplicaSet.
+            APIRequest::UpdateRequest(req) => !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& req.obj.kind == Kind::PodKind
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            },
+            // Dealt with similarly to update requests.
+            // TODO: allow other controllers to send UpdateStatus
+            // requests to owned pods after we address the fairness issues.
+            APIRequest::UpdateStatusRequest(req) => !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& req.obj.kind == Kind::PodKind
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            },
+            _ => true,
         }
     }
 }
