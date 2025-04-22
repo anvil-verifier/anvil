@@ -272,7 +272,7 @@ pub struct FluentBitConfigSpec {
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource, Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
 #[kube(shortname = "vrs", namespaced)]

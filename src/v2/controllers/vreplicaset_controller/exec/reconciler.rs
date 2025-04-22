@@ -5,8 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::option_lib::*;
-use crate::vstd_ext::string_map::StringMap;
+use crate::vstd_ext::{option_lib::*, string_map::StringMap, seq_lib::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -346,7 +345,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         let filter_result = model_input.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err());
         assert(filter_result.len() == 0) by {
             if filter_result.len() != 0 {
-                lemma_filter_contains_implies_contains(
+                seq_filter_contains_implies_seq_contains(
                     model_input,
                     |o: DynamicObjectView| PodView::unmarshal(o).is_err(),
                     filter_result[0]
@@ -359,25 +358,6 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
     }
 
     Some(pods)
-}
-
-proof fn lemma_filter_contains_implies_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, e: A)
-    requires s.filter(pred).contains(e),
-    ensures s.contains(e),
-    decreases s.len(),
-{
-    reveal(Seq::filter);
-    if s.len() == 0 {
-        // Trivially true.
-    } else {
-        // Induction structure follows implementation of .filter().
-        if s.last() == e {
-            // The witness for .contains() is the last index.
-        } else {
-            // Inductive step.
-            lemma_filter_contains_implies_contains(s.drop_last(), pred, e);
-        }
-    }
 }
 
 // TODO: This function can be replaced by a map.

@@ -7,11 +7,12 @@ use crate::kubernetes_api_objects::exec::{
     label_selector::LabelSelector,
 };
 use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vreplicaset_controller::trusted::exec_types::*;
+use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vstd_ext::option_lib::*;
 use vstd::{prelude::*, seq_lib::*};
+use crate::vstd_ext::seq_lib::*;
 
 verus! {
 
@@ -211,22 +212,75 @@ pub fn error_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymen
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
 ensures
-    vrs_list_or_none.is_some() ==> vrs_list_or_none.unwrap()@.map_values(|vrs: VReplicaSet| vrs@)
-    == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)).unwrap(),
+    option_vec_view(vrs_list_or_none) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)),
 {
     let mut vrs_list_or_none: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
+
+    proof {
+        let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+        if model_result.is_some() {
+            assert_seqs_equal!(
+                vrs_list_or_none@.map_values(|vrs: VReplicaSet| vrs@),
+                model_result.unwrap().take(0)
+            );
+        }
+    }
+
     while idx < objs.len() {
         match VReplicaSet::unmarshal(objs[idx].clone()) {
             Ok(vrs) => {
                 vrs_list_or_none.push(vrs);
+                proof {
+                    // Show that the vrs Vec and the model_result are equal up to index idx + 1.
+                    let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+                    if (model_result.is_some()) {
+                        assert(model_result.unwrap().take((idx + 1) as int)
+                            == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
+                        assert_seqs_equal!(
+                            vrs_list_or_none@.map_values(|vrs: VReplicaSet| vrs@),
+                            model_result.unwrap().take((idx + 1) as int)
+                        );
+                    }
+                }
             },
             Err(_) => {
+                proof {
+                    // Show that if a vrs was unable to be serialized, the model would return None.
+                    let model_input = objs@.map_values(|obj: DynamicObject| obj@);
+                    let model_result = model_reconciler::objects_to_vrs_list(model_input);
+                    assert(
+                        model_input
+                            .filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err())
+                            .contains(model_input[idx as int])
+                    );
+                    assert(model_result == None::<Seq<VReplicaSetView>>);
+                }
                 return None;
             }
         }
         idx += 1;
     }
+
+    proof {
+        let model_input = objs@.map_values(|obj: DynamicObject| obj@);
+        let model_result = model_reconciler::objects_to_vrs_list(model_input);
+
+        // Prove, by contradiction, that the model_result can't be None.
+        let filter_result = model_input.filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err());
+        assert(filter_result.len() == 0) by {
+            if filter_result.len() != 0 {
+                seq_filter_contains_implies_seq_contains(
+                    model_input,
+                    |obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err(),
+                    filter_result[0]
+                );
+            }
+        };
+        assert(model_result.is_some());
+        assert(model_result.unwrap().take(objs.len() as int) == model_result.unwrap());
+    }
+
     Some(vrs_list_or_none)
 }
 
