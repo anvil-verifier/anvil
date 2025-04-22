@@ -214,23 +214,32 @@ fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Ve
 ensures
     option_vec_view(vrs_list_or_none) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)),
 {
-    let mut vrs_list_or_none: Vec<VReplicaSet> = Vec::new();
+    let mut vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
 
     proof {
         let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
         if model_result.is_some() {
             assert_seqs_equal!(
-                vrs_list_or_none@.map_values(|vrs: VReplicaSet| vrs@),
+                vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
                 model_result.unwrap().take(0)
             );
         }
     }
 
-    while idx < objs.len() {
+    while idx < objs.len()
+    invariant
+        idx <= objs.len(),
+        ({
+            let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+            &&& (model_result.is_some() ==>
+                    vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
+            &&& forall|i: int| 0 <= i < idx ==> VReplicaSetView::unmarshal(#[trigger] objs@[i]@).is_ok()
+        }),
+    {
         match VReplicaSet::unmarshal(objs[idx].clone()) {
             Ok(vrs) => {
-                vrs_list_or_none.push(vrs);
+                vrs_list.push(vrs);
                 proof {
                     // Show that the vrs Vec and the model_result are equal up to index idx + 1.
                     let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
@@ -238,7 +247,7 @@ ensures
                         assert(model_result.unwrap().take((idx + 1) as int)
                             == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
                         assert_seqs_equal!(
-                            vrs_list_or_none@.map_values(|vrs: VReplicaSet| vrs@),
+                            vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
                             model_result.unwrap().take((idx + 1) as int)
                         );
                     }
@@ -281,7 +290,7 @@ ensures
         assert(model_result.unwrap().take(objs.len() as int) == model_result.unwrap());
     }
 
-    Some(vrs_list_or_none)
+    Some(vrs_list)
 }
 
 // what's the correct way of encoding owner reference?
