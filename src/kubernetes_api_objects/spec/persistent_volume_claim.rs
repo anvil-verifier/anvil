@@ -21,14 +21,14 @@ pub struct PersistentVolumeClaimView {
 pub type PersistentVolumeClaimStatusView = EmptyStatusView;
 
 impl PersistentVolumeClaimView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PersistentVolumeClaimView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> PersistentVolumeClaimView {
         PersistentVolumeClaimView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: PersistentVolumeClaimSpecView) -> PersistentVolumeClaimView {
+    pub open spec fn with_spec(self, spec: PersistentVolumeClaimSpecView) -> PersistentVolumeClaimView {
         PersistentVolumeClaimView {
             spec: Some(spec),
             ..self
@@ -148,21 +148,21 @@ impl PersistentVolumeClaimSpecView {
         }
     }
 
-    pub open spec fn set_access_modes(self, access_modes: Seq<StringView>) -> PersistentVolumeClaimSpecView {
+    pub open spec fn with_access_modes(self, access_modes: Seq<StringView>) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             access_modes: Some(access_modes),
             ..self
         }
     }
 
-    pub open spec fn set_resources(self, resources: VolumeResourceRequirementsView) -> PersistentVolumeClaimSpecView {
+    pub open spec fn with_resources(self, resources: VolumeResourceRequirementsView) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             resources: Some(resources),
             ..self
         }
     }
 
-    pub open spec fn set_storage_class_name(self, storage_class_name: StringView) -> PersistentVolumeClaimSpecView {
+    pub open spec fn with_storage_class_name(self, storage_class_name: StringView) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             storage_class_name: Some(storage_class_name),
             ..self

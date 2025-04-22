@@ -248,10 +248,10 @@ pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
                 finalizers: tm.finalizers,
                 ..metadata
             };
-            let metadata = metadata.set_generate_name(
+            let metadata = metadata.with_generate_name(
                 v_replica_set.metadata.name.unwrap() + "-"@
             );
-            let metadata = metadata.set_owner_references(
+            let metadata = metadata.with_owner_references(
                 make_owner_references(v_replica_set)
             );
             metadata

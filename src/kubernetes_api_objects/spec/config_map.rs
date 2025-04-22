@@ -26,14 +26,14 @@ pub struct ConfigMapView {
 type ConfigMapSpecView = Option<Map<StringView, StringView>>;
 
 impl ConfigMapView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
         ConfigMapView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
+    pub open spec fn with_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
         ConfigMapView {
             data: Some(data),
             ..self

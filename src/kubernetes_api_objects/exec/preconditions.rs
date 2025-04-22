@@ -36,14 +36,14 @@ impl Preconditions {
 
     #[verifier(external_body)]
     pub fn set_uid_from_object_meta(&mut self, object_meta: ObjectMeta)
-        ensures self@ == old(self)@.set_uid_from_object_meta(object_meta@),
+        ensures self@ == old(self)@.with_uid_from_object_meta(object_meta@),
     {
         self.inner.uid = object_meta.into_kube().uid;
     }
 
     #[verifier(external_body)]
     pub fn set_resource_version_from_object_meta(&mut self, object_meta: ObjectMeta)
-        ensures self@ == old(self)@.set_resource_version_from_object_meta(object_meta@),
+        ensures self@ == old(self)@.with_resource_version_from_object_meta(object_meta@),
     {
         self.inner.resource_version = object_meta.into_kube().resource_version;
     }

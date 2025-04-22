@@ -52,35 +52,35 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ObjectMetaView {
+    pub open spec fn with_name(self, name: StringView) -> ObjectMetaView {
         ObjectMetaView {
             name: Some(name),
             ..self
         }
     }
 
-    pub open spec fn set_generate_name(self, generate_name: StringView) -> ObjectMetaView {
+    pub open spec fn with_generate_name(self, generate_name: StringView) -> ObjectMetaView {
         ObjectMetaView {
             generate_name: Some(generate_name),
             ..self
         }
     }
 
-    pub open spec fn set_namespace(self, namespace: StringView) -> ObjectMetaView {
+    pub open spec fn with_namespace(self, namespace: StringView) -> ObjectMetaView {
         ObjectMetaView {
             namespace: Some(namespace),
             ..self
         }
     }
 
-    pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ObjectMetaView {
+    pub open spec fn with_labels(self, labels: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             labels: Some(labels),
             ..self
         }
     }
 
-    pub open spec fn set_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
+    pub open spec fn with_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             annotations: Some(annotations),
             ..self
@@ -99,28 +99,28 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn set_resource_version(self, resource_version: ResourceVersion) -> ObjectMetaView {
+    pub open spec fn with_resource_version(self, resource_version: ResourceVersion) -> ObjectMetaView {
         ObjectMetaView {
             resource_version: Some(resource_version),
             ..self
         }
     }
 
-    pub open spec fn set_owner_references(self, owner_references: Seq<OwnerReferenceView>) -> ObjectMetaView {
+    pub open spec fn with_owner_references(self, owner_references: Seq<OwnerReferenceView>) -> ObjectMetaView {
         ObjectMetaView {
             owner_references: Some(owner_references),
             ..self
         }
     }
 
-    pub open spec fn set_finalizers(self, finalizers: Seq<StringView>) -> ObjectMetaView {
+    pub open spec fn with_finalizers(self, finalizers: Seq<StringView>) -> ObjectMetaView {
         ObjectMetaView {
             finalizers: Some(finalizers),
             ..self
         }
     }
 
-    pub open spec fn unset_finalizers(self) -> ObjectMetaView {
+    pub open spec fn without_finalizers(self) -> ObjectMetaView {
         ObjectMetaView {
             finalizers: None,
             ..self
@@ -135,7 +135,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn set_deletion_timestamp(self, deletion_timestamp: StringView) -> ObjectMetaView {
+    pub open spec fn with_deletion_timestamp(self, deletion_timestamp: StringView) -> ObjectMetaView {
         ObjectMetaView {
             deletion_timestamp: Some(deletion_timestamp),
             ..self

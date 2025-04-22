@@ -32,14 +32,14 @@ impl VolumeResourceRequirements {
 
     #[verifier(external_body)]
     pub fn set_limits(&mut self, limits: StringMap)
-        ensures self@ == old(self)@.set_limits(limits@),
+        ensures self@ == old(self)@.with_limits(limits@),
     {
         self.inner.limits = Some(limits.into_rust_map().into_iter().map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v))).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_requests(&mut self, requests: StringMap)
-        ensures self@ == old(self)@.set_requests(requests@),
+        ensures self@ == old(self)@.with_requests(requests@),
     {
         self.inner.requests = Some(requests.into_rust_map().into_iter().map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v))).collect());
     }

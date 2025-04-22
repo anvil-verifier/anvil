@@ -194,21 +194,21 @@ impl DynamicObject {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.as_kube_mut_ref().metadata.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
-        ensures self@ == old(self)@.set_namespace(namespace@),
+        ensures self@ == old(self)@.with_namespace(namespace@),
     {
         self.as_kube_mut_ref().metadata.namespace = Some(namespace);
     }
 
     #[verifier(external_body)]
     pub fn set_resource_version(&mut self, resource_version: i64)
-        ensures self@ == old(self)@.set_resource_version(resource_version as int),
+        ensures self@ == old(self)@.with_resource_version(resource_version as int),
     {
         self.as_kube_mut_ref().metadata.resource_version = Some(resource_version.to_string());
     }
@@ -222,7 +222,7 @@ impl DynamicObject {
 
     #[verifier(external_body)]
     pub fn set_uid(&mut self, uid: i64)
-        ensures self@ == old(self)@.set_uid(uid as int),
+        ensures self@ == old(self)@.with_uid(uid as int),
     {
         self.as_kube_mut_ref().metadata.uid = Some(uid.to_string());
     }
@@ -236,7 +236,7 @@ impl DynamicObject {
 
     #[verifier(external_body)]
     pub fn unset_deletion_timestamp(&mut self)
-        ensures self@ == old(self)@.unset_deletion_timestamp(),
+        ensures self@ == old(self)@.without_deletion_timestamp(),
     {
         self.as_kube_mut_ref().metadata.deletion_timestamp = None;
     }
@@ -255,7 +255,7 @@ impl DynamicObject {
     // However, this function is actually closer to Kubernetes' real behavior.
     #[verifier(external_body)]
     pub fn set_current_deletion_timestamp(&mut self)
-        ensures self@ == old(self)@.set_deletion_timestamp(model::deletion_timestamp()),
+        ensures self@ == old(self)@.with_deletion_timestamp(model::deletion_timestamp()),
     {
         self.as_kube_mut_ref().metadata.deletion_timestamp = Some(deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(deps_hack::chrono::Utc::now()));
     }
@@ -269,7 +269,7 @@ impl DynamicObject {
 
     #[verifier(external_body)]
     pub fn set_metadata_from(&mut self, other: &DynamicObject)
-        ensures self@ == old(self)@.set_metadata(other@.metadata)
+        ensures self@ == old(self)@.with_metadata(other@.metadata)
     {
         self.as_kube_mut_ref().metadata = other.as_kube_ref().metadata.clone()
     }
@@ -282,20 +282,20 @@ impl DynamicObject {
     // the content of the spec and status.
     #[verifier(external_body)]
     pub fn set_spec_from(&mut self, other: &DynamicObject)
-        ensures self@ == old(self)@.set_spec(other@.spec)
+        ensures self@ == old(self)@.with_spec(other@.spec)
     {
         self.as_kube_mut_ref().data = other.as_kube_ref().data.clone()
     }
 
     #[verifier(external_body)]
     pub fn set_status_from(&mut self, other: &DynamicObject)
-        ensures self@ == old(self)@.set_status(other@.status)
+        ensures self@ == old(self)@.with_status(other@.status)
     {}
 
     #[verifier(external_body)]
     pub fn set_default_status<K: CustomResourceView>(&mut self)
         ensures
-            self@ == old(self)@.set_status(model::marshalled_default_status::<K>(self@.kind)),
+            self@ == old(self)@.with_status(model::marshalled_default_status::<K>(self@.kind)),
             model::unmarshallable_status::<K>(self@),
     {}
 }

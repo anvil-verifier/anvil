@@ -343,9 +343,9 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                     }
                 }),
                 ports: Some(seq![
-                    ContainerPortView::default().set_name("epmd"@).set_container_port(4369),
-                    ContainerPortView::default().set_name("amqp"@).set_container_port(5672),
-                    ContainerPortView::default().set_name("management"@).set_container_port(15672),
+                    ContainerPortView::default().set_name("epmd"@).with_container_port(4369),
+                    ContainerPortView::default().set_name("amqp"@).with_container_port(5672),
+                    ContainerPortView::default().set_name("management"@).with_container_port(15672),
                 ]),
                 readiness_probe: Some(
                     ProbeView::default()
@@ -362,7 +362,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         ],
         volumes: Some({
             if rabbitmq.spec.persistence.storage == "0Gi"@ {
-                volumes.push(VolumeView::default().set_name("persistence"@).set_empty_dir(EmptyDirVolumeSourceView::default()))
+                volumes.push(VolumeView::default().set_name("persistence"@).with_empty_dir(EmptyDirVolumeSourceView::default()))
             } else {
                 volumes
             }

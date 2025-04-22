@@ -175,7 +175,7 @@ pub open spec fn create_request_admission_check<K: CustomResourceView>(req: Crea
     } else if !unmarshallable_object::<K>(req.obj) {
         // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
-    } else if req.obj.metadata.name.is_Some() && s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
+    } else if req.obj.metadata.name.is_Some() && s.resources.contains_key(req.obj.with_namespace(req.namespace).object_ref()) {
         // Creation fails because the object has a name and it already exists
         Some(APIError::ObjectAlreadyExists)
     } else {
@@ -280,8 +280,8 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: ApiServerState) ->
             if obj.metadata.deletion_timestamp.is_Some() {
                 (s, DeleteResponse{res: Ok(())})
             } else {
-                let stamped_obj_with_new_rv = obj.set_deletion_timestamp(deletion_timestamp())
-                                                    .set_resource_version(s.resource_version_counter);
+                let stamped_obj_with_new_rv = obj.with_deletion_timestamp(deletion_timestamp())
+                                                 .with_resource_version(s.resource_version_counter);
                 (ApiServerState {
                     // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
                     // This is intended because using stamped_obj.object_ref() will require us to use
@@ -408,7 +408,7 @@ pub open spec fn handle_update_request<K: CustomResourceView>(req: UpdateRequest
         } else {
             // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
             // which is the current rv counter.
-            let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
+            let updated_obj_with_new_rv = updated_obj.with_resource_version(s.resource_version_counter);
             if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
                 // Update fails.
                 (s, UpdateResponse{res: Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0())})
@@ -482,7 +482,7 @@ pub open spec fn handle_update_status_request<K: CustomResourceView>(req: Update
         } else {
             // UpdateStatus changes something in the object (in status), so we set it a newer resource version,
             // which is the current rv counter.
-            let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
+            let updated_obj_with_new_rv = updated_obj.with_resource_version(s.resource_version_counter);
             if updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).is_Some() {
                 // UpdateStatus fails.
                 (s, UpdateStatusResponse{res: Err(updated_object_validity_check::<K>(updated_obj_with_new_rv, old_obj).get_Some_0())})

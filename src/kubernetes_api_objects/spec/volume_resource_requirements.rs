@@ -18,14 +18,14 @@ impl VolumeResourceRequirementsView {
         }
     }
 
-    pub open spec fn set_limits(self, limits: Map<StringView, StringView>) -> VolumeResourceRequirementsView {
+    pub open spec fn with_limits(self, limits: Map<StringView, StringView>) -> VolumeResourceRequirementsView {
         VolumeResourceRequirementsView {
             limits: Some(limits),
             ..self
         }
     }
 
-    pub open spec fn set_requests(self, requests: Map<StringView, StringView>) -> VolumeResourceRequirementsView {
+    pub open spec fn with_requests(self, requests: Map<StringView, StringView>) -> VolumeResourceRequirementsView {
         VolumeResourceRequirementsView {
             requests: Some(requests),
             ..self

@@ -29,14 +29,14 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> DynamicObjectView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> DynamicObjectView {
         DynamicObjectView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> DynamicObjectView {
+    pub open spec fn with_name(self, name: StringView) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 name: Some(name),
@@ -46,7 +46,7 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_namespace(self, namespace: StringView) -> DynamicObjectView {
+    pub open spec fn with_namespace(self, namespace: StringView) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 namespace: Some(namespace),
@@ -56,7 +56,7 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_resource_version(self, resource_version: ResourceVersion) -> DynamicObjectView {
+    pub open spec fn with_resource_version(self, resource_version: ResourceVersion) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 resource_version: Some(resource_version),
@@ -66,7 +66,7 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_uid(self, uid: Uid) -> DynamicObjectView {
+    pub open spec fn with_uid(self, uid: Uid) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 uid: Some(uid),
@@ -76,7 +76,7 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_deletion_timestamp(self, deletion_timestamp: StringView) -> DynamicObjectView {
+    pub open spec fn with_deletion_timestamp(self, deletion_timestamp: StringView) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 deletion_timestamp: Some(deletion_timestamp),

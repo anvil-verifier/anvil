@@ -87,7 +87,7 @@ impl ZookeeperCluster {
 
     #[verifier(external_body)]
     pub fn set_status(&mut self, status: ZookeeperClusterStatus)
-        ensures self@ == old(self)@.set_status(status@),
+        ensures self@ == old(self)@.with_status(status@),
     {
         self.inner.status = Some(status.into_kube());
     }
@@ -447,7 +447,7 @@ impl ZookeeperClusterStatus {
 
     #[verifier(external_body)]
     pub fn set_ready_replicas(&mut self, ready_replicas: i32)
-        ensures self@ == old(self)@.set_ready_replicas(ready_replicas as int),
+        ensures self@ == old(self)@.with_ready_replicas(ready_replicas as int),
     {
         self.inner.ready_replicas = ready_replicas
     }

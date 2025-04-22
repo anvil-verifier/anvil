@@ -193,11 +193,11 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
                         .set_mount_path("/conf"@),
                 ]),
                 ports: Some(seq![
-                    ContainerPortView::default().set_name("client"@).set_container_port(zk.spec.ports.client),
-                    ContainerPortView::default().set_name("quorum"@).set_container_port(zk.spec.ports.quorum),
-                    ContainerPortView::default().set_name("leader-election"@).set_container_port(zk.spec.ports.leader_election),
-                    ContainerPortView::default().set_name("metrics"@).set_container_port(zk.spec.ports.metrics),
-                    ContainerPortView::default().set_name("admin-server"@).set_container_port(zk.spec.ports.admin_server)
+                    ContainerPortView::default().set_name("client"@).with_container_port(zk.spec.ports.client),
+                    ContainerPortView::default().set_name("quorum"@).with_container_port(zk.spec.ports.quorum),
+                    ContainerPortView::default().set_name("leader-election"@).with_container_port(zk.spec.ports.leader_election),
+                    ContainerPortView::default().set_name("metrics"@).with_container_port(zk.spec.ports.metrics),
+                    ContainerPortView::default().set_name("admin-server"@).with_container_port(zk.spec.ports.admin_server)
                 ]),
                 readiness_probe: Some(ProbeView::default()
                     .set_exec(
@@ -226,14 +226,14 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
         ],
         volumes: Some({
             let volumes = seq![
-                VolumeView::default().set_name("conf"@).set_config_map(
+                VolumeView::default().set_name("conf"@).with_config_map(
                     ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + "-configmap"@)
                 )
             ];
             if zk.spec.persistence.enabled {
                 volumes
             } else {
-                volumes.push(VolumeView::default().set_name("data"@).set_empty_dir(EmptyDirVolumeSourceView::default()))
+                volumes.push(VolumeView::default().set_name("data"@).with_empty_dir(EmptyDirVolumeSourceView::default()))
             }
         }),
         tolerations: zk.spec.tolerations,

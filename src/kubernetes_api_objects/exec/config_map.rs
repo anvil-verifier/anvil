@@ -67,14 +67,14 @@ impl ConfigMap {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
-        ensures self@ == old(self)@.set_data(data@),
+        ensures self@ == old(self)@.with_data(data@),
     {
         self.inner.data = Some(data.into_rust_map())
     }

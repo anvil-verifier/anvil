@@ -96,7 +96,7 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView {
-    let ports = seq![ServicePortView::default().set_name("tcp-admin-server"@).set_port(zk.spec.ports.admin_server)];
+    let ports = seq![ServicePortView::default().set_name("tcp-admin-server"@).with_port(zk.spec.ports.admin_server)];
 
     make_service(zk, make_admin_server_service_name(zk), ports, true)
 }

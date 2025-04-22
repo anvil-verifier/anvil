@@ -17,7 +17,7 @@ pub struct ServiceAccountView {
 type ServiceAccountSpecView = Option<bool>;
 
 impl ServiceAccountView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceAccountView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> ServiceAccountView {
         ServiceAccountView {
             metadata: metadata,
             ..self

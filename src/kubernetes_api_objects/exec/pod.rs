@@ -63,14 +63,14 @@ impl Pod {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PodSpec)
-        ensures self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -150,105 +150,105 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_affinity(&mut self, affinity: Affinity)
-        ensures self@ == old(self)@.set_affinity(affinity@),
+        ensures self@ == old(self)@.with_affinity(affinity@),
     {
         self.inner.affinity = Some(affinity.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_containers(&mut self, containers: Vec<Container>)
-        ensures self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
+        ensures self@ == old(self)@.with_containers(containers@.map_values(|container: Container| container@)),
     {
         self.inner.containers = containers.into_iter().map(|container: Container| container.into_kube()).collect()
     }
 
     #[verifier(external_body)]
     pub fn set_volumes(&mut self, volumes: Vec<Volume>)
-        ensures self@ == old(self)@.set_volumes(volumes@.map_values(|vol: Volume| vol@)),
+        ensures self@ == old(self)@.with_volumes(volumes@.map_values(|vol: Volume| vol@)),
     {
         self.inner.volumes = Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_init_containers(&mut self, init_containers: Vec<Container>)
-        ensures self@ == old(self)@.set_init_containers(init_containers@.map_values(|container: Container| container@)),
+        ensures self@ == old(self)@.with_init_containers(init_containers@.map_values(|container: Container| container@)),
     {
         self.inner.init_containers = Some(init_containers.into_iter().map(|container: Container| container.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_service_account_name(&mut self, service_account: String)
-        ensures self@ == old(self)@.set_service_account_name(service_account@),
+        ensures self@ == old(self)@.with_service_account_name(service_account@),
     {
         self.inner.service_account_name = Some(service_account)
     }
 
     #[verifier(external_body)]
     pub fn set_tolerations(&mut self, tolerations: Vec<Toleration>)
-        ensures self@ == old(self)@.set_tolerations(tolerations@.map_values(|toleration: Toleration| toleration@)),
+        ensures self@ == old(self)@.with_tolerations(tolerations@.map_values(|toleration: Toleration| toleration@)),
     {
         self.inner.tolerations = Some(tolerations.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_node_selector(&mut self, node_selector: StringMap)
-        ensures self@ == old(self)@.set_node_selector(node_selector@),
+        ensures self@ == old(self)@.with_node_selector(node_selector@),
     {
         self.inner.node_selector = Some(node_selector.into_rust_map())
     }
 
     #[verifier(external_body)]
     pub fn set_runtime_class_name(&mut self, runtime_class_name: String)
-        ensures self@ == old(self)@.set_runtime_class_name(runtime_class_name@),
+        ensures self@ == old(self)@.with_runtime_class_name(runtime_class_name@),
     {
         self.inner.runtime_class_name = Some(runtime_class_name)
     }
 
     #[verifier(external_body)]
     pub fn set_dns_policy(&mut self, dns_policy: String)
-        ensures self@ == old(self)@.set_dns_policy(dns_policy@),
+        ensures self@ == old(self)@.with_dns_policy(dns_policy@),
     {
         self.inner.dns_policy = Some(dns_policy)
     }
 
     #[verifier(external_body)]
     pub fn set_scheduler_name(&mut self, scheduler_name: String)
-        ensures self@ == old(self)@.set_scheduler_name(scheduler_name@),
+        ensures self@ == old(self)@.with_scheduler_name(scheduler_name@),
     {
         self.inner.scheduler_name = Some(scheduler_name)
     }
 
     #[verifier(external_body)]
     pub fn set_priority_class_name(&mut self, priority_class_name: String)
-        ensures self@ == old(self)@.set_priority_class_name(priority_class_name@),
+        ensures self@ == old(self)@.with_priority_class_name(priority_class_name@),
     {
         self.inner.priority_class_name = Some(priority_class_name)
     }
 
     #[verifier(external_body)]
     pub fn set_security_context(&mut self, security_context: PodSecurityContext)
-        ensures self@ == old(self)@.set_security_context(security_context@),
+        ensures self@ == old(self)@.with_security_context(security_context@),
     {
         self.inner.security_context = Some(security_context.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_host_network(&mut self, host_network: bool)
-        ensures self@ == old(self)@.set_host_network(host_network),
+        ensures self@ == old(self)@.with_host_network(host_network),
     {
         self.inner.host_network = Some(host_network);
     }
 
     #[verifier(external_body)]
     pub fn set_termination_grace_period_seconds(&mut self, termination_grace_period_seconds: i64)
-        ensures self@ == old(self)@.set_termination_grace_period_seconds(termination_grace_period_seconds as int),
+        ensures self@ == old(self)@.with_termination_grace_period_seconds(termination_grace_period_seconds as int),
     {
         self.inner.termination_grace_period_seconds = Some(termination_grace_period_seconds);
     }
 
     #[verifier(external_body)]
     pub fn set_image_pull_secrets(&mut self, image_pull_secrets: Vec<LocalObjectReference>)
-        ensures self@ == old(self)@.set_image_pull_secrets(image_pull_secrets@.map_values(|r: LocalObjectReference| r@)),
+        ensures self@ == old(self)@.with_image_pull_secrets(image_pull_secrets@.map_values(|r: LocalObjectReference| r@)),
     {
         self.inner.image_pull_secrets = Some(image_pull_secrets.into_iter().map(|r: LocalObjectReference| r.into_kube()).collect())
     }

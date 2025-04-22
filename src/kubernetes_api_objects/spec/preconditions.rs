@@ -21,14 +21,14 @@ impl PreconditionsView {
         }
     }
 
-    pub open spec fn set_uid_from_object_meta(self, object_meta: ObjectMetaView) -> PreconditionsView {
+    pub open spec fn with_uid_from_object_meta(self, object_meta: ObjectMetaView) -> PreconditionsView {
         PreconditionsView {
             uid: object_meta.uid,
             ..self
         }
     }
 
-    pub open spec fn set_resource_version_from_object_meta(self, object_meta: ObjectMetaView) -> PreconditionsView {
+    pub open spec fn with_resource_version_from_object_meta(self, object_meta: ObjectMetaView) -> PreconditionsView {
         PreconditionsView {
             resource_version: object_meta.resource_version,
             ..self

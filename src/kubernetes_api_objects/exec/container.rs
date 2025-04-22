@@ -33,21 +33,21 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_image(&mut self, image: String)
-        ensures self@ == old(self)@.set_image(image@),
+        ensures self@ == old(self)@.with_image(image@),
     {
         self.inner.image = Some(image)
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = name
     }
 
     #[verifier(external_body)]
     pub fn set_volume_mounts(&mut self, volume_mounts: Vec<VolumeMount>)
-        ensures self@ == old(self)@.set_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
+        ensures self@ == old(self)@.with_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
     {
         self.inner.volume_mounts = Some(
             volume_mounts.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
@@ -56,70 +56,70 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_ports(&mut self, ports: Vec<ContainerPort>)
-        ensures self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
+        ensures self@ == old(self)@.with_ports(ports@.map_values(|port: ContainerPort| port@)),
     {
         self.inner.ports = Some(ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_lifecycle(&mut self, lifecycle: Lifecycle)
-        ensures self@ == old(self)@.set_lifecycle(lifecycle@),
+        ensures self@ == old(self)@.with_lifecycle(lifecycle@),
     {
         self.inner.lifecycle = Some(lifecycle.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: ResourceRequirements)
-        ensures self@ == old(self)@.set_resources(resources@),
+        ensures self@ == old(self)@.with_resources(resources@),
     {
         self.inner.resources = Some(resources.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
-        ensures self@ == old(self)@.set_liveness_probe(liveness_probe@),
+        ensures self@ == old(self)@.with_liveness_probe(liveness_probe@),
     {
         self.inner.liveness_probe = Some(liveness_probe.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_readiness_probe(&mut self, readiness_probe: Probe)
-        ensures self@ == old(self)@.set_readiness_probe(readiness_probe@),
+        ensures self@ == old(self)@.with_readiness_probe(readiness_probe@),
     {
         self.inner.readiness_probe = Some(readiness_probe.into_kube())
     }
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
-        ensures self@ == old(self)@.set_command(command@.map_values(|c: String| c@)),
+        ensures self@ == old(self)@.with_command(command@.map_values(|c: String| c@)),
     {
         self.inner.command = Some(command)
     }
 
     #[verifier(external_body)]
     pub fn set_image_pull_policy(&mut self, image_pull_policy: String)
-        ensures self@ == old(self)@.set_image_pull_policy(image_pull_policy@),
+        ensures self@ == old(self)@.with_image_pull_policy(image_pull_policy@),
     {
         self.inner.image_pull_policy = Some(image_pull_policy)
     }
 
     #[verifier(external_body)]
     pub fn set_env(&mut self, env: Vec<EnvVar>)
-        ensures self@ == old(self)@.set_env(env@.map_values(|v: EnvVar| v@)),
+        ensures self@ == old(self)@.with_env(env@.map_values(|v: EnvVar| v@)),
     {
         self.inner.env = Some(env.into_iter().map(|e: EnvVar| e.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_args(&mut self, args: Vec<String>)
-        ensures self@ == old(self)@.set_args(args@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_args(args@.map_values(|s: String| s@)),
     {
         self.inner.args = Some(args)
     }
 
     #[verifier(external_body)]
     pub fn set_security_context(&mut self, security_context: SecurityContext)
-        ensures self@ == old(self)@.set_security_context(security_context@),
+        ensures self@ == old(self)@.with_security_context(security_context@),
     {
         self.inner.security_context = Some(security_context.into_kube())
     }
@@ -147,7 +147,7 @@ impl ContainerPort {
     }
 
     pub fn new_with(name: String, port: i32) -> (container_port: ContainerPort)
-        ensures container_port@ == ContainerPortView::default().set_name(name@).set_container_port(port as int),
+        ensures container_port@ == ContainerPortView::default().with_name(name@).with_container_port(port as int),
     {
         let mut container_port = Self::default();
         container_port.set_name(name);
@@ -158,14 +158,14 @@ impl ContainerPort {
 
     #[verifier(external_body)]
     pub fn set_container_port(&mut self, container_port: i32)
-        ensures self@ == old(self)@.set_container_port(container_port as int),
+        ensures self@ == old(self)@.with_container_port(container_port as int),
     {
         self.inner.container_port = container_port;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
@@ -214,7 +214,7 @@ impl VolumeMount {
     }
 
     pub fn new_with(mount_path: String, name: String) -> (volume_mount: VolumeMount)
-        ensures volume_mount@ == VolumeMountView::default().set_mount_path(mount_path@).set_name(name@),
+        ensures volume_mount@ == VolumeMountView::default().with_mount_path(mount_path@).with_name(name@),
     {
         let mut volume_mount = Self::default();
         volume_mount.set_mount_path(mount_path);
@@ -225,35 +225,35 @@ impl VolumeMount {
 
     #[verifier(external_body)]
     pub fn set_mount_path(&mut self, mount_path: String)
-        ensures self@ == old(self)@.set_mount_path(mount_path@),
+        ensures self@ == old(self)@.with_mount_path(mount_path@),
     {
         self.inner.mount_path = mount_path;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = name;
     }
 
     #[verifier(external_body)]
     pub fn set_read_only(&mut self, read_only: bool)
-        ensures self@ == old(self)@.set_read_only(read_only),
+        ensures self@ == old(self)@.with_read_only(read_only),
     {
         self.inner.read_only = Some(read_only);
     }
 
     #[verifier(external_body)]
     pub fn set_sub_path(&mut self, sub_path: String)
-        ensures self@ == old(self)@.set_sub_path(sub_path@),
+        ensures self@ == old(self)@.with_sub_path(sub_path@),
     {
         self.inner.sub_path = Some(sub_path);
     }
 
     #[verifier(external_body)]
     pub fn set_mount_propagation(&mut self, mount_propagation: String)
-        ensures self@ == old(self)@.set_mount_propagation(mount_propagation@),
+        ensures self@ == old(self)@.with_mount_propagation(mount_propagation@),
     {
         self.inner.mount_propagation = Some(mount_propagation)
     }
@@ -289,49 +289,49 @@ impl Probe {
 
     #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
-        ensures self@ == old(self)@.set_exec(exec@),
+        ensures self@ == old(self)@.with_exec(exec@),
     {
         self.inner.exec = Some(exec.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_failure_threshold(&mut self, failure_threshold: i32)
-        ensures self@ == old(self)@.set_failure_threshold(failure_threshold as int),
+        ensures self@ == old(self)@.with_failure_threshold(failure_threshold as int),
     {
         self.inner.failure_threshold = Some(failure_threshold);
     }
 
     #[verifier(external_body)]
     pub fn set_initial_delay_seconds(&mut self, initial_delay_seconds: i32)
-        ensures self@ == old(self)@.set_initial_delay_seconds(initial_delay_seconds as int),
+        ensures self@ == old(self)@.with_initial_delay_seconds(initial_delay_seconds as int),
     {
         self.inner.initial_delay_seconds = Some(initial_delay_seconds);
     }
 
     #[verifier(external_body)]
     pub fn set_period_seconds(&mut self, period_seconds: i32)
-        ensures self@ == old(self)@.set_period_seconds(period_seconds as int),
+        ensures self@ == old(self)@.with_period_seconds(period_seconds as int),
     {
         self.inner.period_seconds = Some(period_seconds);
     }
 
     #[verifier(external_body)]
     pub fn set_success_threshold(&mut self, success_threshold: i32)
-        ensures self@ == old(self)@.set_success_threshold(success_threshold as int),
+        ensures self@ == old(self)@.with_success_threshold(success_threshold as int),
     {
         self.inner.success_threshold = Some(success_threshold);
     }
 
     #[verifier(external_body)]
     pub fn set_tcp_socket(&mut self, tcp_socket: TCPSocketAction)
-        ensures self@ == old(self)@.set_tcp_socket(tcp_socket@),
+        ensures self@ == old(self)@.with_tcp_socket(tcp_socket@),
     {
         self.inner.tcp_socket = Some(tcp_socket.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_timeout_seconds(&mut self, timeout_seconds: i32)
-        ensures self@ == old(self)@.set_timeout_seconds(timeout_seconds as int),
+        ensures self@ == old(self)@.with_timeout_seconds(timeout_seconds as int),
     {
         self.inner.timeout_seconds = Some(timeout_seconds);
     }
@@ -369,7 +369,7 @@ impl ExecAction {
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
-        ensures self@ == old(self)@.set_command(command@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_command(command@.map_values(|s: String| s@)),
     {
         self.inner.command = Some(command);
     }
@@ -407,14 +407,14 @@ impl TCPSocketAction {
 
     #[verifier(external_body)]
     pub fn set_host(&mut self, host: String)
-        ensures self@ == old(self)@.set_host(host@),
+        ensures self@ == old(self)@.with_host(host@),
     {
         self.inner.host = Some(host);
     }
 
     #[verifier(external_body)]
     pub fn set_port(&mut self, port: i32)
-        ensures self@ == old(self)@.set_port(port as int),
+        ensures self@ == old(self)@.with_port(port as int),
     {
         self.inner.port = deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(port);
     }
@@ -452,7 +452,7 @@ impl Lifecycle {
 
     #[verifier(external_body)]
     pub fn set_pre_stop(&mut self, handler: LifecycleHandler)
-        ensures self@ == old(self)@.set_pre_stop(handler@),
+        ensures self@ == old(self)@.with_pre_stop(handler@),
     {
         self.inner.pre_stop = Some(handler.into_kube());
     }
@@ -488,7 +488,7 @@ impl LifecycleHandler {
 
     #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
-        ensures self@ == old(self)@.set_exec(exec@),
+        ensures self@ == old(self)@.with_exec(exec@),
     {
         self.inner.exec = Some(exec.into_kube());
     }
@@ -549,21 +549,21 @@ impl EnvVar {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = name;
     }
 
     #[verifier(external_body)]
     pub fn set_value(&mut self, value: String)
-        ensures self@ == old(self)@.set_value(value@),
+        ensures self@ == old(self)@.with_value(value@),
     {
         self.inner.value = Some(value)
     }
 
     #[verifier(external_body)]
     pub fn set_value_from(&mut self, value_from: EnvVarSource)
-        ensures self@ == old(self)@.set_value_from(value_from@),
+        ensures self@ == old(self)@.with_value_from(value_from@),
     {
         self.inner.value_from = Some(value_from.into_kube())
     }
@@ -594,7 +594,7 @@ impl EnvVarSource {
     pub fn clone(&self) -> (s: Self) { EnvVarSource { inner: self.inner.clone() } }
 
     pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (env_var_source: EnvVarSource)
-        ensures env_var_source@ == EnvVarSourceView::default().set_field_ref(field_ref@)
+        ensures env_var_source@ == EnvVarSourceView::default().with_field_ref(field_ref@)
     {
         let mut source = EnvVarSource::default();
         source.set_field_ref(field_ref);
@@ -603,7 +603,7 @@ impl EnvVarSource {
 
     #[verifier(external_body)]
     pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector)
-        ensures self@ == old(self)@.set_field_ref(field_ref@),
+        ensures self@ == old(self)@.with_field_ref(field_ref@),
     {
         self.inner.field_ref = Some(field_ref.into_kube());
     }

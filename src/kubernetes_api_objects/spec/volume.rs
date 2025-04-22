@@ -28,49 +28,49 @@ impl VolumeView {
         }
     }
 
-    pub open spec fn set_host_path(self, host_path: HostPathVolumeSourceView) -> VolumeView {
+    pub open spec fn with_host_path(self, host_path: HostPathVolumeSourceView) -> VolumeView {
         VolumeView {
             host_path: Some(host_path),
             ..self
         }
     }
 
-    pub open spec fn set_config_map(self, config_map: ConfigMapVolumeSourceView) -> VolumeView {
+    pub open spec fn with_config_map(self, config_map: ConfigMapVolumeSourceView) -> VolumeView {
         VolumeView {
             config_map: Some(config_map),
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> VolumeView {
+    pub open spec fn with_name(self, name: StringView) -> VolumeView {
         VolumeView {
             name: name,
             ..self
         }
     }
 
-    pub open spec fn set_projected(self, projected: ProjectedVolumeSourceView) -> VolumeView {
+    pub open spec fn with_projected(self, projected: ProjectedVolumeSourceView) -> VolumeView {
         VolumeView {
             projected: Some(projected),
             ..self
         }
     }
 
-    pub open spec fn set_secret(self, secret: SecretVolumeSourceView) -> VolumeView  {
+    pub open spec fn with_secret(self, secret: SecretVolumeSourceView) -> VolumeView  {
         VolumeView {
             secret: Some(secret),
             ..self
         }
     }
 
-    pub open spec fn set_empty_dir(self, empty_dir: EmptyDirVolumeSourceView) -> VolumeView {
+    pub open spec fn with_empty_dir(self, empty_dir: EmptyDirVolumeSourceView) -> VolumeView {
         VolumeView {
             empty_dir: Some(empty_dir),
             ..self
         }
     }
 
-    pub open spec fn set_downward_api(self, downward_api: DownwardAPIVolumeSourceView) -> VolumeView {
+    pub open spec fn with_downward_api(self, downward_api: DownwardAPIVolumeSourceView) -> VolumeView {
         VolumeView {
             downward_api: Some(downward_api),
             ..self
@@ -103,7 +103,7 @@ impl HostPathVolumeSourceView {
         }
     }
 
-    pub open spec fn set_path(self, path: StringView) -> HostPathVolumeSourceView {
+    pub open spec fn with_path(self, path: StringView) -> HostPathVolumeSourceView {
         HostPathVolumeSourceView {
             path: path,
             ..self
@@ -122,7 +122,7 @@ impl ConfigMapVolumeSourceView {
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ConfigMapVolumeSourceView {
+    pub open spec fn with_name(self, name: StringView) -> ConfigMapVolumeSourceView {
         ConfigMapVolumeSourceView {
             name: Some(name),
             ..self
@@ -141,7 +141,7 @@ impl SecretVolumeSourceView {
         }
     }
 
-    pub open spec fn set_secret_name(self, secret_name: StringView) -> SecretVolumeSourceView {
+    pub open spec fn with_secret_name(self, secret_name: StringView) -> SecretVolumeSourceView {
         SecretVolumeSourceView {
             secret_name: Some(secret_name),
             ..self
@@ -160,7 +160,7 @@ impl ProjectedVolumeSourceView {
         }
     }
 
-    pub open spec fn set_sources(self, sources: Seq<VolumeProjectionView>) -> ProjectedVolumeSourceView {
+    pub open spec fn with_sources(self, sources: Seq<VolumeProjectionView>) -> ProjectedVolumeSourceView {
         ProjectedVolumeSourceView {
             sources: Some(sources),
             ..self
@@ -181,14 +181,14 @@ impl VolumeProjectionView {
         }
     }
 
-    pub open spec fn set_config_map(self, config_map: ConfigMapProjectionView) -> VolumeProjectionView {
+    pub open spec fn with_config_map(self, config_map: ConfigMapProjectionView) -> VolumeProjectionView {
         VolumeProjectionView {
             config_map: Some(config_map),
             ..self
         }
     }
 
-    pub open spec fn set_secret(self, secret: SecretProjectionView) -> VolumeProjectionView {
+    pub open spec fn with_secret(self, secret: SecretProjectionView) -> VolumeProjectionView {
         VolumeProjectionView {
             secret: Some(secret),
             ..self
@@ -209,14 +209,14 @@ impl ConfigMapProjectionView {
         }
     }
 
-    pub open spec fn set_items(self, items: Seq<KeyToPathView>) -> ConfigMapProjectionView {
+    pub open spec fn with_items(self, items: Seq<KeyToPathView>) -> ConfigMapProjectionView {
         ConfigMapProjectionView {
             items: Some(items),
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ConfigMapProjectionView {
+    pub open spec fn with_name(self, name: StringView) -> ConfigMapProjectionView {
         ConfigMapProjectionView {
             name: Some(name),
             ..self
@@ -237,14 +237,14 @@ impl SecretProjectionView {
         }
     }
 
-    pub open spec fn set_items(self, items: Seq<KeyToPathView>) -> SecretProjectionView {
+    pub open spec fn with_items(self, items: Seq<KeyToPathView>) -> SecretProjectionView {
         SecretProjectionView {
             items: Some(items),
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> SecretProjectionView {
+    pub open spec fn with_name(self, name: StringView) -> SecretProjectionView {
         SecretProjectionView {
             name: Some(name),
             ..self
@@ -265,14 +265,14 @@ impl KeyToPathView {
         }
     }
 
-    pub open spec fn set_key(self, key: StringView) -> KeyToPathView {
+    pub open spec fn with_key(self, key: StringView) -> KeyToPathView {
         KeyToPathView {
             key,
             ..self
         }
     }
 
-    pub open spec fn set_path(self, path: StringView) -> KeyToPathView {
+    pub open spec fn with_path(self, path: StringView) -> KeyToPathView {
         KeyToPathView {
             path,
             ..self
@@ -291,7 +291,7 @@ impl DownwardAPIVolumeSourceView {
         }
     }
 
-    pub open spec fn set_items(self, items: Seq<DownwardAPIVolumeFileView>) -> DownwardAPIVolumeSourceView {
+    pub open spec fn with_items(self, items: Seq<DownwardAPIVolumeFileView>) -> DownwardAPIVolumeSourceView {
         DownwardAPIVolumeSourceView {
             items: Some(items),
             ..self
@@ -312,14 +312,14 @@ impl DownwardAPIVolumeFileView {
         }
     }
 
-    pub open spec fn set_field_ref(self, field_ref: ObjectFieldSelectorView) -> DownwardAPIVolumeFileView {
+    pub open spec fn with_field_ref(self, field_ref: ObjectFieldSelectorView) -> DownwardAPIVolumeFileView {
         DownwardAPIVolumeFileView {
             field_ref: Some(field_ref),
             ..self
         }
     }
 
-    pub open spec fn set_path(self, path: StringView) -> DownwardAPIVolumeFileView {
+    pub open spec fn with_path(self, path: StringView) -> DownwardAPIVolumeFileView {
         DownwardAPIVolumeFileView {
             path,
             ..self
@@ -340,14 +340,14 @@ impl ObjectFieldSelectorView {
         }
     }
 
-    pub open spec fn set_field_path(self, field_path: StringView) -> ObjectFieldSelectorView {
+    pub open spec fn with_field_path(self, field_path: StringView) -> ObjectFieldSelectorView {
         ObjectFieldSelectorView {
             field_path: field_path,
             ..self
         }
     }
 
-    pub open spec fn set_api_version(self, api_version: StringView) -> ObjectFieldSelectorView {
+    pub open spec fn with_api_version(self, api_version: StringView) -> ObjectFieldSelectorView {
         ObjectFieldSelectorView {
             api_version: Some(api_version),
             ..self

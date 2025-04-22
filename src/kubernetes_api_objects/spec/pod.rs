@@ -22,14 +22,14 @@ pub struct PodView {
 pub type PodStatusView = EmptyStatusView;
 
 impl PodView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PodView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> PodView {
         PodView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: PodSpecView) -> PodView {
+    pub open spec fn with_spec(self, spec: PodSpecView) -> PodView {
         PodView {
             spec: Some(spec),
             ..self
@@ -173,119 +173,119 @@ impl PodSpecView {
         }
     }
 
-    pub open spec fn set_affinity(self, affinity: AffinityView) -> PodSpecView {
+    pub open spec fn with_affinity(self, affinity: AffinityView) -> PodSpecView {
         PodSpecView {
             affinity: Some(affinity),
             ..self
         }
     }
 
-    pub open spec fn unset_affinity(self) -> PodSpecView {
+    pub open spec fn without_affinity(self) -> PodSpecView {
         PodSpecView {
             affinity: None,
             ..self
         }
     }
 
-    pub open spec fn set_containers(self, containers: Seq<ContainerView>) -> PodSpecView {
+    pub open spec fn with_containers(self, containers: Seq<ContainerView>) -> PodSpecView {
         PodSpecView {
             containers: containers,
             ..self
         }
     }
 
-    pub open spec fn set_volumes(self, volumes: Seq<VolumeView>) -> PodSpecView {
+    pub open spec fn with_volumes(self, volumes: Seq<VolumeView>) -> PodSpecView {
         PodSpecView {
             volumes: Some(volumes),
             ..self
         }
     }
 
-    pub open spec fn set_init_containers(self, init_containers: Seq<ContainerView>) -> PodSpecView {
+    pub open spec fn with_init_containers(self, init_containers: Seq<ContainerView>) -> PodSpecView {
         PodSpecView {
             init_containers: Some(init_containers),
             ..self
         }
     }
 
-    pub open spec fn set_service_account_name(self, service_account_name: StringView) -> PodSpecView {
+    pub open spec fn with_service_account_name(self, service_account_name: StringView) -> PodSpecView {
         PodSpecView {
             service_account_name: Some(service_account_name),
             ..self
         }
     }
 
-    pub open spec fn set_tolerations(self, tolerations: Seq<TolerationView>) -> PodSpecView {
+    pub open spec fn with_tolerations(self, tolerations: Seq<TolerationView>) -> PodSpecView {
         PodSpecView {
             tolerations: Some(tolerations),
             ..self
         }
     }
 
-    pub open spec fn unset_tolerations(self) -> PodSpecView {
+    pub open spec fn without_tolerations(self) -> PodSpecView {
         PodSpecView {
             tolerations: None,
             ..self
         }
     }
 
-    pub open spec fn set_node_selector(self, node_selector: Map<StringView, StringView>) -> PodSpecView {
+    pub open spec fn with_node_selector(self, node_selector: Map<StringView, StringView>) -> PodSpecView {
         PodSpecView {
             node_selector: Some(node_selector),
             ..self
         }
     }
 
-    pub open spec fn set_runtime_class_name(self, runtime_class_name: StringView) -> PodSpecView {
+    pub open spec fn with_runtime_class_name(self, runtime_class_name: StringView) -> PodSpecView {
         PodSpecView {
             runtime_class_name: Some(runtime_class_name),
             ..self
         }
     }
 
-    pub open spec fn set_dns_policy(self, dns_policy: StringView) -> PodSpecView {
+    pub open spec fn with_dns_policy(self, dns_policy: StringView) -> PodSpecView {
         PodSpecView {
             dns_policy: Some(dns_policy),
             ..self
         }
     }
 
-    pub open spec fn set_scheduler_name(self, scheduler_name: StringView) -> PodSpecView {
+    pub open spec fn with_scheduler_name(self, scheduler_name: StringView) -> PodSpecView {
         PodSpecView {
             scheduler_name: Some(scheduler_name),
             ..self
         }
     }
 
-    pub open spec fn set_priority_class_name(self, priority_class_name: StringView) -> PodSpecView {
+    pub open spec fn with_priority_class_name(self, priority_class_name: StringView) -> PodSpecView {
         PodSpecView {
             priority_class_name: Some(priority_class_name),
             ..self
         }
     }
 
-    pub open spec fn set_security_context(self, security_context: PodSecurityContextView) -> PodSpecView {
+    pub open spec fn with_security_context(self, security_context: PodSecurityContextView) -> PodSpecView {
         PodSpecView {
             security_context: Some(security_context),
             ..self
         }
     }
 
-    pub open spec fn set_host_network(self, host_network: bool) -> PodSpecView {
+    pub open spec fn with_host_network(self, host_network: bool) -> PodSpecView {
         PodSpecView {
             host_network: Some(host_network),
             ..self
         }
     }
 
-    pub open spec fn set_termination_grace_period_seconds(self, termination_grace_period_seconds: int) -> PodSpecView {
+    pub open spec fn with_termination_grace_period_seconds(self, termination_grace_period_seconds: int) -> PodSpecView {
         PodSpecView {
             termination_grace_period_seconds: Some(termination_grace_period_seconds),
             ..self
         }
     }
 
-    pub open spec fn set_image_pull_secrets(self, image_pull_secrets: Seq<LocalObjectReferenceView>) -> PodSpecView {
+    pub open spec fn with_image_pull_secrets(self, image_pull_secrets: Seq<LocalObjectReferenceView>) -> PodSpecView {
         PodSpecView {
             image_pull_secrets: Some(image_pull_secrets),
             ..self

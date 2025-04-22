@@ -18,14 +18,14 @@ impl PodTemplateSpecView {
         }
     }
 
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PodTemplateSpecView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> PodTemplateSpecView {
         PodTemplateSpecView {
             metadata: Some(metadata),
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: PodSpecView) -> PodTemplateSpecView {
+    pub open spec fn with_spec(self, spec: PodSpecView) -> PodTemplateSpecView {
         PodTemplateSpecView {
             spec: Some(spec),
             ..self

@@ -18,7 +18,7 @@ impl LabelSelectorView {
         }
     }
 
-    pub open spec fn set_match_labels(self, match_labels: Map<StringView, StringView>) -> LabelSelectorView {
+    pub open spec fn with_match_labels(self, match_labels: Map<StringView, StringView>) -> LabelSelectorView {
         LabelSelectorView {
             match_labels: Some(match_labels),
             ..self
