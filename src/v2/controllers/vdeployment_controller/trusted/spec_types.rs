@@ -121,19 +121,12 @@ impl ResourceView for VDeploymentView {
         // replicas is non-negative
         &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
         // minReadySeconds, if present, must be non‑negative
-        &&& self.spec.minReadySeconds.is_Some() ==>
-            self.spec.minReadySeconds.get_Some_0() >= 0
+        // &&& self.spec.minReadySeconds.is_Some() ==>
+        //     self.spec.minReadySeconds.get_Some_0() >= 0
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels.is_Some()
         &&& self.spec.selector.match_labels.get_Some_0().len() > 0
-        // selector must have at least one match_labels or match_expressions entry
-        &&& (
-            (self.spec.selector.get_Some_0().match_labels.is_Some()
-                && self.spec.selector.get_Some_0().match_labels.get_Some_0().len() > 0)
-        || (self.spec.selector.get_Some_0().match_expressions.is_Some()
-                && self.spec.selector.get_Some_0().match_expressions.get_Some_0().len() > 0)
-        )
         // template and its metadata ane spec exists
         &&& self.spec.template.is_Some()
         &&& self.spec.template.get_Some_0().metadata.is_Some()
