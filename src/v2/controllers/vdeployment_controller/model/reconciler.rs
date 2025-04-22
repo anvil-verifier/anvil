@@ -61,7 +61,7 @@ pub open spec fn reconcile_error(state: VDeploymentReconcileState) -> bool {
 
 pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView<VoidERespView>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let namespace = vd.metadata.namespace.unwrap();
-    match state.reconcile_step {
+    match &state.reconcile_step {
         VDeploymentReconcileStepView::Init => {
             let req = APIRequest::ListRequest(ListRequest {
                 kind: VReplicaSetView::kind(),
@@ -77,28 +77,26 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
             && resp_o.get_Some_0().get_KResponse_0().is_ListResponse()
             && resp_o.get_Some_0().get_KResponse_0().get_ListResponse_0().res.is_ok()) {
-                return (error_state(state), None)
+                (error_state(state), None)
+            } else {
+                let objs = resp_o.unwrap().get_KResponse_0().get_ListResponse_0().res.unwrap();
+                let vrs_list_or_none = objects_to_vrs_list(objs);
+                if vrs_list_or_none.is_none() { // error in unmarshalling
+                    (error_state(state), None)
+                } else {
+                    let vrs_list = filter_vrs_list(vrs_list_or_none.unwrap(), vd);
+                    let state_prime = VDeploymentReconcileState {
+                        reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                        vrs_list: vrs_list,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
             }
-            let objs = resp_o.unwrap().get_KResponse_0().get_ListResponse_0().res.unwrap();
-            let vrs_list_or_none = objects_to_vrs_list(objs);
-            if vrs_list_or_none.is_none() { // error in unmarshalling
-                return (error_state(state), None)
-            }
-            let vrs_list = filter_vrs_list(vrs_list_or_none.unwrap(), vd);
-            let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStepView::RollReplicas,
-                vrs_list: vrs_list,
-                ..state
-            };
-            (state_prime, None)
         },
         VDeploymentReconcileStepView::RollReplicas => {
             // TODO: support different policy (order of scaling of new and old vrs)
             //       and maxSurge and maxUnavailable
-            let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStepView::RollReplicas,
-                ..state
-            };
             match filter_old_and_new_vrs(state.vrs_list, vd) {
                 (None, _) => {
                     // create the new vrs
@@ -107,6 +105,10 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         namespace: namespace,
                         obj: new_vrs.marshal(),
                     });
+                    let state_prime = VDeploymentReconcileState {
+                        reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                        ..state
+                    };
                     (state_prime, Some(RequestView::KRequest(req)))
                 },
                 (Some(mut new_vrs), old_vrs_list) => {
@@ -123,6 +125,10 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                                 ..new_vrs
                             }.marshal(),
                         });
+                        let state_prime = VDeploymentReconcileState {
+                            reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                            ..state
+                        };
                         (state_prime, Some(RequestView::KRequest(req)))
                     } else if old_vrs_list.len() > 0 {
                         // scale down old vrs down to 0 replicas
@@ -138,6 +144,10 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                                 ..old_vrs
                             }.marshal(),
                         });
+                        let state_prime = VDeploymentReconcileState {
+                            reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                            ..state
+                        };
                         (state_prime, Some(RequestView::KRequest(req)))
                     } else {
                         // all good
@@ -147,9 +157,6 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         };
                         (state_prime, None)
                     }
-                },
-                _ => {
-                    (error_state(state), None)
                 }
             }
         },
@@ -199,6 +206,8 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
 //
 // TODO: now we scale up the new vrs' replicas at once,
 // we may consider existing pods in old vrs later to satisfy maxSurge
+#[verifier(external_body)]
+// err: expected pure mathematical expression
 pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView) {
     let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
     let template = template_with_hash(vd);
@@ -224,6 +233,8 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
     }
 }
 
+#[verifier(external_body)]
+// err: expected pure mathematical expression
 pub open spec fn template_with_hash(vd: VDeploymentView) -> PodTemplateSpecView {
     let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
     let metadata = ObjectMetaView::default();

@@ -57,6 +57,7 @@ impl Reconciler for VDeploymentReconciler {
     }
 }
 
+#[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: VDeploymentReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {
@@ -89,7 +90,7 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 // https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment
 // 2. User manages deployments, dc updates pods by rollout or rollback. There should be a user-monkey step just like pod-monkey
 // 2.5 How rollout and rollback works with rs
-
+#[verifier(external_body)]
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(vd@, option_view(resp_o), state@),
@@ -105,7 +106,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 reconcile_step: VDeploymentReconcileStep::AfterGetReplicaSets,
                 ..state
             };
-            (state_prime, Some(Request::KRequest(req)))
+            return (state_prime, Some(Request::KRequest(req)))
         },
         VDeploymentReconcileStep::AfterGetReplicaSets => {
             if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -124,7 +125,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 vrs_list: vrs_list,
                 ..state
             };
-            (state_prime, None)
+            return (state_prime, None)
         },
         VDeploymentReconcileStep::RollReplicas => {
             // TODO: support different policy (order of scaling of new and old vrs)
@@ -142,10 +143,11 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                         reconcile_step: VDeploymentReconcileStep::RollReplicas,
                         ..state
                     };
-                    (state_prime, Some(Request::KRequest(req)))
+                    return (state_prime, Some(Request::KRequest(req)))
                 },
                 (Some(mut new_vrs), old_vrs_list) => {
                     // update existing new vrs
+                    // TODO: is it valid for replicas on both sides to be None?
                     if new_vrs.spec().replicas().unwrap() != vd.spec().replicas().unwrap() {
                         let mut new_spec = new_vrs.spec();
                         new_spec.set_replicas(vd.spec().replicas().unwrap());
@@ -160,7 +162,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                             reconcile_step: VDeploymentReconcileStep::RollReplicas,
                             ..state
                         };
-                        (state_prime, Some(Request::KRequest(req)))
+                        return (state_prime, Some(Request::KRequest(req)))
                     }
                     else if old_vrs_list.len() > 0 {
                         // scale down old vrs to zero
@@ -171,6 +173,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                         let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                             api_resource: VReplicaSet::api_resource(),
                             namespace: namespace,
+                            // is it possible to have name as None?
                             name: old_vrs.metadata().name().unwrap(),
                             obj: old_vrs.marshal()
 
@@ -179,7 +182,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                             reconcile_step: VDeploymentReconcileStep::RollReplicas,
                             ..state
                         };
-                        (state_prime, Some(Request::KRequest(req)))
+                        return (state_prime, Some(Request::KRequest(req)))
                     }
                     else {
                         // all good
@@ -187,13 +190,13 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                             reconcile_step: VDeploymentReconcileStep::Done,
                             ..state
                         };
-                        (state_prime, None)
+                        return (state_prime, None)
                     }
                 }
             }
         },
         _ => {
-            (state, None)
+            return (state, None)
         }
     }
 }
@@ -246,9 +249,10 @@ fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vr
 #[verifier(external_body)]
 fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Option<VReplicaSet>, Vec<VReplicaSet>)
     requires vd@.well_formed(),
+// TODO: how to write postcondition here as named tuple is not supported
 {
     let mut new_vrs = None;
-    let old_vrs_list = Vec::new();
+    let mut old_vrs_list = Vec::new();
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     for vrs in vrs_list.into_iter() {
         if vrs.spec().template().unwrap().eq(&template_with_hash(vd)) {
@@ -263,11 +267,15 @@ fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Opti
 // TODO
 // proof lemma_filter_old_and_new_vrs_match_model();
 
-fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet) {
+#[verifier(external_body)]
+fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
+    requires vd@.well_formed(),
+    ensures vrs@ == model_reconciler::make_replica_set(vd@),
+{
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let template = template_with_hash(vd);
     let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
-    labels.insert("pod_template_hash".to_string(), pod_template_hash);
+    labels.insert("pod_template_hash".to_string(), pod_template_hash.clone());
     let mut spec = VReplicaSetSpec::default();
     spec.set_replicas(vd.spec().replicas().unwrap());
     let mut label_selector = LabelSelector::default();
@@ -277,7 +285,7 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet) {
     spec.set_template(template);
     let mut metadata = vd.metadata();
     // concatenation of (String, String) not yet supported in Verus
-    metadata.set_name(vd.metadata().name().unwrap().concat("-"));//.concat(&pod_template_hash));
+    metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
     metadata.set_namespace(vd.metadata().namespace().unwrap());
     metadata.set_owner_references(make_owner_references(vd));
     let mut vrs = VReplicaSet::default();
@@ -286,7 +294,11 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet) {
     vrs
 }
 
-pub fn template_with_hash(vd: &VDeployment) -> PodTemplateSpec {
+#[verifier(external_body)]
+pub fn template_with_hash(vd: &VDeployment) -> (pod_template_spec: PodTemplateSpec)
+    requires vd@.well_formed(),
+    ensures pod_template_spec@ == model_reconciler::template_with_hash(vd@),
+{
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
     labels.insert("pod_template_hash".to_string(), pod_template_hash);
@@ -305,10 +317,7 @@ pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerRe
     let mut owner_references = Vec::new();
     owner_references.push(vd.controller_owner_ref());
     proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            model_reconciler::make_owner_references(vd@)
-        );
+        assert(owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@) =~= model_reconciler::make_owner_references(vd@));
     }
     owner_references
 }
