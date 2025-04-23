@@ -18,14 +18,14 @@ pub struct DaemonSetView {
 }
 
 impl DaemonSetView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> DaemonSetView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> DaemonSetView {
         DaemonSetView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: DaemonSetSpecView) -> DaemonSetView {
+    pub open spec fn with_spec(self, spec: DaemonSetSpecView) -> DaemonSetView {
         DaemonSetView {
             spec: Some(spec),
             ..self
@@ -145,14 +145,14 @@ impl DaemonSetSpecView {
         }
     }
 
-    pub open spec fn set_selector(self, selector: LabelSelectorView) -> DaemonSetSpecView {
+    pub open spec fn with_selector(self, selector: LabelSelectorView) -> DaemonSetSpecView {
         DaemonSetSpecView {
             selector: selector,
             ..self
         }
     }
 
-    pub open spec fn set_template(self, template: PodTemplateSpecView) -> DaemonSetSpecView {
+    pub open spec fn with_template(self, template: PodTemplateSpecView) -> DaemonSetSpecView {
         DaemonSetSpecView {
             template: template,
             ..self

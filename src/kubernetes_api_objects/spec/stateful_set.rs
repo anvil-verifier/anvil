@@ -20,14 +20,14 @@ pub struct StatefulSetView {
 }
 
 impl StatefulSetView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> StatefulSetView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> StatefulSetView {
         StatefulSetView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: StatefulSetSpecView) -> StatefulSetView {
+    pub open spec fn with_spec(self, spec: StatefulSetSpecView) -> StatefulSetView {
         StatefulSetView {
             spec: Some(spec),
             ..self
@@ -171,56 +171,56 @@ impl StatefulSetSpecView {
         }
     }
 
-    pub open spec fn set_replicas(self, replicas: int) -> StatefulSetSpecView {
+    pub open spec fn with_replicas(self, replicas: int) -> StatefulSetSpecView {
         StatefulSetSpecView {
             replicas: Some(replicas),
             ..self
         }
     }
 
-    pub open spec fn set_selector(self, selector: LabelSelectorView) -> StatefulSetSpecView {
+    pub open spec fn with_selector(self, selector: LabelSelectorView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             selector: selector,
             ..self
         }
     }
 
-    pub open spec fn set_service_name(self, service_name: StringView) -> StatefulSetSpecView {
+    pub open spec fn with_service_name(self, service_name: StringView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             service_name: service_name,
             ..self
         }
     }
 
-    pub open spec fn set_template(self, template: PodTemplateSpecView) -> StatefulSetSpecView {
+    pub open spec fn with_template(self, template: PodTemplateSpecView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             template: template,
             ..self
         }
     }
 
-    pub open spec fn set_volume_claim_templates(self, volume_claim_templates: Seq<PersistentVolumeClaimView>) -> StatefulSetSpecView {
+    pub open spec fn with_volume_claim_templates(self, volume_claim_templates: Seq<PersistentVolumeClaimView>) -> StatefulSetSpecView {
         StatefulSetSpecView {
             volume_claim_templates: Some(volume_claim_templates),
             ..self
         }
     }
 
-    pub open spec fn set_pod_management_policy(self, pod_management_policy: StringView) -> StatefulSetSpecView {
+    pub open spec fn with_pod_management_policy(self, pod_management_policy: StringView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             pod_management_policy: Some(pod_management_policy),
             ..self
         }
     }
 
-    pub open spec fn set_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> StatefulSetSpecView {
+    pub open spec fn with_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             persistent_volume_claim_retention_policy: Some(pvc_retention_policy),
             ..self
         }
     }
 
-    pub open spec fn unset_pvc_retention_policy(self) -> StatefulSetSpecView {
+    pub open spec fn without_pvc_retention_policy(self) -> StatefulSetSpecView {
         StatefulSetSpecView {
             persistent_volume_claim_retention_policy: None,
             ..self
@@ -246,14 +246,14 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
         &&& self.when_scaled.is_Some() ==> (self.when_scaled.get_Some_0() == "Retain"@ || self.when_scaled.get_Some_0() == "Delete"@)
     }
 
-    pub open spec fn set_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+    pub open spec fn with_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
         StatefulSetPersistentVolumeClaimRetentionPolicyView {
             when_deleted: Some(when_deleted),
             ..self
         }
     }
 
-    pub open spec fn set_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+    pub open spec fn with_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
         StatefulSetPersistentVolumeClaimRetentionPolicyView {
             when_scaled: Some(when_scaled),
             ..self

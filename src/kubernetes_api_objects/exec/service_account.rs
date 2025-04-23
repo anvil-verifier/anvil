@@ -49,7 +49,7 @@ impl ServiceAccount {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }

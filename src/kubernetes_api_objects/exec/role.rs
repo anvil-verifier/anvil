@@ -57,14 +57,14 @@ impl Role {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_rules(&mut self, policy_rules: Vec<PolicyRule>)
-        ensures self@ == old(self)@.set_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
+        ensures self@ == old(self)@.with_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
@@ -159,21 +159,21 @@ impl PolicyRule {
 
     #[verifier(external_body)]
     pub fn set_api_groups(&mut self, api_groups: Vec<String>)
-        ensures self@ == old(self)@.set_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
+        ensures self@ == old(self)@.with_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
     {
         self.inner.api_groups = Some(api_groups)
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: Vec<String>)
-        ensures self@ == old(self)@.set_resources(resources@.map_values(|resource: String| resource@)),
+        ensures self@ == old(self)@.with_resources(resources@.map_values(|resource: String| resource@)),
     {
         self.inner.resources = Some(resources)
     }
 
     #[verifier(external_body)]
     pub fn set_verbs(&mut self, verbs: Vec<String>)
-        ensures self@ == old(self)@.set_verbs(verbs@.map_values(|verb: String| verb@)),
+        ensures self@ == old(self)@.with_verbs(verbs@.map_values(|verb: String| verb@)),
     {
         self.inner.verbs = verbs
     }

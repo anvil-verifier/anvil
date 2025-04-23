@@ -53,21 +53,21 @@ impl RoleBinding {
 
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.set_metadata(metadata@),
+        ensures self@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_role_ref(&mut self, role_ref: RoleRef)
-        ensures self@ == old(self)@.set_role_ref(role_ref@),
+        ensures self@ == old(self)@.with_role_ref(role_ref@),
     {
         self.inner.role_ref = role_ref.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_subjects(&mut self, subjects: Vec<Subject>)
-        ensures self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
+        ensures self@ == old(self)@.with_subjects(subjects@.map_values(|s: Subject| s@)),
     {
         self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
@@ -163,21 +163,21 @@ impl RoleRef {
 
     #[verifier(external_body)]
     pub fn set_api_group(&mut self, api_group: String)
-        ensures self@ == old(self)@.set_api_group(api_group@),
+        ensures self@ == old(self)@.with_api_group(api_group@),
     {
         self.inner.api_group = api_group;
     }
 
     #[verifier(external_body)]
     pub fn set_kind(&mut self, kind: String)
-        ensures self@ == old(self)@.set_kind(kind@),
+        ensures self@ == old(self)@.with_kind(kind@),
     {
         self.inner.kind = kind;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = name;
     }
@@ -208,21 +208,21 @@ impl Subject {
 
     #[verifier(external_body)]
     pub fn set_kind(&mut self, kind: String)
-        ensures self@ == old(self)@.set_kind(kind@),
+        ensures self@ == old(self)@.with_kind(kind@),
     {
         self.inner.kind = kind;
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = name;
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
-        ensures self@ == old(self)@.set_namespace(namespace@),
+        ensures self@ == old(self)@.with_namespace(namespace@),
     {
         self.inner.namespace = Some(namespace);
     }

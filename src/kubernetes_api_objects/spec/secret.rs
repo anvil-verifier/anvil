@@ -15,14 +15,14 @@ pub struct SecretView {
 type SecretSpecView = Option<Map<StringView, StringView>>;
 
 impl SecretView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> SecretView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> SecretView {
         SecretView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_data(self, data: Map<StringView, StringView>) -> SecretView {
+    pub open spec fn with_data(self, data: Map<StringView, StringView>) -> SecretView {
         SecretView {
             data: Some(data),
             ..self

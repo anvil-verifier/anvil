@@ -94,19 +94,19 @@ pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSe
 
 pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView {
     DaemonSetView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_daemon_set_name(fb))
-            .set_labels(make_labels(fb))
-            .set_annotations(fb.spec.annotations)
-            .set_owner_references(make_owner_references(fb))
-        ).set_spec(DaemonSetSpecView::default()
-            .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(fb)))
-            .set_template(PodTemplateSpecView::default()
-                .set_metadata(ObjectMetaView::default()
-                    .set_labels(make_labels(fb))
-                    .set_annotations(fb.spec.annotations)
+        .with_metadata(ObjectMetaView::default()
+            .with_name(make_daemon_set_name(fb))
+            .with_labels(make_labels(fb))
+            .with_annotations(fb.spec.annotations)
+            .with_owner_references(make_owner_references(fb))
+        ).with_spec(DaemonSetSpecView::default()
+            .with_selector(LabelSelectorView::default().with_match_labels(make_base_labels(fb)))
+            .with_template(PodTemplateSpecView::default()
+                .with_metadata(ObjectMetaView::default()
+                    .with_labels(make_labels(fb))
+                    .with_annotations(fb.spec.annotations)
                 )
-                .set_spec(make_fluentbit_pod_spec(fb))
+                .with_spec(make_fluentbit_pod_spec(fb))
             )
         )
 }
@@ -125,21 +125,21 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 PodSpecView::default().init_containers
             },
         volumes: Some({
-            let config_volume = VolumeView::default().set_name("config"@)
-                    .set_secret(SecretVolumeSourceView::default().set_secret_name(fb.spec.fluentbit_config_name));
-            let varlibcontainers_volume = VolumeView::default().set_name("varlibcontainers"@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path({
+            let config_volume = VolumeView::default().with_name("config"@)
+                    .with_secret(SecretVolumeSourceView::default().with_secret_name(fb.spec.fluentbit_config_name));
+            let varlibcontainers_volume = VolumeView::default().with_name("varlibcontainers"@)
+                    .with_host_path(HostPathVolumeSourceView::default().with_path({
                         if fb.spec.container_log_real_path.is_Some() {
                             fb.spec.container_log_real_path.get_Some_0()
                         } else { "/containers"@ }
                     }));
-            let varlogs_volume = VolumeView::default().set_name("varlogs"@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path("/var/log"@));
-            let systemd_volume = VolumeView::default().set_name("systemd"@)
-                    .set_host_path(HostPathVolumeSourceView::default().set_path("/var/log/journal"@));
+            let varlogs_volume = VolumeView::default().with_name("varlogs"@)
+                    .with_host_path(HostPathVolumeSourceView::default().with_path("/var/log"@));
+            let systemd_volume = VolumeView::default().with_name("systemd"@)
+                    .with_host_path(HostPathVolumeSourceView::default().with_path("/var/log/journal"@));
             if fb.spec.position_db.is_Some() {
-                let positions_volume = VolumeView::default().set_name("positions"@)
-                    .set_host_path(fb.spec.position_db.get_Some_0());
+                let positions_volume = VolumeView::default().with_name("positions"@)
+                    .with_host_path(fb.spec.position_db.get_Some_0());
                 if !fb.spec.disable_log_volumes && fb.spec.volumes.is_Some() {
                     fb.spec.volumes.get_Some_0().push(config_volume).push(varlibcontainers_volume).push(varlogs_volume)
                         .push(systemd_volume).push(positions_volume)
@@ -244,8 +244,8 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView {
                 }),
                 ports: {
                     let metrics_port = ContainerPortView::default()
-                        .set_name("metrics"@)
-                        .set_container_port({
+                        .with_name("metrics"@)
+                        .with_container_port({
                             let port = if fb.spec.metrics_port.is_Some() { fb.spec.metrics_port.get_Some_0() } else { 2020 };
                             port
                         });

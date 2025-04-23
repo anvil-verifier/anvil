@@ -19,14 +19,14 @@ pub struct ServiceView {
 pub type ServiceStatusView = EmptyStatusView;
 
 impl ServiceView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> ServiceView {
         ServiceView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: ServiceSpecView) -> ServiceView {
+    pub open spec fn with_spec(self, spec: ServiceSpecView) -> ServiceView {
         ServiceView {
             spec: Some(spec),
             ..self
@@ -148,35 +148,35 @@ impl ServiceSpecView {
         }
     }
 
-    pub open spec fn set_cluster_ip(self, cluster_ip: StringView) -> ServiceSpecView {
+    pub open spec fn with_cluster_ip(self, cluster_ip: StringView) -> ServiceSpecView {
         ServiceSpecView {
             cluster_ip: Some(cluster_ip),
             ..self
         }
     }
 
-    pub open spec fn set_ports(self, ports: Seq<ServicePortView>) -> ServiceSpecView {
+    pub open spec fn with_ports(self, ports: Seq<ServicePortView>) -> ServiceSpecView {
         ServiceSpecView {
             ports: Some(ports),
             ..self
         }
     }
 
-    pub open spec fn set_selector(self, selector: Map<StringView, StringView>) -> ServiceSpecView {
+    pub open spec fn with_selector(self, selector: Map<StringView, StringView>) -> ServiceSpecView {
         ServiceSpecView {
             selector: Some(selector),
             ..self
         }
     }
 
-    pub open spec fn set_publish_not_ready_addresses(self, publish_not_ready_addresses: bool) -> ServiceSpecView {
+    pub open spec fn with_publish_not_ready_addresses(self, publish_not_ready_addresses: bool) -> ServiceSpecView {
         ServiceSpecView {
             publish_not_ready_addresses: Some(publish_not_ready_addresses),
             ..self
         }
     }
 
-    pub open spec fn unset_publish_not_ready_addresses(self) -> ServiceSpecView {
+    pub open spec fn without_publish_not_ready_addresses(self) -> ServiceSpecView {
         ServiceSpecView {
             publish_not_ready_addresses: None,
             ..self
@@ -201,28 +201,28 @@ impl ServicePortView {
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ServicePortView {
+    pub open spec fn with_name(self, name: StringView) -> ServicePortView {
         ServicePortView {
             name: Some(name),
             ..self
         }
     }
 
-    pub open spec fn set_port(self, port: int) -> ServicePortView {
+    pub open spec fn with_port(self, port: int) -> ServicePortView {
         ServicePortView {
             port: port,
             ..self
         }
     }
 
-    pub open spec fn set_app_protocol(self, app_protocol: StringView) -> ServicePortView {
+    pub open spec fn with_app_protocol(self, app_protocol: StringView) -> ServicePortView {
         ServicePortView {
             app_protocol: Some(app_protocol),
             ..self
         }
     }
 
-    pub open spec fn set_protocol(self, protocol: StringView) -> ServicePortView {
+    pub open spec fn with_protocol(self, protocol: StringView) -> ServicePortView {
         ServicePortView {
             protocol: Some(protocol),
             ..self

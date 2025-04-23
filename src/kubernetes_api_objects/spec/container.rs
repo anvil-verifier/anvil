@@ -41,98 +41,98 @@ impl ContainerView {
         }
     }
 
-    pub open spec fn set_env(self, env: Seq<EnvVarView>) -> ContainerView {
+    pub open spec fn with_env(self, env: Seq<EnvVarView>) -> ContainerView {
         ContainerView {
             env: Some(env),
             ..self
         }
     }
 
-    pub open spec fn set_image(self, image: StringView) -> ContainerView {
+    pub open spec fn with_image(self, image: StringView) -> ContainerView {
         ContainerView {
             image: Some(image),
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ContainerView {
+    pub open spec fn with_name(self, name: StringView) -> ContainerView {
         ContainerView {
             name: name,
             ..self
         }
     }
 
-    pub open spec fn set_ports(self, ports: Seq<ContainerPortView>) -> ContainerView {
+    pub open spec fn with_ports(self, ports: Seq<ContainerPortView>) -> ContainerView {
         ContainerView {
             ports: Some(ports),
             ..self
         }
     }
 
-    pub open spec fn set_volume_mounts(self, volume_mounts: Seq<VolumeMountView>) -> ContainerView {
+    pub open spec fn with_volume_mounts(self, volume_mounts: Seq<VolumeMountView>) -> ContainerView {
         ContainerView {
             volume_mounts: Some(volume_mounts),
             ..self
         }
     }
 
-    pub open spec fn set_lifecycle(self, lifecycle: LifecycleView) -> ContainerView {
+    pub open spec fn with_lifecycle(self, lifecycle: LifecycleView) -> ContainerView {
         ContainerView {
             lifecycle: Some(lifecycle),
             ..self
         }
     }
 
-    pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> ContainerView {
+    pub open spec fn with_resources(self, resources: ResourceRequirementsView) -> ContainerView {
         ContainerView {
             resources: Some(resources),
             ..self
         }
     }
 
-    pub open spec fn unset_resources(self) -> ContainerView {
+    pub open spec fn without_resources(self) -> ContainerView {
         ContainerView {
             resources: None,
             ..self
         }
     }
 
-    pub open spec fn set_readiness_probe(self, readiness_probe: ProbeView) -> ContainerView {
+    pub open spec fn with_readiness_probe(self, readiness_probe: ProbeView) -> ContainerView {
         ContainerView {
             readiness_probe: Some(readiness_probe),
             ..self
         }
     }
 
-    pub open spec fn set_liveness_probe(self, liveness_probe: ProbeView) -> ContainerView {
+    pub open spec fn with_liveness_probe(self, liveness_probe: ProbeView) -> ContainerView {
         ContainerView {
             liveness_probe: Some(liveness_probe),
             ..self
         }
     }
 
-    pub open spec fn set_command(self, command: Seq<StringView>) -> ContainerView {
+    pub open spec fn with_command(self, command: Seq<StringView>) -> ContainerView {
         ContainerView {
             command: Some(command),
             ..self
         }
     }
 
-    pub open spec fn set_image_pull_policy(self, image_pull_policy: StringView) -> ContainerView {
+    pub open spec fn with_image_pull_policy(self, image_pull_policy: StringView) -> ContainerView {
         ContainerView {
             image_pull_policy: Some(image_pull_policy),
             ..self
         }
     }
 
-    pub open spec fn set_args(self, args: Seq<StringView>) -> ContainerView {
+    pub open spec fn with_args(self, args: Seq<StringView>) -> ContainerView {
         ContainerView {
             args: Some(args),
             ..self
         }
     }
 
-    pub open spec fn set_security_context(self, security_context: SecurityContextView) -> ContainerView {
+    pub open spec fn with_security_context(self, security_context: SecurityContextView) -> ContainerView {
         ContainerView {
             security_context: Some(security_context),
             ..self
@@ -151,7 +151,7 @@ impl LifecycleView {
         }
     }
 
-    pub open spec fn set_pre_stop(self, pre_stop: LifecycleHandlerView) -> LifecycleView {
+    pub open spec fn with_pre_stop(self, pre_stop: LifecycleHandlerView) -> LifecycleView {
         LifecycleView {
             pre_stop: Some(pre_stop),
             ..self
@@ -170,7 +170,7 @@ impl LifecycleHandlerView {
         }
     }
 
-    pub open spec fn set_exec(self, exec: ExecActionView) -> LifecycleHandlerView {
+    pub open spec fn with_exec(self, exec: ExecActionView) -> LifecycleHandlerView {
         LifecycleHandlerView {
             exec_: Some(exec),
             ..self
@@ -193,21 +193,21 @@ impl ContainerPortView {
         }
     }
 
-    pub open spec fn set_container_port(self, container_port: int) -> ContainerPortView {
+    pub open spec fn with_container_port(self, container_port: int) -> ContainerPortView {
         ContainerPortView {
             container_port: container_port,
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ContainerPortView {
+    pub open spec fn with_name(self, name: StringView) -> ContainerPortView {
         ContainerPortView {
             name: Some(name),
             ..self
         }
     }
 
-    pub open spec fn set_protocol(self, protocol: StringView) -> ContainerPortView {
+    pub open spec fn with_protocol(self, protocol: StringView) -> ContainerPortView {
         ContainerPortView {
             protocol: Some(protocol),
             ..self
@@ -234,35 +234,35 @@ impl VolumeMountView {
         }
     }
 
-    pub open spec fn set_mount_path(self, mount_path: StringView) -> VolumeMountView {
+    pub open spec fn with_mount_path(self, mount_path: StringView) -> VolumeMountView {
         VolumeMountView {
             mount_path: mount_path,
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> VolumeMountView {
+    pub open spec fn with_name(self, name: StringView) -> VolumeMountView {
         VolumeMountView {
             name: name,
             ..self
         }
     }
 
-    pub open spec fn set_read_only(self, read_only: bool) -> VolumeMountView {
+    pub open spec fn with_read_only(self, read_only: bool) -> VolumeMountView {
         VolumeMountView {
             read_only: Some(read_only),
             ..self
         }
     }
 
-    pub open spec fn set_sub_path(self, sub_path: StringView) -> VolumeMountView {
+    pub open spec fn with_sub_path(self, sub_path: StringView) -> VolumeMountView {
         VolumeMountView {
             sub_path: Some(sub_path),
             ..self
         }
     }
 
-    pub open spec fn set_mount_propagation(self, mount_propagation: StringView) -> VolumeMountView {
+    pub open spec fn with_mount_propagation(self, mount_propagation: StringView) -> VolumeMountView {
         VolumeMountView {
             mount_propagation: Some(mount_propagation),
             ..self
@@ -293,49 +293,49 @@ impl ProbeView {
         }
     }
 
-    pub open spec fn set_exec(self, exec: ExecActionView) -> ProbeView {
+    pub open spec fn with_exec(self, exec: ExecActionView) -> ProbeView {
         ProbeView {
             exec_: Some(exec),
             ..self
         }
     }
 
-    pub open spec fn set_failure_threshold(self, failure_threshold: int) -> ProbeView {
+    pub open spec fn with_failure_threshold(self, failure_threshold: int) -> ProbeView {
         ProbeView {
             failure_threshold: Some(failure_threshold),
             ..self
         }
     }
 
-    pub open spec fn set_initial_delay_seconds(self, initial_delay_seconds: int) -> ProbeView {
+    pub open spec fn with_initial_delay_seconds(self, initial_delay_seconds: int) -> ProbeView {
         ProbeView {
             initial_delay_seconds: Some(initial_delay_seconds),
             ..self
         }
     }
 
-    pub open spec fn set_period_seconds(self, period_seconds: int) -> ProbeView {
+    pub open spec fn with_period_seconds(self, period_seconds: int) -> ProbeView {
         ProbeView {
             period_seconds: Some(period_seconds),
             ..self
         }
     }
 
-    pub open spec fn set_success_threshold(self, success_threshold: int) -> ProbeView {
+    pub open spec fn with_success_threshold(self, success_threshold: int) -> ProbeView {
         ProbeView {
             success_threshold: Some(success_threshold),
             ..self
         }
     }
 
-    pub open spec fn set_tcp_socket(self, tcp_socket: TCPSocketActionView) -> ProbeView {
+    pub open spec fn with_tcp_socket(self, tcp_socket: TCPSocketActionView) -> ProbeView {
         ProbeView {
             tcp_socket: Some(tcp_socket),
             ..self
         }
     }
 
-    pub open spec fn set_timeout_seconds(self, timeout_seconds: int) -> ProbeView {
+    pub open spec fn with_timeout_seconds(self, timeout_seconds: int) -> ProbeView {
         ProbeView {
             timeout_seconds: Some(timeout_seconds),
             ..self
@@ -354,7 +354,7 @@ impl ExecActionView {
         }
     }
 
-    pub open spec fn set_command(self, command: Seq<StringView>) -> ExecActionView {
+    pub open spec fn with_command(self, command: Seq<StringView>) -> ExecActionView {
         ExecActionView {
             command: Some(command),
             ..self
@@ -375,14 +375,14 @@ impl TCPSocketActionView {
         }
     }
 
-    pub open spec fn set_host(self, host: StringView) -> TCPSocketActionView {
+    pub open spec fn with_host(self, host: StringView) -> TCPSocketActionView {
         TCPSocketActionView {
             host: Some(host),
             ..self
         }
     }
 
-    pub open spec fn set_port(self, port: int) -> TCPSocketActionView {
+    pub open spec fn with_port(self, port: int) -> TCPSocketActionView {
         TCPSocketActionView {
             port: port,
             ..self
@@ -405,21 +405,21 @@ impl EnvVarView {
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> EnvVarView {
+    pub open spec fn with_name(self, name: StringView) -> EnvVarView {
         EnvVarView {
             name: name,
             ..self
         }
     }
 
-    pub open spec fn set_value(self, value: StringView) -> EnvVarView {
+    pub open spec fn with_value(self, value: StringView) -> EnvVarView {
         EnvVarView {
             value: Some(value),
             ..self
         }
     }
 
-    pub open spec fn set_value_from(self, value_from: EnvVarSourceView) -> EnvVarView {
+    pub open spec fn with_value_from(self, value_from: EnvVarSourceView) -> EnvVarView {
         EnvVarView {
             value_from: Some(value_from),
             ..self
@@ -438,7 +438,7 @@ impl EnvVarSourceView {
         }
     }
 
-    pub open spec fn set_field_ref(self, field_ref: ObjectFieldSelectorView) -> EnvVarSourceView {
+    pub open spec fn with_field_ref(self, field_ref: ObjectFieldSelectorView) -> EnvVarSourceView {
         EnvVarSourceView {
             field_ref: Some(field_ref),
             ..self

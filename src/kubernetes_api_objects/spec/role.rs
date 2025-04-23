@@ -18,14 +18,14 @@ pub struct RoleView {
 type RoleSpecView = Option<Seq<PolicyRuleView>>;
 
 impl RoleView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> RoleView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> RoleView {
         RoleView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_rules(self, policy_rules: Seq<PolicyRuleView>) -> RoleView {
+    pub open spec fn with_rules(self, policy_rules: Seq<PolicyRuleView>) -> RoleView {
         RoleView {
             policy_rules: Some(policy_rules),
             ..self
@@ -152,21 +152,21 @@ impl PolicyRuleView {
         &&& self.verbs.len() > 0
     }
 
-    pub open spec fn set_api_groups(self, api_groups: Seq<StringView>) -> PolicyRuleView {
+    pub open spec fn with_api_groups(self, api_groups: Seq<StringView>) -> PolicyRuleView {
         PolicyRuleView {
             api_groups: Some(api_groups),
             ..self
         }
     }
 
-    pub open spec fn set_resources(self, resources: Seq<StringView>) -> PolicyRuleView {
+    pub open spec fn with_resources(self, resources: Seq<StringView>) -> PolicyRuleView {
         PolicyRuleView {
             resources: Some(resources),
             ..self
         }
     }
 
-    pub open spec fn set_verbs(self, verbs: Seq<StringView>) -> PolicyRuleView {
+    pub open spec fn with_verbs(self, verbs: Seq<StringView>) -> PolicyRuleView {
         PolicyRuleView {
             verbs: verbs,
             ..self

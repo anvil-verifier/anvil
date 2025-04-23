@@ -102,8 +102,8 @@ pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_he
 
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView {
     let mut ports = seq![
-        ServicePortView::default().set_name("epmd"@).set_port(4369),
-        ServicePortView::default().set_name("cluster-rpc"@).set_port(25672)
+        ServicePortView::default().with_name("epmd"@).with_port(4369),
+        ServicePortView::default().with_name("cluster-rpc"@).with_port(25672)
     ];
     make_service(rabbitmq, make_headless_service_name(rabbitmq), ports, false)
 }

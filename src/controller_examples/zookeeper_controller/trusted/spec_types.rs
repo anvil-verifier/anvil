@@ -48,7 +48,7 @@ impl ZookeeperClusterView {
         }
     }
 
-    pub open spec fn set_status(self, status: ZookeeperClusterStatusView) -> ZookeeperClusterView {
+    pub open spec fn with_status(self, status: ZookeeperClusterStatusView) -> ZookeeperClusterView {
         ZookeeperClusterView {
             status: Some(status),
             ..self
@@ -221,7 +221,7 @@ impl ZookeeperClusterStatusView {
         }
     }
 
-    pub open spec fn set_ready_replicas(self, ready_replicas: int) -> ZookeeperClusterStatusView {
+    pub open spec fn with_ready_replicas(self, ready_replicas: int) -> ZookeeperClusterStatusView {
         ZookeeperClusterStatusView {
             ready_replicas: ready_replicas,
             ..self

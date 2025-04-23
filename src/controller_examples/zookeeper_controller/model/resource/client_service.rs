@@ -98,7 +98,7 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
 }
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView {
-    let ports = seq![ServicePortView::default().set_name("tcp-client"@).set_port(zk.spec.ports.client)];
+    let ports = seq![ServicePortView::default().with_name("tcp-client"@).with_port(zk.spec.ports.client)];
 
     make_service(zk, make_client_service_name(zk), ports, true)
 }

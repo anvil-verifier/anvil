@@ -188,35 +188,35 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
-        ensures self@ == old(self)@.set_name(name@),
+        ensures self@ == old(self)@.with_name(name@),
     {
         self.inner.name = Some(name);
     }
 
     #[verifier(external_body)]
     pub fn set_generate_name(&mut self, generate_name: String)
-        ensures self@ == old(self)@.set_generate_name(generate_name@),
+        ensures self@ == old(self)@.with_generate_name(generate_name@),
     {
         self.inner.generate_name = Some(generate_name);
     }
 
     #[verifier(external_body)]
     pub fn set_namespace(&mut self, namespace: String)
-        ensures self@ == old(self)@.set_namespace(namespace@),
+        ensures self@ == old(self)@.with_namespace(namespace@),
     {
         self.inner.namespace = Some(namespace);
     }
 
     #[verifier(external_body)]
     pub fn set_labels(&mut self, labels: StringMap)
-        ensures self@ == old(self)@.set_labels(labels@),
+        ensures self@ == old(self)@.with_labels(labels@),
     {
         self.inner.labels = Some(labels.into_rust_map());
     }
 
     #[verifier(external_body)]
     pub fn set_annotations(&mut self, annotations: StringMap)
-        ensures self@ == old(self)@.set_annotations(annotations@),
+        ensures self@ == old(self)@.with_annotations(annotations@),
     {
         self.inner.annotations = Some(annotations.into_rust_map());
     }
@@ -236,21 +236,21 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
-        ensures self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
+        ensures self@ == old(self)@.with_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
     {
         self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
-        ensures self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_finalizers(finalizers@.map_values(|s: String| s@)),
     {
         self.inner.finalizers = Some(finalizers);
     }
 
     #[verifier(external_body)]
     pub fn unset_finalizers(&mut self)
-        ensures self@ == old(self)@.unset_finalizers(),
+        ensures self@ == old(self)@.without_finalizers(),
     {
         self.inner.finalizers = None;
     }

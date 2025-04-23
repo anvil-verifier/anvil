@@ -19,21 +19,21 @@ pub struct RoleBindingView {
 type RoleBindingSpecView = (RoleRefView, Option<Seq<SubjectView>>);
 
 impl RoleBindingView {
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> RoleBindingView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> RoleBindingView {
         RoleBindingView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_role_ref(self, role_ref: RoleRefView) -> RoleBindingView {
+    pub open spec fn with_role_ref(self, role_ref: RoleRefView) -> RoleBindingView {
         RoleBindingView {
             role_ref: role_ref,
             ..self
         }
     }
 
-    pub open spec fn set_subjects(self, subjects: Seq<SubjectView>) -> RoleBindingView {
+    pub open spec fn with_subjects(self, subjects: Seq<SubjectView>) -> RoleBindingView {
         RoleBindingView {
             subjects: Some(subjects),
             ..self
@@ -157,21 +157,21 @@ impl RoleRefView {
         }
     }
 
-    pub open spec fn set_api_group(self, api_group: StringView) -> RoleRefView {
+    pub open spec fn with_api_group(self, api_group: StringView) -> RoleRefView {
         RoleRefView {
             api_group: api_group,
             ..self
         }
     }
 
-    pub open spec fn set_kind(self, kind: StringView) -> RoleRefView {
+    pub open spec fn with_kind(self, kind: StringView) -> RoleRefView {
         RoleRefView {
             kind: kind,
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> RoleRefView {
+    pub open spec fn with_name(self, name: StringView) -> RoleRefView {
         RoleRefView {
             name: name,
             ..self
@@ -199,21 +199,21 @@ impl SubjectView {
         &&& is_namespaced ==> self.namespace.is_Some() && self.namespace.get_Some_0().len() > 0
     }
 
-    pub open spec fn set_kind(self, kind: StringView) -> SubjectView {
+    pub open spec fn with_kind(self, kind: StringView) -> SubjectView {
         SubjectView {
             kind: kind,
             ..self
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> SubjectView {
+    pub open spec fn with_name(self, name: StringView) -> SubjectView {
         SubjectView {
             name: name,
             ..self
         }
     }
 
-    pub open spec fn set_namespace(self, namespace: StringView) -> SubjectView {
+    pub open spec fn with_namespace(self, namespace: StringView) -> SubjectView {
         SubjectView {
             namespace: Some(namespace),
             ..self

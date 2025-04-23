@@ -96,14 +96,14 @@ pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_
 
 pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView {
     ConfigMapView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_plugins_config_map_name(rabbitmq))
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(make_owner_references(rabbitmq))
-            .set_labels(make_labels(rabbitmq))
-            .set_annotations(rabbitmq.spec.annotations)
+        .with_metadata(ObjectMetaView::default()
+            .with_name(make_plugins_config_map_name(rabbitmq))
+            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_owner_references(make_owner_references(rabbitmq))
+            .with_labels(make_labels(rabbitmq))
+            .with_annotations(rabbitmq.spec.annotations)
         )
-        .set_data(Map::empty()
+        .with_data(Map::empty()
             .insert("enabled_plugins"@, "[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management]."@)
         )
 }

@@ -68,14 +68,14 @@ impl PersistentVolumeClaim {
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures
-            self@ == old(self)@.set_metadata(metadata@),
+            self@ == old(self)@.with_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PersistentVolumeClaimSpec)
-        ensures self@ == old(self)@.set_spec(spec@),
+        ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
@@ -143,21 +143,21 @@ impl PersistentVolumeClaimSpec {
 
     #[verifier(external_body)]
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
-        ensures self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
+        ensures self@ == old(self)@.with_access_modes(access_modes@.map_values(|mode: String| mode@)),
     {
         self.inner.access_modes = Some(access_modes);
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: VolumeResourceRequirements)
-        ensures self@ == old(self)@.set_resources(resources@),
+        ensures self@ == old(self)@.with_resources(resources@),
     {
         self.inner.resources = Some(resources.into_kube());
     }
 
     #[verifier(external_body)]
     pub fn set_storage_class_name(&mut self, storage_class_name: String)
-        ensures self@ == old(self)@.set_storage_class_name(storage_class_name@),
+        ensures self@ == old(self)@.with_storage_class_name(storage_class_name@),
     {
         self.inner.storage_class_name = Some(storage_class_name);
     }
