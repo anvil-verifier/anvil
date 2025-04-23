@@ -12,7 +12,7 @@ use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vstd_ext::option_lib::*;
 use vstd::{prelude::*, seq_lib::*};
-use crate::vstd_ext::seq_lib::*;
+use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 
 verus! {
 
@@ -404,31 +404,35 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
         metadata.set_owner_references(make_owner_references(vd));
         metadata
     });
-    vrs.set_spec({
-        let mut spec = VReplicaSetSpec::default();
-        if vd.spec().replicas().is_some() {
-            spec.set_replicas(vd.spec().replicas().unwrap());
-        }
-        let mut label_selector = LabelSelector::default();
-        label_selector.set_match_labels({
-            let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
-            labels.insert("pod_template_hash".to_string(), pod_template_hash.clone());
-            labels
-        });
-        spec.set_selector(label_selector);
-        let template = template_with_hash(vd);
-        spec.set_template(template);
-        spec
-    });
+    let mut spec = VReplicaSetSpec::default();
+    if vd.spec().replicas().is_some() {
+        spec.set_replicas(vd.spec().replicas().unwrap());
+    }
+    let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap().clone();
+    labels.insert("pod_template_hash".to_string(), pod_template_hash);
+    let mut label_selector = LabelSelector::default();
+    label_selector.set_match_labels(labels);
+    spec.set_selector(label_selector);
+    let template = template_with_hash(vd);
+    spec.set_template(template);
+    vrs.set_spec(spec);
     proof {
-        assert(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels)
+        assert(template@ == model_reconciler::template_with_hash(vd@));
+        let model_labels = model_reconciler::make_replica_set(vd@).spec.selector.match_labels.unwrap();
+        assert(labels@ == model_labels) by {
+            let vd_labels = vd@.spec.template.unwrap().metadata.unwrap().labels.unwrap();
+            assert(labels@ == vd_labels.insert("pod_template_hash"@, pod_template_hash@));
+            assert(pod_template_hash@ == int_to_string_view(vd@.metadata.resource_version.unwrap()));
+            assume(model_labels == vd_labels.insert("pod_template_hash"@, pod_template_hash@));
+        }
+        assert(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels);
     }
     vrs
 }
 
 pub fn template_with_hash(vd: &VDeployment) -> (pod_template_spec: PodTemplateSpec)
     requires vd@.well_formed(),
-    ensures pod_template_spec@ == model_reconciler::template_with_hash(vd@),
+    ensures pod_template_spec@ == #[trigger] model_reconciler::template_with_hash(vd@),
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();

@@ -211,6 +211,7 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
 pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
 {
     let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
+    let match_labels = vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash);
     VReplicaSetView {
         metadata: ObjectMetaView {
             name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
@@ -221,7 +222,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
         spec: VReplicaSetSpecView {
             replicas: vd.spec.replicas,
             selector: LabelSelectorView {
-                match_labels: Some(vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash)),
+                match_labels: Some(match_labels),
             },
             template: Some(template_with_hash(vd))
         },
