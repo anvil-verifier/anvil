@@ -22,7 +22,7 @@ open spec fn state_validation(self) -> bool {
     &&& self.spec.update_strategy.is_Some() ==> (
         // updateStrategy.type must be either RollingUpdate or OnDelete (used "type_" to avoid clashing with Rust keyword)
         self.spec.update_strategy.get_Some_0().type_.is_Some() ==>
-        match self.spec.update_strategy.get_Some_0().type_ {
+        match self.spec.update_strategy.get_Some_0().type_.get_Some_0() {
         "RollingUpdate"@ => self.spec.update_strategy.get_Some_0().rolling_update.is_Some() ==> (
                                 // updateStrategy.rollingUpdate.partition is non-negative
                                 self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.is_Some() ==>
