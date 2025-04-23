@@ -25,22 +25,17 @@ open spec fn state_validation(self) -> bool {
     || self.spec.update_strategy.get_Some_0().type_ == "OnDelete"@
 
     // updateStrategy.rollingUpdate is None if updateStrategy.type is OnDelete
-    &&& (self.spec.update_strategy.is_Some() &&
-        self.spec.update_strategy.get_Some_0().type_ == "OnDelete"@) ==>
-        self.spec.update_strategy.get_Some_0().rolling_update.is_None()
+    &&& self.spec.update_strategy.get_Some_0().type_ == "OnDelete"@ ==>
+    self.spec.update_strategy.get_Some_0().rolling_update.is_None()
 
 
     // updateStrategy.rollingUpdate.partition is non-negative
-    &&& (self.spec.update_strategy.is_Some() &&
-        self.spec.update_strategy.get_Some_0().rolling_update.is_Some() &&
-        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.is_Some()) ==>
-        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.get_Some_0() >= 0
+    &&& self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.is_Some() ==>
+    self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.get_Some_0() >= 0
 
     // if updateStrategy.rollingUpdate.maxUnavailable is present, validate it's positive (assuming its an integer for now)
-    &&& (self.spec.update_strategy.is_Some() &&
-        self.spec.update_strategy.get_Some_0().rolling_update.is_Some() &&
-        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable.is_Some()) ==>
-        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable.get_Some_0() > 0
+    &&& self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable.is_Some() ==>
+    self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable.get_Some_0() > 0
 
 
     // podManagementPolicy must be either OrderedReady or Parallel
