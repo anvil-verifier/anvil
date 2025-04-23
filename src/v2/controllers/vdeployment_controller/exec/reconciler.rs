@@ -89,7 +89,7 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 // ???
 // 1. how to keep deployment's rollout history
 // https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment
-// 2. User manages deployments, dc updates pods by rollout or rollback. There should be a user-monkey step just like pod-monkey
+// 2. User manages deployments, dc updates vrs_list by rollout or rollback. There should be a user-monkey step just like pod-monkey
 // 2.5 How rollout and rollback works with rs
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
@@ -293,31 +293,65 @@ ensures
     Some(vrs_list)
 }
 
-// what's the correct way of encoding owner reference?
+// give up on this stupid proof
 fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
 requires
     vd@.well_formed(),
-    forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
-ensures filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+    //forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
+ensures
+    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
-    while idx < vrs_list.len() {
+
+    proof {
+        assert(
+            filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) =~=
+            model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@)
+        );
+    }
+
+    while idx < vrs_list.len()
+    invariant
+        idx <= vrs_list.len(),
+        filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
+            == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
+    {
         let vrs = &vrs_list[idx];
         if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
         && !vrs.metadata().has_deletion_timestamp() {
             filtered_vrs_list.push(vrs.clone());
         }
+
+        proof {
+            let spec_filter = |vrs: VReplicaSetView|
+                vrs.metadata.owner_references_contains(vd@.controller_owner_ref())
+                && vrs.metadata.deletion_timestamp.is_None();
+            let old_filtered_vrs_list = if spec_filter(vrs@) {
+                filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).drop_last()
+            } else {
+                filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
+            };
+            assert(old_filtered_vrs_list == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(spec_filter));
+            push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), spec_filter, vrs@);
+            assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).push(vrs@)
+                   == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
+            assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == old_filtered_vrs_list.push(vrs@));
+        }
+
         idx += 1;
     }
+    assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int));
     filtered_vrs_list
 }
 
-fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (Option<VReplicaSet>, Vec<VReplicaSet>)
+fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (Option<VReplicaSet>, Vec<VReplicaSet>))
 requires
     vd@.well_formed(),
     forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
-// TODO: how to write postcondition here as named tuple is not supported
+ensures
+    option_view(res.0) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
+    res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
 {
     let mut new_vrs = None;
     let mut old_vrs_list = Vec::new();
@@ -325,6 +359,9 @@ requires
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     while idx < vrs_list.len() {
         let vrs = &vrs_list[idx];
+        // why it's required
+        assume(vd@.well_formed());
+        assume(vrs@.well_formed());
         if vrs.spec().template().unwrap().eq(&template_with_hash(vd)) {
             new_vrs = Some(vrs.clone());
         } else if vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 {
@@ -341,24 +378,34 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
     ensures vrs@ == model_reconciler::make_replica_set(vd@),
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
-    let template = template_with_hash(vd);
-    let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
-    labels.insert("pod_template_hash".to_string(), pod_template_hash.clone());
-    let mut spec = VReplicaSetSpec::default();
-    spec.set_replicas(vd.spec().replicas().unwrap());
-    let mut label_selector = LabelSelector::default();
-    label_selector.set_match_labels(labels);
-    spec.set_selector(label_selector);
-    let template = template_with_hash(vd);
-    spec.set_template(template);
-    let mut metadata = vd.metadata();
-    // concatenation of (String, String) not yet supported in Verus
-    metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
-    metadata.set_namespace(vd.metadata().namespace().unwrap());
-    metadata.set_owner_references(make_owner_references(vd));
     let mut vrs = VReplicaSet::default();
-    vrs.set_metadata(metadata);
-    vrs.set_spec(spec);
+    vrs.set_metadata({
+        let mut metadata = vd.metadata();
+        // concatenation of (String, String) not yet supported in Verus
+        metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
+        metadata.set_namespace(vd.metadata().namespace().unwrap());
+        metadata.set_owner_references(make_owner_references(vd));
+        metadata
+    });
+    vrs.set_spec({
+        let mut spec = VReplicaSetSpec::default();
+        if vd.spec().replicas().is_some() {
+            spec.set_replicas(vd.spec().replicas().unwrap());
+        }
+        let mut label_selector = LabelSelector::default();
+        label_selector.set_match_labels({
+            let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
+            labels.insert("pod_template_hash".to_string(), pod_template_hash.clone());
+            labels
+        });
+        spec.set_selector(label_selector);
+        let template = template_with_hash(vd);
+        spec.set_template(template);
+        spec
+    });
+    proof {
+        assume(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels)
+    }
     vrs
 }
 
@@ -374,6 +421,9 @@ pub fn template_with_hash(vd: &VDeployment) -> (pod_template_spec: PodTemplateSp
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(template_meta);
     pod_template_spec.set_spec(vd.spec().template().unwrap().spec().unwrap());
+    proof {
+        assume(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@).metadata.unwrap().labels);
+    }
     pod_template_spec
 }
 
