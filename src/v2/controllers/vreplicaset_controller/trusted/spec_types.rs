@@ -30,14 +30,14 @@ impl VReplicaSetView {
         }
     }
 
-    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> VReplicaSetView {
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> VReplicaSetView {
         VReplicaSetView {
             metadata: metadata,
             ..self
         }
     }
 
-    pub open spec fn set_spec(self, spec: VReplicaSetSpecView) -> VReplicaSetView {
+    pub open spec fn with_spec(self, spec: VReplicaSetSpecView) -> VReplicaSetView {
         VReplicaSetView {
             spec: spec,
             ..self
@@ -175,21 +175,21 @@ impl VReplicaSetSpecView {
         }
     }
 
-    pub open spec fn set_replicas(self, replicas: int) -> VReplicaSetSpecView {
+    pub open spec fn with_replicas(self, replicas: int) -> VReplicaSetSpecView {
         VReplicaSetSpecView {
             replicas: Some(replicas),
             ..self
         }
     }
 
-    pub open spec fn set_selector(self, selector: LabelSelectorView) -> VReplicaSetSpecView {
+    pub open spec fn with_selector(self, selector: LabelSelectorView) -> VReplicaSetSpecView {
         VReplicaSetSpecView {
             selector: selector,
             ..self
         }
     }
 
-    pub open spec fn set_template(self, template: PodTemplateSpecView) -> VReplicaSetSpecView {
+    pub open spec fn with_template(self, template: PodTemplateSpecView) -> VReplicaSetSpecView {
         VReplicaSetSpecView {
             template: Some(template),
             ..self
