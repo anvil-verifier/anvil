@@ -189,7 +189,7 @@ pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeployment
         && vrs.metadata.deletion_timestamp.is_None())
 }
 
-pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (Option<VReplicaSetView>, Seq<VReplicaSetView>)
+pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
 // we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
 {
     let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.template.unwrap() == template_with_hash(vd));
@@ -219,7 +219,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
             ..vd.metadata
         },
         spec: VReplicaSetSpecView {
-            replicas: Some(vd.spec.replicas.unwrap()),
+            replicas: vd.spec.replicas,
             selector: LabelSelectorView {
                 match_labels: Some(vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash)),
             },
