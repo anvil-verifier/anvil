@@ -405,14 +405,9 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
                 filtered_pods@.map_values(|p: Pod| p@)
             };
             assert(old_filtered == pods@.map_values(|p: Pod| p@).take(idx as int).filter(spec_filter));
-            lemma_filter_maintained_after_add(
-                pods@.map_values(|p: Pod| p@).take(idx as int),
-                spec_filter,
-                old_filtered,
-                pod@
-            );
+            push_filter_and_filter_push(pods@.map_values(|p: Pod| p@).take(idx as int), spec_filter, pod@);
             assert(pods@.map_values(|p: Pod| p@).take(idx as int).push(pod@)
-                    == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
+                   == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
             assert(spec_filter(pod@) ==> filtered_pods@.map_values(|p: Pod| p@) == old_filtered.push(pod@));
         }
 
@@ -420,18 +415,6 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
     }
     assert(pods@.map_values(|p: Pod| p@) == pods@.map_values(|p: Pod| p@).take(pods.len() as int));
     filtered_pods
-}
-
-proof fn lemma_filter_maintained_after_add<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filtered_s: Seq<A>, new_elt: A)
-    requires filtered_s == s.filter(pred),
-    ensures
-        (pred(new_elt) ==> filtered_s.push(new_elt) == s.push(new_elt).filter(pred)),
-        (!pred(new_elt) ==> filtered_s == s.push(new_elt).filter(pred)),
-{
-    // Lemma follows from body of Seq::filter.
-    reveal(Seq::filter);
-    // For some reason, this law needs to be explicitly asserted.
-    assert(s.push(new_elt).drop_last() == s);
 }
 
 fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
