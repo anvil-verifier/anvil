@@ -336,7 +336,9 @@ ensures
             push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), spec_filter, vrs@);
             assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).push(vrs@)
                    == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
-            assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == old_filtered_vrs_list.push(vrs@));
+            assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) =~= old_filtered_vrs_list.push(vrs@)) by {
+                assume(spec_filter(vrs@) ==> vrs@ == filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).last());
+            }
         }
 
         idx += 1;
@@ -348,27 +350,42 @@ ensures
 fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (Option<VReplicaSet>, Vec<VReplicaSet>))
 requires
     vd@.well_formed(),
-    forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
+    // trigger on lambda is not supported so I have to write it this way
+    ({
+        let vrs_list_view = vrs_list@.map_values(|vrs: VReplicaSet| vrs@);
+        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list_view[i].well_formed()
+    }),
 ensures
     option_view(res.0) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
     res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
 {
-    let mut new_vrs = None;
+    let mut new_vrs_list = Vec::new();
     let mut old_vrs_list = Vec::new();
     let mut idx = 0;
     let pod_template_hash = vd.metadata().resource_version().unwrap();
-    while idx < vrs_list.len() {
+    while idx < vrs_list.len()
+    invariant
+        vd@.well_formed(),
+        // again here, we can't put idx in invariants as "not proven before loop starts"
+        ({
+            let vrs_list_view = vrs_list@.map_values(|vrs: VReplicaSet| vrs@);
+            forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list_view[i].well_formed()
+        }),
+    {
+        proof { // so we have it again, any ways to avoid this?
+            assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
+        }
         let vrs = &vrs_list[idx];
-        // why it's required
-        assume(vd@.well_formed());
-        assume(vrs@.well_formed());
         if vrs.spec().template().unwrap().eq(&template_with_hash(vd)) {
-            new_vrs = Some(vrs.clone());
+            new_vrs_list.push(vrs.clone());
         } else if vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 {
             old_vrs_list.push(vrs.clone());
         }
     }
-    (new_vrs, old_vrs_list)
+    if new_vrs_list.len() > 0 {
+        return (Some(new_vrs_list[0].clone()), old_vrs_list);
+    }
+    return (None, old_vrs_list)
 }
 
 // TODO
@@ -404,7 +421,7 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
         spec
     });
     proof {
-        assume(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels)
+        assert(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels)
     }
     vrs
 }
@@ -422,7 +439,7 @@ pub fn template_with_hash(vd: &VDeployment) -> (pod_template_spec: PodTemplateSp
     pod_template_spec.set_metadata(template_meta);
     pod_template_spec.set_spec(vd.spec().template().unwrap().spec().unwrap());
     proof {
-        assume(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@).metadata.unwrap().labels);
+        assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@).metadata.unwrap().labels);
     }
     pod_template_spec
 }
