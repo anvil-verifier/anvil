@@ -241,8 +241,43 @@ pub proof fn lemma_eventually_always_no_pending_update_or_update_status_request_
         implies requirements(msg, s_prime) by {
             if s.in_flight().contains(msg) {
                 assert(requirements(msg, s));
+                if msg.content.get_APIRequest_0().is_UpdateRequest() 
+                    || msg.content.get_APIRequest_0().is_UpdateStatusRequest() {
+                    let req = msg.content.get_update_request();
+
+                    let step = choose |step| cluster.next_step(s, s_prime, step);
+                    match step {
+                        Step::APIServerStep(req_msg_opt) => {
+                            let req_msg = req_msg_opt.get_Some_0();
+                            if req_msg.content.is_create_request() {
+                                assume(false);
+                            } else if req_msg.content.is_delete_request() {
+                                assume(false);
+                            } else if req_msg.content.is_update_request() {
+                                assume(false);
+                            } else if req_msg.content.is_update_status_request() {
+                                assume(false);
+                            }
+                        },
+                        Step::BuiltinControllersStep(..) => {
+                            assume(false);
+                        },
+                        Step::ControllerStep((id, _, _)) => {
+                            PodView::marshal_preserves_integrity();
+                            VReplicaSetReconcileState::marshal_preserves_integrity();
+                        },
+                        _ => {}
+                    }
+                    // assume(s.resources().contains_key(req.key()));
+                    // assume(!s_prime.resources().contains_key(req.key()));
+                    // assert(requirements(msg, s_prime));
+                    // assume( exists |vrs: VReplicaSetView| 
+                    //     #[trigger] owner_references.contains(vrs.controller_owner_ref()));
+                    //assume(false);
+                }
                 assert(requirements(msg, s_prime));
             } else {
+                assume(false);
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep((id, _, _)) => {
