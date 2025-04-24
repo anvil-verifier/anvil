@@ -293,7 +293,6 @@ ensures
     Some(vrs_list)
 }
 
-// give up on this stupid proof
 fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
 requires
     vd@.well_formed(),
@@ -336,9 +335,7 @@ ensures
             push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), spec_filter, vrs@);
             assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).push(vrs@)
                    == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
-            assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) =~= old_filtered_vrs_list.push(vrs@)) by {
-                assume(spec_filter(vrs@) ==> vrs@ == filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).last());
-            }
+            assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) =~= old_filtered_vrs_list.push(vrs@));
         }
 
         idx += 1;

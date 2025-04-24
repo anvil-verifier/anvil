@@ -25,7 +25,9 @@ impl View for VReplicaSet {
 
 impl std::clone::Clone for VReplicaSet {
     #[verifier(external_body)]
-    fn clone(&self) -> Self {
+    fn clone(&self) -> (result: Self)
+        ensures result == self,
+    {
         VReplicaSet { inner: self.inner.clone() }
     }
 }
