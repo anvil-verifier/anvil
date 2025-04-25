@@ -165,7 +165,8 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vrs: VRepli
 
 pub open spec fn invariants_since_phase_iii(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    always(lift_state(no_pending_update_or_update_status_request_on_pods()))
+    always(lift_state(no_pending_interfering_update_request()))
+    .and(always(lift_state(no_pending_interfering_update_status_request())))
     .and(always(lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods())))
     .and(always(lift_state(every_create_request_is_well_formed(cluster, controller_id))))
     .and(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))
@@ -175,7 +176,8 @@ pub proof fn invariants_since_phase_iii_is_stable(vrs: VReplicaSetView, cluster:
     ensures valid(stable(invariants_since_phase_iii(vrs, cluster, controller_id))),
 {
     stable_and_always_n!(
-        lift_state(no_pending_update_or_update_status_request_on_pods()),
+        lift_state(no_pending_interfering_update_request()),
+        lift_state(no_pending_interfering_update_status_request()),
         lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods()),
         lift_state(every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
@@ -310,14 +312,16 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))
             );
         } else if i == 3 {
-            lemma_eventually_always_no_pending_update_or_update_status_request_on_pods(spec, cluster, controller_id);
+            lemma_eventually_always_no_pending_interfering_update_request(spec, cluster, controller_id);
+            lemma_eventually_always_no_pending_interfering_update_status_request(spec, cluster, controller_id);
             lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id);
             lemma_eventually_always_every_create_request_is_well_formed(spec, cluster, controller_id);
             lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
-                lift_state(no_pending_update_or_update_status_request_on_pods()),
+                lift_state(no_pending_interfering_update_request()),
+                lift_state(no_pending_interfering_update_status_request()),
                 lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods()),
                 lift_state(every_create_request_is_well_formed(cluster, controller_id)),
                 lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
