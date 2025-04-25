@@ -406,7 +406,7 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
         spec.set_replicas(vd.spec().replicas().unwrap());
     }
     let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap().clone();
-    labels.insert("pod_template_hash".to_string(), pod_template_hash);
+    labels.insert("pod-template-hash".to_string(), pod_template_hash);
     let mut label_selector = LabelSelector::default();
     label_selector.set_match_labels(labels);
     spec.set_selector(label_selector);
@@ -417,10 +417,9 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
         assert(template@ == model_reconciler::template_with_hash(vd@));
         let model_labels = model_reconciler::make_replica_set(vd@).spec.selector.match_labels.unwrap();
         assert(labels@ == model_labels) by {
-            let vd_labels = vd@.spec.template.unwrap().metadata.unwrap().labels.unwrap();
-            assert(labels@ == vd_labels.insert("pod_template_hash"@, pod_template_hash@));
+            assert(labels@ == vd@.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash@));
             assert(pod_template_hash@ == int_to_string_view(vd@.metadata.resource_version.unwrap()));
-            assume(model_labels == vd_labels.insert("pod_template_hash"@, pod_template_hash@));
+            assert(model_labels == labels@);
         }
         assert(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels);
     }
@@ -433,7 +432,7 @@ pub fn template_with_hash(vd: &VDeployment) -> (pod_template_spec: PodTemplateSp
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap();
-    labels.insert("pod_template_hash".to_string(), pod_template_hash);
+    labels.insert("pod-template-hash".to_string(), pod_template_hash);
     let mut template_meta = ObjectMeta::default();
     template_meta.set_labels(labels);
     let mut pod_template_spec = PodTemplateSpec::default();
