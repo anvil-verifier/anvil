@@ -134,14 +134,14 @@ impl ResourceView for VDeploymentView {
         //             )
         //     )
   
-        // RollingUpdate block only appear when type == "RollingUpdate"
-        &&& self.spec.strategy.get_Some_0().type_ == "Recreate" ==> 
-            self.spec.strategy.get_Some_0().rollingUpdate.is_None()
-        // If the rollingUpdate block is present, validate value
-        &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>=
-            // If both are integers, they cannot both be zero
-            !(spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
-                && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
+        // // RollingUpdate block only appear when type == "RollingUpdate"
+        // &&& self.spec.strategy.get_Some_0().type_ == "Recreate" ==> 
+        //     self.spec.strategy.get_Some_0().rollingUpdate.is_None()
+        // // If the rollingUpdate block is present, validate value
+        // &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>=
+        //     // If both are integers, they cannot both be zero
+        //     !(spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
+        //         && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
 
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
