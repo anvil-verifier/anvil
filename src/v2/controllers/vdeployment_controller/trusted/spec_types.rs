@@ -125,7 +125,7 @@ impl ResourceView for VDeploymentView {
         //     self.spec.minReadySeconds.get_Some_0() >= 0
         // // progressDeadlineSeconds, if present, must be ≥ 0
         // &&& self.spec.progressDeadlineSeconds.is_Some() ==>
-        //     self.spec.progressDeadlineSeconds.get_Some_0() >= 0
+        //     self.spec.progressDeadlineSeconds.get_Some_0() >= self.spec.minReadySeconds.get_Some_0()
         // // If strategy provided, it should be Recreate or RollingUpdate
         // &&& self.spec.strategy.is_Some() ==>
         //     ( self.spec.strategy.get_Some_0().type_.is_Some()
@@ -138,7 +138,13 @@ impl ResourceView for VDeploymentView {
         // &&& self.spec.strategy.get_Some_0().type_ == "Recreate" ==> 
         //     self.spec.strategy.get_Some_0().rollingUpdate.is_None()
         // // If the rollingUpdate block is present, validate value
-        // &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>=
+        // &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
+        //     // maxsurge should not be negative
+        //     (spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() >= 0)
+        //     && 
+        //     // maxunvailable should not be negative
+        //     (spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() >= 0)
+        //     &&
         //     // If both are integers, they cannot both be zero
         //     !(spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
         //         && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
