@@ -120,12 +120,13 @@ impl ResourceView for VDeploymentView {
     open spec fn state_validation(self) -> bool {
         // replicas is non-negative
         &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
-        // // minReadySeconds, if present, must be non‑negative
-        // &&& self.spec.minReadySeconds.is_Some() ==>
-        //     self.spec.minReadySeconds.get_Some_0() >= 0
-        // // progressDeadlineSeconds, if present, must be ≥ 0
+        // // progressDeadlineSeconds, if present, must be non‑negative
         // &&& self.spec.progressDeadlineSeconds.is_Some() ==>
-        //     self.spec.progressDeadlineSeconds.get_Some_0() >= self.spec.minReadySeconds.get_Some_0()
+        //     self.spec.progressDeadlineSeconds.get_Some_0() >= 0        
+        // // // If minReadySeconds exists should be smaller than progressDeadlineSeconds
+        // &&& self.spec.minReadySeconds.is_Some() ==>
+        //     self.spec.minReadySeconds.get_Some_0() < self.spec.progressDeadlineSeconds.get_Some_0()
+
         // // If strategy provided, it should be Recreate or RollingUpdate
         // &&& self.spec.strategy.is_Some() ==>
         //     ( self.spec.strategy.get_Some_0().type_.is_Some()
