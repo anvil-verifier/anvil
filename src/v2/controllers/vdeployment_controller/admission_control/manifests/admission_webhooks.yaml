@@ -1,0 +1,23 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration # should be validating, but mutating is used to validate before K8s own validation
+metadata:
+  name: admission-controller
+  namespace: default
+webhooks:
+  - name: admission-server.default.svc
+    clientConfig:
+      caBundle: "${CA_PEM_B64}"
+      service:
+        name: admission-server
+        namespace: default
+        path: "/validate"
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["anvil.dev"]
+        apiVersions: ["v1"]
+        resources: ["vdeployments"]
+    failurePolicy: Fail
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+    timeoutSeconds: 5

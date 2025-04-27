@@ -1,0 +1,9 @@
+apiVersion: anvil.dev/v1
+kind: VDeployment
+metadata:
+  name: no-template-reject
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
