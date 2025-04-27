@@ -24,14 +24,14 @@ kind create cluster
 
 Build the container image for the admission controller, ensuring it is tagged as `admission_controller:v1`:
 ```bash
-docker build -t admission_controller:v1 -f docker/Dockerfile .
+docker build -t local/vreplicaset-admission-controller:v0.1.0 -f docker/Dockerfile .
 ```
 
 3. Load the image into `kind`
 
 Since kind runs Kubernetes inside Docker, the image must be explicitly loaded into the cluster:
 ```bash
-kind load docker-image admission_controller:v1
+kind load docker-image local/vreplicaset-admission-controller:v0.1.0
 ```
 
 4. Run the setup script
