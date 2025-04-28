@@ -12,6 +12,12 @@ use vstd::prelude::*;
 
 verus! {
 
+// helper function to circumvent the lack of support for String in spec
+#[verifier(external_body)]
+pub fn strategy_type_equals(s1: &String, s2: &str) -> bool {
+    s1 == s2
+}
+
 #[verifier(external_body)]
 pub struct VDeployment {
     inner: deps_hack::VDeployment
@@ -76,6 +82,90 @@ impl VDeployment {
             Err(())
         }
     }
+
+    pub fn state_validation(&self) -> (res: bool) 
+        ensures
+            res == self@.state_validation()
+    {
+        
+        // replicas exists and non-negative
+        if let Some(replicas) = self.spec().replicas() {
+            if replicas < 0 {
+                return false;
+            }
+        }
+
+        // min_ready_seconds is non-negative
+        if let Some(min_ready_seconds) = self.spec().min_ready_seconds() {
+            if min_ready_seconds < 0 {
+                return false;
+            }
+        }
+
+        // progress_deadline is non-negative
+        if let Some(progress_deadline) = self.spec().progress_deadline_seconds() {
+            if progress_deadline < 0 {
+                return false;
+            }
+        }
+
+        if let Some(strategy) = self.spec().strategy() {
+            // strategy is either "Recreate" or "RollingUpdate"
+            if let Some(strategy_type) = strategy.type_() {
+
+                if !strategy_type_equals(&strategy_type, "Recreate") && !strategy_type_equals(&strategy_type, "RollingUpdate") {
+                    return false;
+                }
+                
+                if strategy_type_equals(&strategy_type, "Recreate") && strategy.rolling_update().is_some() {
+                    return false;
+                }
+            }
+    
+            // if rollingUpdate is present, maxSurge and maxUnavailable cannot both be 0
+            if let Some(rolling_update) = strategy.rolling_update() {
+                let max_surge_zero = match rolling_update.max_surge() {
+                    Some(i) => i == 0,
+                    None => false,
+                };
+                                
+                let max_unavailable_zero = match rolling_update.max_unavailable() {
+                    Some(i) => i == 0,
+                    None => false,
+                };
+                
+                if max_surge_zero && max_unavailable_zero {
+                    return false;
+                }
+            }
+        }
+
+        // Check if selector's match_labels exist and are non-empty
+        if let Some(match_labels) = self.spec().selector().match_labels() {
+            if match_labels.len() <= 0 {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        // template, metadata, and spec exist
+        if let Some(template) = self.spec().template() {
+            if template.metadata().is_none() || template.spec().is_none() {
+                return false;
+            }
+            
+            // Map::empty() did not compile
+            if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+                return false;
+            }
+
+        } else {
+            return false;
+        }
+    
+        true
+    }
 }
 
 #[verifier(external)]
@@ -120,6 +210,202 @@ impl VDeploymentSpec {
             None => None
         }
     }
+
+    #[verifier(external_body)]
+    pub fn min_ready_seconds(&self) -> (min_ready_seconds: Option<i32>)
+        ensures
+            min_ready_seconds.is_Some() == self@.minReadySeconds.is_Some(),
+            min_ready_seconds.is_Some() ==> min_ready_seconds.get_Some_0() as int == self@.minReadySeconds.get_Some_0(),
+    {
+        self.inner.min_ready_seconds
+    }
+
+    #[verifier(external_body)]
+    pub fn progress_deadline_seconds(&self) -> (progress_deadline: Option<i32>)
+        ensures
+            progress_deadline.is_Some() == self@.progressDeadlineSeconds.is_Some(),
+            progress_deadline.is_Some() ==> progress_deadline.get_Some_0() as int == self@.progressDeadlineSeconds.get_Some_0(),
+    {
+        self.inner.progress_deadline_seconds
+    }
+
+    #[verifier(external_body)]
+    pub fn strategy(&self) -> (strategy: Option<DeploymentStrategy>)
+        ensures
+            strategy.is_Some() == self@.strategy.is_Some(),
+            strategy.is_Some() ==> strategy.get_Some_0()@ == self@.strategy.get_Some_0(),
+    {
+        match &self.inner.strategy {
+            Some(s) => Some(DeploymentStrategy::from_kube(s.clone())),
+            None => None
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn paused(&self) -> (paused: Option<bool>)
+        ensures
+            paused.is_Some() == self@.paused.is_Some(),
+            paused.is_Some() ==> paused.get_Some_0() == self@.paused.get_Some_0(),
+    {
+        self.inner.paused
+    }
 }
 
+//DEPLOYMENT STRATEGY SPEC IMPLEMENTATION
+#[verifier(external_body)]
+pub struct DeploymentStrategy {
+    inner: deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy,
+}
+
+impl DeploymentStrategy {
+    pub spec fn view(&self) -> spec_types::DeploymentStrategyView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (strategy: DeploymentStrategy)
+        ensures strategy@ == spec_types::DeploymentStrategyView::default(),
+    {
+        DeploymentStrategy {
+            inner: deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (strategy: DeploymentStrategy)
+        ensures strategy@ == self@,
+    {
+        DeploymentStrategy { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
+    pub fn type_(&self) -> (type_: Option<String>)
+        ensures
+            self@.type_.is_Some() == type_.is_Some(),
+            type_.is_Some() ==> type_.get_Some_0()@ == self@.type_.get_Some_0(),
+    {
+        self.inner.type_.clone()
+    }
+
+    #[verifier(external_body)]
+    pub fn rolling_update(&self) -> (rolling_update: Option<RollingUpdateDeployment>)
+        ensures
+            self@.rollingUpdate.is_Some() == rolling_update.is_Some(),
+            rolling_update.is_Some() ==> rolling_update.get_Some_0()@ == self@.rollingUpdate.get_Some_0(),
+    {
+        match &self.inner.rolling_update {
+            Some(ru) => Some(RollingUpdateDeployment::from_kube(ru.clone())),
+            None => None
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_type(&mut self, type_: String)
+        ensures self@ == old(self)@.with_type(type_@),
+    {
+        self.inner.type_ = Some(type_);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_rolling_update(&mut self, rolling_update: RollingUpdateDeployment)
+        ensures self@ == old(self)@.with_rolling_update(rolling_update@),
+    {
+        self.inner.rolling_update = Some(rolling_update.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy) -> DeploymentStrategy { 
+        DeploymentStrategy { inner: inner } 
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy { 
+        self.inner 
+    }
+}
+
+#[verifier(external_body)]
+pub struct RollingUpdateDeployment {
+    inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment,
+}
+
+impl RollingUpdateDeployment {
+    pub spec fn view(&self) -> spec_types::RollingUpdateDeploymentView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (rolling_update: RollingUpdateDeployment)
+        ensures rolling_update@ == spec_types::RollingUpdateDeploymentView::default(),
+    {
+        RollingUpdateDeployment {
+            inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (rolling_update: RollingUpdateDeployment)
+        ensures rolling_update@ == self@,
+    {
+        RollingUpdateDeployment { inner: self.inner.clone() }
+    }
+
+    // Simplified implementation treating IntOrString values as integers only
+    #[verifier(external_body)]
+    pub fn max_surge(&self) -> (max_surge: Option<i32>)
+        ensures
+            self@.maxSurge.is_Some() == max_surge.is_Some(),
+            max_surge.is_Some() ==> max_surge.get_Some_0() as int == self@.maxSurge.get_Some_0(),
+    {
+        match &self.inner.max_surge {
+            Some(ms) => match ms {
+                deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
+                // Simplification: treat string values as 1 (integer)
+                _ => Some(1),
+            },
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn max_unavailable(&self) -> (max_unavailable: Option<i32>)
+        ensures
+            self@.maxUnavailable.is_Some() == max_unavailable.is_Some(),
+            max_unavailable.is_Some() ==> max_unavailable.get_Some_0() as int == self@.maxUnavailable.get_Some_0(),
+    {
+        match &self.inner.max_unavailable {
+            Some(mu) => match mu {
+                deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
+                // Simplification: treat string values as 1 (integer)
+                _ => Some(1),
+            },
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_max_surge(&mut self, max_surge: i32)
+        ensures self@ == old(self)@.with_max_surge(max_surge as int),
+    {
+        self.inner.max_surge = Some(
+            deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_surge)
+        );
+    }
+
+    #[verifier(external_body)]
+    pub fn set_max_unavailable(&mut self, max_unavailable: i32)
+        ensures self@ == old(self)@.with_max_unavailable(max_unavailable as int),
+    {
+        self.inner.max_unavailable = Some(
+            deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
+        );
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment) -> RollingUpdateDeployment { 
+        RollingUpdateDeployment { inner: inner } 
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment { 
+        self.inner 
+    }
+}
+// END DEPLOYMENT STRATEGY EXEC IMPLEMENTATION
 }

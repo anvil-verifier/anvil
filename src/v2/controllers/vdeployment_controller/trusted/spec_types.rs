@@ -132,20 +132,20 @@ impl ResourceView for VDeploymentView {
         // If strategy provided, it should be Recreate or RollingUpdate
         &&& self.spec.strategy.is_Some() ==>
             ( self.spec.strategy.get_Some_0().type_.is_Some()
-                && ( self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"
-                    || self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"
+                && ( self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@
+                    || self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
                     )
             )
   
         // RollingUpdate block only appear when type == "RollingUpdate"
-        &&& self.spec.strategy.get_Some_0().type_ == "Recreate" ==> 
+        &&& self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@ ==> 
             self.spec.strategy.get_Some_0().rollingUpdate.is_None()
         
         // If the rollingUpdate block is present, validate value
-        &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>=
+        &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
             // If both are integers, they cannot both be zero
-            !(spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
-                && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
+            !(self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
+                && self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
 
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
@@ -179,10 +179,71 @@ impl CustomResourceView for VDeploymentView {
     proof fn validation_result_determined_by_spec_and_status() {}
 }
 
+// DEPLOYMENT STRATEGY SPEC IMPLEMENTATION
+pub struct DeploymentStrategyView {
+    pub type_: Option<StringView>,
+    pub rollingUpdate: Option<RollingUpdateDeploymentView>,
+}
+
+impl DeploymentStrategyView {
+    pub open spec fn default() -> DeploymentStrategyView {
+        DeploymentStrategyView {
+            type_: None,
+            rollingUpdate: None,
+        }
+    }
+    pub open spec fn with_type(self, type_: StringView) -> DeploymentStrategyView {
+        DeploymentStrategyView {
+            type_: Some(type_),
+            ..self
+        }
+    }
+
+    pub open spec fn with_rolling_update(self, rolling_update: RollingUpdateDeploymentView) -> DeploymentStrategyView {
+        DeploymentStrategyView {
+            rollingUpdate: Some(rolling_update),
+            ..self
+        }
+    }
+}
+
+pub struct RollingUpdateDeploymentView {
+    pub maxSurge: Option<int>,
+    pub maxUnavailable: Option<int>,
+}
+
+impl RollingUpdateDeploymentView {
+    pub open spec fn default() -> RollingUpdateDeploymentView {
+        RollingUpdateDeploymentView {
+            maxSurge: None,
+            maxUnavailable: None,
+        }
+    }
+    pub open spec fn with_max_surge(self, max_surge: int) -> RollingUpdateDeploymentView {
+        RollingUpdateDeploymentView {
+            maxSurge: Some(max_surge),
+            ..self
+        }
+    }
+
+    pub open spec fn with_max_unavailable(self, max_unavailable: int) -> RollingUpdateDeploymentView {
+        RollingUpdateDeploymentView {
+            maxUnavailable: Some(max_unavailable),
+            ..self
+        }
+    }
+}
+// END DEPLOYMENT STRATEGY SPEC IMPLEMENTATION
+
 pub struct VDeploymentSpecView {
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
     pub template: Option<PodTemplateSpecView>,
+    pub minReadySeconds: Option<int>,
+    pub progressDeadlineSeconds: Option<int>,
+    pub strategy: Option<DeploymentStrategyView>,
+    pub revisionHistoryLimit: Option<int>,
+    pub paused: Option<bool>
 }
 
 }
