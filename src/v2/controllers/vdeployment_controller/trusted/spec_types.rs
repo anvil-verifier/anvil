@@ -120,6 +120,33 @@ impl ResourceView for VDeploymentView {
     open spec fn state_validation(self) -> bool {
         // replicas is non-negative
         &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
+        
+        // minReadySeconds, if present, must be non‑negative
+        &&& self.spec.minReadySeconds.is_Some() ==>
+            self.spec.minReadySeconds.get_Some_0() >= 0
+        
+        // progressDeadlineSeconds, if present, must be ≥ 0
+        &&& self.spec.progressDeadlineSeconds.is_Some() ==>
+            self.spec.progressDeadlineSeconds.get_Some_0() >= 0
+        
+        // If strategy provided, it should be Recreate or RollingUpdate
+        &&& self.spec.strategy.is_Some() ==>
+            ( self.spec.strategy.get_Some_0().type_.is_Some()
+                && ( self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"
+                    || self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"
+                    )
+            )
+  
+        // RollingUpdate block only appear when type == "RollingUpdate"
+        &&& self.spec.strategy.get_Some_0().type_ == "Recreate" ==> 
+            self.spec.strategy.get_Some_0().rollingUpdate.is_None()
+        
+        // If the rollingUpdate block is present, validate value
+        &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>=
+            // If both are integers, they cannot both be zero
+            !(spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
+                && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
+
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels.is_Some()
@@ -131,6 +158,7 @@ impl ResourceView for VDeploymentView {
         // selector matches template's metadata's labels
         &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.unwrap_or(Map::empty()))
     }
+
 
     open spec fn transition_validation(self, old_obj: VDeploymentView) -> bool {
         true
