@@ -14,7 +14,10 @@ verus! {
 
 // helper function to circumvent the lack of support for String in spec
 #[verifier(external_body)]
-pub fn strategy_type_equals(s1: &String, s2: &str) -> bool {
+pub fn strategy_type_equals(s1: &String, s2: &str) -> (b: bool)
+    ensures
+        s1@ == s2@ <==> b,
+{
     s1 == s2
 }
 
@@ -112,32 +115,23 @@ impl VDeployment {
         if let Some(strategy) = self.spec().strategy() {
             // strategy is either "Recreate" or "RollingUpdate"
             if let Some(strategy_type) = strategy.type_() {
-
-                if !strategy_type_equals(&strategy_type, "Recreate") && !strategy_type_equals(&strategy_type, "RollingUpdate") {
-                    return false;
+                if strategy_type_equals(&strategy_type, "Recreate") && strategy.rolling_update().is_none() {
+    
                 }
-                
-                if strategy_type_equals(&strategy_type, "Recreate") && strategy.rolling_update().is_some() {
+                else if strategy_type_equals(&strategy_type, "RollingUpdate") {
+                    if let Some(rolling_update) = strategy.rolling_update() {
+                        // if let Some(max_surge) = rolling_update.max_surge() {
+                            
+                        // } else {
+                        //     return false;
+                        // }
+                    }
+                }
+                else {
                     return false;
                 }
             }
     
-            // if rollingUpdate is present, maxSurge and maxUnavailable cannot both be 0
-            if let Some(rolling_update) = strategy.rolling_update() {
-                let max_surge_zero = match rolling_update.max_surge() {
-                    Some(i) => i == 0,
-                    None => false,
-                };
-                                
-                let max_unavailable_zero = match rolling_update.max_unavailable() {
-                    Some(i) => i == 0,
-                    None => false,
-                };
-                
-                if max_surge_zero && max_unavailable_zero {
-                    return false;
-                }
-            }
         }
 
         // Check if selector's match_labels exist and are non-empty

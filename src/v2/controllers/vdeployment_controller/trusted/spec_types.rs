@@ -130,22 +130,32 @@ impl ResourceView for VDeploymentView {
             self.spec.progressDeadlineSeconds.get_Some_0() >= 0
         
         // If strategy provided, it should be Recreate or RollingUpdate
-        &&& self.spec.strategy.is_Some() ==>
-            ( self.spec.strategy.get_Some_0().type_.is_Some()
-                && ( self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@
-                    || self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
+        &&& self.spec.strategy.is_Some() ==> {
+            (
+                self.spec.strategy.get_Some_0().type_.is_Some() ==> (
+                    (
+                        self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@
+                        // RollingUpdate block only appear when type == "RollingUpdate"
+                        && self.spec.strategy.get_Some_0().rollingUpdate.is_None()
                     )
+                    ||
+                    (
+                        self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
+                        // ==> self.spec.strategy.get_Some_0().rollingUpdate.is_Some()
+                        // && (
+                        //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some()
+                        //     // ==> (
+                        //     //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() != 0
+                        //     // )
+                        //     // ||
+                        //     // self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() ==> (
+                        //     //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() != 0
+                        //     // )
+                        // )
+                    )
+                )
             )
-  
-        // RollingUpdate block only appear when type == "RollingUpdate"
-        &&& self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@ ==> 
-            self.spec.strategy.get_Some_0().rollingUpdate.is_None()
-        
-        // If the rollingUpdate block is present, validate value
-        &&& self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
-            // If both are integers, they cannot both be zero
-            !(self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0
-                && self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0)
+        }
 
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
