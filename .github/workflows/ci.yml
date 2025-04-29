@@ -159,6 +159,25 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}
       - name: Verify vreplicaset admission controller
         run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --rlimit 50 --time
+  vdeployment-admission-verification:
+    needs: build-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          . "$HOME/.cargo/env"
+          rustup toolchain install
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            verus/source
+            verus/dependencies
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}
+      - name: Verify vdeployment admission controller
+        run: VERUS_DIR="${PWD}/verus" ./build.sh v2_vdeployment_admission_controller.rs --rlimit 50 --time
   unit-tests:
     needs: build-verus
     runs-on: ubuntu-22.04

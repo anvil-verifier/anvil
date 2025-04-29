@@ -129,34 +129,24 @@ impl ResourceView for VDeploymentView {
         &&& self.spec.progressDeadlineSeconds.is_Some() ==>
             self.spec.progressDeadlineSeconds.get_Some_0() >= 0
         
-        // If strategy provided, it should be Recreate or RollingUpdate
+        // if strategy provided, it should be Recreate or RollingUpdate
         &&& self.spec.strategy.is_Some() ==> {
             (
                 self.spec.strategy.get_Some_0().type_.is_Some() ==> (
                     (
                         self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@
-                        // RollingUpdate block only appear when type == "RollingUpdate"
+                        // rollingUpdate block only appear when type == "RollingUpdate"
                         && self.spec.strategy.get_Some_0().rollingUpdate.is_None()
                     )
                     ||
                     (
+                        // maxSurge and maxUnavailable cannot both exist and be 0
                         self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
                         && (self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
                             !(self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && 
                             self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0 &&
                             self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && 
                             self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0))
-                        // ==> self.spec.strategy.get_Some_0().rollingUpdate.is_Some()
-                        // && (
-                        //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some()
-                        //     // ==> (
-                        //     //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() != 0
-                        //     // )
-                        //     // ||
-                        //     // self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() ==> (
-                        //     //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() != 0
-                        //     // )
-                        // )
                     )
                 )
             )

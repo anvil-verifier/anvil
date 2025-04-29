@@ -120,11 +120,6 @@ impl VDeployment {
                 }
                 else if strategy_type_equals(&strategy_type, "RollingUpdate") {
                     if let Some(rolling_update) = strategy.rolling_update() {
-                        // if let Some(max_surge) = rolling_update.max_surge() {
-                            
-                        // } else {
-                        //     return false;
-                        // }
 
                         let max_surge_zero = match rolling_update.max_surge() {
                             Some(i) => i == 0,
