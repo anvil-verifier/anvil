@@ -16,6 +16,11 @@ use kube::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use deps_hack::anyhow::Result;
+use deps_hack::serde_yaml;
+use deps_hack::tokio;
+use deps_hack::tracing::{error, info};
+use deps_hack::tracing_subscriber;
 use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
