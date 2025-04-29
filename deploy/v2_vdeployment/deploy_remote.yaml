@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: v2-vdeployment-controller
+  namespace: v2-vdeployment
+  labels:
+    app.kubernetes.io/name: v2-vdeployment-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: v2-vdeployment-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: v2-vdeployment-controller
+    spec:
+      containers:
+        - image: ghcr.io/anvil-verifier/anvil/v2-vdeployment-controller:latest
+          name: controller
+      serviceAccountName: v2-vdeployment-controller

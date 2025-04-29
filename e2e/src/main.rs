@@ -17,6 +17,7 @@ use tracing::*;
 use v2_vreplicaset_e2e::v2_vreplicaset_e2e_test;
 use v2_vreplicaset_admission_e2e::v2_vreplicaset_admission_e2e_test;
 use v2_vstatefulset_admission_e2e::v2_vstatefulset_admission_e2e_test;
+use v2_vdeployment_e2e::v2_vdeployment_e2e_test;
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
 
 #[tokio::main]
@@ -58,6 +59,7 @@ async fn main() -> Result<(), Error> {
             info!("Running v2-vreplicaset end-to-end test");
             return v2_vreplicaset_e2e_test().await;
         }
+<<<<<<< HEAD
         "v2-vreplicaset-admission" => {
             info!("Running v2-vreplicaset-admission end-to-end test");
             return v2_vreplicaset_admission_e2e_test().await;
@@ -65,6 +67,11 @@ async fn main() -> Result<(), Error> {
         "v2-vstatefulset-admission" => {
             info!("Running v2-vstatefulset-admission end-to-end test");
             return v2_vstatefulset_admission_e2e_test().await;
+=======
+        "v2-vdeployment" => {
+            info!("Running v2-vdeployment end-to-end test");
+            return v2_vdeployment_e2e_test().await;
+>>>>>>> 8ddac4a (add e2e test for VDeployment controller)
         }
         _ => {
             error!("Wrong command. Please specify the correct e2e test workload.");
