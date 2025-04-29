@@ -1,20 +1,19 @@
 apiVersion: anvil.dev/v1
-kind: VReplicaSet
+kind: VDeployment
 metadata:
-  name: frontend
+  name: pause-deployment
   labels:
-    app: guestbook
-    tier: frontend
+    app: pause-demo
 spec:
   replicas: 3
   selector:
     matchLabels:
-      tier: frontend
+      app: pause-demo
   template:
     metadata:
       labels:
-        tier: frontend
+        app: pause-demo
     spec:
       containers:
-      - name: php-redis
-        image: us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5
+      - name: pause
+        image: k8s.gcr.io/pause:3.9

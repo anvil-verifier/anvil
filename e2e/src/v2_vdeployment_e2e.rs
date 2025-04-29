@@ -23,6 +23,7 @@ use tokio::time::sleep;
 use tracing::*;
 
 use crate::common::*;
+use deps_hack::VReplicaSet;
 
 // Note from Cody Rivera, 4/17/2025: This test is a copy of vreplicaset_e2e.rs
 // for now, but could be expanded.
@@ -39,15 +40,15 @@ pub fn v_deployment() -> String {
       replicas: 3
       selector:
         matchLabels:
-        app: pause-demo
+          app: pause-demo
       template:
         metadata:
-        labels:
-          app: pause-demo
+          labels:
+            app: pause-demo
         spec:
-        containers:
-        - name: pause
-          image: k8s.gcr.io/pause:3.9
+          containers:
+          - name: pause
+            image: k8s.gcr.io/pause:3.9
     "
     .to_string()
 }
@@ -96,6 +97,15 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
                     return Err(Error::VReplicaSetFailed);
                 }
             }
+        }
+    }
+
+    let start = Instant::now();
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on desired state test");
+            return Err(Error::Timeout);
         }
         // Check pods
         let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
@@ -317,45 +327,34 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
     Ok(())
 }
 
-// check dependency on VRS is installed
-pub async fn v2_vreplicaset_e2e_test() -> Result<(), Error> {
+pub async fn v2_vdeployment_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
     let vrs_crd = crd_api.get("vreplicasets.anvil.dev").await;
     match vrs_crd {
         Err(e) => {
-            error!("No CRD found, create one before run the e2e test.");
+            error!("VReplicaSet CRD not found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            info!("CRD found, continue to run the e2e test.");
+            info!("VReplicaSet CRD found, continue to run the e2e test.");
         }
     }
-
-    info!("VRS CRD test passed.");
-    Ok(())
-}
-
-pub async fn v2_vdeployment_e2e_test() -> Result<(), Error> {
-    // check if the CRD is already registered
-    let client = Client::try_default().await?;
-    let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
     let vd_crd = crd_api.get("vdeployments.anvil.dev").await;
     match vd_crd {
         Err(e) => {
-            error!("No CRD found, create one before run the e2e test.");
+            error!("VDeployment CRD not found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            info!("CRD found, continue to run the e2e test.");
+            info!("VDeployment CRD found, continue to run the e2e test.");
         }
     }
 
     let discovery = Discovery::new(client.clone()).run().await?;
     let vd_name = apply(v_deployment(), client.clone(), &discovery).await?;
 
-    v2_vreplicaset_e2e_test().await?;
     desired_state_test(client.clone(), vd_name.clone()).await?;
     scaling_test(client.clone(), vd_name.clone()).await?;
 
