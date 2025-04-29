@@ -19,8 +19,6 @@ use vstd::{map::*, map_lib::*, prelude::*};
 verus! {
    
 // TODO: get rid of diff parameter.
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     diff: int, msg: Message,
@@ -88,8 +86,6 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
     };
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
     diff: int, msg: Message, req_msg: Option<Message>

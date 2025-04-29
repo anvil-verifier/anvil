@@ -401,8 +401,6 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1086,8 +1084,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1566,8 +1562,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -2794,8 +2788,6 @@ ensures
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )

@@ -2612,8 +2612,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -3109,9 +3107,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     );
 }
 
-// #[verifier(spinoff_prover)]
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>, 
     vrs: VReplicaSetView, 

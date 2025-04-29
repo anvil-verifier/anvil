@@ -37,31 +37,34 @@ pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjec
 pub open spec fn vrs_not_interfered_by_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.obj.kind == Kind::PodKind ==> !{
-            let etcd_obj = s.resources()[req.key()];
-            let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-            &&& s.resources().contains_key(req.key())
-            &&& etcd_obj.metadata.resource_version.is_Some()
-            &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-            &&& etcd_obj.metadata.owner_references.is_Some()
+            let owner_references = req.obj.metadata.owner_references.get_Some_0();
+            &&& req.obj.metadata.owner_references.is_Some()
             &&& exists |vrs: VReplicaSetView| 
                 #[trigger] owner_references.contains(vrs.controller_owner_ref())
         }
     }
 }
 
-// Other controllers don't try to update pods owned by a VReplicaSet.
+// Update requests to pods carry a resource version on them (despite 
+// the underlying kind permitting unconditional updates), and other 
+// controllers don't try to update pods owned by a VReplicaSet.
 pub open spec fn vrs_not_interfered_by_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> !{
-            let etcd_obj = s.resources()[req.key()];
-            let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-            &&& s.resources().contains_key(req.key())
-            &&& etcd_obj.metadata.resource_version.is_Some()
-            &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-            &&& etcd_obj.metadata.owner_references.is_Some()
-            &&& exists |vrs: VReplicaSetView| 
-                #[trigger] owner_references.contains(vrs.controller_owner_ref())
-        }
+        req.obj.kind == Kind::PodKind ==>
+            req.obj.metadata.resource_version.is_Some()
+            && (req.obj.metadata.owner_references.is_Some() ==>
+                    forall |vrs: VReplicaSetView| 
+                        ! #[trigger] req.obj.metadata.owner_references.get_Some_0().contains(vrs.controller_owner_ref()))
+            && !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            }
     }
 }
 
@@ -70,20 +73,22 @@ pub open spec fn vrs_not_interfered_by_update_req(req: UpdateRequest) -> StatePr
 // requests to owned pods after we address the fairness issues.
 pub open spec fn vrs_not_interfered_by_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> !{
-            let etcd_obj = s.resources()[req.key()];
-            let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-            &&& s.resources().contains_key(req.key())
-            &&& etcd_obj.metadata.resource_version.is_Some()
-            &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-            &&& etcd_obj.metadata.owner_references.is_Some()
-            &&& exists |vrs: VReplicaSetView| 
-                #[trigger] owner_references.contains(vrs.controller_owner_ref())
-        }
+        req.obj.kind == Kind::PodKind ==> 
+            req.obj.metadata.resource_version.is_Some()
+            && !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            }
     }
 }
 
-// All delete requests carry a precondition on the resource version,
+// All delete requests to pods carry a precondition on the resource version,
 // and other controllers don't try to delete pods owned by a VReplicaSet.
 pub open spec fn vrs_not_interfered_by_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
