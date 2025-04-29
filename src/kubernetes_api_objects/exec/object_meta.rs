@@ -187,6 +187,16 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.inner.name.is_some()
+            && self.inner.namespace.is_some()
+            && self.inner.resource_version.is_some()
+            && self.inner.uid.is_some()
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
     {
