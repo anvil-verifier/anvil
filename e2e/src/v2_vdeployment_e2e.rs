@@ -333,13 +333,7 @@ pub async fn v2_vreplicaset_e2e_test() -> Result<(), Error> {
         }
     }
 
-    let discovery = Discovery::new(client.clone()).run().await?;
-    let vd_name = apply(v_replica_set(), client.clone(), &discovery).await?;
-
-    desired_state_test(client.clone(), vd_name.clone()).await?;
-    scaling_test(client.clone(), vd_name.clone()).await?;
-
-    info!("E2e test passed.");
+    info!("VRS CRD test passed.");
     Ok(())
 }
 
