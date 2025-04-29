@@ -3,6 +3,7 @@
 ## Test the controller locally in a kind cluster.
 ##
 ## Requires kind to be installed and the prerequisites of deploy.sh.
+## Usage: ./local-test.sh <controller_name> [--no-build]
 
 set -xeu
 
@@ -44,7 +45,9 @@ kind load docker-image local/$app-controller:v0.1.0
 if [ "$app" == "v2-vdeployment" ]; then
     # deploy VReplicaSet controller as dependency
     echo "Building v2-vreplicaset controller image"
-    docker build -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
+    if [ "$2" != "--no-build" ]; then
+        docker build -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
+    fi
     kind load docker-image local/v2-vreplicaset-controller:v0.1.0
 fi
 rm Dockerfile
