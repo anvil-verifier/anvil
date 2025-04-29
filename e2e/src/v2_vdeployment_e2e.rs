@@ -65,6 +65,13 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
         // Check ReplicaSet
         let vrs_api: Api<VReplicaSet> = Api::default_namespaced(client.clone());
         let vrs_list = vrs_api.list(&ListParams::default()).await;
+    
+        // fail with "404 page not found"
+        // we can refer to
+        // https://github.com/Arnavion/k8s-openapi/k8s-openapi-tests/src/custom_resource_definition.rs
+        // or
+        // https://github.com/kube-rs/kube/blob/main/examples/crd_api.rs
+
         match vrs_list {
             Err(e) => {
                 info!("List VReplicaSet failed with error {}.", e);

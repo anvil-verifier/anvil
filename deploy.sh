@@ -15,7 +15,8 @@ app=$(echo "$1" | tr '_' '-') # should be the controller's name (with words sepa
 app_filename=$(echo "$app" | tr '-' '_')
 registry=$2 # should be either remote or local
 
-## use imperative management for CRDs since metadata for PodTemplateSpec is too long.
+# use imperative management for CRDs since metadata for PodTemplateSpec is too long.
+# why don't we directly create CRD using kube API?
 if cd deploy/$app_filename && { for crd in $(ls crd*.yaml); do kubectl create -f "$crd"; done } && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
     echo ""
     echo -e "${GREEN}The $app controller is deployed in your Kubernetes cluster in namespace \"$app\".${NC}"

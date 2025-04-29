@@ -100,7 +100,7 @@ pub async fn desired_state_test(client: Client, vrs_name: String) -> Result<(), 
                                 .clone()
                                 == "frontend".to_string())
                         {
-                            info!("Labels are incorrect; should have tire:frontend.");
+                            info!("Labels are incorrect; should have tier:frontend.");
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
@@ -170,7 +170,7 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
                                 .clone()
                                 == "frontend".to_string())
                         {
-                            info!("Labels are incorrect; should have tire:frontend.");
+                            info!("Labels are incorrect; should have tier:frontend.");
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
@@ -236,7 +236,7 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
                                 .clone()
                                 == "frontend".to_string())
                         {
-                            info!("Labels are incorrect; should have tire:frontend.");
+                            info!("Labels are incorrect; should have tier:frontend.");
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
