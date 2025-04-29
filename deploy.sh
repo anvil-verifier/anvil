@@ -16,7 +16,7 @@ app_filename=$(echo "$app" | tr '-' '_')
 registry=$2 # should be either remote or local
 
 ## use imperative management for CRDs since metadata for PodTemplateSpec is too long.
-if cd deploy/$app_filename && kubectl create -f crd.yaml && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
+if cd deploy/$app_filename && { for crd in $(ls crd*.yaml); do kubectl create -f "$crd"; done } && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
     echo ""
     echo -e "${GREEN}The $app controller is deployed in your Kubernetes cluster in namespace \"$app\".${NC}"
     echo -e "${GREEN}Run \"kubectl get pod -n $app\" to check the controller pod.${NC}"
