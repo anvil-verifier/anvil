@@ -4,6 +4,7 @@ pub mod common;
 pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
 pub mod v2_vreplicaset_e2e;
+pub mod v2_vdeployment_e2e;
 pub mod zookeeper_e2e;
 pub mod v2_vstatefulset_admission_e2e;
 pub mod v2_vreplicaset_admission_e2e;
