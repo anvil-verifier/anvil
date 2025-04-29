@@ -119,7 +119,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);
             }
-            let vrs_list = filter_vrs_list(vrs_list_or_none.unwrap(), vd);
+            let vrs_list = vrs_list_or_none.unwrap();
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStep::RollReplicas,
                 vrs_list: vrs_list,
@@ -130,7 +130,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
         VDeploymentReconcileStep::RollReplicas => {
             // TODO: support different policy (order of scaling of new and old vrs)
             //       and maxSurge and maxUnavailable
-            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(state.vrs_list.clone(), vd);
+            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(state.vrs_list.clone(), vd), vd);
             if new_vrs_list.len() == 0 {
                 // create the new vrs
                 let new_vrs = make_replica_set(vd);
@@ -294,9 +294,9 @@ ensures
 fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
 requires
     vd@.well_formed(),
-    //forall |vrs: VReplicaSet| vrs_list@.map_values(|vrs: VReplicaSet| vrs@).contains(vrs@) ==> vrs@.well_formed(),
 ensures
     filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+    forall |i: int| 0 <= i < filtered_vrs_list.len() ==> filtered_vrs_list[i]@.well_formed(),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
@@ -313,17 +313,20 @@ ensures
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
             == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
+        forall |i: int| 0 <= i < filtered_vrs_list.len() ==> filtered_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];
         if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
-        && !vrs.metadata().has_deletion_timestamp() {
+        && !vrs.metadata().has_deletion_timestamp()
+        && vrs.well_formed() {
             filtered_vrs_list.push(vrs.clone());
         }
 
         proof {
             let spec_filter = |vrs: VReplicaSetView|
                 vrs.metadata.owner_references_contains(vd@.controller_owner_ref())
-                && vrs.metadata.deletion_timestamp.is_none();
+                && vrs.metadata.deletion_timestamp.is_none()
+                && vrs.well_formed();
             let pre_filtered_vrs_list = if spec_filter(vrs@) {
                 filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).drop_last()
             } else {
@@ -345,14 +348,14 @@ ensures
 fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (Vec<VReplicaSet>, Vec<VReplicaSet>))
 requires
     vd@.well_formed(),
-    // trigger on lambda is not supported so I have to write it this way
-    ({
-        let vrs_list_view = vrs_list@.map_values(|vrs: VReplicaSet| vrs@);
-        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list_view[i].well_formed()
-    }),
+    // vrs.well_formed() is required because we need to update the old vrs -> old_vrs.metadata.well_formed()
+    // and new/old vrs has replicas -> vrs.state_validation()
+    forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed()
 ensures
     res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
     res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
+    forall |i: int| 0 <= i < res.0.len() ==> res.0[i]@.well_formed(),
+    forall |i: int| 0 <= i < res.1.len() ==> res.1[i]@.well_formed(),
 {
     let mut new_vrs_list = Vec::new();
     let mut old_vrs_list = Vec::new();
@@ -368,6 +371,8 @@ ensures
             old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
             model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
         );
+        assert(forall |i: int| 0 <= i < new_vrs_list.len() ==> new_vrs_list[i]@.well_formed());
+        assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> old_vrs_list[i]@.well_formed());
     }
 
     while idx < vrs_list.len()
@@ -381,6 +386,8 @@ ensures
         idx <= vrs_list.len(),
         new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
         old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
+        forall |i: int| 0 <= i < new_vrs_list.len() ==> new_vrs_list[i]@.well_formed(),
+        forall |i: int| 0 <= i < old_vrs_list.len() ==> old_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];
         assert(vrs@.well_formed());

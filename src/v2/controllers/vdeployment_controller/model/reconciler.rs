@@ -84,7 +84,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none.is_none() { // error in unmarshalling
                     (error_state(state), None)
                 } else {
-                    let vrs_list = filter_vrs_list(vrs_list_or_none.unwrap(), vd);
+                    let vrs_list = vrs_list_or_none.unwrap();
                     let state_prime = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStepView::RollReplicas,
                         vrs_list: vrs_list,
@@ -97,7 +97,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
         VDeploymentReconcileStepView::RollReplicas => {
             // TODO: support different policy (order of scaling of new and old vrs)
             //       and maxSurge and maxUnavailable
-            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(state.vrs_list, vd);
+            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(state.vrs_list, vd), vd);
             if new_vrs_list.len() == 0 {
                 // create the new vrs
                 let new_vrs = make_replica_set(vd);
@@ -185,7 +185,8 @@ pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list:
 pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (filtered_vrs_list: Seq<VReplicaSetView>) {
     vrs_list.filter(|vrs: VReplicaSetView|
         vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-        && vrs.metadata.deletion_timestamp.is_None())
+        && vrs.metadata.deletion_timestamp.is_None()
+        && vrs.well_formed())
 }
 
 pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (Seq<VReplicaSetView>, Seq<VReplicaSetView>))

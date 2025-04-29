@@ -46,6 +46,14 @@ impl VReplicaSet {
     }
 
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed()
+        && self.state_validation()
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
     {
