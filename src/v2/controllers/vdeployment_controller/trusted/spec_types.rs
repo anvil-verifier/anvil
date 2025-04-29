@@ -141,6 +141,11 @@ impl ResourceView for VDeploymentView {
                     ||
                     (
                         self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
+                        && (self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
+                            !(self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && 
+                            self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0 &&
+                            self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && 
+                            self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0))
                         // ==> self.spec.strategy.get_Some_0().rollingUpdate.is_Some()
                         // && (
                         //     self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some()

@@ -125,6 +125,21 @@ impl VDeployment {
                         // } else {
                         //     return false;
                         // }
+
+                        let max_surge_zero = match rolling_update.max_surge() {
+                            Some(i) => i == 0,
+                            None => false,
+                        };
+                        
+                        let max_unavailable_zero = match rolling_update.max_unavailable() {
+                            Some(i) => i == 0,
+                            None => false,
+                        };
+                        
+                        // Both can't be zero
+                        if max_surge_zero && max_unavailable_zero {
+                            return false;
+                        }
                     }
                 }
                 else {
