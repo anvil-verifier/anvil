@@ -40,5 +40,14 @@ esac
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml
 kind load docker-image local/$app-controller:v0.1.0
+
+if [ "$app" == "v2-vdeployment" ]; then
+    # deploy VReplicaSet controller as dependency
+    echo "Building v2-vreplicaset controller image"
+    docker build -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
+    kind load docker-image local/v2-vreplicaset-controller:v0.1.0
+fi
+rm Dockerfile
+
 # Deploy the controller as a pod to the kind cluster, using the image just loaded
 ./deploy.sh $app local
