@@ -192,9 +192,16 @@ pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeployment
 pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (Seq<VReplicaSetView>, Seq<VReplicaSetView>))
 // we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
 {
-    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.template.unwrap() == template_with_hash(vd));
-    let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.template.unwrap() != template_with_hash(vd)
-        && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0));
+    // even if we know vrs controlled by vd should have spec.template.metadata.is_Some() because we add the pot-template-hash label
+    // we still need to check it here and pretend we don't know it
+
+    let new_spec_filter = |vrs: VReplicaSetView|
+        vrs.spec.template.unwrap() == template_with_hash(vd, int_to_string_view(vd.metadata.resource_version.unwrap()));
+    let old_spec_filter = |vrs: VReplicaSetView|
+        !new_spec_filter(vrs)
+        && vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0;
+    let new_vrs_list = vrs_list.filter(new_spec_filter);
+    let old_vrs_list = vrs_list.filter(old_spec_filter);
     (new_vrs_list, old_vrs_list)
 }
 
@@ -221,20 +228,16 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
             selector: LabelSelectorView {
                 match_labels: Some(match_labels),
             },
-            template: Some(template_with_hash(vd))
+            template: Some(template_with_hash(vd, pod_template_hash))
         },
         ..VReplicaSetView::default()
     }
 }
 
-pub open spec fn template_with_hash(vd: VDeploymentView) -> PodTemplateSpecView
+pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> PodTemplateSpecView
 {
-    let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
     PodTemplateSpecView {
-        metadata: Some(ObjectMetaView {
-            labels: Some(vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash)),
-            ..ObjectMetaView::default()
-        }),
+        metadata: Some(vd.spec.template.unwrap().metadata.unwrap().add_label("pod-template-hash"@, hash)),
         spec: Some(vd.spec.template.unwrap().spec.unwrap()),
         ..PodTemplateSpecView::default()
     }

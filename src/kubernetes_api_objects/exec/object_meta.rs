@@ -225,6 +225,28 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn add_label(&mut self, key: String, value: String)
+        ensures self@ == old(self)@.add_label(key@, value@),
+    {
+        if self.inner.labels.is_none() {
+            let mut labels = std::collections::BTreeMap::new();
+            labels.insert(key, value);
+            self.inner.labels = Some(labels);
+        } else {
+            self.inner.labels.as_mut().unwrap().insert(key, value);
+        };
+    }
+
+    #[verifier(external_body)]
+    pub fn unset_label(&mut self, key: String)
+        ensures self@ == old(self)@.without_label(key@),
+    {
+        if self.inner.labels.is_some() {
+            self.inner.labels.as_mut().unwrap().remove(&key);
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_annotations(&mut self, annotations: StringMap)
         ensures self@ == old(self)@.with_annotations(annotations@),
     {
