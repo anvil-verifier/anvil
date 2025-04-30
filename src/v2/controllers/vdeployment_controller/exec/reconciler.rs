@@ -437,10 +437,13 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut vrs = VReplicaSet::default();
     vrs.set_metadata({
-        let mut metadata = vd.metadata();
+        let mut metadata = ObjectMeta::default();
         // concatenation of (String, String) not yet supported in Verus
         metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
         metadata.set_namespace(vd.metadata().namespace().unwrap());
+        if vd.metadata().labels().is_some() {
+            metadata.set_labels(vd.metadata().labels().unwrap().clone());
+        }
         metadata.set_owner_references(make_owner_references(vd));
         metadata
     });

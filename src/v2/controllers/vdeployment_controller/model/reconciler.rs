@@ -212,8 +212,9 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
         metadata: ObjectMetaView {
             name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
             namespace: vd.metadata.namespace,
+            labels: vd.metadata.labels,
             owner_references: Some(make_owner_references(vd)),
-            ..vd.metadata
+            ..ObjectMetaView::default()
         },
         spec: VReplicaSetSpecView {
             replicas: vd.spec.replicas,

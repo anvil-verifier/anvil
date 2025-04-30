@@ -78,7 +78,13 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
                 continue;
             }
             Ok(vrs_list) => {
-                if vrs_list.items.len() == 1 {
+                if vrs_list.items.len() < 1 {
+                    info!(
+                        "VReplicaSet number is {} which is smaller than 1; still creating.",
+                        vrs_list.items.len()
+                    );
+                    continue;
+                } else if vrs_list.items.len() == 1 {
                     info!("We have 1 VReplicaSet now.");
                     let rs = vrs_list.items[0].clone();
                     if !(rs.metadata.labels.is_some()
@@ -160,7 +166,7 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
     Ok(())
 }
 
-pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> {
+pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(600);
     let mut start = Instant::now();
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
@@ -171,7 +177,7 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
         vec![
             "patch",
             "vrs",
-            "pause",
+            vrs_name.as_str(),
             "--type=json",
             "-p",
             "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 5}]",
