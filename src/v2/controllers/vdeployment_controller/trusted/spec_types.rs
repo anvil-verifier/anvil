@@ -120,16 +120,19 @@ impl ResourceView for VDeploymentView {
     open spec fn state_validation(self) -> bool {
         // replicas is non-negative
         &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
-        
-        // minReadySeconds, if present, must be non‑negative
-        &&& self.spec.minReadySeconds.is_Some() ==>
-            self.spec.minReadySeconds.get_Some_0() >= 0
-        
-        // progressDeadlineSeconds, if present, must be ≥ 0
-        &&& self.spec.progressDeadlineSeconds.is_Some() ==>
-            self.spec.progressDeadlineSeconds.get_Some_0() >= 0
-        
-        // if strategy provided, it should be Recreate or RollingUpdate
+
+        // minReadySeconds is non-negative
+        &&& match (self.spec.minReadySeconds, self.spec.progressDeadlineSeconds) {
+            // minReadySeconds and should be less than progressDeadlineSeconds
+            (Some(min), Some(deadline)) => min < deadline && min >= 0,
+            // minReadySeconds should be less than the default value of progressDeadlineSeconds 600
+            (Some(min), None) => min < 600 && min >= 0,
+            // progressDeadlineSeconds should be greater than the default value of minReadySeconds 0
+            (None, Some(deadline)) => deadline > 0,
+            (None, None) => true,
+        }
+
+        // If strategy provided, it should be Recreate or RollingUpdate
         &&& self.spec.strategy.is_Some() ==> {
             (
                 self.spec.strategy.get_Some_0().type_.is_Some() ==> (
@@ -138,15 +141,17 @@ impl ResourceView for VDeploymentView {
                         // rollingUpdate block only appear when type == "RollingUpdate"
                         && self.spec.strategy.get_Some_0().rollingUpdate.is_None()
                     )
-                    ||
-                    (
+                    || (
                         // maxSurge and maxUnavailable cannot both exist and be 0
                         self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
                         && (self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
-                            !(self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.is_Some() && 
-                            self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge.get_Some_0() == 0 &&
-                            self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.is_Some() && 
-                            self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable.get_Some_0() == 0))
+                            match (self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge, self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable) {
+                                (Some(max_surge), Some(max_unavailable)) => max_surge >= 0 && max_unavailable >= 0 && !(max_surge == 0 && max_unavailable == 0),
+                                (Some(max_surge), None) => max_surge >= 0,
+                                (None, Some(max_unavailable)) => max_unavailable >= 0,
+                                (None, None) => true,
+                            }
+                        )
                     )
                 )
             )

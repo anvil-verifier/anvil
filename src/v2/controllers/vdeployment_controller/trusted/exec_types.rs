@@ -14,9 +14,9 @@ verus! {
 
 // helper function to circumvent the lack of support for String in spec
 #[verifier(external_body)]
-pub fn strategy_type_equals(s1: &String, s2: &str) -> (b: bool)
+pub fn strategy_type_equals(s1: &String, s2: &str) -> (res: bool)
     ensures
-        s1@ == s2@ <==> b,
+        s1@ == s2@ <==> res,
 {
     s1 == s2
 }
@@ -86,11 +86,10 @@ impl VDeployment {
         }
     }
 
-    pub fn state_validation(&self) -> (res: bool) 
+    pub fn state_validation(&self) -> (res: bool)
         ensures
             res == self@.state_validation()
     {
-        
         // replicas exists and non-negative
         if let Some(replicas) = self.spec().replicas() {
             if replicas < 0 {
@@ -98,50 +97,65 @@ impl VDeployment {
             }
         }
 
-        // min_ready_seconds is non-negative
-        if let Some(min_ready_seconds) = self.spec().min_ready_seconds() {
-            if min_ready_seconds < 0 {
-                return false;
-            }
-        }
-
-        // progress_deadline is non-negative
-        if let Some(progress_deadline) = self.spec().progress_deadline_seconds() {
-            if progress_deadline < 0 {
-                return false;
-            }
+        match (self.spec().min_ready_seconds(), self.spec().progress_deadline_seconds()) {
+            // minReadySeconds cannot be negative and must be less than progressDeadlineSeconds
+            (Some(min_ready_seconds), Some(progress_deadline_seconds)) => {
+                if min_ready_seconds >= progress_deadline_seconds || min_ready_seconds < 0 {
+                    return false;
+                }
+            },
+            // minReadySeconds should be smaller than the default value of progressDeadlineSeconds 600
+            (Some(min_ready_seconds), None) => {
+                if min_ready_seconds >= 600 || min_ready_seconds < 0 {
+                    return false;
+                }
+            },
+            // progressDeadlineSeconds should be greater than the default value of minReadySeconds 0
+            (None, Some(progress_deadline_seconds)) => {
+                if progress_deadline_seconds <= 0 {
+                    return false;
+                }
+            },
+            (None, None) => {}
         }
 
         if let Some(strategy) = self.spec().strategy() {
-            // strategy is either "Recreate" or "RollingUpdate"
             if let Some(strategy_type) = strategy.type_() {
-                if strategy_type_equals(&strategy_type, "Recreate") && strategy.rolling_update().is_none() {
-    
-                }
-                else if strategy_type_equals(&strategy_type, "RollingUpdate") {
+                // strategy is either "Recreate" or "RollingUpdate"
+                if strategy_type_equals(&strategy_type, "RollingUpdate") {
                     if let Some(rolling_update) = strategy.rolling_update() {
-
-                        let max_surge_zero = match rolling_update.max_surge() {
-                            Some(i) => i == 0,
-                            None => false,
-                        };
-                        
-                        let max_unavailable_zero = match rolling_update.max_unavailable() {
-                            Some(i) => i == 0,
-                            None => false,
-                        };
-                        
-                        // Both can't be zero
-                        if max_surge_zero && max_unavailable_zero {
-                            return false;
+                        // maxSurge and maxUnavailable cannot be negative
+                        match (rolling_update.max_surge(), rolling_update.max_unavailable()) {
+                            (Some(max_surge), Some(max_unavailable)) => {
+                                // cannot both be 0
+                                if max_surge < 0 || max_unavailable < 0 || (max_surge == 0 && max_unavailable == 0) {
+                                    return false;
+                                }
+                            },
+                            (Some(max_surge), None) => {
+                                if max_surge < 0 {
+                                    return false;
+                                }
+                            },
+                            (None, Some(max_unavailable)) => {
+                                if max_unavailable < 0 {
+                                    return false;
+                                }
+                            },
+                            (None, None) => {}
                         }
+                    }
+                }
+                else if strategy_type_equals(&strategy_type, "Recreate") {
+                    // RollingUpdate block should not exist
+                    if strategy.rolling_update().is_some() {
+                        return false;
                     }
                 }
                 else {
                     return false;
                 }
             }
-    
         }
 
         // Check if selector's match_labels exist and are non-empty
@@ -158,7 +172,6 @@ impl VDeployment {
             if template.metadata().is_none() || template.spec().is_none() {
                 return false;
             }
-            
             // Map::empty() did not compile
             if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
                 return false;
