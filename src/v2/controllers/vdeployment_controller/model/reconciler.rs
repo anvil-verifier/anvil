@@ -106,7 +106,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     obj: new_vrs.marshal(),
                 });
                 let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                    reconcile_step: VDeploymentReconcileStepView::Done,
                     ..state
                 };
                 (state_prime, Some(RequestView::KRequest(req)))
@@ -128,7 +128,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         }.marshal(),
                     });
                     let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                        reconcile_step: VDeploymentReconcileStepView::Done,
                         ..state
                     };
                     (state_prime, Some(RequestView::KRequest(req)))
@@ -147,7 +147,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         }.marshal(),
                     });
                     let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStepView::RollReplicas,
+                        reconcile_step: VDeploymentReconcileStepView::Done,
                         ..state
                     };
                     (state_prime, Some(RequestView::KRequest(req)))
