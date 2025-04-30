@@ -166,21 +166,22 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
     Ok(())
 }
 
-pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error> {
+pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(600);
     let mut start = Instant::now();
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let vrs_api: Api<VReplicaSet> = Api::default_namespaced(client.clone());
+    let mut desired_replicas = 5;
 
     run_command(
         "kubectl",
         vec![
             "patch",
-            "vrs",
-            vrs_name.as_str(),
+            "vd",
+            vd_name.as_str(),
             "--type=json",
             "-p",
-            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 5}]",
+            &("[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\":".to_string() + &desired_replicas.to_string() + "}]"),
         ],
         "failed to scale VReplicaSet",
     );
@@ -211,7 +212,6 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
         }
 
         let pods = pod_api.list(&ListParams::default()).await;
-        let desired_replicas = 5;
         match pods {
             Err(e) => {
                 info!("List pods failed with error {}.", e);
@@ -220,12 +220,12 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
             Ok(pods) => {
                 if pods.items.len() < desired_replicas {
                     info!(
-                        "Pod number is {} which is smaller than 5; still scaling up.",
-                        pods.items.len()
+                        "Pod number is {} which is smaller than {}; still scaling up.",
+                        pods.items.len(), desired_replicas
                     );
                     continue;
                 } else if pods.items.len() > desired_replicas {
-                    info!("Pod number is {} which is larger than 5.", pods.items.len());
+                    info!("Pod number is {} which is larger than {}.", pods.items.len(), desired_replicas);
                     return Err(Error::VReplicaSetFailed);
                 } else {
                     info!("We have 5 pods now.");
@@ -252,6 +252,8 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
         }
     }
 
+    desired_replicas = 3;
+
     start = Instant::now();
     run_command(
         "kubectl",
@@ -261,7 +263,7 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
             "pause",
             "--type=json",
             "-p",
-            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]",
+            &("[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": ".to_string() + &desired_replicas.to_string() + "}]")       ,
         ],
         "failed to scale VReplicaSet",
     );
@@ -292,7 +294,6 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
         }
 
         let pods = pod_api.list(&ListParams::default()).await;
-        let desired_replicas = 3;
         match pods {
             Err(e) => {
                 info!("List pods failed with error {}.", e);
@@ -307,8 +308,8 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
                     continue;
                 } else if pods.items.len() < desired_replicas {
                     info!(
-                        "Pod number is {} which is smaller than 3.",
-                        pods.items.len()
+                        "Pod number is {} which is smaller than {}.",
+                        pods.items.len(), desired_replicas
                     );
                     return Err(Error::VReplicaSetFailed);
                 } else {
