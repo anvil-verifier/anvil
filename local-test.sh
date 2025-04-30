@@ -45,7 +45,7 @@ kind load docker-image local/$app-controller:v0.1.0
 if [ "$app" == "v2-vdeployment" ]; then
     # deploy VReplicaSet controller as dependency
     echo "Building v2-vreplicaset controller image"
-    if [ "$2" != "--no-build" ]; then
+    if [ $BUILD_FLAG -eq 1 ]; then
         docker build -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
     fi
     kind load docker-image local/v2-vreplicaset-controller:v0.1.0
