@@ -73,7 +73,8 @@ pub open spec fn vrs_not_interfered_by_update_req(req: UpdateRequest) -> StatePr
     }
 }
 
-// Dealt with similarly to update requests.
+// Dealt with similarly to update requests, minus the condition on 
+// owner_references.
 // TODO: allow other controllers to send UpdateStatus
 // requests to owned pods after we address the fairness issues.
 pub open spec fn vrs_not_interfered_by_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
