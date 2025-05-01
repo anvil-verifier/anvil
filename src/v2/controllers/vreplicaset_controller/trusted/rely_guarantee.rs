@@ -1,9 +1,5 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{
-    cluster::*, 
-    message::*,
-    retentive_cluster::*
-};
+use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
@@ -119,7 +115,7 @@ pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<Clust
         &&& req.obj.kind == Kind::PodKind
         &&& req.obj.metadata.owner_references.is_Some()
         &&& exists |vrs: VReplicaSetView| 
-            #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            owner_references == seq![#[trigger] vrs.controller_owner_ref()]
     }
 }
 
@@ -139,8 +135,8 @@ pub open spec fn vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<Clust
         } ==> {
             &&& etcd_obj.metadata.owner_references.is_Some()
             &&& exists |vrs: VReplicaSetView| 
-                #[trigger] etcd_obj.metadata.owner_references
-                    .get_Some_0().contains(vrs.controller_owner_ref())
+                etcd_obj.metadata.owner_references.get_Some_0()
+                    == seq![#[trigger] vrs.controller_owner_ref()]
         }
     }
 }
