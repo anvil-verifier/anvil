@@ -132,11 +132,16 @@ pub open spec fn vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<Clust
         &&& req.key.kind == Kind::PodKind
         &&& req.preconditions.is_Some()
         &&& req.preconditions.get_Some_0().resource_version.is_Some()
-        &&& (s.resources().contains_key(req.key)
-            && etcd_obj.metadata.resource_version 
-                == req.preconditions.get_Some_0().resource_version) ==>
-                exists |vrs: VReplicaSetView| 
-                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+        &&& {
+            &&& s.resources().contains_key(req.key)
+            &&& etcd_obj.metadata.resource_version 
+                == req.preconditions.get_Some_0().resource_version
+        } ==> {
+            let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+            &&& etcd_obj.metadata.owner_references.is_Some()
+            &&& exists |vrs: VReplicaSetView| 
+                #[trigger] owner_references.contains(vrs.controller_owner_ref())
+        }
     }
 }
 
