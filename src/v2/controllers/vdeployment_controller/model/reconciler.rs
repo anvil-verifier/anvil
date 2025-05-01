@@ -196,10 +196,10 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
     // we still need to check it here and pretend we don't know it
 
     let new_spec_filter = |vrs: VReplicaSetView|
-        vrs.spec.template.unwrap() == template_with_hash(vd, int_to_string_view(vd.metadata.resource_version.unwrap()));
+        vrs.spec.template.unwrap() == template_with_hash(vd, int_to_string_view(vrs.metadata.resource_version.unwrap()));
     let old_spec_filter = |vrs: VReplicaSetView|
         !new_spec_filter(vrs)
-        && vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0;
+        && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
     let new_vrs_list = vrs_list.filter(new_spec_filter);
     let old_vrs_list = vrs_list.filter(old_spec_filter);
     (new_vrs_list, old_vrs_list)
@@ -237,7 +237,10 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
 pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> PodTemplateSpecView
 {
     PodTemplateSpecView {
-        metadata: Some(vd.spec.template.unwrap().metadata.unwrap().add_label("pod-template-hash"@, hash)),
+        metadata: Some(ObjectMetaView {
+            labels: Some(vd.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, hash)),
+            ..ObjectMetaView::default()
+        }),
         spec: Some(vd.spec.template.unwrap().spec.unwrap()),
         ..PodTemplateSpecView::default()
     }
