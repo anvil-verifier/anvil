@@ -360,7 +360,6 @@ ensures
     let mut new_vrs_list = Vec::new();
     let mut old_vrs_list = Vec::new();
     let mut idx = 0;
-    let pod_template_hash = vd.metadata().resource_version().unwrap().clone();
 
     proof {
         assert(
@@ -393,7 +392,7 @@ ensures
         assert(vrs@.well_formed());
 
         // when comparing template, we should remove the pod_template_hash label from vrs
-        if vrs.spec().template().unwrap().eq(&template_with_hash(vd, pod_template_hash.clone()))
+        if vrs.spec().template().unwrap().eq(&template_with_hash(vd, vrs.metadata().resource_version().unwrap().clone()))
         {
             new_vrs_list.push(vrs.clone());
         } else if vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 {
@@ -403,10 +402,10 @@ ensures
         proof { // so we have it again, any ways to avoid this?
             assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
             let new_spec_filter = |vrs: VReplicaSetView|
-                vrs.spec.template.unwrap() == model_reconciler::template_with_hash(vd@, pod_template_hash@);
+                vrs.spec.template.unwrap() == model_reconciler::template_with_hash(vd@, int_to_string_view(vrs.metadata.resource_version.unwrap()));
             let old_spec_filter = |vrs: VReplicaSetView|
                 !new_spec_filter(vrs)
-                && vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0;
+                && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
             let pre_new_vrs_list = if new_spec_filter(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int]) {
                 new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).drop_last()
             } else {
@@ -488,9 +487,7 @@ pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template_spec:
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(template_meta);
     pod_template_spec.set_spec(vd.spec().template().unwrap().spec().unwrap().clone());
-    proof {
-        assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
-    }
+    assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
     pod_template_spec
 }
 
