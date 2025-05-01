@@ -70,7 +70,9 @@ impl LabelSelector {
     // TODO: prove it and maybe move to a different lib
     #[verifier(external_body)]
     pub fn matches(&self, labels: StringMap) -> (res: bool)
-        ensures res == self@.matches(labels@)
+        ensures
+            res == self@.matches(labels@),
+            res ==> self@.match_labels.is_None() || labels@.len() >= self@.match_labels.get_Some_0().len(),
     {
         if self.match_labels().is_none() {
             true
