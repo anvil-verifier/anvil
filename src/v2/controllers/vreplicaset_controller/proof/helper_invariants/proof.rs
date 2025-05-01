@@ -161,8 +161,6 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -187,35 +185,24 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interfering_update_request())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
-        match msg.content.get_APIRequest_0() {
-            // Other controllers don't try to update pods owned by a VReplicaSet.
-            APIRequest::UpdateRequest(req) => !{
-                let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-                &&& req.obj.kind == Kind::PodKind
-                &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSetView| 
-                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
-            },
-            // Dealt with similarly to update requests.
-            // TODO: allow other controllers to send UpdateStatus
-            // requests to owned pods after we address the fairness issues.
-            APIRequest::UpdateStatusRequest(req) => !{
-                let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-                &&& req.obj.kind == Kind::PodKind
-                &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSetView| 
-                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
-            },
-            _ => true,
-        }
+        msg.content.is_APIRequest() ==> 
+            match msg.content.get_APIRequest_0() {
+                APIRequest::UpdateRequest(req) => vrs_not_interfered_by_update_req(req)(s),
+                _ => true,
+            }
+    };
+
+    // To make our job easier, we carry a few stronger conditions on what
+    // in the cluster can send updates.
+    let stronger_requirements = |msg: Message, s: ClusterState| {
+        msg.content.is_APIRequest() ==> 
+            match msg.content.get_APIRequest_0() {
+                APIRequest::UpdateRequest(req) =>
+                    msg.src.is_Controller()
+                    && msg.src != HostId::Controller(controller_id)
+                    && vrs_not_interfered_by_update_req(req)(s),
+                _ => true,
+            }
     };
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -236,58 +223,19 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
     };
     
-    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
-        implies requirements(msg, s_prime) by {
-            if s.in_flight().contains(msg) {
-                assert(requirements(msg, s));
-                if msg.content.get_APIRequest_0().is_UpdateRequest() 
-                    || msg.content.get_APIRequest_0().is_UpdateStatusRequest() {
-                    let req = msg.content.get_update_request();
-
-                    let step = choose |step| cluster.next_step(s, s_prime, step);
-                    match step {
-                        Step::APIServerStep(req_msg_opt) => {
-                            let req_msg = req_msg_opt.get_Some_0();
-                            if req_msg.content.is_create_request() {
-                                assume(false);
-                            } else if req_msg.content.is_delete_request() {
-                                assume(false);
-                            } else if req_msg.content.is_update_request() {
-                                assume(false);
-                            } else if req_msg.content.is_update_status_request() {
-                                assume(false);
-                            }
-                        },
-                        Step::BuiltinControllersStep(..) => {
-                            assume(false);
-                        },
-                        Step::ControllerStep((id, _, _)) => {
-                            PodView::marshal_preserves_integrity();
-                            VReplicaSetReconcileState::marshal_preserves_integrity();
-                        },
-                        _ => {}
-                    }
-                    // assume(s.resources().contains_key(req.key()));
-                    // assume(!s_prime.resources().contains_key(req.key()));
-                    // assert(requirements(msg, s_prime));
-                    // assume( exists |vrs: VReplicaSetView| 
-                    //     #[trigger] owner_references.contains(vrs.controller_owner_ref()));
-                    //assume(false);
-                }
-                assert(requirements(msg, s_prime));
-            } else {
-                assume(false);
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep((id, _, _)) => {
-                        VReplicaSetReconcileState::marshal_preserves_integrity();
-                        if id != controller_id {
-                            assert(vrs_not_interfered_by(id)(s_prime));
-                        }
-                    },
-                    _ => {
-                        assert(requirements(msg, s_prime));
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || stronger_requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies stronger_requirements(msg, s_prime) by {
+            if msg.content.is_APIRequest()
+                && msg.content.get_APIRequest_0().is_UpdateRequest() {
+                if msg.src.is_Controller() {
+                    let id = msg.src.get_Controller_0();
+                    PodView::marshal_preserves_integrity();
+                    VReplicaSetReconcileState::marshal_preserves_integrity();
+                    if id != controller_id {
+                        assert(vrs_not_interfered_by(id)(s_prime));
+                    } else {
+                        assert(!s.in_flight().contains(msg));
                     }
                 }
             }
@@ -299,7 +247,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     );
     invariant_n!(
         spec, lift_action(stronger_next), 
-        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
@@ -314,15 +262,25 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         lifted_vrs_non_interference_property_action(cluster, controller_id)
     );
 
-    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, stronger_requirements);
+
+    // Convert true ~> []stronger_requirements to true ~> []requirements.
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements)),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+    leads_to_weaken(
+        spec,
+        true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements))),
+        true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))) 
+    );
+
     temp_pred_equality(
         lift_state(no_pending_interfering_update_request()),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
 
-// TODO: fill out proof.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_status_request(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -347,35 +305,24 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interfering_update_status_request())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
-        match msg.content.get_APIRequest_0() {
-            // Other controllers don't try to update pods owned by a VReplicaSet.
-            APIRequest::UpdateRequest(req) => !{
-                let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-                &&& req.obj.kind == Kind::PodKind
-                &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSetView| 
-                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
-            },
-            // Dealt with similarly to update requests.
-            // TODO: allow other controllers to send UpdateStatus
-            // requests to owned pods after we address the fairness issues.
-            APIRequest::UpdateStatusRequest(req) => !{
-                let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-                &&& req.obj.kind == Kind::PodKind
-                &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& exists |vrs: VReplicaSetView| 
-                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
-            },
-            _ => true,
-        }
+        msg.content.is_APIRequest() ==> 
+            match msg.content.get_APIRequest_0() {
+                APIRequest::UpdateStatusRequest(req) => vrs_not_interfered_by_update_status_req(req)(s),
+                _ => true,
+            }
+    };
+
+    // To make our job easier, we carry a few stronger conditions on what
+    // in the cluster can send update statuses.
+    let stronger_requirements = |msg: Message, s: ClusterState| {
+        msg.content.is_APIRequest() ==> 
+            match msg.content.get_APIRequest_0() {
+                APIRequest::UpdateStatusRequest(req) =>
+                    msg.src.is_Controller()
+                    && msg.src != HostId::Controller(controller_id)
+                    && vrs_not_interfered_by_update_status_req(req)(s),
+                _ => true,
+            }
     };
 
     let stronger_next = |s: ClusterState, s_prime: ClusterState| {
@@ -396,58 +343,19 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
                 ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
     };
     
-    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
-        implies requirements(msg, s_prime) by {
-            if s.in_flight().contains(msg) {
-                assert(requirements(msg, s));
-                if msg.content.get_APIRequest_0().is_UpdateRequest() 
-                    || msg.content.get_APIRequest_0().is_UpdateStatusRequest() {
-                    let req = msg.content.get_update_request();
-
-                    let step = choose |step| cluster.next_step(s, s_prime, step);
-                    match step {
-                        Step::APIServerStep(req_msg_opt) => {
-                            let req_msg = req_msg_opt.get_Some_0();
-                            if req_msg.content.is_create_request() {
-                                assume(false);
-                            } else if req_msg.content.is_delete_request() {
-                                assume(false);
-                            } else if req_msg.content.is_update_request() {
-                                assume(false);
-                            } else if req_msg.content.is_update_status_request() {
-                                assume(false);
-                            }
-                        },
-                        Step::BuiltinControllersStep(..) => {
-                            assume(false);
-                        },
-                        Step::ControllerStep((id, _, _)) => {
-                            PodView::marshal_preserves_integrity();
-                            VReplicaSetReconcileState::marshal_preserves_integrity();
-                        },
-                        _ => {}
-                    }
-                    // assume(s.resources().contains_key(req.key()));
-                    // assume(!s_prime.resources().contains_key(req.key()));
-                    // assert(requirements(msg, s_prime));
-                    // assume( exists |vrs: VReplicaSetView| 
-                    //     #[trigger] owner_references.contains(vrs.controller_owner_ref()));
-                    //assume(false);
-                }
-                assert(requirements(msg, s_prime));
-            } else {
-                assume(false);
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep((id, _, _)) => {
-                        VReplicaSetReconcileState::marshal_preserves_integrity();
-                        if id != controller_id {
-                            assert(vrs_not_interfered_by(id)(s_prime));
-                        }
-                    },
-                    _ => {
-                        assert(requirements(msg, s_prime));
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)(s, s_prime) by {
+        assert forall |msg: Message| (!s.in_flight().contains(msg) || stronger_requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies stronger_requirements(msg, s_prime) by {
+            if msg.content.is_APIRequest()
+                && msg.content.get_APIRequest_0().is_UpdateStatusRequest() {
+                if msg.src.is_Controller() {
+                    let id = msg.src.get_Controller_0();
+                    PodView::marshal_preserves_integrity();
+                    VReplicaSetReconcileState::marshal_preserves_integrity();
+                    if id != controller_id {
+                        assert(vrs_not_interfered_by(id)(s_prime));
+                    } else {
+                        assert(!s.in_flight().contains(msg));
                     }
                 }
             }
@@ -459,7 +367,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
     );
     invariant_n!(
         spec, lift_action(stronger_next), 
-        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)),
         lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
@@ -474,15 +382,25 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
         lifted_vrs_non_interference_property_action(cluster, controller_id)
     );
 
-    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, stronger_requirements);
+
+    // Convert true ~> []stronger_requirements to true ~> []requirements.
+    entails_preserved_by_always(
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements)),
+        lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+    leads_to_weaken(
+        spec,
+        true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(stronger_requirements))),
+        true_pred(), always(lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))) 
+    );
+    
     temp_pred_equality(
         lift_state(no_pending_interfering_update_status_request()),
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1166,8 +1084,6 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1646,8 +1562,6 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     );
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -2874,8 +2788,6 @@ ensures
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
-// TODO: broken by weakening `vrs_not_interfered_by`.
-#[verifier(external_body)]
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
