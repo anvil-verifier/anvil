@@ -133,10 +133,14 @@ pub open spec fn vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<Clust
             &&& etcd_obj.metadata.resource_version 
                 == req.preconditions.get_Some_0().resource_version
         } ==> {
+            let controller_owners = etcd_obj.metadata.owner_references
+                .get_Some_0()
+                .filter(|o: OwnerReferenceView| {
+                    o.controller.is_Some() && o.controller.get_Some_0()
+                });
             &&& etcd_obj.metadata.owner_references.is_Some()
             &&& exists |vrs: VReplicaSetView| 
-                etcd_obj.metadata.owner_references.get_Some_0()
-                    == seq![#[trigger] vrs.controller_owner_ref()]
+                controller_owners == seq![#[trigger] vrs.controller_owner_ref()]
         }
     }
 }
