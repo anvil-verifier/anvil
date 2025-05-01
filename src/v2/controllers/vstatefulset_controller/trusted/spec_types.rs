@@ -118,38 +118,38 @@ impl ResourceView for VStatefulSetView {
         &&& self.spec.selector.match_labels.is_Some()
         &&& self.spec.selector.match_labels.get_Some_0().len() > 0
         // template and its metadata and spec exists
-        &&& self.spec.template.is_Some()
-        &&& self.spec.template.get_Some_0().metadata.is_Some()
-        &&& self.spec.template.get_Some_0().spec.is_Some()
+        &&& self.spec.template.metadata.is_Some()
+        &&& self.spec.template.spec.is_Some()
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.unwrap_or(Map::empty()))
+        &&& self.spec.selector.matches(self.spec.template.metadata.get_Some_0().labels.unwrap_or(Map::empty()))
 
         // replicas is non‑negative
         &&& self.spec.replicas.is_Some() ==>
         self.spec.replicas.get_Some_0() >= 0
 
-        &&& self.spec.update_strategy.is_Some() ==> (
-            // updateStrategy.type must be either RollingUpdate or OnDelete (used "type_" to avoid clashing with Rust keyword)
-            self.spec.update_strategy.get_Some_0().type_.is_Some() ==> (
-                (
-                    self.spec.update_strategy.get_Some_0().type_.get_Some_0() == "OnDelete"@
-                    && self.spec.update_strategy.get_Some_0().rolling_update.is_None()
-                )
-                ||
-                (
-                    self.spec.update_strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
-                    && self.spec.update_strategy.get_Some_0().rolling_update.is_Some() ==>
+        &&& self.spec.update_strategy.is_Some() ==> {
+            (
+                self.spec.update_strategy.get_Some_0().type_.is_Some() ==> (
                     (
-                        // updateStrategy.rollingUpdate.partition is non-negative
-                        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.is_Some() ==>
-                        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition.get_Some_0() >= 0
-                        // if updateStrategy.rollingUpdate.maxUnavailable is present, validate it's positive (assuming its an integer for now)
-                        && self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable.is_Some() ==>
-                        self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable.get_Some_0() > 0
+                        self.spec.update_strategy.get_Some_0().type_.get_Some_0() == "OnDelete"@
+                        // rollingUpdate block only appear when type == "RollingUpdate"
+                        && self.spec.update_strategy.get_Some_0().rolling_update.is_None()
+                    )
+                    || (
+                        self.spec.update_strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
+                        && (self.spec.update_strategy.get_Some_0().rolling_update.is_Some() ==>
+                            // partition should be non-negative, maxUnavailable should be positive
+                            match (self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().partition, self.spec.update_strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable) {
+                                (Some(partition), Some(max_unavailable)) => partition >= 0 && max_unavailable > 0,
+                                (Some(partition), None) => partition >= 0,
+                                (None, Some(max_unavailable)) => max_unavailable > 0,
+                                (None, None) => true,
+                            }
+                        )
                     )
                 )
             )
-        )
+        }
 
         // podManagementPolicy must be either OrderedReady or Parallel
         &&& self.spec.pod_management_policy.is_Some() ==> (
@@ -158,9 +158,8 @@ impl ResourceView for VStatefulSetView {
         )
 
         // volumeClaimTemplates
-        // TODO: this object is too big, assume state_validation() is implemented for PersistentVolumeClaimSpec for now
         &&& self.spec.volume_claim_templates.is_Some() ==> (
-            forall | i: int | #![auto] 0 <= i < self.spec.volume_claim_templates.get_Some_0().len() ==> self.spec.volume_claim_templates.get_Some_0()[i].state_validation()
+            forall | i: int | 0 <= i < self.spec.volume_claim_templates.get_Some_0().len() ==> #[trigger] self.spec.volume_claim_templates.get_Some_0()[i].state_validation()
         )
 
         // minReadySeconds must be non‑negative if present
@@ -169,20 +168,19 @@ impl ResourceView for VStatefulSetView {
 
         // persistentVolumeClaimRetentionPolicy.whenDeleted/whenScaled must be Delete or Retain
         &&& self.spec.persistent_volume_claim_retention_policy.is_Some() ==> (
-            self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_deleted.is_Some() ==> (
-                self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_deleted.get_Some_0() == "Retain"@
-                || self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_deleted.get_Some_0() == "Delete"@
-            )
-            && self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_scaled.is_Some() ==>
-            (
-                self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_scaled.get_Some_0() == "Retain"@
-                || self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_scaled.get_Some_0() == "Delete"@
-            )
+            match (self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_deleted, self.spec.persistent_volume_claim_retention_policy.get_Some_0().when_scaled) {
+                (Some(when_deleted), Some(when_scaled)) => (when_deleted == "Retain"@ || when_deleted == "Delete"@) && (when_scaled == "Retain"@ || when_scaled == "Delete"@),
+                (Some(when_deleted), None) => when_deleted == "Retain"@ || when_deleted == "Delete"@,
+                (None, Some(when_scaled)) => when_scaled == "Retain"@ || when_scaled == "Delete"@,
+                (None, None) => true,
+            }
         )
 
         // ordinals.start must be non‑negative if ordinals is provided
-        &&& self.spec.ordinals.is_Some() ==>
-        self.spec.ordinals.get_Some_0().start >= 0
+        &&& self.spec.ordinals.is_Some() ==> (
+            self.spec.ordinals.get_Some_0().start.is_Some() ==>
+                self.spec.ordinals.get_Some_0().start.get_Some_0() >= 0
+        )
     }
 
     open spec fn transition_validation(self, old_obj: VStatefulSetView) -> bool {
@@ -204,31 +202,114 @@ impl CustomResourceView for VStatefulSetView {
     proof fn validation_result_determined_by_spec_and_status() {}
 }
 
-pub struct StatefulSetStrategyView {
+pub struct StatefulSetUpdateStrategyView {
     pub type_: Option<StringView>,
-    pub rolling_update: Option<RollingUpdateStatefulSetView>,
+    pub rolling_update: Option<RollingUpdateStatefulSetStrategyView>,
 }
 
-pub struct RollingUpdateStatefulSetView {
+impl StatefulSetUpdateStrategyView {
+    pub open spec fn default() -> StatefulSetUpdateStrategyView {
+        StatefulSetUpdateStrategyView {
+            type_: None,
+            rolling_update: None
+        }
+    }
+
+    pub open spec fn with_type(self, type_: StringView) -> StatefulSetUpdateStrategyView {
+        StatefulSetUpdateStrategyView {
+            type_: Some(type_),
+            ..self
+        }
+    }
+
+    pub open spec fn with_rolling_update(self, rolling_update: RollingUpdateStatefulSetStrategyView) -> StatefulSetUpdateStrategyView {
+        StatefulSetUpdateStrategyView {
+            rolling_update: Some(rolling_update),
+            ..self
+        }
+    }
+}
+
+pub struct RollingUpdateStatefulSetStrategyView {
     pub partition: Option<int>,
-    pub max_unavailable: Option<int>,
+    pub max_unavailable: Option<int>
+}
+
+impl RollingUpdateStatefulSetStrategyView {
+    pub open spec fn default() -> RollingUpdateStatefulSetStrategyView {
+        RollingUpdateStatefulSetStrategyView {
+            partition: None,
+            max_unavailable: None
+        }
+    }
+    pub open spec fn with_partition(self, partition: int) -> RollingUpdateStatefulSetStrategyView {
+        RollingUpdateStatefulSetStrategyView {
+            partition: Some(partition),
+            ..self
+        }
+    }
+
+    pub open spec fn with_max_unavailable(self, max_unavailable: int) -> RollingUpdateStatefulSetStrategyView {
+        RollingUpdateStatefulSetStrategyView {
+            max_unavailable: Some(max_unavailable),
+            ..self
+        }
+    }
 }
 
 pub struct StatefulSetPersistentVolumeClaimRetentionPolicyView {
     pub when_deleted: Option<StringView>,
-    pub when_scaled: Option<StringView>,
+    pub when_scaled: Option<StringView>
+}
+
+impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
+    pub open spec fn default() -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+        StatefulSetPersistentVolumeClaimRetentionPolicyView {
+            when_deleted: None,
+            when_scaled: None
+        }
+    }
+
+    pub open spec fn with_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+        StatefulSetPersistentVolumeClaimRetentionPolicyView {
+            when_deleted: Some(when_deleted),
+            ..self
+        }
+    }
+
+    pub open spec fn with_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+        StatefulSetPersistentVolumeClaimRetentionPolicyView {
+            when_scaled: Some(when_scaled),
+            ..self
+        }
+    }
 }
 
 pub struct StatefulSetOrdinalsView {
-    pub start: int,
+    pub start: Option<int>
+}
+
+impl StatefulSetOrdinalsView {
+    pub open spec fn default() -> StatefulSetOrdinalsView {
+        StatefulSetOrdinalsView {
+            start: None,
+        }
+    }
+
+    pub open spec fn with_start(self, start: int) -> StatefulSetOrdinalsView {
+        StatefulSetOrdinalsView {
+            start: Some(start),
+            ..self
+        }
+    }
 }
 
 pub struct VStatefulSetSpecView {
-    pub service_name: StringView,
+    pub service_name: StringView, //should be optional
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
-    pub template: Option<PodTemplateSpecView>,
-    pub update_strategy: Option<StatefulSetStrategyView>,
+    pub template: PodTemplateSpecView,
+    pub update_strategy: Option<StatefulSetUpdateStrategyView>,
     pub pod_management_policy: Option<StringView>,
     pub revision_history_limit: Option<int>,
     pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
