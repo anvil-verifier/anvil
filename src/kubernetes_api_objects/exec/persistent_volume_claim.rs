@@ -108,6 +108,12 @@ impl PersistentVolumeClaim {
             Err(())
         }
     }
+
+    pub fn state_validation(&self) -> (result: bool)
+        ensures result == self.view().state_validation(),
+    {
+        &&& self.spec().is_some()
+    }
 }
 
 #[verifier(external)]

@@ -4,6 +4,7 @@ use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, persistent_volume_claim::*
 };
+use crate::kubernetes_api_objects::spec::persistent_volume_claim::*;
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::string_map::*;
@@ -141,22 +142,26 @@ impl VStatefulSet {
         }
 
         // volumeClaimTemplates
-        // let mut result: bool = true;
-        // if let Some(volume_claim_templates) = self.spec().volume_claim_templates() {
-        //     let mut idx: usize = 0;
-        //     while idx < volume_claim_templates.len()
-        //         invariant
-        //             idx <= volume_claim_templates.len(),
-        //             result == forall |i: int| 0 <= i < idx ==> volume_claim_templates[i]@.state_validation()
-        //     {
-        //         result = result && volume_claim_templates[idx].state_validation();
-        //         idx = idx + 1;
-        //     }
-        // }
-        // TODO: fix this
-        assume(self@.spec.volume_claim_templates.is_Some() ==> (
-            forall | i: int | 0 <= i < self@.spec.volume_claim_templates.get_Some_0().len() ==> #[trigger] self@.spec.volume_claim_templates.get_Some_0()[i].state_validation()
-        ));
+        if let Some(vct) = self.spec().volume_claim_templates() {
+            let mut vct_valid: bool = true;
+            let mut idx: usize = 0;
+            let ghost mut vct_view: Seq<PersistentVolumeClaimView> = Seq::new(vct.len() as nat,|i: int| vct[i]@);
+            assert(vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view);
+            while idx < vct.len()
+                invariant
+                    0 <= idx <= vct.len(),
+                    vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
+                    vct_valid == forall |i: int| 0 <= i < idx ==> #[trigger] vct_view[i].state_validation(),
+            {
+                let pvc_sv = vct[idx].state_validation();
+                assert(pvc_sv == vct_view[idx as int].state_validation());
+                vct_valid = vct_valid && pvc_sv;
+                idx += 1;
+            }
+            if !vct_valid {
+                return false;
+            }
+        }
 
         // minReadySeconds
         if let Some(min_ready_seconds) = self.spec().min_ready_seconds() {
@@ -284,7 +289,7 @@ impl VStatefulSetSpec {
     pub fn volume_claim_templates(&self) -> (volume_claim_templates: Option<Vec<PersistentVolumeClaim>>)
         ensures
             volume_claim_templates.is_Some() == self@.volume_claim_templates.is_Some(),
-            volume_claim_templates.is_Some() ==> forall |i: int| 0 <= i < volume_claim_templates.get_Some_0().len() ==> #[trigger] volume_claim_templates.get_Some_0()[i]@ == #[trigger] self@.volume_claim_templates.get_Some_0()[i]
+            volume_claim_templates.is_Some() ==> volume_claim_templates.get_Some_0()@.map_values(|pvc: PersistentVolumeClaim| pvc@) == self@.volume_claim_templates.get_Some_0()
     {
         match &self.inner.volume_claim_templates {
             Some(vct) => Some(vct.iter().map(|v| PersistentVolumeClaim::from_kube(v.clone())).collect()),
