@@ -1,5 +1,9 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
-use crate::kubernetes_cluster::spec::{cluster::*, message::*};
+use crate::kubernetes_cluster::spec::{
+    cluster::*, 
+    message::*,
+    retentive_cluster::*
+};
 use crate::temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
@@ -107,5 +111,57 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
 }
 
 // VRS Guarantee Condition
+
+// VRS only creates pods owned by a VReplicaSet.
+pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<ClusterHistory> {
+    |h: ClusterHistory| {
+        let owner_references = req.obj.metadata.owner_references.get_Some_0();
+        &&& req.obj.kind == Kind::PodKind
+        &&& req.obj.metadata.owner_references.is_Some()
+        &&& exists |vrs: VReplicaSetView| 
+            #[trigger] owner_references.contains(vrs.controller_owner_ref())
+    }
+}
+
+// VRS only sends delete requests to pods known to have been in etcd and 
+// owned by a VReplicaSet at some point in history. The request will
+// carry a precondition that matches the resource version of the historical
+// etcd object.
+pub open spec fn vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<ClusterHistory> {
+    |h: ClusterHistory| {
+        &&& req.key.kind == Kind::PodKind
+        &&& req.preconditions.is_Some()
+        &&& req.preconditions.get_Some_0().resource_version.is_Some()
+        &&& exists |i: int| {
+            let s = h.past[i];
+            let etcd_obj = s.resources()[req.key];
+            let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+            &&& 0 <= i < h.past.len()
+            &&& #[trigger] h.past[i].resources().contains_key(req.key)
+            &&& etcd_obj.metadata.resource_version.is_Some()
+            &&& etcd_obj.metadata.resource_version
+                == req.preconditions.get_Some_0().resource_version
+            &&& etcd_obj.metadata.owner_references.is_Some()
+            &&& exists |vrs: VReplicaSetView| 
+                #[trigger] owner_references.contains(vrs.controller_owner_ref())
+        }
+    }
+}
+
+pub open spec fn vrs_guarantee(other_id: int) -> StatePred<ClusterHistory> {
+    |h: ClusterHistory| {
+        forall |msg| {
+            &&& #[trigger] h.current.in_flight().contains(msg)
+            &&& msg.content.is_APIRequest()
+            &&& msg.src == HostId::Controller(other_id)
+        } ==> match msg.content.get_APIRequest_0() {
+            APIRequest::ListRequest(_) => true,
+            APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(h),
+            APIRequest::DeleteRequest(req) => vrs_guarantee_delete_req(req)(h),
+            _ => false, // vrs doesn't send other requests (yet).
+        }
+    }
+}
+
 
 }
