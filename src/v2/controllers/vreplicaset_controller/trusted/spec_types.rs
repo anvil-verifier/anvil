@@ -138,7 +138,8 @@ impl ResourceView for VReplicaSetView {
         &&& self.spec.template.get_Some_0().metadata.is_Some()
         &&& self.spec.template.get_Some_0().spec.is_Some()
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.unwrap_or(Map::empty()))
+        &&& self.spec.template.get_Some_0().metadata.get_Some_0().labels.is_Some()
+        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.get_Some_0())
     }
 
     open spec fn transition_validation(self, old_obj: VReplicaSetView) -> bool {
