@@ -145,12 +145,12 @@ pub open spec fn vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<Clust
     }
 }
 
-pub open spec fn vrs_guarantee(other_id: int) -> StatePred<ClusterState> {
+pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
-            &&& msg.src == HostId::Controller(other_id)
+            &&& msg.src == HostId::Controller(controller_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s),
