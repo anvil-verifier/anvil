@@ -13,6 +13,7 @@ use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vstd_ext::option_lib::*;
 use vstd::{prelude::*, seq_lib::*};
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
+use deps_hack::tracing::{error, info};
 
 verus! {
 
@@ -166,7 +167,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     };
                     return (state_prime, Some(Request::KRequest(req)))
                 } else if old_vrs_list.len() > 0 {
-                    // scale down old vrs to zero
+                    // scale filter_old_and_new_vrsdown old vrs to zero
                     let mut old_vrs = old_vrs_list[0].clone();
                     let mut new_spec = old_vrs.spec();
                     new_spec.set_replicas(0);
@@ -392,8 +393,7 @@ ensures
         assert(vrs@.well_formed());
 
         // when comparing template, we should remove the pod_template_hash label from vrs
-        if vrs.spec().template().unwrap().eq(&template_with_hash(vd, vrs.metadata().resource_version().unwrap().clone()))
-        {
+        if match_template_without_hash(vd, vrs) {
             new_vrs_list.push(vrs.clone());
         } else if vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 {
             old_vrs_list.push(vrs.clone());
@@ -402,7 +402,7 @@ ensures
         proof { // so we have it again, any ways to avoid this?
             assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
             let new_spec_filter = |vrs: VReplicaSetView|
-                vrs.spec.template.unwrap() == model_reconciler::template_with_hash(vd@, int_to_string_view(vrs.metadata.resource_version.unwrap()));
+                model_reconciler::match_template_without_hash(vd@, vrs);
             let old_spec_filter = |vrs: VReplicaSetView|
                 !new_spec_filter(vrs)
                 && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
@@ -489,6 +489,21 @@ pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template_spec:
     pod_template_spec.set_spec(vd.spec().template().unwrap().spec().unwrap().clone());
     assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
     pod_template_spec
+}
+
+pub fn match_template_without_hash(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
+    requires
+        vd@.well_formed(),
+        vrs@.well_formed(),
+    ensures res == model_reconciler::match_template_without_hash(vd@, vrs@),
+{
+    let mut vrs_template = vrs.spec().template().unwrap().clone();
+    let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
+    labels.remove(&"pod-template-hash".to_string());
+    let mut template_meta = vrs_template.metadata().unwrap().clone();
+    template_meta.set_labels(labels);
+    vrs_template.set_metadata(template_meta);
+    vd.spec().template().unwrap().eq(&vrs_template)
 }
 
 pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerReference>)

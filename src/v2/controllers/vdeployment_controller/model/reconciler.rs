@@ -196,7 +196,7 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
     // we still need to check it here and pretend we don't know it
 
     let new_spec_filter = |vrs: VReplicaSetView|
-        vrs.spec.template.unwrap() == template_with_hash(vd, int_to_string_view(vrs.metadata.resource_version.unwrap()));
+        match_template_without_hash(vd, vrs);
     let old_spec_filter = |vrs: VReplicaSetView|
         !new_spec_filter(vrs)
         && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
@@ -243,6 +243,17 @@ pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> Po
         }),
         spec: Some(vd.spec.template.unwrap().spec.unwrap()),
         ..PodTemplateSpecView::default()
+    }
+}
+
+pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+    let vrs_template = vrs.spec.template.unwrap();
+    vd.spec.template.unwrap() == PodTemplateSpecView {
+        metadata: Some(ObjectMetaView {
+            labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
+            ..vrs_template.metadata.unwrap()
+        }),
+        ..vrs_template
     }
 }
 
