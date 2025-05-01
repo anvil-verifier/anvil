@@ -1113,7 +1113,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -1129,7 +1129,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
         lift_state(helper_invariants::no_pending_interfering_update_status_request()),
@@ -1247,7 +1247,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -1264,7 +1264,7 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -1692,7 +1692,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -1710,7 +1710,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -1853,7 +1853,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -1871,7 +1871,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -1999,7 +1999,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -2016,7 +2016,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -2228,7 +2228,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -2246,7 +2246,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -2371,7 +2371,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -2389,7 +2389,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -2548,7 +2548,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -2567,7 +2567,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -2698,7 +2698,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -2714,7 +2714,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -2873,7 +2873,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -2892,7 +2892,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -3023,7 +3023,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -3041,7 +3041,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),
@@ -3244,7 +3244,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)(s)
     };
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
     );
 
@@ -3267,7 +3267,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
-        lifted_vrs_non_interference_property(cluster, controller_id),
+        lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
         lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(helper_invariants::no_pending_interfering_update_request()),

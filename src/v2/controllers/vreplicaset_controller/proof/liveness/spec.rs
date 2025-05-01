@@ -356,17 +356,17 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 
 pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     next_with_wf(cluster, controller_id)
-    .and(always(lifted_vrs_non_interference_property(cluster, controller_id)))
+    .and(always(lifted_vrs_rely_condition(cluster, controller_id)))
 }
 
 pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
-    always_p_is_stable(lifted_vrs_non_interference_property(cluster, controller_id));
+    always_p_is_stable(lifted_vrs_rely_condition(cluster, controller_id));
     stable_and_n!(
         next_with_wf(cluster, controller_id),
-        always(lifted_vrs_non_interference_property(cluster, controller_id))
+        always(lifted_vrs_rely_condition(cluster, controller_id))
     );
 }
 
@@ -383,7 +383,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     let pre = spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id));
 
     // Proof of stable_spec
-    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec,
         cluster,
         controller_id
@@ -391,7 +391,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     entails_and_n!(
         spec,
         next_with_wf(cluster, controller_id),
-        always(lifted_vrs_non_interference_property(cluster, controller_id))
+        always(lifted_vrs_rely_condition(cluster, controller_id))
     );
     
     entails_and_different_temp(

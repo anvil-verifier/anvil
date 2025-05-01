@@ -22,14 +22,14 @@ use vstd::prelude::*;
 verus! {
 
 // General helper predicates
-pub open spec fn lifted_vrs_non_interference_property(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+pub open spec fn lifted_vrs_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     lift_state(|s| {
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> #[trigger] vrs_rely(other_id)(s)
     })
 }
 
-pub open spec fn lifted_vrs_non_interference_property_action(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+pub open spec fn lifted_vrs_rely_condition_action(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     lift_action(|s, s_prime| {
         (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> #[trigger] vrs_rely(other_id)(s))

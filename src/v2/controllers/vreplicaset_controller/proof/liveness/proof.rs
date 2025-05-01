@@ -88,7 +88,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
     assumption_and_invariants_of_all_phases_is_stable(vrs, cluster, controller_id);
     stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(vrs, cluster, controller_id);
     
-    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         stable_spec, cluster, controller_id
     );
     lemma_true_leads_to_always_current_state_matches(stable_spec, vrs, cluster, controller_id);
