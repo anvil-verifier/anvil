@@ -22,6 +22,7 @@ pub fn string_equal(s1: &String, s2: &str) -> (res: bool)
 }
 
 // since this uses v2/kubernetes_cluster, we cannot import kubernetes_cluster/common.rs
+// TODO: update state_validation specs for PersistentVolumeClaim
 impl PersistentVolumeClaim {
     pub fn state_validation(&self) -> (res: bool)
         ensures
