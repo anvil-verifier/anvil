@@ -1,0 +1,19 @@
+apiVersion: anvil.dev/v1
+kind: VStatefulSet
+metadata:
+  name: negative-min-ready-seconds-reject
+spec:
+  serviceName: "test-app"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container
+          image: nginx:latest
+  minReadySeconds: -10
