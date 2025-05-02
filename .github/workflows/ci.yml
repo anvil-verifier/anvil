@@ -447,7 +447,7 @@ jobs:
         run: ./local-test.sh v2-vreplicaset
       - name: Run vreplicaset e2e tests
         run: cd e2e && cargo run -- v2-vreplicaset
-vstatefulset-admission-e2e-test:
+  vstatefulset-admission-e2e-test:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
