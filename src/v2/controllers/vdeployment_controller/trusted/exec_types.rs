@@ -14,7 +14,7 @@ verus! {
 
 // helper function to circumvent the lack of support for String in spec
 #[verifier(external_body)]
-pub fn strategy_type_equals(s1: &String, s2: &str) -> (res: bool)
+pub fn string_equal(s1: &String, s2: &str) -> (res: bool)
     ensures
         s1@ == s2@ <==> res,
 {
@@ -122,7 +122,7 @@ impl VDeployment {
         if let Some(strategy) = self.spec().strategy() {
             if let Some(strategy_type) = strategy.type_() {
                 // strategy is either "Recreate" or "RollingUpdate"
-                if strategy_type_equals(&strategy_type, "RollingUpdate") {
+                if string_equal(&strategy_type, "RollingUpdate") {
                     if let Some(rolling_update) = strategy.rolling_update() {
                         // maxSurge and maxUnavailable cannot be negative
                         match (rolling_update.max_surge(), rolling_update.max_unavailable()) {
@@ -146,7 +146,7 @@ impl VDeployment {
                         }
                     }
                 }
-                else if strategy_type_equals(&strategy_type, "Recreate") {
+                else if string_equal(&strategy_type, "Recreate") {
                     // RollingUpdate block should not exist
                     if strategy.rolling_update().is_some() {
                         return false;
@@ -168,19 +168,13 @@ impl VDeployment {
         }
 
         // template, metadata, and spec exist
-        if let Some(template) = self.spec().template() {
-            if template.metadata().is_none() || template.spec().is_none() {
-                return false;
-            }
-            // Map::empty() did not compile
-            if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
-                return false;
-            }
-
-        } else {
+        if self.spec().template().metadata().is_none() || self.spec().template().spec().is_none() {
             return false;
         }
-    
+        // Map::empty() did not compile
+        if !self.spec().selector().matches(self.spec().template().metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+            return false;
+        }
         true
     }
 }
@@ -217,15 +211,11 @@ impl VDeploymentSpec {
     }
 
     #[verifier(external_body)]
-    pub fn template(&self) -> (template: Option<PodTemplateSpec>)
+    pub fn template(&self) -> (template: PodTemplateSpec)
         ensures
-            template.is_Some() == self@.template.is_Some(),
-            template.is_Some() ==> template.get_Some_0()@ == self@.template.get_Some_0(),
+            template@ == self@.template,
     {
-        match &self.inner.template {
-            Some(t) => Some(PodTemplateSpec::from_kube(t.clone())),
-            None => None
-        }
+        PodTemplateSpec::from_kube(self.inner.template.clone())
     }
 
     #[verifier(external_body)]
