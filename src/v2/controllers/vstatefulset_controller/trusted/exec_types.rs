@@ -152,23 +152,23 @@ impl VStatefulSet {
 
         // volumeClaimTemplates
         if let Some(vct) = self.spec().volume_claim_templates() {
-            let mut vct_valid: bool = true;
             let mut idx: usize = 0;
             let ghost mut vct_view: Seq<PersistentVolumeClaimView> = Seq::new(vct.len() as nat,|i: int| vct[i]@);
             assert(vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view);
             while idx < vct.len()
                 invariant
                     0 <= idx <= vct.len(),
+                    forall |i: int| 0 <= i < idx ==> #[trigger] vct[i]@.state_validation(),
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
-                    vct_valid == forall |i: int| 0 <= i < idx ==> #[trigger] vct_view[i].state_validation(),
+                    self@.spec.volume_claim_templates.is_Some(),
+                    vct_view == self@.spec.volume_claim_templates.get_Some_0(),
             {
                 let pvc_sv = vct[idx].state_validation();
                 assert(pvc_sv == vct_view[idx as int].state_validation());
-                vct_valid = vct_valid && pvc_sv;
+                if !pvc_sv {
+                    return false;
+                }
                 idx += 1;
-            }
-            if !vct_valid {
-                return false;
             }
         }
 
