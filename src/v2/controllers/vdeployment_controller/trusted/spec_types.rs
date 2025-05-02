@@ -122,7 +122,7 @@ impl ResourceView for VDeploymentView {
         &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
 
         // minReadySeconds is non-negative
-        &&& match (self.spec.minReadySeconds, self.spec.progressDeadlineSeconds) {
+        &&& match (self.spec.min_ready_seconds, self.spec.progress_deadline_seconds) {
             // minReadySeconds and should be less than progressDeadlineSeconds
             (Some(min), Some(deadline)) => min < deadline && min >= 0,
             // minReadySeconds should be less than the default value of progressDeadlineSeconds 600
@@ -139,13 +139,13 @@ impl ResourceView for VDeploymentView {
                     (
                         self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@
                         // rollingUpdate block only appear when type == "RollingUpdate"
-                        && self.spec.strategy.get_Some_0().rollingUpdate.is_None()
+                        && self.spec.strategy.get_Some_0().rolling_update.is_None()
                     )
                     || (
                         // maxSurge and maxUnavailable cannot both exist and be 0
                         self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
-                        && (self.spec.strategy.get_Some_0().rollingUpdate.is_Some() ==>
-                            match (self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxSurge, self.spec.strategy.get_Some_0().rollingUpdate.get_Some_0().maxUnavailable) {
+                        && (self.spec.strategy.get_Some_0().rolling_update.is_Some() ==>
+                            match (self.spec.strategy.get_Some_0().rolling_update.get_Some_0().max_surge, self.spec.strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable) {
                                 (Some(max_surge), Some(max_unavailable)) => max_surge >= 0 && max_unavailable >= 0 && !(max_surge == 0 && max_unavailable == 0),
                                 (Some(max_surge), None) => max_surge >= 0,
                                 (None, Some(max_unavailable)) => max_unavailable >= 0,
@@ -192,14 +192,14 @@ impl CustomResourceView for VDeploymentView {
 // DEPLOYMENT STRATEGY SPEC IMPLEMENTATION
 pub struct DeploymentStrategyView {
     pub type_: Option<StringView>,
-    pub rollingUpdate: Option<RollingUpdateDeploymentView>,
+    pub rolling_update: Option<RollingUpdateDeploymentView>,
 }
 
 impl DeploymentStrategyView {
     pub open spec fn default() -> DeploymentStrategyView {
         DeploymentStrategyView {
             type_: None,
-            rollingUpdate: None,
+            rolling_update: None,
         }
     }
     pub open spec fn with_type(self, type_: StringView) -> DeploymentStrategyView {
@@ -211,34 +211,34 @@ impl DeploymentStrategyView {
 
     pub open spec fn with_rolling_update(self, rolling_update: RollingUpdateDeploymentView) -> DeploymentStrategyView {
         DeploymentStrategyView {
-            rollingUpdate: Some(rolling_update),
+            rolling_update: Some(rolling_update),
             ..self
         }
     }
 }
 
 pub struct RollingUpdateDeploymentView {
-    pub maxSurge: Option<int>,
-    pub maxUnavailable: Option<int>,
+    pub max_surge: Option<int>,
+    pub max_unavailable: Option<int>,
 }
 
 impl RollingUpdateDeploymentView {
     pub open spec fn default() -> RollingUpdateDeploymentView {
         RollingUpdateDeploymentView {
-            maxSurge: None,
-            maxUnavailable: None,
+            max_surge: None,
+            max_unavailable: None,
         }
     }
     pub open spec fn with_max_surge(self, max_surge: int) -> RollingUpdateDeploymentView {
         RollingUpdateDeploymentView {
-            maxSurge: Some(max_surge),
+            max_surge: Some(max_surge),
             ..self
         }
     }
 
     pub open spec fn with_max_unavailable(self, max_unavailable: int) -> RollingUpdateDeploymentView {
         RollingUpdateDeploymentView {
-            maxUnavailable: Some(max_unavailable),
+            max_unavailable: Some(max_unavailable),
             ..self
         }
     }
@@ -249,10 +249,10 @@ pub struct VDeploymentSpecView {
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
     pub template: Option<PodTemplateSpecView>,
-    pub minReadySeconds: Option<int>,
-    pub progressDeadlineSeconds: Option<int>,
+    pub min_ready_seconds: Option<int>,
+    pub progress_deadline_seconds: Option<int>,
     pub strategy: Option<DeploymentStrategyView>,
-    pub revisionHistoryLimit: Option<int>,
+    pub revision_history_limit: Option<int>,
     pub paused: Option<bool>
 }
 

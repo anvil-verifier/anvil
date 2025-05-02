@@ -231,8 +231,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn min_ready_seconds(&self) -> (min_ready_seconds: Option<i32>)
         ensures
-            min_ready_seconds.is_Some() == self@.minReadySeconds.is_Some(),
-            min_ready_seconds.is_Some() ==> min_ready_seconds.get_Some_0() as int == self@.minReadySeconds.get_Some_0(),
+            min_ready_seconds.is_Some() == self@.min_ready_seconds.is_Some(),
+            min_ready_seconds.is_Some() ==> min_ready_seconds.get_Some_0() as int == self@.min_ready_seconds.get_Some_0(),
     {
         self.inner.min_ready_seconds
     }
@@ -240,8 +240,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn progress_deadline_seconds(&self) -> (progress_deadline: Option<i32>)
         ensures
-            progress_deadline.is_Some() == self@.progressDeadlineSeconds.is_Some(),
-            progress_deadline.is_Some() ==> progress_deadline.get_Some_0() as int == self@.progressDeadlineSeconds.get_Some_0(),
+            progress_deadline.is_Some() == self@.progress_deadline_seconds.is_Some(),
+            progress_deadline.is_Some() ==> progress_deadline.get_Some_0() as int == self@.progress_deadline_seconds.get_Some_0(),
     {
         self.inner.progress_deadline_seconds
     }
@@ -305,8 +305,8 @@ impl DeploymentStrategy {
     #[verifier(external_body)]
     pub fn rolling_update(&self) -> (rolling_update: Option<RollingUpdateDeployment>)
         ensures
-            self@.rollingUpdate.is_Some() == rolling_update.is_Some(),
-            rolling_update.is_Some() ==> rolling_update.get_Some_0()@ == self@.rollingUpdate.get_Some_0(),
+            self@.rolling_update.is_Some() == rolling_update.is_Some(),
+            rolling_update.is_Some() ==> rolling_update.get_Some_0()@ == self@.rolling_update.get_Some_0(),
     {
         match &self.inner.rolling_update {
             Some(ru) => Some(RollingUpdateDeployment::from_kube(ru.clone())),
@@ -367,8 +367,8 @@ impl RollingUpdateDeployment {
     #[verifier(external_body)]
     pub fn max_surge(&self) -> (max_surge: Option<i32>)
         ensures
-            self@.maxSurge.is_Some() == max_surge.is_Some(),
-            max_surge.is_Some() ==> max_surge.get_Some_0() as int == self@.maxSurge.get_Some_0(),
+            self@.max_surge.is_Some() == max_surge.is_Some(),
+            max_surge.is_Some() ==> max_surge.get_Some_0() as int == self@.max_surge.get_Some_0(),
     {
         match &self.inner.max_surge {
             Some(ms) => match ms {
@@ -383,8 +383,8 @@ impl RollingUpdateDeployment {
     #[verifier(external_body)]
     pub fn max_unavailable(&self) -> (max_unavailable: Option<i32>)
         ensures
-            self@.maxUnavailable.is_Some() == max_unavailable.is_Some(),
-            max_unavailable.is_Some() ==> max_unavailable.get_Some_0() as int == self@.maxUnavailable.get_Some_0(),
+            self@.max_unavailable.is_Some() == max_unavailable.is_Some(),
+            max_unavailable.is_Some() ==> max_unavailable.get_Some_0() as int == self@.max_unavailable.get_Some_0(),
     {
         match &self.inner.max_unavailable {
             Some(mu) => match mu {
@@ -416,12 +416,12 @@ impl RollingUpdateDeployment {
 
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment) -> RollingUpdateDeployment { 
-        RollingUpdateDeployment { inner: inner } 
+        RollingUpdateDeployment { inner: inner }
     }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment { 
-        self.inner 
+        self.inner
     }
 }
 // END DEPLOYMENT STRATEGY EXEC IMPLEMENTATION
