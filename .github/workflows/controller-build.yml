@@ -112,8 +112,8 @@ jobs:
       - name: Build vstatefulset admission controller image
         run: |
           cp docker/controller/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg APP=v2_vreplicaset_admission .
-          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vreplicaset-admission-controller:${{ github.sha }}
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest --build-arg APP=v2_vstatefulset_admission .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:${{ github.sha }}
       - name: Push vstatefulset admission controller image
         run: |
           docker push ghcr.io/${{ env.IMAGE_NAME }}/vstatefulset-admission-controller:latest
