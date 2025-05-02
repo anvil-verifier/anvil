@@ -4,8 +4,7 @@ use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, persistent_volume_claim::*
 };
-use crate::kubernetes_api_objects::spec::persistent_volume_claim::*;
-use crate::kubernetes_api_objects::spec::resource::*;
+use crate::kubernetes_api_objects::spec::{resource::*, persistent_volume_claim::*, volume_resource_requirements::*};
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::string_map::*;
 use deps_hack::kube::Resource;
@@ -20,6 +19,16 @@ pub fn string_equal(s1: &String, s2: &str) -> (res: bool)
         s1@ == s2@ <==> res,
 {
     s1 == s2
+}
+
+// since this uses v2/kubernetes_cluster, we cannot import kubernetes_cluster/common.rs
+impl PersistentVolumeClaim {
+    pub fn state_validation(&self) -> (res: bool)
+        ensures
+            res == self@.state_validation()
+    {
+        self.spec().is_some()
+    }
 }
 
 #[verifier(external_body)]
