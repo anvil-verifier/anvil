@@ -448,6 +448,7 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
         if vd.metadata().labels().is_some() {
             metadata.set_labels(vd.metadata().labels().unwrap().clone());
         }
+        metadata.add_label("pod-template-hash".to_string(), pod_template_hash.clone());
         metadata.set_owner_references(make_owner_references(vd));
         metadata
     });
