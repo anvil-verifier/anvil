@@ -162,11 +162,10 @@ impl ResourceView for VDeploymentView {
         &&& self.spec.selector.match_labels.is_Some()
         &&& self.spec.selector.match_labels.get_Some_0().len() > 0
         // template and its metadata ane spec exists
-        &&& self.spec.template.is_Some()
-        &&& self.spec.template.get_Some_0().metadata.is_Some()
-        &&& self.spec.template.get_Some_0().spec.is_Some()
+        &&& self.spec.template.metadata.is_Some()
+        &&& self.spec.template.spec.is_Some()
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.unwrap_or(Map::empty()))
+        &&& self.spec.selector.matches(self.spec.template.metadata.get_Some_0().labels.unwrap_or(Map::empty()))
     }
 
 
@@ -248,7 +247,7 @@ impl RollingUpdateDeploymentView {
 pub struct VDeploymentSpecView {
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
-    pub template: Option<PodTemplateSpecView>,
+    pub template: PodTemplateSpecView,
     pub min_ready_seconds: Option<int>,
     pub progress_deadline_seconds: Option<int>,
     pub strategy: Option<DeploymentStrategyView>,
