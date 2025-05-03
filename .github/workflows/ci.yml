@@ -179,7 +179,7 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Pin home to version 0.5.9 (workaround)
         run: |
-          sed -i "s/\.\.\/verus/verus/g" Cargo.toml
+          sed -i "s/\.\.\/verus/${HOME}\/verus/g" Cargo.toml
           cargo update home --precise 0.5.9
       - name: Run unit tests
         run: cargo test unit_tests
@@ -207,7 +207,7 @@ jobs:
         run: kind create cluster
       - name: Pin home to version 0.5.9 (workaround)
         run: |
-          sed -i "s/\.\.\/verus/verus/g" Cargo.toml
+          sed -i "s/\.\.\/verus/${HOME}\/verus/g" Cargo.toml
           cargo update home --precise 0.5.9
       - name: Run conformance tests
         run: cargo test conformance_tests -- --nocapture
