@@ -24,10 +24,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Download Verus if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
@@ -39,7 +39,8 @@ jobs:
       - name: Download Rust toolchain and build Verus if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
         run: |
-          cd verus
+          mv verus $HOME/verus
+          cd $HOME/verus
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           . "$HOME/.cargo/env"
           rustup toolchain install
@@ -57,15 +58,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify fluent controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh fluent_controller.rs --time --rlimit 50
+          VERUS_DIR="${HOME}/verus" ./build.sh fluent_controller.rs --time --rlimit 50
   rabbitmq-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -75,15 +76,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify rabbitmq controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
+          VERUS_DIR="${HOME}/verus" ./build.sh rabbitmq_controller.rs --time --rlimit 50
   zookeeper-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -93,15 +94,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify zookeeper controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
+          VERUS_DIR="${HOME}/verus" ./build.sh zookeeper_controller.rs --time --rlimit 100
   vreplicaset-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -111,15 +112,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
   vdeployment-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -129,15 +130,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
   vreplicaset-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -147,15 +148,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify vreplicaset admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --rlimit 50 --time
   unit-tests:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -165,8 +166,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            .cargo
-            .rustup
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Pin home to version 0.5.9 (workaround)
         run: |
@@ -205,8 +206,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            .cargo
-            .rustup
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -230,15 +231,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify conformance of the executable model
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh anvil.rs --crate-type lib --time
+          VERUS_DIR="${HOME}/verus" ./build.sh anvil.rs --crate-type lib --time
   framework-v2-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -248,15 +249,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Verify conformance of the executable model
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${PWD}/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
   fluent-e2e-test:
     needs:
       - build-and-cache-verus
@@ -268,10 +269,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -279,7 +280,7 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy fluent controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh fluent --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh fluent --build
       - name: Run fluent e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- fluent
   rabbitmq-e2e-test:
@@ -293,10 +294,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -304,7 +305,7 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy rabbitmq controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh rabbitmq --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh rabbitmq --build
       - name: Run rabbitmq e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- rabbitmq
   rabbitmq-scaling-e2e-test:
@@ -318,10 +319,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -329,7 +330,7 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy rabbitmq controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh rabbitmq --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh rabbitmq --build
       - name: Run rabbitmq e2e tests for scaling
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- rabbitmq-scaling
   rabbitmq-ephemeral-e2e-test:
@@ -343,10 +344,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -354,7 +355,7 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy rabbitmq controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh rabbitmq --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh rabbitmq --build
       - name: Run rabbitmq e2e tests for ephemeral
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- rabbitmq-ephemeral
   zookeeper-e2e-test:
@@ -368,10 +369,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -379,7 +380,7 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy zookeeper controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh zookeeper --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh zookeeper --build
       - name: Run zookeeper e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- zookeeper
   zookeeper-scaling-e2e-test:
@@ -393,10 +394,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -404,7 +405,7 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy zookeeper controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh zookeeper --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh zookeeper --build
       - name: Run zookeeper e2e tests for scaling
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- zookeeper-scaling
   vreplicaset-admission-e2e-test:
@@ -418,10 +419,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -430,7 +431,7 @@ jobs:
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy vreplicaset admission controller
         run: |
-          VERUS_DIR="${PWD}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --no-verify --time
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --no-verify --time
           docker build -f docker/controller/Dockerfile -t local/vreplicaset-admission-controller:v0.1.0 --build-arg APP=v2_vreplicaset_admission .
           kind create cluster --config deploy/kind.yaml
           kind load docker-image local/vreplicaset-admission-controller:v0.1.0
@@ -449,10 +450,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            verus/source
-            verus/dependencies
-            .cargo
-            .rustup
+            $HOME/verus/source
+            $HOME/verus/dependencies
+            $HOME/.cargo
+            $HOME/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Restore kind cache
         uses: actions/cache@v4
@@ -460,6 +461,6 @@ jobs:
           path: ./bin/kind
           key: kind-${{ runner.os }}-${{ env.kind_version }}
       - name: Deploy v2-vreplicaset controller
-        run: .VERUS_DIR="${PWD}/verus" ./local-test.sh v2-vreplicaset --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset --build
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset
