@@ -1,0 +1,2 @@
+cargo:rustc-cfg=ossl102
+cargo:rustc-cfg=ossl111

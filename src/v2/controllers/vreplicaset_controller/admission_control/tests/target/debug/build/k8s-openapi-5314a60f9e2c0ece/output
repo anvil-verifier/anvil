@@ -1,0 +1,3 @@
+cargo:rerun-if-env-changed=K8S_OPENAPI_ENABLED_VERSION
+cargo:version=73216
+cargo:rustc-cfg=k8s_openapi_enabled_version="1.30"
