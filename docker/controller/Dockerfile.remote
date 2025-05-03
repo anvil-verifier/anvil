@@ -16,6 +16,8 @@ RUN mv /anvil/src/${APP}_controller /anvil/src/controller
 
 FROM ubuntu:22.04
 
-COPY --from=builder /anvil/src/controller /usr/local/bin/controller
+ARG APP
+
+COPY src/${APP}_controller /usr/local/bin/controller
 
 ENTRYPOINT ["/usr/local/bin/controller", "run"]
