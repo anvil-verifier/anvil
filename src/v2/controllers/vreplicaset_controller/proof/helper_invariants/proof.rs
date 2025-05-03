@@ -11,7 +11,12 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{
+        liveness_theorem::*,
+        rely_guarantee::*,
+        spec_types::*,
+        step::*
+    },
     proof::{predicate::*, helper_lemmas, helper_invariants::{predicate::*}, liveness::api_actions::*},
 };
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
@@ -40,7 +45,7 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
         spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_request_is_well_formed(cluster, controller_id))))),
 {
     let requirements = |msg: Message, s: ClusterState| {
@@ -102,9 +107,9 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -121,7 +126,7 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
                             PodView::marshal_preserves_integrity();
                             VReplicaSetReconcileState::marshal_preserves_integrity();
                             if id != controller_id {
-                                assert(vrs_not_interfered_by(id)(s_prime));
+                                assert(vrs_rely(id)(s_prime));
                             }
                         },
                         _ => {
@@ -133,7 +138,7 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
         }
     }
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -151,7 +156,7 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
-        lifted_vrs_non_interference_property_action(cluster, controller_id)
+        lifted_vrs_rely_condition_action(cluster, controller_id)
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -181,13 +186,13 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interfering_update_request())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
         msg.content.is_APIRequest() ==> 
             match msg.content.get_APIRequest_0() {
-                APIRequest::UpdateRequest(req) => vrs_not_interfered_by_update_req(req)(s),
+                APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
                 _ => true,
             }
     };
@@ -200,7 +205,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                 APIRequest::UpdateRequest(req) =>
                     msg.src.is_Controller()
                     && msg.src != HostId::Controller(controller_id)
-                    && vrs_not_interfered_by_update_req(req)(s),
+                    && vrs_rely_update_req(req)(s),
                 _ => true,
             }
     };
@@ -218,9 +223,9 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)(s, s_prime) by {
@@ -233,7 +238,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                     PodView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     if id != controller_id {
-                        assert(vrs_not_interfered_by(id)(s_prime));
+                        assert(vrs_rely(id)(s_prime));
                     } else {
                         assert(!s.in_flight().contains(msg));
                     }
@@ -242,7 +247,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         }
     }
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -259,7 +264,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id)
+        lifted_vrs_rely_condition_action(cluster, controller_id)
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, stronger_requirements);
@@ -301,13 +306,13 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_interfering_update_status_request())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
         msg.content.is_APIRequest() ==> 
             match msg.content.get_APIRequest_0() {
-                APIRequest::UpdateStatusRequest(req) => vrs_not_interfered_by_update_status_req(req)(s),
+                APIRequest::UpdateStatusRequest(req) => vrs_rely_update_status_req(req)(s),
                 _ => true,
             }
     };
@@ -320,7 +325,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
                 APIRequest::UpdateStatusRequest(req) =>
                     msg.src.is_Controller()
                     && msg.src != HostId::Controller(controller_id)
-                    && vrs_not_interfered_by_update_status_req(req)(s),
+                    && vrs_rely_update_status_req(req)(s),
                 _ => true,
             }
     };
@@ -338,9 +343,9 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(stronger_requirements)(s, s_prime) by {
@@ -353,7 +358,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
                     PodView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     if id != controller_id {
-                        assert(vrs_not_interfered_by(id)(s_prime));
+                        assert(vrs_rely(id)(s_prime));
                     } else {
                         assert(!s.in_flight().contains(msg));
                     }
@@ -362,7 +367,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
         }
     }
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -379,7 +384,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id)
+        lifted_vrs_rely_condition_action(cluster, controller_id)
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, stronger_requirements);
@@ -425,7 +430,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         spec.entails(always(lift_state(no_pending_interfering_update_request()))),
         spec.entails(always(lift_state(no_pending_interfering_update_status_request()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs))))),
 {
     let requirements = |msg: Message, s: ClusterState| {
@@ -469,9 +474,9 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         &&& no_pending_interfering_update_request()(s)
         &&& no_pending_interfering_update_status_request()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
     };
 
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -503,7 +508,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         }
     }
     
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -524,7 +529,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lift_state(no_pending_interfering_update_request()),
         lift_state(no_pending_interfering_update_status_request()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id)
+        lifted_vrs_rely_condition_action(cluster, controller_id)
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -554,7 +559,7 @@ pub proof fn lemma_eventually_always_no_pending_create_or_delete_request_not_fro
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods())))),
 {
     let requirements = |msg: Message, s: ClusterState| {
@@ -583,12 +588,12 @@ pub proof fn lemma_eventually_always_no_pending_create_or_delete_request_not_fro
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
     };
     
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -605,7 +610,7 @@ pub proof fn lemma_eventually_always_no_pending_create_or_delete_request_not_fro
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id)
+        lifted_vrs_rely_condition_action(cluster, controller_id)
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -640,7 +645,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))),
 {
     let key = vrs.object_ref();
@@ -726,9 +731,9 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
     };
     
     assert forall |s: ClusterState, s_prime: ClusterState| #[trigger]  #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -795,7 +800,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         }
     }
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -817,7 +822,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
-        lifted_vrs_non_interference_property_action(cluster, controller_id)
+        lifted_vrs_rely_condition_action(cluster, controller_id)
     );
 
     cluster.lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -851,7 +856,7 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
         spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
         spec.entails(always(lift_state(no_pending_interfering_update_request()))),
         spec.entails(always(lift_state(no_pending_interfering_update_status_request()))),
         spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
@@ -930,9 +935,9 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
         &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
         &&& no_pending_interfering_update_request()(s)
         &&& no_pending_interfering_update_status_request()(s)
         &&& every_create_request_is_well_formed(cluster, controller_id)(s)
@@ -1047,7 +1052,7 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         }
     }
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -1068,7 +1073,7 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)),
-        lifted_vrs_non_interference_property_action(cluster, controller_id),
+        lifted_vrs_rely_condition_action(cluster, controller_id),
         lift_state(no_pending_interfering_update_request()),
         lift_state(no_pending_interfering_update_status_request()),
         lift_state(every_create_request_is_well_formed(cluster, controller_id)),
@@ -1116,7 +1121,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
         spec.entails(always(lift_state(no_pending_interfering_update_request()))),
         spec.entails(always(lift_state(no_pending_interfering_update_status_request()))),
         spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
@@ -1206,9 +1211,9 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         &&& Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)(s)
         &&& Cluster::etcd_is_finite()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
         &&& no_pending_interfering_update_request()(s)
         &&& no_pending_interfering_update_status_request()(s)
         &&& every_create_request_is_well_formed(cluster, controller_id)(s)
@@ -1523,7 +1528,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
     }
        
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -1549,7 +1554,7 @@ pub proof fn lemma_eventually_always_each_vrs_in_reconcile_implies_filtered_pods
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as::<VReplicaSetView>(controller_id, vrs)),
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id),
+        lifted_vrs_rely_condition_action(cluster, controller_id),
         lift_state(no_pending_interfering_update_request()),
         lift_state(no_pending_interfering_update_status_request()),
         lift_state(every_create_request_is_well_formed(cluster, controller_id))
@@ -1595,7 +1600,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(tla_forall(|key: ObjectRef| true_pred().leads_to(lift_state(|s: ClusterState| !(s.ongoing_reconciles(controller_id).contains_key(key)))))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
         spec.entails(always(lift_state(no_pending_interfering_update_request()))),
         spec.entails(always(lift_state(no_pending_interfering_update_status_request()))),
         spec.entails(always(lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods()))),
@@ -1687,9 +1692,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         &&& Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)(s)
         &&& Cluster::etcd_is_finite()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
         &&& no_pending_interfering_update_request()(s)
         &&& no_pending_interfering_update_status_request()(s)
         &&& no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
@@ -2195,7 +2200,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                     &&& forall |diff: nat| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s))
                                                 });
                                                 assert(forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                                                        ==> #[trigger] vrs_not_interfered_by(other_id)(s));
+                                                        ==> #[trigger] vrs_rely(other_id)(s));
                                                 lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
                                                     s, s_prime, vrs, cluster, controller_id, 42, current_req_msg
                                                 );
@@ -2250,7 +2255,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                 &&& current_req_msg.content.is_delete_request() ==> current_req_msg.content.get_delete_request().key.kind != PodView::kind()
                                             });
                                         } else if current_req_msg.src.is_Controller() && current_req_msg.src.get_Controller_0() != controller_id {
-                                            assert(vrs_not_interfered_by(current_req_msg.src.get_Controller_0())(s));
+                                            assert(vrs_rely(current_req_msg.src.get_Controller_0())(s));
                                         } 
                                     }
 
@@ -2266,7 +2271,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                     &&& forall |diff: nat| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s))
                                                 });
                                                 assert(forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                                                        ==> #[trigger] vrs_not_interfered_by(other_id)(s));
+                                                        ==> #[trigger] vrs_rely(other_id)(s));
                                                 lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
                                                     s, s_prime, vrs, cluster, controller_id, 42, current_req_msg
                                                 );
@@ -2473,7 +2478,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
     }
        
 
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -2500,7 +2505,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VReplicaSetView>(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VReplicaSetReconcileState, VReplicaSetView>(controller_id)),
         lift_state(Cluster::etcd_is_finite()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id),
+        lifted_vrs_rely_condition_action(cluster, controller_id),
         lift_state(no_pending_interfering_update_request()),
         lift_state(no_pending_interfering_update_status_request()),
         lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods()),
@@ -2545,7 +2550,7 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
         spec.entails(always(lift_state(no_pending_interfering_update_request()))),
         spec.entails(always(lift_state(no_pending_interfering_update_status_request()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
         spec.entails(always(lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id))))),
 {
@@ -2591,9 +2596,9 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
         &&& no_pending_interfering_update_request()(s)
         &&& no_pending_interfering_update_status_request()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+                ==> #[trigger] vrs_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                ==> #[trigger] vrs_not_interfered_by(other_id)(s_prime)
+                ==> #[trigger] vrs_rely(other_id)(s_prime)
         &&& each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)(s)
     };
 
@@ -2668,7 +2673,7 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
         }
     }
     
-    helper_lemmas::vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property_action(
+    helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
         spec, cluster, controller_id
     );
     invariant_n!(
@@ -2690,7 +2695,7 @@ pub proof fn lemma_eventually_always_every_delete_request_from_vrs_has_rv_precon
         lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
         lift_state(no_pending_interfering_update_request()),
         lift_state(no_pending_interfering_update_status_request()),
-        lifted_vrs_non_interference_property_action(cluster, controller_id),
+        lifted_vrs_rely_condition_action(cluster, controller_id),
         lift_state(each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id))
     );
 
