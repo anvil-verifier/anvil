@@ -28,7 +28,7 @@ jobs:
             $HOME/verus/dependencies
             $HOME/.cargo
             $HOME/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('rust-toolchain.toml') }}
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Download Verus if cache is missing
         if: steps.cache-verus.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
