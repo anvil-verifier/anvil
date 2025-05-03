@@ -9,14 +9,11 @@ set -xeu
 app=$(echo "$1" | tr '_' '-')
 app_filename=$(echo "$app" | tr '-' '_')
 
-rv="${VERUS_DIR}/source/target-verus/release/verus"
-
-if [ ! -f "$rv" ]; then
-  echo "Verus not found. Please set VERUS_DIR correct"
-  exit 1
-fi
-
 if [ $# -gt 1 ] && [ "$2" == "--build" ]; then
+    if [ ! -f "${VERUS_DIR}/source/target-verus/release/verus" ]; then
+        echo "Verus not found. Please set VERUS_DIR correct"
+        exit 1
+    fi
     shift 2
     ./build.sh "${app_filename}_controller.rs" "--no-verify" $@
 fi
