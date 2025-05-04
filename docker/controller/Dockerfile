@@ -1,4 +1,5 @@
-FROM debian:bullseye-slim
+# keep consistent with CI env
+FROM ubuntu:22.04
 
 ARG APP
 
