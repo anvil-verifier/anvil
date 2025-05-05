@@ -32,7 +32,6 @@ case "$build_controller" in
         docker build -f docker/controller/Dockerfile.remote -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
         ;;
     no)
-        shift 1
         docker build -f docker/controller/Dockerfile.local -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
         ;;
 esac
