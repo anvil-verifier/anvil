@@ -65,7 +65,7 @@ This process can be automated with
 ```
 ./local-test.sh <controller_name> [--build|--build-remote]
 Usage:
-	--build:			Call ./build.sh to build the controller before test, should have VERUS_DIR speccified
+	--build:		Call ./build.sh to build the controller before test, should have VERUS_DIR speccified
 	--build-remote:		Call ./build.sh to build the controller image using Verus builder. This is useful when host has different runtime environment from image (Ubuntu 22.04), for example, different glibc version
 	unspecified:		Just use existing host built controller to setup the controller image. Assume binary is ready in `src/<controller_name>`
 ```
