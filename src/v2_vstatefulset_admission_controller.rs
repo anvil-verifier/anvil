@@ -15,16 +15,13 @@ pub mod temporal_logic;
 pub mod vstatefulset_controller;
 pub mod vstd_ext;
 
-use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
-use crate::vstatefulset_controller::{
-    exec::validator::validate_state, trusted::exec_types::VStatefulSet,
-};
+use crate::kubernetes_api_objects::exec::{dynamic::DynamicObject, resource::ResourceWrapper};
+use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, VStatefulSetSpec};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
 // use deps_hack::tracing::{error, info};
-use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use deps_hack::kube::core::{
     admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},
     DynamicObject as KubeDynamicObject, ResourceExt,
@@ -36,6 +33,16 @@ use shim_layer::controller_runtime::run_controller;
 use std::env;
 // use deps_hack::warp::{reply, Filter, Reply};
 use std::convert::Infallible;
+use std::error::Error;
+
+pub fn validate_state(vss: &VStatefulSet) -> Result<(), String> {
+    // Call executable state validation
+    if vss.state_validation() {
+        Ok(())
+    } else {
+        Err("Invalid VStatefulSet".to_string())
+    }
+}
 
 pub async fn validate_handler(
     body: AdmissionReview<KubeDynamicObject>,
@@ -56,9 +63,9 @@ pub async fn validate_handler(
         let local_obj = DynamicObject::from_kube(obj.clone());
 
         // Use unmarshal function to convert DynamicObject to VStatefulSet
-        let vdeploy_result = VStatefulSet::unmarshal(local_obj);
-        if let Ok(vdeploy) = vdeploy_result {
-            res = match validate_state(&vdeploy) {
+        let vsts_result = VStatefulSet::unmarshal(local_obj);
+        if let Ok(vsts) = vsts_result {
+            res = match validate_state(&vsts) {
                 Ok(()) => {
                     info!("accepted: {:?} on resource {}", req.operation, name);
                     res
