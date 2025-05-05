@@ -10,6 +10,7 @@ set -xeu
 app=$(echo "$1" | tr '_' '-')
 app_filename=$(echo "$app" | tr '-' '_')
 build_controller="no"
+dockerfile_path="docker/controller/Dockerfile.local"
 
 if [ $# -gt 1 ]; then
     if  [ "$2" == "--build" ]; then # chain build.sh
@@ -25,32 +26,35 @@ fi
 
 case "$build_controller" in
     local)
+        echo "Building $app controller binary"
         shift 2
         ./build.sh "${app_filename}_controller.rs" "--no-verify" $@
-        docker build -f docker/controller/Dockerfile.local -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+        echo "Building $app controller image"
         ;;
     remote)
-        docker build -f docker/controller/Dockerfile.remote -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+        echo "Building $app controller image using builder"
+        dockerfile_path="docker/controller/Dockerfile.remote"
         ;;
     no)
-        docker build -f docker/controller/Dockerfile.local -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+        echo "Building $app controller image"
         ;;
 esac
 
+docker build -f $dockerfile_path -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+
+# for VDeployment, need to deploy VReplicaSet as a dependency
+if [ "$app" == "v2-vdeployment" ]; then
+    if [ $build_controller == 'local' ]; then
+        echo "Building v2-vreplicaset controller binary"
+        ./build.sh "v2_vreplicaset_controller.rs" "--no-verify" $@
+    fi
+    echo "Building v2-vreplicaset controller image"
+    docker build -f $dockerfile_path -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
+fi
 
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml
 kind load docker-image local/$app-controller:v0.1.0
-
-if [ "$app" == "v2-vdeployment" ]; then
-    # deploy VReplicaSet controller as dependency
-    echo "Building v2-vreplicaset controller image"
-    if [ $BUILD_FLAG -eq 1 ]; then
-        docker build -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
-    fi
-    kind load docker-image local/v2-vreplicaset-controller:v0.1.0
-fi
-rm Dockerfile
 
 # Deploy the controller as a pod to the kind cluster, using the image just loaded
 ./deploy.sh $app local
