@@ -9,10 +9,11 @@ RUN apt-get update && apt-get install -y git wget unzip curl gcc
 RUN git clone https://github.com/verus-lang/verus.git \
     && cd verus \
     && git checkout ${VERUS_VER}
-RUN curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y \
+RUN cd verus \
+    && curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y \
     && . "$HOME/.cargo/env" \
     && rustup toolchain install
-RUN cd source \
+RUN cd verus/source \
     && ./tools/get-z3.sh \
     && source ../tools/activate \
     && vargo build --release
