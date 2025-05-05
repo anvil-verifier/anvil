@@ -455,6 +455,6 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy v2-vreplicaset controller
-        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset --build-remote
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset
