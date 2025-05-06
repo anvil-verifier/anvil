@@ -141,7 +141,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     obj: new_vrs.marshal(),
                 });
                 let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStep::Done,
+                    reconcile_step: VDeploymentReconcileStep::RollReplicas,
                     ..state
                 };
                 return (state_prime, Some(Request::KRequest(req)))
@@ -162,7 +162,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                         obj: new_vrs.marshal()
                     });
                     let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStep::Done,
+                        reconcile_step: VDeploymentReconcileStep::RollReplicas,
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req)))
@@ -180,7 +180,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                         obj: old_vrs.marshal()
                     });
                     let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStep::Done,
+                        reconcile_step: VDeploymentReconcileStep::RollReplicas,
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req)))
