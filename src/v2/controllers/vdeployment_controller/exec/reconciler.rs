@@ -19,7 +19,8 @@ verus! {
 
 pub struct VDeploymentReconcileState {
     pub reconcile_step: VDeploymentReconcileStep,
-    pub vrs_list: Vec<VReplicaSet>,
+    pub new_vrs: Option<VReplicaSet>,
+    pub old_vrs_list: Vec<VReplicaSet>,
 }
 
 impl View for VDeploymentReconcileState {
@@ -28,7 +29,8 @@ impl View for VDeploymentReconcileState {
     open spec fn view(&self) -> model_reconciler::VDeploymentReconcileState {
         model_reconciler::VDeploymentReconcileState {
             reconcile_step: self.reconcile_step@,
-            vrs_list: self.vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
+            new_vrs: option_view(self.new_vrs),
+            old_vrs_list: self.old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
         }
     }
 }
@@ -65,7 +67,8 @@ pub fn reconcile_init_state() -> (state: VDeploymentReconcileState)
 {
     VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::Init,
-        vrs_list: Vec::new(),
+        new_vrs: None,
+        old_vrs_list: Vec::new(),
     }
 }
 
@@ -105,7 +108,8 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             });
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStep::AfterGetReplicaSets,
-                ..state
+                new_vrs: None,
+                old_vrs_list: Vec::new(),
             };
             return (state_prime, Some(Request::KRequest(req)))
         },
@@ -120,33 +124,38 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);
             }
-            let vrs_list = vrs_list_or_none.unwrap();
-            let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::RollReplicas,
-                vrs_list: vrs_list,
-                ..state
-            };
-            return (state_prime, None)
+            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(vrs_list_or_none.clone().unwrap(), vd);
+            return (
+                VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                    new_vrs: if new_vrs_list.len() > 0 { Some(new_vrs_list[0].clone()) } else { None },
+                    old_vrs_list: old_vrs_list,
+                },
+                None
+            )
         },
         VDeploymentReconcileStep::RollReplicas => {
             // TODO: support different policy (order of scaling of new and old vrs)
             //       and maxSurge and maxUnavailable
-            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(state.vrs_list.clone(), vd), vd);
-            if new_vrs_list.len() == 0 {
+            if state.new_vrs.is_none() {
                 // create the new vrs
                 let new_vrs = make_replica_set(vd);
                 let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                     api_resource: VReplicaSet::api_resource(),
                     namespace: namespace,
-                    obj: new_vrs.marshal(),
+                    obj: new_vrs.clone().marshal(),
                 });
                 let state_prime = VDeploymentReconcileState {
                     reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                    new_vrs: Some(new_vrs),
                     ..state
                 };
                 return (state_prime, Some(Request::KRequest(req)))
             } else {
-                let mut new_vrs = new_vrs_list[0].clone();
+                if !state.new_vrs.unwrap().well_formed() {
+                    return (error_state(state), None);
+                }
+                let mut new_vrs = state.new_vrs.clone().unwrap();
                 let existing_replicas = if new_vrs.spec().replicas().is_none() {1} else {new_vrs.spec().replicas().unwrap()};
                 let expected_replicas = if vd.spec().replicas().is_none() {1} else {vd.spec().replicas().unwrap()};
                 if existing_replicas != expected_replicas { 
@@ -163,12 +172,17 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     });
                     let state_prime = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                        new_vrs: Some(new_vrs),
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req)))
-                } else if old_vrs_list.len() > 0 {
+                } else if state.old_vrs_list.len() > 0 {
                     // scale filter_old_and_new_vrsdown old vrs to zero
-                    let mut old_vrs = old_vrs_list[0].clone();
+                    let mut old_vrs_list = state.old_vrs_list.clone();
+                    let mut old_vrs = old_vrs_list.pop().unwrap();
+                    if !old_vrs.well_formed() {
+                        return (error_state(state), None);
+                    }
                     let mut new_spec = old_vrs.spec();
                     new_spec.set_replicas(0);
                     old_vrs.set_spec(new_spec);
@@ -181,6 +195,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     });
                     let state_prime = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStep::RollReplicas,
+                        old_vrs_list: old_vrs_list,
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req)))
