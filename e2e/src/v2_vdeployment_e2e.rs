@@ -54,7 +54,7 @@ pub fn v_deployment() -> String {
 }
 
 pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(100);
     let start = Instant::now();
     loop {
         sleep(Duration::from_secs(5)).await;
@@ -167,8 +167,8 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
 }
 
 pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(600);
-    let mut start = Instant::now();
+    let timeout = Duration::from_secs(100);
+    let start = Instant::now();
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let vrs_api: Api<VReplicaSet> = Api::default_namespaced(client.clone());
     let mut desired_replicas = 5;
@@ -191,24 +191,6 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
         if start.elapsed() > timeout {
             error!("Time out on scaling test");
             return Err(Error::Timeout);
-        }
-
-        let vrs_list = vrs_api.list(&ListParams::default()).await;
-        // should have 1 old and 1 new VReplicaSet
-        match vrs_list {
-            Err(e) => {
-                info!("List VReplicaSet failed with error {}.", e);
-                continue;
-            }
-            Ok(vrs_list) => {
-                if vrs_list.items.len() != 2 {
-                    info!(
-                        "VReplicaSet number is {} which is not 2.",
-                        vrs_list.items.len()
-                    );
-                    return Err(Error::VReplicaSetFailed);
-                }
-            }
         }
 
         let pods = pod_api.list(&ListParams::default()).await;
@@ -240,9 +222,9 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
                                 .get("app")
                                 .unwrap()
                                 .clone()
-                                == "pause".to_string())
+                                == "pause-demo".to_string())
                         {
-                            info!("Labels are incorrect; should have tire:pause.");
+                            info!("Labels are incorrect; should have app:pause-demo.");
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
@@ -252,15 +234,42 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
         }
     }
 
-    desired_replicas = 3;
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on scaling test");
+            return Err(Error::Timeout);
+        }
 
-    start = Instant::now();
+        let vrs_list = vrs_api.list(&ListParams::default()).await;
+        // should have 1 old and 1 new VReplicaSet
+        match vrs_list {
+            Err(e) => {
+                info!("List VReplicaSet failed with error {}.", e);
+                continue;
+            }
+            Ok(vrs_list) => {
+                if vrs_list.items.len() != 1 {
+                    info!(
+                        "VReplicaSet number is {} which is not 1.",
+                        vrs_list.items.len()
+                    );
+                    return Err(Error::VReplicaSetFailed);
+                }
+                break;
+            }
+        }
+    }
+
+    desired_replicas = 3;
+    let start = Instant::now();
+
     run_command(
         "kubectl",
         vec![
             "patch",
             "vd",
-            "pause",
+            vd_name.as_str(),
             "--type=json",
             "-p",
             &("[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": ".to_string() + &desired_replicas.to_string() + "}]")       ,
@@ -273,24 +282,6 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
         if start.elapsed() > timeout {
             error!("Time out on scaling test");
             return Err(Error::Timeout);
-        }
-
-        let vrs_list = vrs_api.list(&ListParams::default()).await;
-        // should have 2 old and 1 new VReplicaSet
-        match vrs_list {
-            Err(e) => {
-                info!("List VReplicaSet failed with error {}.", e);
-                continue;
-            }
-            Ok(vrs_list) => {
-                if vrs_list.items.len() != 3 {
-                    info!(
-                        "VReplicaSet number is {} which is not 3.",
-                        vrs_list.items.len()
-                    );
-                    return Err(Error::VReplicaSetFailed);
-                }
-            }
         }
 
         let pods = pod_api.list(&ListParams::default()).await;
@@ -325,9 +316,9 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
                                 .get("app")
                                 .unwrap()
                                 .clone()
-                                == "pause".to_string())
+                                == "pause-demo".to_string())
                         {
-                            info!("Labels are incorrect; should have app:pause.");
+                            info!("Labels are incorrect; should have app:pause-demo.");
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
@@ -337,7 +328,134 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
         }
     }
 
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on scaling test");
+            return Err(Error::Timeout);
+        }
+
+        let vrs_list = vrs_api.list(&ListParams::default()).await;
+        // should have 2 old and 1 new VReplicaSet
+        match vrs_list {
+            Err(e) => {
+                info!("List VReplicaSet failed with error {}.", e);
+                continue;
+            }
+            Ok(vrs_list) => {
+                if vrs_list.items.len() != 1 {
+                    info!(
+                        "VReplicaSet number is {} which is not 1.",
+                        vrs_list.items.len()
+                    );
+                    return Err(Error::VReplicaSetFailed);
+                }
+                break;
+            }
+        }
+    }
+
     info!("Scaling test passed.");
+    Ok(())
+}
+
+pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(100);
+    let start = Instant::now();
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let vrs_api: Api<VReplicaSet> = Api::default_namespaced(client.clone());
+
+    // add one more label pair
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "vd",
+            vd_name.as_str(),
+            "--type=json",
+            "-p",
+            &("[{\"op\": \"add\", \"path\": \"/spec/template/metadata/labels/foo\", \"value\": \"bar\"}]"),
+        ],
+        "failed to patch VReplicaSet",
+    );
+
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on template patch test");
+            return Err(Error::Timeout);
+        }
+
+        let vrs_list = vrs_api.list(&ListParams::default()).await;
+        match vrs_list {
+            Err(e) => {
+                info!("List VReplicaSet failed with error {}.", e);
+                continue;
+            }
+            Ok(vrs_list) => {
+                if vrs_list.items.len() < 2 {
+                    info!(
+                        "VReplicaSet number is {} which is not 2, still creating.",
+                        vrs_list.items.len()
+                    );
+                    continue;
+                } else if vrs_list.items.len() > 2 {
+                    info!("VReplicaSet number is {} which is larger than 2.", vrs_list.items.len());
+                    return Err(Error::VReplicaSetFailed);
+                } else {
+                    info!("We have 2 VReplicaSets now.");
+                    break;
+                }
+            }
+        }
+    }
+
+    let start = Instant::now();
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on template patch test");
+            return Err(Error::Timeout);
+        }
+
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
+            Err(e) => {
+                info!("List pods failed with error {}.", e);
+                continue;
+            }
+            Ok(pods) => {
+                if pods.items.len() != 3 {
+                    info!(
+                        "Pod number is {} which is not 3; still reconciliating.",
+                        pods.items.len()
+                    );
+                    continue;
+                } else {
+                    for pod in pods.items.iter() {
+                        if !(pod.metadata.labels.is_some()
+                            && pod.metadata.labels.as_ref().unwrap().get("foo").is_some()
+                            && pod
+                                .metadata
+                                .labels
+                                .as_ref()
+                                .unwrap()
+                                .get("foo")
+                                .unwrap()
+                                .clone()
+                                == "bar".to_string())
+                        {
+                            info!("Labels are incorrect; should have foo:bar.");
+                            return Err(Error::VReplicaSetFailed);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    info!("Template patch test passed.");
     Ok(())
 }
 
@@ -371,6 +489,7 @@ pub async fn v2_vdeployment_e2e_test() -> Result<(), Error> {
 
     desired_state_test(client.clone(), vd_name.clone()).await?;
     scaling_test(client.clone(), vd_name.clone()).await?;
+    template_patch_test(client.clone(), vd_name.clone()).await?;
 
     info!("E2e test passed.");
     Ok(())
