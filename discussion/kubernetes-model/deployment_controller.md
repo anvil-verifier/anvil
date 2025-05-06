@@ -37,7 +37,7 @@ Reconciliation is performed by `syncDeployment`, which can be modeled as state m
 graph LR
 	1((init))-->|list rs|2((list rs))
 	2-->|ε|3((roll rs))
-	3-->|scale new rs<br>scale old rs|4
+	3-->|scale new rs<br>scale old rs|3
 	3-->4((done))
 ```
 
@@ -50,7 +50,7 @@ graph LR
 	1((init))-->|list rs|2((after list rs))
 	2-->|list pod|3((after list pod))
 	3-->|ε|4((roll rs))
-	4-->|scale new rs<br>stop old rs|5
+	4-->|scale new rs<br>stop old rs|4
 	4-->|any old pods running<br>/all set|5((done))
 ```
 
