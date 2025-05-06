@@ -1,4 +1,4 @@
-FROM rust:1.72.0-slim-bullseye as builder
+FROM ubuntu:22.04
 
 ARG VERUS_VER
 WORKDIR /
@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y git wget unzip curl gcc
 RUN git clone https://github.com/verus-lang/verus.git \
     && cd verus \
     && git checkout ${VERUS_VER} \
+    && curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y \
+    && . "$HOME/.cargo/env" \
+    && rustup toolchain install \
     && cd source \
     && ./tools/get-z3.sh \
     && source ../tools/activate \
