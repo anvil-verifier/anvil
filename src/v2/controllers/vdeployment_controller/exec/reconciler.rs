@@ -297,7 +297,7 @@ requires
     vd@.well_formed(),
 ensures
     filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
-    forall |i: int| 0 <= i < filtered_vrs_list.len() ==> filtered_vrs_list[i]@.well_formed(),
+    forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
@@ -314,7 +314,7 @@ ensures
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
             == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
-        forall |i: int| 0 <= i < filtered_vrs_list.len() ==> filtered_vrs_list[i]@.well_formed(),
+        forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];
         if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
@@ -355,8 +355,8 @@ requires
 ensures
     res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
     res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
-    forall |i: int| 0 <= i < res.0.len() ==> res.0[i]@.well_formed(),
-    forall |i: int| 0 <= i < res.1.len() ==> res.1[i]@.well_formed(),
+    forall |i: int| 0 <= i < res.0.len() ==> (#[trigger] res.0[i])@.well_formed(),
+    forall |i: int| 0 <= i < res.1.len() ==> (#[trigger] res.1[i])@.well_formed(),
 {
     let mut new_vrs_list = Vec::new();
     let mut old_vrs_list = Vec::new();
@@ -371,8 +371,8 @@ ensures
             old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
             model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
         );
-        assert(forall |i: int| 0 <= i < new_vrs_list.len() ==> new_vrs_list[i]@.well_formed());
-        assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> old_vrs_list[i]@.well_formed());
+        assert(forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed());
+        assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed());
     }
 
     while idx < vrs_list.len()
@@ -386,8 +386,8 @@ ensures
         idx <= vrs_list.len(),
         new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
         old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
-        forall |i: int| 0 <= i < new_vrs_list.len() ==> new_vrs_list[i]@.well_formed(),
-        forall |i: int| 0 <= i < old_vrs_list.len() ==> old_vrs_list[i]@.well_formed(),
+        forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed(),
+        forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed(),
     {
         let vrs = &vrs_list[idx];
         assert(vrs@.well_formed());
