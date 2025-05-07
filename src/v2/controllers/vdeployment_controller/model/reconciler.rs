@@ -119,8 +119,8 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     (error_state(state), None)
                 } else {
                     let new_vrs = state.new_vrs.get_Some_0(); // k8s deterministically chooses the "oldest" vrs, we just use the first one
-                    let existing_replicas = if new_vrs.spec.replicas.is_None() {1} else {new_vrs.spec.replicas.unwrap()};
-                    let expected_replicas = if vd.spec.replicas.is_None() {1} else {vd.spec.replicas.unwrap()};
+                    let existing_replicas = new_vrs.spec.replicas.unwrap_or(1);
+                    let expected_replicas = vd.spec.replicas.unwrap_or(1);
                     if existing_replicas != expected_replicas {
                         let updated_new_vrs = VReplicaSetView {
                             spec: VReplicaSetSpecView {
