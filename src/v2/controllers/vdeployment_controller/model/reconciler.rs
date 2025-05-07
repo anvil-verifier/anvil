@@ -71,8 +71,8 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             });
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStepView::AfterGetReplicaSets,
-                old_vrs_list: Seq::empty(),
                 new_vrs: None,
+                old_vrs_list: Seq::<VReplicaSetView>::empty(),
             };
             (state_prime, Some(RequestView::KRequest(req)))
         },
@@ -87,7 +87,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none.is_none() { // error in unmarshalling
                     (error_state(state), None)
                 } else {
-                    let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(vrs_list_or_none.unwrap(), vd);
+                    let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.unwrap(), vd), vd);
                     (
                         VDeploymentReconcileState {
                             reconcile_step: VDeploymentReconcileStepView::RollReplicas,
