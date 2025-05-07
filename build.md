@@ -72,6 +72,8 @@ Usage:
 	unspecified:		Just use existing built controller image to set up kind cluster. Assume the image is named as `local/$app-controller:v0.1.0`
 ```
 
+If deployment/test failed, you can manually run `./deploy.sh <controller_name> [local|remote]` to reset the e2e test environment.
+
 **4**
 ```
 cd e2e
