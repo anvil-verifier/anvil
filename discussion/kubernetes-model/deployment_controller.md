@@ -33,6 +33,8 @@ Reconciliation is performed by `syncDeployment`, which can be modeled as state m
 
 **Rolling Update**
 
+> This policy is currently supported
+
 ```mermaid
 graph LR
 	1((init))-->|list rs|2((list rs))
@@ -43,7 +45,9 @@ graph LR
 
 **Rollout Update**
 
-> we need to figure out how to add a "barrier" of waiting till all old pods stop running, then add new rs
+> We need to figure out how to add a "barrier" of waiting till all old pods stop running, then add new rs
+>
+> This policy is not supported yet
 
 ```mermaid
 graph LR
@@ -51,6 +55,6 @@ graph LR
 	2-->|list pod|3((after list pod))
 	3-->|ε|4((roll rs))
 	4-->|scale new rs<br>stop old rs|4
-	4-->|any old pods running<br>/all set|5((done))
+	4-->|all set|5((done))
 ```
 
