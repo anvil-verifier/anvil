@@ -13,22 +13,23 @@ NC='\033[0m'
 
 app=$(echo "$1" | tr '_' '-') # should be the controller's name (with words separated by dashes)
 app_filename=$(echo "$app" | tr '-' '_')
+cluster_name="${app}-e2e"
 registry=$2 # should be either remote or local
 
-kind get clusters | grep e2e > /dev/null 2>&1
+kind get clusters | grep $cluster_name > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo -e "${YELLOW}A kind cluster named \"e2e\" already exists. Deleting...${NC}"
-    kind delete cluster --name e2e
+    echo -e "${YELLOW}A kind cluster named \"$cluster_name\" already exists. Deleting...${NC}"
+    kind delete cluster --name $cluster_name
 fi
 
 set -xeu
 # Set up the kind cluster and load the image into the cluster
-kind create cluster --config deploy/kind.yaml
-kind load docker-image local/$app-controller:v0.1.0 --name e2e
+kind create cluster --config deploy/kind.yaml --name $cluster_name
+kind load docker-image local/$app-controller:v0.1.0 --name $cluster_name
 
 # for VDeployment, need to deploy VReplicaSet as a dependency
 if [ "$app" == "v2-vdeployment" ]; then
-    kind load docker-image local/v2-vreplicaset-controller:v0.1.0 --name e2e
+    kind load docker-image local/v2-vreplicaset-controller:v0.1.0 --name $cluster_name
 fi
 
 if [ "$app" == "v2-vreplicaset-admission" ]; then
