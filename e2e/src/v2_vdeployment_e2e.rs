@@ -25,9 +25,6 @@ use tracing::*;
 use crate::common::*;
 use deps_hack::VReplicaSet;
 
-// Note from Cody Rivera, 4/17/2025: This test is a copy of vreplicaset_e2e.rs
-// for now, but could be expanded.
-
 pub fn v_deployment() -> String {
     "
     apiVersion: anvil.dev/v1
