@@ -449,6 +449,7 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
+                    info!("We have 3 pods now with correct labels.");
                     break;
                 }
             }
