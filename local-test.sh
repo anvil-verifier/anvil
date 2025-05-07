@@ -42,32 +42,25 @@ case "$build_controller" in
         ;;
 esac
 
-# Set up the kind cluster and load the image into the cluster
-kind create cluster --config deploy/kind.yaml
-kind load docker-image local/$app-controller:v0.1.0
-
-# Deploy the controller as a pod to the kind cluster, using the image just loaded
-./deploy.sh $app local
-
 # for VDeployment, need to deploy VReplicaSet as a dependency
 if [ "$app" == "v2-vdeployment" ]; then
-    app="v2-vreplicaset"
-    app_filename="v2_vreplicaset"
     case "$build_controller" in
         local)
-            echo "Building $app controller binary"
-            ./build.sh "${app_filename}_controller.rs" "--no-verify" $@
-            echo "Building $app controller image"
-            docker build -f $dockerfile_path -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+            echo "Building v2-vreplicaset controller binary"
+            ./build.sh "v2_vreplicaset_controller.rs" "--no-verify" $@
+            echo "Building v2-vreplicaset controller image"
+            docker build -f $dockerfile_path -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
             ;;
         remote)
-            echo "Building $app controller image using builder"
+            echo "Building v2-vreplicaset controller image using builder"
             dockerfile_path="docker/controller/Dockerfile.remote"
-            docker build -f $dockerfile_path -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
+            docker build -f $dockerfile_path -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
             ;;
         no)
-            echo "Use existing $app controller image"
+            echo "Use existing v2-vreplicaset controller image"
             ;;
     esac
-    kind load docker-image local/$app-controller:v0.1.0
 fi
+
+# Setup cluster, deploy the controller as a pod to the kind cluster, using the image just loaded
+./deploy.sh $app local
