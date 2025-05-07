@@ -182,11 +182,7 @@ jobs:
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Pin home to version 0.5.9 (workaround)
         run: |
-<<<<<<< HEAD
           ln -s $HOME/verus ../verus
-=======
-          sed -i "s/\.\.\/verus/${HOME}\/verus/g" Cargo.toml
->>>>>>> 1c4177f (fix sed in conformance test)
           cargo update home --precise 0.5.9
       - name: Run unit tests
         run: cargo test unit_tests
