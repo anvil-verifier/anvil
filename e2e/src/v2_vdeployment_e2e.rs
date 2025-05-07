@@ -87,23 +87,14 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
                 } else if vrs_list.items.len() == 1 {
                     info!("We have 1 VReplicaSet now.");
                     let rs = vrs_list.items[0].clone();
-                    if !(rs.metadata.labels.is_some()
-                        && rs.metadata.labels.as_ref().unwrap().get("app").is_some()
-                        && rs
-                            .metadata
-                            .labels
-                            .as_ref()
-                            .unwrap()
-                            .get("app")
-                            .unwrap()
-                            .clone()
-                            == "pause-demo".to_string())
+                    if rs.metadata.labels.is_some()
+                        && rs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                     {
-                        info!("Labels are incorrect; should have app:pause-demo.");
-                        return Err(Error::VReplicaSetFailed);
-                    } else {
                         info!("We have 1 VReplicaSet now with correct labels.");
                         break;
+                    } else {
+                        info!("Labels are incorrect; should have app:pause-demo.");
+                        return Err(Error::VReplicaSetFailed);
                     }
                 } else {
                     info!("VReplicaSet number is {} which is not 1.", vrs_list.items.len());
@@ -141,18 +132,11 @@ pub async fn desired_state_test(client: Client, vd_name: String) -> Result<(), E
                 } else {
                     info!("We have 3 pods now.");
                     for pod in pods.items.iter() {
-                        if !(pod.metadata.labels.is_some()
-                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some()
-                            && pod
-                                .metadata
-                                .labels
-                                .as_ref()
-                                .unwrap()
-                                .get("app")
-                                .unwrap()
-                                .clone()
-                                == "pause-demo".to_string())
+                        if pod.metadata.labels.is_some()
+                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                         {
+                            info!("Pod {} labels are correct.", pod.metadata.name.as_ref().unwrap());
+                        } else {
                             info!("Labels are incorrect; should have app:pause-demo.");
                             return Err(Error::VReplicaSetFailed);
                         }
@@ -212,18 +196,11 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
                 } else {
                     info!("We have 5 pods now.");
                     for pod in pods.items.iter() {
-                        if !(pod.metadata.labels.is_some()
-                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some()
-                            && pod
-                                .metadata
-                                .labels
-                                .as_ref()
-                                .unwrap()
-                                .get("app")
-                                .unwrap()
-                                .clone()
-                                == "pause-demo".to_string())
+                        if pod.metadata.labels.is_some()
+                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                         {
+                            info!("Pod {} labels are correct.", pod.metadata.name.as_ref().unwrap());
+                        } else {
                             info!("Labels are incorrect; should have app:pause-demo.");
                             return Err(Error::VReplicaSetFailed);
                         }
@@ -306,18 +283,11 @@ pub async fn scaling_test(client: Client, vd_name: String) -> Result<(), Error> 
                 } else {
                     info!("We have 3 pods now.");
                     for pod in pods.items.iter() {
-                        if !(pod.metadata.labels.is_some()
-                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some()
-                            && pod
-                                .metadata
-                                .labels
-                                .as_ref()
-                                .unwrap()
-                                .get("app")
-                                .unwrap()
-                                .clone()
-                                == "pause-demo".to_string())
+                        if pod.metadata.labels.is_some()
+                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                         {
+                            info!("Pod {} labels are correct.", pod.metadata.name.as_ref().unwrap());
+                        } else {
                             info!("Labels are incorrect; should have app:pause-demo.");
                             return Err(Error::VReplicaSetFailed);
                         }
@@ -365,7 +335,7 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let vrs_api: Api<VReplicaSet> = Api::default_namespaced(client.clone());
 
-    // add one more label pair
+    // replace image
     run_command(
         "kubectl",
         vec![
@@ -374,7 +344,118 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
             vd_name.as_str(),
             "--type=json",
             "-p",
-            &("[{\"op\": \"add\", \"path\": \"/spec/template/metadata/labels/foo\", \"value\": \"bar\"}]"),
+            &("[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/image\", \"value\": \"k8s.gcr.io/pause:3.10\"}]"),
+        ],
+        "failed to patch VReplicaSet",
+    );
+
+    // wait till we have 2 vrs
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on template patch test");
+            return Err(Error::Timeout);
+        }
+
+        let vrs_list = vrs_api.list(&ListParams::default()).await;
+        match vrs_list {
+            Err(e) => {
+                info!("List VReplicaSet failed with error {}.", e);
+                continue;
+            }
+            Ok(vrs_list) => {
+                if vrs_list.items.len() != 2 {
+                    info!(
+                        "VReplicaSet number is {} which is not 2.",
+                        vrs_list.items.len()
+                    );
+                    return Err(Error::VReplicaSetFailed);
+                }
+                // check if the new VReplicaSet has the correct image
+                let mut wait_for_old_vrs = false;
+                for vrs in vrs_list.items.iter() {
+                    if vrs.metadata.labels.is_some()
+                        && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                        && vrs.spec.replicas.is_some_and(|v| v == 3)
+                        && vrs.spec.template.is_some()
+                        && vrs.spec.template.as_ref().unwrap().spec.is_some()
+                        && vrs.spec.template.as_ref().unwrap().spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.10")
+                    {
+                        info!("New VReplicaSet has correct label, image and is scaled up.");
+                    } else if vrs.metadata.labels.is_some()
+                        && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                        && vrs.spec.template.is_some()
+                        && vrs.spec.template.as_ref().unwrap().spec.is_some()
+                        && vrs.spec.template.as_ref().unwrap().spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.9")
+                    {
+                        if vrs.spec.replicas.is_some_and(|v| v == 0) {
+                            info!("Old VReplicaSet is scaled down.");
+                        } else {
+                            info!("Old VReplicaSet is not scaled down yet.");
+                            wait_for_old_vrs = true;
+                        }
+                    } else {
+                        info!("VRS image update failed. Details:\n {:#?}", vrs);
+                        return Err(Error::VReplicaSetFailed);
+                    }
+                }
+                if wait_for_old_vrs {
+                    continue;
+                }
+                break;
+            }
+        }
+    }
+
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            error!("Time out on template patch test");
+            return Err(Error::Timeout);
+        }
+
+        let pods = pod_api.list(&ListParams::default()).await;
+        match pods {
+            Err(e) => {
+                info!("List pods failed with error {}.", e);
+                continue;
+            }
+            Ok(pods) => {
+                if pods.items.len() != 3 {
+                    info!(
+                        "Pod number is {} which is not 3; still reconciliating.",
+                        pods.items.len()
+                    );
+                    continue;
+                } else {
+                    for pod in pods.items.iter() {
+                        if pod.metadata.labels.is_some()
+                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                            && pod.spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.10")
+                        {
+                            info!("Pod {} labels and image are correct.", pod.metadata.name.as_ref().unwrap());
+                        } else {
+                            info!("Pod {} labels or image are incorrect; should have app:pause-demo and k8s.gcr.io/pause:3.10.", pod.metadata.name.as_ref().unwrap());
+                            return Err(Error::VReplicaSetFailed);
+                        }
+                    }
+                    info!("We have 3 pods now with correct image.");
+                    break;
+                }
+            }
+        }
+    }
+
+    // replace template labels and selector at once
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "vd",
+            vd_name.as_str(),
+            "--type=json",
+            "-p",
+            &("[{\"op\": \"replace\", \"path\": \"/spec/template/metadata/labels/app\", \"value\": \"bar\"}, {\"op\": \"replace\", \"path\": \"/spec/selector/matchLabels/app\", \"value\": \"bar\"}]"),
         ],
         "failed to patch VReplicaSet",
     );
@@ -393,17 +474,54 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
                 continue;
             }
             Ok(vrs_list) => {
-                if vrs_list.items.len() < 2 {
+                if vrs_list.items.len() < 3 {
                     info!(
                         "VReplicaSet number is {} which is not 2, still creating.",
                         vrs_list.items.len()
                     );
                     continue;
-                } else if vrs_list.items.len() > 2 {
+                } else if vrs_list.items.len() > 3 {
                     info!("VReplicaSet number is {} which is larger than 2.", vrs_list.items.len());
                     return Err(Error::VReplicaSetFailed);
                 } else {
-                    info!("We have 2 VReplicaSets now.");
+                    info!("We have 3 VReplicaSets now.");
+                    let mut wait_for_old_vrs = false;
+                    for vrs in vrs_list.items.iter() {
+                        if vrs.metadata.labels.is_some()
+                            // vrs metadata labels should not change
+                            && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                            && vrs.spec.replicas.is_some_and(|v| v == 3)
+                            && vrs.spec.template.is_some()
+                            && vrs.spec.template.as_ref().unwrap().metadata.is_some()
+                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.is_some()
+                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.as_ref().unwrap().get("app").is_some_and(|v| v == "bar")
+                            && vrs.spec.selector.match_labels.is_some()
+                            && vrs.spec.selector.match_labels.as_ref().unwrap().get("app").is_some_and(|v| v == "bar")
+                        {
+                            info!("New VRS {} has correct labels and selector.", vrs.metadata.name.as_ref().unwrap());
+                        } else if vrs.metadata.labels.is_some()
+                            && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                            && vrs.spec.template.is_some()
+                            && vrs.spec.template.as_ref().unwrap().metadata.is_some()
+                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.is_some()
+                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                            && vrs.spec.selector.match_labels.is_some()
+                            && vrs.spec.selector.match_labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                        {
+                            if vrs.spec.replicas.is_some_and(|v| v == 0) {
+                                info!("Old VRS {} is correctly scaled down.", vrs.metadata.name.as_ref().unwrap());
+                            } else {
+                                info!("Old VRS {} is not scaled down yet.", vrs.metadata.name.as_ref().unwrap());
+                                wait_for_old_vrs = true;
+                            }
+                        } else {
+                            info!("VRS template label/selector update failed. Details:\n {:#?}", vrs);
+                            return Err(Error::VReplicaSetFailed);
+                        }
+                    }
+                    if wait_for_old_vrs {
+                        continue;
+                    }
                     break;
                 }
             }
@@ -434,18 +552,9 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
                 } else {
                     for pod in pods.items.iter() {
                         if !(pod.metadata.labels.is_some()
-                            && pod.metadata.labels.as_ref().unwrap().get("foo").is_some()
-                            && pod
-                                .metadata
-                                .labels
-                                .as_ref()
-                                .unwrap()
-                                .get("foo")
-                                .unwrap()
-                                .clone()
-                                == "bar".to_string())
+                            && pod.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "bar"))
                         {
-                            info!("Labels are incorrect; should have foo:bar.");
+                            info!("Pod {} labels are incorrect; should have foo:bar.", pod.metadata.name.as_ref().unwrap());
                             return Err(Error::VReplicaSetFailed);
                         }
                     }
