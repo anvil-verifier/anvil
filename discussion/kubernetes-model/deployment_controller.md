@@ -28,33 +28,3 @@ Reconciliation is performed by `syncDeployment`, which can be modeled as state m
 > In k8s implementation it's [possible](https://github.com/kubernetes/kubernetes/blob/cdc807a9e849b651fb48c962cc18e25d39ec5edf/pkg/controller/deployment/util/deployment_util.go#L633-L634) to have multiple new replica sets in rare cases
 
 **: The scale up/down process should satisfy `maxSurge` and `maxUnavailable` properties of DC, which means DC may not scale the controlled new & old RS to desired replicas in one step. Instead DC will scale up & down gradually in turn. Currently we do not model this feature.
-
-## Reconciliation State Machine
-
-**Rolling Update**
-
-> This policy is currently supported
-
-```mermaid
-graph LR
-	1((init))-->|list rs|2((list rs))
-	2-->|ε|3((roll rs))
-	3-->|scale new rs<br>scale old rs|3
-	3-->4((done))
-```
-
-**Rollout Update**
-
-> We need to figure out how to add a "barrier" of waiting till all old pods stop running, then add new rs
->
-> This policy is not supported yet
-
-```mermaid
-graph LR
-	1((init))-->|list rs|2((after list rs))
-	2-->|list pod|3((after list pod))
-	3-->|ε|4((roll rs))
-	4-->|scale new rs<br>stop old rs|4
-	4-->|all set|5((done))
-```
-

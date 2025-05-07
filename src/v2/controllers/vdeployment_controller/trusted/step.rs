@@ -10,6 +10,12 @@ pub enum VDeploymentReconcileStep {
     Error,
 }
 
+// state machine of rolling update:
+// init -- list vrs -> AfterGetReplicaSets
+// AfterGetReplicaSets --> RollReplicas
+// RollReplicas -- update old and new vrs -> RollReplicas
+// RollReplicas -- pass check -> Done
+
 impl std::marker::Copy for VDeploymentReconcileStep {}
 
 impl std::clone::Clone for VDeploymentReconcileStep {
