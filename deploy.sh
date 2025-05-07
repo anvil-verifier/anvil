@@ -31,6 +31,11 @@ if [ "$app" == "v2-vdeployment" ]; then
     kind load docker-image local/v2-vreplicaset-controller:v0.1.0 --name e2e
 fi
 
+if [ "$app" == "v2-vreplicaset-admission" ]; then
+    cd src/v2/controllers/vreplicaset_controller/admission_control && ./setup.sh
+    exit 0
+fi
+
 # use imperative management for CRDs since metadata for PodTemplateSpec is too long.
 # why don't we directly create CRD using kube API?
 if cd deploy/$app_filename && { for crd in $(ls crd*.yaml); do kubectl create -f "$crd"; done } && kubectl apply -f rbac.yaml && kubectl apply -f deploy_$registry.yaml; then
