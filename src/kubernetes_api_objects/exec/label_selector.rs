@@ -72,7 +72,7 @@ impl LabelSelector {
     pub fn matches(&self, labels: StringMap) -> (res: bool)
         ensures
             res == self@.matches(labels@),
-            res ==> self@.match_labels.is_None() || labels@.len() >= self@.match_labels.get_Some_0().len(),
+            res ==> self@.match_labels.is_None(),
     {
         if self.match_labels().is_none() {
             true

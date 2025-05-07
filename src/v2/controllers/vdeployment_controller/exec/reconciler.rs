@@ -159,8 +159,8 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     return (error_state(state), None);
                 }
                 let mut new_vrs = state.new_vrs.clone().unwrap();
-                let existing_replicas = if new_vrs.spec().replicas().is_none() {1} else {new_vrs.spec().replicas().unwrap()};
-                let expected_replicas = if vd.spec().replicas().is_none() {1} else {vd.spec().replicas().unwrap()};
+                let existing_replicas = new_vrs.spec().replicas().unwrap_or(1);
+                let expected_replicas = vd.spec().replicas().unwrap_or(1);
                 if existing_replicas != expected_replicas { 
                     // update existing new vrs
                     // TODO: is it valid for replicas on both sides to be None?
@@ -184,7 +184,8 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     let mut old_vrs_list = state.old_vrs_list.clone();
                     let mut old_vrs = old_vrs_list.pop().unwrap();
                     // why this assertion is required
-                    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == state.old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(state.old_vrs_list@.len() - 1 as int));
+                    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
+                        == state.old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(state.old_vrs_list@.len() - 1 as int));
                     if !old_vrs.well_formed() {
                         return (error_state(state), None);
                     }
