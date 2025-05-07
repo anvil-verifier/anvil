@@ -106,10 +106,13 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 api_resource: VReplicaSet::api_resource(),
                 namespace: namespace,
             });
+            let old_vrs_list = Vec::<VReplicaSet>::new();
+            // why this assertion is required
+            assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == Seq::<VReplicaSetView>::empty());
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStep::AfterGetReplicaSets,
                 new_vrs: None,
-                old_vrs_list: Vec::new(),
+                old_vrs_list: old_vrs_list,
             };
             return (state_prime, Some(Request::KRequest(req)))
         },
@@ -124,7 +127,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);
             }
-            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(vrs_list_or_none.clone().unwrap(), vd);
+            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd), vd);
             return (
                 VDeploymentReconcileState {
                     reconcile_step: VDeploymentReconcileStep::RollReplicas,
@@ -152,7 +155,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 };
                 return (state_prime, Some(Request::KRequest(req)))
             } else {
-                if !state.new_vrs.unwrap().well_formed() {
+                if !state.new_vrs.as_ref().unwrap().well_formed() {
                     return (error_state(state), None);
                 }
                 let mut new_vrs = state.new_vrs.clone().unwrap();
@@ -168,7 +171,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                         api_resource: VReplicaSet::api_resource(),
                         namespace: namespace,
                         name: new_vrs.metadata().name().unwrap(),
-                        obj: new_vrs.marshal()
+                        obj: new_vrs.clone().marshal()
                     });
                     let state_prime = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStep::RollReplicas,
@@ -180,6 +183,8 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                     // scale filter_old_and_new_vrsdown old vrs to zero
                     let mut old_vrs_list = state.old_vrs_list.clone();
                     let mut old_vrs = old_vrs_list.pop().unwrap();
+                    // why this assertion is required
+                    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == state.old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(state.old_vrs_list@.len() - 1 as int));
                     if !old_vrs.well_formed() {
                         return (error_state(state), None);
                     }
