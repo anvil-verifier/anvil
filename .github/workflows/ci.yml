@@ -471,22 +471,28 @@ jobs:
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset
   vdeployment-e2e-test:
+    needs:
+      - build-and-cache-verus
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "^1.20"
       - name: Install kind
         run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-          . "$HOME/.cargo/env"
-          rustup toolchain install
       - name: Deploy v2-vdeployment controller
-        run: ./local-test.sh v2-vdeployment
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vdeployment --build
       - name: Run vdeployment e2e tests
-        run: cd e2e && cargo run -- v2-vdeployment
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vdeployment
 
