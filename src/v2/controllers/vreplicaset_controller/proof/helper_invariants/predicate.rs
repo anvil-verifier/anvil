@@ -10,7 +10,12 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{
+        liveness_theorem::*, 
+        rely_guarantee::*, 
+        spec_types::*, 
+        step::*
+    },
     proof::{predicate::*},
 };
 use vstd::prelude::*;
@@ -70,7 +75,7 @@ pub open spec fn no_pending_interfering_update_request() -> StatePred<ClusterSta
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         } ==> match msg.content.get_APIRequest_0() {
-            APIRequest::UpdateRequest(req) => vrs_not_interfered_by_update_req(req)(s),
+            APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
             _ => true,
         }
     }
@@ -83,7 +88,7 @@ pub open spec fn no_pending_interfering_update_status_request() -> StatePred<Clu
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         } ==> match msg.content.get_APIRequest_0() {
-            APIRequest::UpdateStatusRequest(req) => vrs_not_interfered_by_update_status_req(req)(s),
+            APIRequest::UpdateStatusRequest(req) => vrs_rely_update_status_req(req)(s),
             _ => true,
         }
     }
