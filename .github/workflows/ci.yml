@@ -497,7 +497,7 @@ jobs:
           kind create cluster --config deploy/kind.yaml
           kind load docker-image local/admission-controller:v0.1.0
           cd e2e
-          ./admission_setup.sh vstatefulset vstateful
+          ./admission_setup.sh vstatefulset vstatefulsets
       - name: Run vstatefulset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vstatefulset-admission
   vreplicaset-e2e-test:
