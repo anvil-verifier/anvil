@@ -80,6 +80,29 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn add_label(self, key: StringView, value: StringView) -> ObjectMetaView {
+        let old_map = if self.labels.is_None() {
+            Map::empty()
+        } else {
+            self.labels.get_Some_0()
+        };
+        ObjectMetaView {
+            labels: Some(old_map.insert(key, value)),
+            ..self
+        }
+    }
+
+    pub open spec fn without_label(self, key: StringView) -> ObjectMetaView {
+        if self.labels.is_Some() {
+            ObjectMetaView {
+                labels: Some(self.labels.unwrap().remove(key)),
+                ..self
+            }
+        } else {
+            self
+        }
+    }
+
     pub open spec fn with_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             annotations: Some(annotations),

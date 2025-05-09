@@ -5,8 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::option_lib::*;
-use crate::vstd_ext::string_map::StringMap;
+use crate::vstd_ext::{option_lib::*, string_map::StringMap, seq_lib::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -346,7 +345,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         let filter_result = model_input.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err());
         assert(filter_result.len() == 0) by {
             if filter_result.len() != 0 {
-                lemma_filter_contains_implies_contains(
+                seq_filter_contains_implies_seq_contains(
                     model_input,
                     |o: DynamicObjectView| PodView::unmarshal(o).is_err(),
                     filter_result[0]
@@ -359,25 +358,6 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
     }
 
     Some(pods)
-}
-
-proof fn lemma_filter_contains_implies_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, e: A)
-    requires s.filter(pred).contains(e),
-    ensures s.contains(e),
-    decreases s.len(),
-{
-    reveal(Seq::filter);
-    if s.len() == 0 {
-        // Trivially true.
-    } else {
-        // Induction structure follows implementation of .filter().
-        if s.last() == e {
-            // The witness for .contains() is the last index.
-        } else {
-            // Inductive step.
-            lemma_filter_contains_implies_contains(s.drop_last(), pred, e);
-        }
-    }
 }
 
 // TODO: This function can be replaced by a map.
@@ -425,14 +405,9 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
                 filtered_pods@.map_values(|p: Pod| p@)
             };
             assert(old_filtered == pods@.map_values(|p: Pod| p@).take(idx as int).filter(spec_filter));
-            lemma_filter_maintained_after_add(
-                pods@.map_values(|p: Pod| p@).take(idx as int),
-                spec_filter,
-                old_filtered,
-                pod@
-            );
+            push_filter_and_filter_push(pods@.map_values(|p: Pod| p@).take(idx as int), spec_filter, pod@);
             assert(pods@.map_values(|p: Pod| p@).take(idx as int).push(pod@)
-                    == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
+                   == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
             assert(spec_filter(pod@) ==> filtered_pods@.map_values(|p: Pod| p@) == old_filtered.push(pod@));
         }
 
@@ -440,18 +415,6 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
     }
     assert(pods@.map_values(|p: Pod| p@) == pods@.map_values(|p: Pod| p@).take(pods.len() as int));
     filtered_pods
-}
-
-proof fn lemma_filter_maintained_after_add<A>(s: Seq<A>, pred: spec_fn(A) -> bool, filtered_s: Seq<A>, new_elt: A)
-    requires filtered_s == s.filter(pred),
-    ensures
-        (pred(new_elt) ==> filtered_s.push(new_elt) == s.push(new_elt).filter(pred)),
-        (!pred(new_elt) ==> filtered_s == s.push(new_elt).filter(pred)),
-{
-    // Lemma follows from body of Seq::filter.
-    reveal(Seq::filter);
-    // For some reason, this law needs to be explicitly asserted.
-    assert(s.push(new_elt).drop_last() == s);
 }
 
 fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)

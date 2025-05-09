@@ -22,7 +22,36 @@ impl View for VReplicaSet {
     spec fn view(&self) -> spec_types::VReplicaSetView;
 }
 
+impl std::clone::Clone for VReplicaSet {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self,
+    {
+        VReplicaSet { inner: self.inner.clone() }
+    }
+}
+
 impl VReplicaSet {
+    #[verifier(external_body)]
+    pub fn default() -> (vreplicaset: VReplicaSet)
+        ensures vreplicaset@ == spec_types::VReplicaSetView::default(),
+    {
+        VReplicaSet {
+            inner: deps_hack::VReplicaSet {
+                metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+                spec: deps_hack::VReplicaSetSpec::default(),
+            }
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed()
+        && self.state_validation()
+    }
+
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
@@ -50,6 +79,20 @@ impl VReplicaSet {
     {
         // We can safely unwrap here because the trait method implementation always returns a Some(...)
         OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
+        ensures self@ == old(self)@.with_metadata(metadata@),
+    {
+        self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: VReplicaSetSpec)
+        ensures self@ == old(self)@.with_spec(spec@),
+    {
+        self.inner.spec = spec.into_kube();
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -104,7 +147,11 @@ impl VReplicaSet {
             }
             
             // Map::empty() did not compile
-            if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+            if let Some(labels) = template.metadata().unwrap().labels() {
+                if !self.spec().selector().matches(labels) {
+                    return false;
+                }
+            } else {
                 return false;
             }
 
@@ -130,6 +177,19 @@ pub struct VReplicaSetSpec {
 
 impl VReplicaSetSpec {
     pub spec fn view(&self) -> spec_types::VReplicaSetSpecView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (vreplicaset_spec: VReplicaSetSpec)
+        ensures vreplicaset_spec@ == spec_types::VReplicaSetSpecView::default(),
+    {
+        VReplicaSetSpec {
+            inner: deps_hack::VReplicaSetSpec {
+                replicas: None,
+                selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
+                template: None,
+            },
+        }
+    }
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
@@ -158,6 +218,34 @@ impl VReplicaSetSpec {
             None => None
         }
     }
+
+    #[verifier(external_body)]
+    pub fn set_replicas(&mut self, replicas: i32)
+        ensures self@ == old(self)@.with_replicas(replicas as int),
+    {
+        self.inner.replicas = Some(replicas);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_selector(&mut self, selector: LabelSelector)
+       ensures self@ == old(self)@.with_selector(selector@),
+    {
+        self.inner.selector = selector.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_template(&mut self, template: PodTemplateSpec)
+        ensures self@ == old(self)@.with_template(template@),
+    {
+        self.inner.template = Some(template.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::VReplicaSetSpec { self.inner }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::VReplicaSetSpec) -> VReplicaSetSpec { VReplicaSetSpec { inner: inner } }
+
 }
 
 }

@@ -9,7 +9,7 @@ spec:
     kind: VDeployment
     plural: vdeployments
     shortNames:
-    - vrs
+    - vd
     singular: vdeployment
   scope: Namespaced
   versions:
@@ -4743,3 +4743,4 @@ spec:
     served: true
     storage: true
     subresources: {}
+

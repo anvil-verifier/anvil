@@ -272,7 +272,7 @@ pub struct FluentBitConfigSpec {
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource, Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
 #[kube(shortname = "vrs", namespaced)]
@@ -286,7 +286,7 @@ pub struct VReplicaSetSpec {
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VDeployment")]
-#[kube(shortname = "vrs", namespaced)]
+#[kube(shortname = "vd", namespaced)]
 pub struct VDeploymentSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,

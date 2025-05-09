@@ -48,6 +48,16 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
+    pub fn remove(&mut self, key: &String) -> (old_v: Option<String>)
+        ensures
+            self@ == old(self)@.remove(key@),
+            old(self)@.contains_key(key@) == old_v.is_Some(),
+            old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
+    {
+        self.inner.remove(key)
+    }
+
+    #[verifier(external_body)]
     pub fn get_uncloned(&self, key: &String) -> (v: Option<&String>)
         ensures
             self@.contains_key(key@) == v.is_Some(),

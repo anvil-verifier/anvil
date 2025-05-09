@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
+    label_selector::*, pod_template_spec::*, prelude::*,
 };
-use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::vdeployment_controller::trusted::step::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -127,9 +124,11 @@ impl ResourceView for VDeploymentView {
         // template and its metadata ane spec exists
         &&& self.spec.template.is_Some()
         &&& self.spec.template.get_Some_0().metadata.is_Some()
+        // can be derived from selector match labels
+        &&& self.spec.template.get_Some_0().metadata.get_Some_0().labels.is_Some()
         &&& self.spec.template.get_Some_0().spec.is_Some()
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.unwrap_or(Map::empty()))
+        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.get_Some_0())
     }
 
     open spec fn transition_validation(self, old_obj: VDeploymentView) -> bool {

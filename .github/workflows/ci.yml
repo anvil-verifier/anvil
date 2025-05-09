@@ -424,13 +424,7 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset admission controller
-        run: |
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --no-verify --time
-          docker build -f docker/controller/Dockerfile.local -t local/vreplicaset-admission-controller:v0.1.0 --build-arg APP=v2_vreplicaset_admission .
-          kind create cluster --config deploy/kind.yaml
-          kind load docker-image local/vreplicaset-admission-controller:v0.1.0
-          cd src/v2/controllers/vreplicaset_controller/admission_control
-          ./setup.sh
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
         run: cd src/v2/controllers/vreplicaset_controller/admission_control/tests && cargo run
   vreplicaset-e2e-test:
@@ -458,3 +452,29 @@ jobs:
         run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset --build-remote
       - name: Run vreplicaset e2e tests
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset
+  vdeployment-e2e-test:
+    needs:
+      - build-and-cache-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.20"
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.23.0
+      - name: Deploy v2-vdeployment controller
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vdeployment --build
+      - name: Run vdeployment e2e tests
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vdeployment
+

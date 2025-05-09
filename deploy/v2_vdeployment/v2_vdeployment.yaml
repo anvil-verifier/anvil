@@ -1,0 +1,19 @@
+apiVersion: anvil.dev/v1
+kind: VDeployment
+metadata:
+  name: pause-deployment
+  labels:
+    app: pause-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pause-demo
+  template:
+    metadata:
+      labels:
+        app: pause-demo
+    spec:
+      containers:
+      - name: pause
+        image: k8s.gcr.io/pause:3.9

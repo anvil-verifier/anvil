@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
 use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use crate::vreplicaset_controller::trusted::exec_types::{VReplicaSet, VReplicaSetSpec};

@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 #[path = "v2/external_shim_layer/mod.rs"]
 pub mod external_shim_layer;
 pub mod kubernetes_api_objects;
@@ -12,6 +14,8 @@ pub mod temporal_logic;
 #[path = "v2/controllers/vdeployment_controller/mod.rs"]
 pub mod vdeployment_controller;
 pub mod vstd_ext;
+#[path = "v2/controllers/vreplicaset_controller/mod.rs"]
+pub mod vreplicaset_controller;
 
 // use crate::external_shim_layer::VoidExternalShimLayer;
 // use crate::vdeployment_controller::exec::reconciler::VDeploymentReconciler;
@@ -23,6 +27,8 @@ use deps_hack::tracing::{error, info};
 use deps_hack::tracing_subscriber;
 use shim_layer::controller_runtime::run_controller;
 use std::env;
+use crate::external_shim_layer::VoidExternalShimLayer;
+use crate::vdeployment_controller::exec::reconciler::VDeploymentReconciler;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,18 +38,18 @@ async fn main() -> Result<()> {
 
     if cmd == String::from("export") {
         println!("{}", serde_yaml::to_string(&deps_hack::VDeployment::crd())?);
-    // } else if cmd == String::from("run") {
-    //     info!("running vdeployment-controller");
-    //     run_controller::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer>(
-    //         false,
-    //     )
-    //     .await?;
-    // } else if cmd == String::from("crash") {
-    //     info!("running vdeployment-controller in crash-testing mode");
-    //     run_controller::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer>(
-    //         true,
-    //     )
-    //     .await?;
+    } else if cmd == String::from("run") {
+        info!("running vdeployment-controller");
+        run_controller::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer>(
+            false,
+        )
+        .await?;
+    } else if cmd == String::from("crash") {
+        info!("running vdeployment-controller in crash-testing mode");
+        run_controller::<deps_hack::VDeployment, VDeploymentReconciler, VoidExternalShimLayer>(
+            true,
+        )
+        .await?;
     } else {
         error!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
