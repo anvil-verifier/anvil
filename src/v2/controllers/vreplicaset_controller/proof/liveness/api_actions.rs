@@ -10,7 +10,12 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{
+        liveness_theorem::*, 
+        rely_guarantee::*, 
+        spec_types::*, 
+        step::*
+    },
     proof::{helper_invariants, predicate::*},
 };
 use crate::vstd_ext::{map_lib::*, set_lib::*, seq_lib::*};
@@ -40,7 +45,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         forall |diff: nat| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterCreatePod(diff))(s)),
         forall |diff: nat| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+            ==> #[trigger] vrs_rely(other_id)(s)
     ensures
         matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()),
 {
@@ -49,7 +54,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         assert(
             (id != controller_id ==> cluster.controller_models.remove(controller_id).contains_key(id)));
         // Invoke non-interference lemma by trigger.
-        assert(id != controller_id ==> vrs_not_interfered_by(id)(s));
+        assert(id != controller_id ==> vrs_rely(id)(s));
     }
 
     // Dispatch through all the requests which may mutate the k-v store.
@@ -108,7 +113,7 @@ pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
         helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s),
         helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> #[trigger] vrs_not_interfered_by(other_id)(s)
+            ==> #[trigger] vrs_rely(other_id)(s)
     ensures
         matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()),
 {
@@ -117,7 +122,7 @@ pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
         assert(
             (id != controller_id ==> cluster.controller_models.remove(controller_id).contains_key(id)));
         // Invoke non-interference lemma by trigger.
-        assert(id != controller_id ==> vrs_not_interfered_by(id)(s));
+        assert(id != controller_id ==> vrs_rely(id)(s));
     }
 
     // Dispatch through all the requests which may mutate the k-v store.

@@ -14,7 +14,12 @@ use crate::kubernetes_cluster::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{liveness_theorem::*, spec_types::*, step::*},
+    trusted::{
+        liveness_theorem::*, 
+        rely_guarantee::*,
+        spec_types::*, 
+        step::*
+    },
     proof::{helper_invariants::{predicate::*, proof::*}, helper_lemmas::*, liveness::*, predicate::*},
 };
 use crate::reconciler::spec::io::*;
@@ -247,29 +252,29 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         // No other controllers interfere with the vrs controller.
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures provided_spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)).entails(true_pred().leads_to(invariants_since_phase_n(i, vrs, cluster, controller_id))),
 {
     let spec = provided_spec.and(spec_before_phase_n(i, vrs, cluster, controller_id));
     // assert non-interference property on combined spec.
     assert forall |other_id| 
         (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))))
+            ==> provided_spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))))
         implies 
         cluster.controller_models.remove(controller_id).contains_key(other_id) 
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))) by {
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))) by {
         if cluster.controller_models.remove(controller_id).contains_key(other_id) {
-            assert(provided_spec.entails(always(lift_state(vrs_not_interfered_by(other_id)))));
+            assert(provided_spec.entails(always(lift_state(vrs_rely(other_id)))));
             entails_and_different_temp(
                 provided_spec,
                 spec_before_phase_n(i, vrs, cluster, controller_id),
-                always(lift_state(vrs_not_interfered_by(other_id))),
+                always(lift_state(vrs_rely(other_id))),
                 true_pred()
             );
-            assert(spec.entails(always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred())));
+            assert(spec.entails(always(lift_state(vrs_rely(other_id))).and(true_pred())));
             temp_pred_equality(
-                always(lift_state(vrs_not_interfered_by(other_id))).and(true_pred()),
-                always(lift_state(vrs_not_interfered_by(other_id)))
+                always(lift_state(vrs_rely(other_id))).and(true_pred()),
+                always(lift_state(vrs_rely(other_id)))
             );
         }
     }
@@ -351,17 +356,17 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 
 pub open spec fn stable_spec(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
     next_with_wf(cluster, controller_id)
-    .and(always(lifted_vrs_non_interference_property(cluster, controller_id)))
+    .and(always(lifted_vrs_rely_condition(cluster, controller_id)))
 }
 
 pub proof fn stable_spec_is_stable(cluster: Cluster, controller_id: int)
     ensures valid(stable(stable_spec(cluster, controller_id))),
 {
     next_with_wf_is_stable(cluster, controller_id);
-    always_p_is_stable(lifted_vrs_non_interference_property(cluster, controller_id));
+    always_p_is_stable(lifted_vrs_rely_condition(cluster, controller_id));
     stable_and_n!(
         next_with_wf(cluster, controller_id),
-        always(lifted_vrs_non_interference_property(cluster, controller_id))
+        always(lifted_vrs_rely_condition(cluster, controller_id))
     );
 }
 
@@ -370,7 +375,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
         spec.entails(lift_state(cluster.init())),
         spec.entails(next_with_wf(cluster, controller_id)),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-            ==> spec.entails(always(lift_state(#[trigger] vrs_not_interfered_by(other_id)))),
+            ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
     ensures 
         spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id))
             .entails(stable_spec(cluster, controller_id).and(invariants(vrs, cluster, controller_id))),
@@ -378,7 +383,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     let pre = spec.and(derived_invariants_since_beginning(vrs, cluster, controller_id));
 
     // Proof of stable_spec
-    vrs_non_interference_property_equivalent_to_lifted_vrs_non_interference_property(
+    vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec,
         cluster,
         controller_id
@@ -386,7 +391,7 @@ pub proof fn spec_and_invariants_entails_stable_spec_and_invariants(spec: TempPr
     entails_and_n!(
         spec,
         next_with_wf(cluster, controller_id),
-        always(lifted_vrs_non_interference_property(cluster, controller_id))
+        always(lifted_vrs_rely_condition(cluster, controller_id))
     );
     
     entails_and_different_temp(
