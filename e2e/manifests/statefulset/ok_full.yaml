@@ -1,0 +1,51 @@
+apiVersion: anvil.dev/v1
+kind: VStatefulSet
+metadata:
+  name: complete-statefulset-ok
+  labels:
+    app: test-app
+    environment: production
+  annotations:
+    description: "Complete working VStatefulSet example"
+spec:
+  serviceName: "test-headless"
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-app
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: test-app
+        tier: database
+        version: v1
+    spec:
+      containers:
+        - name: database
+          image: postgres:13
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  updateStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      partition: 0
+      maxUnavailable: 1
+  podManagementPolicy: "OrderedReady"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  minReadySeconds: 10
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: "Delete"
+    whenScaled: "Retain"
+  ordinals:
+    start: 0

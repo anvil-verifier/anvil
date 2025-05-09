@@ -56,6 +56,15 @@ pub enum Error {
 
     #[error("Pods are inconsistent with replica set!")]
     VReplicaSetFailed,
+
+    #[error("StatefulSet list generation failed!")]
+    VStatefulSetListFailed,
+
+    #[error("Valid VStatefulSet failed admission!")]
+    VStatefulSetValidAdmissionFailed,
+
+    #[error("Invalid VStatefulSet passed admission!")]
+    VStatefulSetInvalidAdmissionPassed,
 }
 
 pub async fn apply_file(
