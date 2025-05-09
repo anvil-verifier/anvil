@@ -12,7 +12,6 @@ use std::fs;
 use crate::common::*;
 
 pub async fn v2_vdeployment_admission_e2e_test() -> Result<(), Error> {
-    tracing_subscriber::fmt::init();
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
     let vrs_crd = crd_api.get("vdeployments.anvil.dev").await;
