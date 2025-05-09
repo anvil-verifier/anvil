@@ -8,13 +8,9 @@ use kube::{
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use tracing::*;
 use std::fs;
-
-mod common;
 use crate::common::*;
 
-#[tokio::main]
-async fn main()-> Result<(), Error>{
-    tracing_subscriber::fmt::init();
+pub async fn v2_vstatefulset_admission_e2e_test()-> Result<(), Error>{
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
     let vrs_crd = crd_api.get("vstatefulsets.anvil.dev").await;
@@ -43,7 +39,7 @@ async fn main()-> Result<(), Error>{
     }
 
     // contains test cases
-    let manifest_dir = "../manifests/statefulset";
+    let manifest_dir = "./manifests/statefulset";
     let paths = fs::read_dir(manifest_dir).unwrap();
 
     for path in paths {
