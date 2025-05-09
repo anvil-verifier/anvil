@@ -113,6 +113,11 @@ impl UpdateStatusRequest {
     }
 }
 
+pub struct GetThenUpdateRequest {
+    pub key: ObjectRef,
+    pub f: spec_fn(DynamicObjectView) -> Option<DynamicObjectView>,
+}
+
 // APIResponse represents API responses sent from the Kubernetes API for specifications.
 
 #[is_variant]
@@ -158,6 +163,10 @@ pub struct UpdateResponse {
 // UpdateStatusResponse has the object updated by UpdateStatusRequest.
 
 pub struct UpdateStatusResponse {
+    pub res: Result<DynamicObjectView, APIError>,
+}
+
+pub struct GetThenUpdateResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 

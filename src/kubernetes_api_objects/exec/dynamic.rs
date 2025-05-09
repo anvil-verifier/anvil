@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::exec::{object_meta::*, resource::*};
 use crate::kubernetes_api_objects::spec::dynamic::*;
+use crate::vstd_ext::option_lib::option_view;
 use vstd::prelude::*;
 
 verus! {
@@ -45,6 +46,13 @@ impl std::clone::Clone for DynamicObject {
 #[verifier(external)]
 impl std::fmt::Debug for DynamicObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.inner.fmt(f) }
+}
+
+pub trait ObjectGenerator {
+    fn f_exec(obj: &DynamicObject) -> (opt_obj: Option<DynamicObject>)
+        ensures Self::f_spec(obj@) == option_view(opt_obj);
+
+    spec fn f_spec(obj: DynamicObjectView) -> Option<DynamicObjectView>;
 }
 
 }

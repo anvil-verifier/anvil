@@ -193,6 +193,27 @@ impl View for KubeUpdateStatusRequest {
     }
 }
 
+pub struct KubeGetThenUpdateRequest<T: ObjectGenerator> {
+    pub api_resource: ApiResource,
+    pub name: String,
+    pub namespace: String,
+    pub generator: T,
+}
+
+impl<T: ObjectGenerator> View for KubeGetThenUpdateRequest<T> {
+    type V = GetThenUpdateRequest;
+    open spec fn view(&self) -> GetThenUpdateRequest {
+        GetThenUpdateRequest {
+            key: ObjectRef {
+                kind: self.api_resource@.kind,
+                name: self.name@,
+                namespace: self.namespace@,
+            },
+            f: |obj: DynamicObjectView| T::f_spec(obj)
+        }
+    }
+}
+
 impl View for KubeAPIRequest {
     type V = APIRequest;
 
@@ -322,6 +343,22 @@ impl View for KubeUpdateStatusResponse {
         match self.res {
             Ok(o) => UpdateStatusResponse { res: Ok(o@) },
             Err(e) => UpdateStatusResponse { res: Err(e) },
+        }
+    }
+}
+
+// KubeUpdateResponse has the object updated by KubeUpdateRequest.
+
+pub struct KubeGetThenUpdateResponse {
+    pub res: Result<DynamicObject, APIError>,
+}
+
+impl View for KubeGetThenUpdateResponse {
+    type V = GetThenUpdateResponse;
+    open spec fn view(&self) -> GetThenUpdateResponse {
+        match self.res {
+            Ok(o) => GetThenUpdateResponse { res: Ok(o@) },
+            Err(e) => GetThenUpdateResponse { res: Err(e) },
         }
     }
 }
