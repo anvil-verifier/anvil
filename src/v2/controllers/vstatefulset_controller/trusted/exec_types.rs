@@ -98,8 +98,6 @@ impl VStatefulSet {
     }
 
     pub fn state_validation(&self) -> (res: bool)
-        requires
-            self@.spec.volume_claim_templates.is_Some() ==> self@.spec.volume_claim_templates.get_Some_0().len() < 100,
         ensures
             res == self@.state_validation()
     {
