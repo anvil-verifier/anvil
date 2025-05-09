@@ -4,17 +4,22 @@ verus! {
 
 pub enum VDeploymentReconcileStep {
     Init,
-    AfterGetReplicaSets,
-    RollReplicas,
+    AfterListVRS,
+    AfterCreateNewVRS,
+    AfterScaleNewVRS,
+    AfterScaleDownOldVRS,
     Done,
     Error,
 }
 
 // state machine of rolling update:
-// init -- list vrs -> AfterGetReplicaSets
-// AfterGetReplicaSets --> RollReplicas
-// RollReplicas -- update old and new vrs -> RollReplicas
-// RollReplicas -- pass check -> Done
+// init -- list vrs -> AfterListVRS
+// AfterListVRS --> RollReplicas
+// AfterListVRS -- create new vrs -> AfterCreateNewVRS
+// AfterCreateNewVRS -- scale new vrs -> AfterScaleNewVRS
+// AfterScaleNewVRS -- scale down old vrs -> AfterScaleDownOldVRS
+// AfterScaleDownOldVRS -- scale down old vrs -> AfterScaleDownOldVRS
+// AfterScaleDownOldVRS -- scale down old vrs -> Done
 
 impl std::marker::Copy for VDeploymentReconcileStep {}
 
@@ -30,8 +35,10 @@ impl View for VDeploymentReconcileStep {
     open spec fn view(&self) -> VDeploymentReconcileStepView {
         match self {
             VDeploymentReconcileStep::Init => VDeploymentReconcileStepView::Init,
-            VDeploymentReconcileStep::AfterGetReplicaSets => VDeploymentReconcileStepView::AfterGetReplicaSets,
-            VDeploymentReconcileStep::RollReplicas => VDeploymentReconcileStepView::RollReplicas,
+            VDeploymentReconcileStep::AfterListVRS => VDeploymentReconcileStepView::AfterListVRS,
+            VDeploymentReconcileStep::AfterCreateNewVRS => VDeploymentReconcileStepView::AfterCreateNewVRS,
+            VDeploymentReconcileStep::AfterScaleNewVRS => VDeploymentReconcileStepView::AfterScaleNewVRS,
+            VDeploymentReconcileStep::AfterScaleDownOldVRS => VDeploymentReconcileStepView::AfterScaleDownOldVRS,
             VDeploymentReconcileStep::Done => VDeploymentReconcileStepView::Done,
             VDeploymentReconcileStep::Error => VDeploymentReconcileStepView::Error,
         }
@@ -41,8 +48,10 @@ impl View for VDeploymentReconcileStep {
 #[is_variant]
 pub enum VDeploymentReconcileStepView {
     Init,
-    AfterGetReplicaSets,
-    RollReplicas,
+    AfterListVRS,
+    AfterCreateNewVRS,
+    AfterScaleNewVRS,
+    AfterScaleDownOldVRS,
     Done,
     Error,
 }

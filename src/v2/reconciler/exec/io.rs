@@ -174,6 +174,14 @@ macro_rules! is_some_k_update_resp {
 }
 
 #[macro_export]
+macro_rules! is_some_k_list_resp {
+    ($r:expr) => {
+        $r.is_some() && $r.as_ref().unwrap().is_k_response()
+        && $r.as_ref().unwrap().as_k_response_ref().is_list_response()
+    };
+}
+
+#[macro_export]
 macro_rules! extract_some_k_get_resp {
     ($r:expr) => {
         $r.unwrap().into_k_response().into_get_response().res
@@ -194,11 +202,20 @@ macro_rules! extract_some_k_update_resp {
     };
 }
 
+#[macro_export]
+macro_rules! extract_some_k_list_resp {
+    ($r:expr) => {
+        $r.unwrap().into_k_response().into_list_response().res
+    };
+}
+
 pub use is_some_k_get_resp;
 pub use is_some_k_create_resp;
 pub use is_some_k_update_resp;
+pub use is_some_k_list_resp;
 pub use extract_some_k_get_resp;
 pub use extract_some_k_create_resp;
 pub use extract_some_k_update_resp;
+pub use extract_some_k_list_resp;
 
 }

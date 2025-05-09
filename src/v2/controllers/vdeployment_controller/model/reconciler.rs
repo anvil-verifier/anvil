@@ -70,108 +70,111 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 namespace: namespace,
             });
             let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStepView::AfterGetReplicaSets,
+                reconcile_step: VDeploymentReconcileStepView::AfterListVRS,
                 new_vrs: None,
                 old_vrs_list: Seq::<VReplicaSetView>::empty(),
             };
             (state_prime, Some(RequestView::KRequest(req)))
         },
-        VDeploymentReconcileStepView::AfterGetReplicaSets => {
-            if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_ListResponse()
-            && resp_o.get_Some_0().get_KResponse_0().get_ListResponse_0().res.is_ok()) {
+        VDeploymentReconcileStepView::AfterListVRS => {
+            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o).is_Ok()) {
                 (error_state(state), None)
             } else {
-                let objs = resp_o.unwrap().get_KResponse_0().get_ListResponse_0().res.unwrap();
+                let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
                 let vrs_list_or_none = objects_to_vrs_list(objs);
-                if vrs_list_or_none.is_none() { // error in unmarshalling
+                if vrs_list_or_none.is_None() {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.unwrap(), vd), vd);
-                    (
-                        VDeploymentReconcileState {
-                            reconcile_step: VDeploymentReconcileStepView::RollReplicas,
-                            new_vrs: if new_vrs_list.len() > 0 { Some(new_vrs_list[0]) } else { None },
-                            old_vrs_list: old_vrs_list,
-                        },
-                        None,
-                    )
+                    let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(vrs_list_or_none.get_Some_0(), vd);
+                    let state = VDeploymentReconcileState {
+                        reconcile_step: VDeploymentReconcileStepView::Error,
+                        new_vrs: None,
+                        old_vrs_list: old_vrs_list,
+                    };
+                    if new_vrs_list.len() == 0 {
+                        // create the new vrs
+                        create_new_vrs(state, vd)
+                    } else {
+                        let new_vrs = new_vrs_list.last();
+                        let state = VDeploymentReconcileState {
+                            new_vrs: Some(new_vrs),
+                            ..state
+                        };
+                        if !match_replicas(new_vrs, vd) {
+                            // scale new vrs to desired replicas
+                            scale_new_vrs(state, vd)
+                        } else {
+                            if old_vrs_list.len() > 0 {
+                                if !state.old_vrs_list.last().well_formed() {
+                                    (error_state(state), None)
+                                } else {
+                                    // scale down old vrs to 0 replicas
+                                    scale_down_old_vrs(state, vd)
+                                }
+                            } else {
+                                // all good
+                                (done_state(state), None)
+                            }
+                        }
+                    }
                 }
             }
         },
-        VDeploymentReconcileStepView::RollReplicas => {
-            if state.new_vrs.is_None() {
-                // create the new vrs
-                let new_vrs = make_replica_set(vd);
-                let req = APIRequest::CreateRequest(CreateRequest {
-                    namespace: namespace,
-                    obj: new_vrs.marshal(),
-                });
-                let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::RollReplicas,
-                    new_vrs: Some(new_vrs),
-                    ..state
-                };
-                (state_prime, Some(RequestView::KRequest(req)))
+        VDeploymentReconcileStepView::AfterCreateNewVRS => {
+            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o).is_Ok()) {
+                (error_state(state), None)
             } else {
-                // update existing new vrs
-                if !state.new_vrs.unwrap().well_formed() {
+                if state.new_vrs.is_None() {
                     (error_state(state), None)
                 } else {
-                    let new_vrs = state.new_vrs.get_Some_0(); // k8s deterministically chooses the "oldest" vrs, we just use the first one
-                    let existing_replicas = new_vrs.spec.replicas.unwrap_or(1);
-                    let expected_replicas = vd.spec.replicas.unwrap_or(1);
-                    if existing_replicas != expected_replicas {
-                        let updated_new_vrs = VReplicaSetView {
-                            spec: VReplicaSetSpecView {
-                                replicas: Some(expected_replicas),
-                                ..new_vrs.spec
-                            },
-                            ..new_vrs
-                        };
-                        let req = APIRequest::UpdateRequest(UpdateRequest {
-                            name: new_vrs.metadata.name.unwrap(),
-                            namespace: namespace,
-                            obj: updated_new_vrs.marshal(),
-                        });
-                        let state_prime = VDeploymentReconcileState {
-                            reconcile_step: VDeploymentReconcileStepView::RollReplicas,
-                            new_vrs: Some(updated_new_vrs),
-                            ..state
-                        };
-                        (state_prime, Some(RequestView::KRequest(req)))
-                    } else if state.old_vrs_list.len() > 0 {
-                        // scale down old vrs down to 0 replicas
-                        let old_vrs = state.old_vrs_list.last();
-                        if !old_vrs.well_formed() {
-                            (error_state(state), None)
-                        } else {
-                            let req = APIRequest::UpdateRequest(UpdateRequest {
-                                name: old_vrs.metadata.name.unwrap(),
-                                namespace: namespace,
-                                obj: VReplicaSetView {
-                                    spec: VReplicaSetSpecView {
-                                        replicas: Some(0),
-                                        ..old_vrs.spec
-                                    },
-                                    ..old_vrs
-                                }.marshal(),
-                            });
-                            let state_prime = VDeploymentReconcileState {
-                                reconcile_step: VDeploymentReconcileStepView::RollReplicas,
-                                old_vrs_list: state.old_vrs_list.drop_last(),
-                                ..state
-                            };
-                            (state_prime, Some(RequestView::KRequest(req)))
-                        }
+                    let new_vrs = state.new_vrs.unwrap();
+                    if !new_vrs.well_formed() {
+                        (error_state(state), None)
                     } else {
-                        // all good
-                        let state_prime = VDeploymentReconcileState {
-                            reconcile_step: VDeploymentReconcileStepView::Done,
-                            ..state
-                        };
-                        (state_prime, None)
+                        if !match_replicas(new_vrs, vd) {
+                            scale_new_vrs(state, vd)
+                        } else {
+                            if state.old_vrs_list.len() > 0 {
+                                if !state.old_vrs_list.last().well_formed() {
+                                    (error_state(state), None)
+                                } else {
+                                    scale_down_old_vrs(state, vd)
+                                }
+                            } else {
+                                (done_state(state), None)
+                            }
+                        }
                     }
+                }
+            }
+        },
+        VDeploymentReconcileStepView::AfterScaleNewVRS => {
+            if !(is_some_k_update_resp_view!(resp_o) && extract_some_k_update_resp_view!(resp_o).is_Ok()) {
+                (error_state(state), None)
+            } else {
+                if state.old_vrs_list.len() > 0 {
+                    if !state.old_vrs_list.last().well_formed() {
+                        (error_state(state), None)
+                    } else {
+                        scale_down_old_vrs(state, vd)
+                    }
+                } else {
+                    (done_state(state), None)
+                }
+            }
+        },
+        VDeploymentReconcileStepView::AfterScaleDownOldVRS => {
+            if !(is_some_k_update_resp_view!(resp_o) && extract_some_k_update_resp_view!(resp_o).is_Ok()) {
+                (error_state(state), None)
+            } else {
+                if state.old_vrs_list.len() > 0 {
+                    if !state.old_vrs_list.last().well_formed() {
+                        (error_state(state), None)
+                    } else {
+                        scale_down_old_vrs(state, vd)
+                    }
+                } else {
+                    (done_state(state), None)
                 }
             }
         },
@@ -186,6 +189,80 @@ pub open spec fn error_state(state: VDeploymentReconcileState) -> (state_prime: 
         reconcile_step: VDeploymentReconcileStepView::Error,
         ..state
     }
+}
+
+pub open spec fn done_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState) {
+    VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStepView::Done,
+        ..state
+    }
+}
+
+// wrapper functions to avoid duplication
+
+// create new vrs
+pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
+    let new_vrs = make_replica_set(vd);
+    let req = APIRequest::CreateRequest(CreateRequest {
+        namespace: vd.metadata.namespace.unwrap(),
+        obj: new_vrs.marshal(),
+    });
+    let state_prime = VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStepView::AfterCreateNewVRS,
+        new_vrs: Some(new_vrs),
+        ..state
+    };
+    (state_prime, Some(RequestView::KRequest(req)))
+}
+
+//  scale new vrs to desired replicas
+pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
+    let new_vrs = state.new_vrs.unwrap();
+    let new_vrs = VReplicaSetView {
+        spec: VReplicaSetSpecView {
+            replicas: Some(vd.spec.replicas.unwrap_or(1)),
+            ..new_vrs.spec
+        },
+        ..new_vrs
+    };
+    let req = APIRequest::UpdateRequest(UpdateRequest {
+        name: new_vrs.metadata.name.unwrap(),
+        namespace: vd.metadata.namespace.unwrap(),
+        obj: new_vrs.marshal(),
+    });
+    let state_prime = VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStepView::AfterScaleNewVRS,
+        new_vrs: Some(new_vrs),
+        ..state
+    };
+    (state_prime, Some(RequestView::KRequest(req)))
+}
+
+// scale down old vrs to 0 replicas
+pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
+    let old_vrs_list = state.old_vrs_list;
+    let old_vrs = old_vrs_list.last();
+    let req = APIRequest::UpdateRequest(UpdateRequest {
+        name: old_vrs.metadata.name.unwrap(),
+        namespace: vd.metadata.namespace.unwrap(),
+        obj: VReplicaSetView {
+            spec: VReplicaSetSpecView {
+                replicas: Some(0 as int),
+                ..old_vrs.spec
+            },
+            ..old_vrs
+        }.marshal(),
+    });
+    let state_prime = VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+        old_vrs_list: old_vrs_list.drop_last(),
+        ..state
+    };
+    (state_prime, Some(RequestView::KRequest(req)))
+}
+
+pub open spec fn match_replicas(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
+    vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
 }
 
 pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list: Option<Seq<VReplicaSetView>>) {
