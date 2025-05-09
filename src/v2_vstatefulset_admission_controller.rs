@@ -79,12 +79,6 @@ pub async fn validate_handler(
             warn!("Failed to unmarshal VStatefulSet");
             res = res.deny("Failed to unmarshal VStatefulSet".to_string());
         }
-        // if vrs_result.is_err() {
-        //     res.deny("Failed to unmarshal VReplicaSet".to_string())
-        // }
-
-        // // Get the VReplicaSet instance and its spec
-        // let vrs = vrs_result.unwrap();
     };
     Ok(reply::json(&res.into_review()))
 }
