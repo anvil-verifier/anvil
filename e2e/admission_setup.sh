@@ -2,9 +2,6 @@
 set -euo pipefail
 
 # first argument is resource crd folder name e.g. v2_vreplicaset
-# second argument is the name of the resource e.g. vreplicasets
-# this can be simplified into one argument if the naming of the crd
-# consistently matches the resource name e.g. always v2_$resource_name
 
 # Cleanup: Remove old if exists (immutable)
 echo "Cleaning up"
@@ -12,7 +9,7 @@ kubectl delete -f manifests/admission_webhooks.yaml || true
 kubectl delete -f manifests/admission_server.yaml || true
 kubectl -n default delete secret admission-server-tls || true
 
-kubectl create -f ../deploy/$1/crd.yaml || true
+kubectl create -f ../deploy/v2_$1/crd.yaml || true
 
 echo "Creating Webhook Server Certs"
 mkdir -p certs
@@ -31,4 +28,4 @@ kubectl create -f manifests/admission_server.yaml
 CA_PEM64="$(openssl base64 -A < certs/tls.crt)"
 
 echo "Creating K8s Webhooks"
-sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"$2"'@g' <"manifests/admission_webhooks.yaml" | kubectl create -f -
+sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"$2"s'@g' <"manifests/admission_webhooks.yaml" | kubectl create -f -
