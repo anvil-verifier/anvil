@@ -5,7 +5,7 @@ pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
 pub mod v2_vreplicaset_e2e;
 pub mod zookeeper_e2e;
-pub_mod v2_vdeployment_admission_e2e;
+pub mod v2_vdeployment_admission_e2e;
 
 use common::Error;
 use fluent_e2e::fluent_e2e_test;
