@@ -28,4 +28,4 @@ kubectl create -f manifests/admission_server.yaml
 CA_PEM64="$(openssl base64 -A < certs/tls.crt)"
 
 echo "Creating K8s Webhooks"
-sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"$2"s'@g' <"manifests/admission_webhooks.yaml" | kubectl create -f -
+sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"$1"s'@g' <"manifests/admission_webhooks.yaml" | kubectl create -f -
