@@ -16,9 +16,7 @@ pub mod vdeployment_controller;
 pub mod vstd_ext;
 
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
-use crate::vdeployment_controller::{
-    exec::validator::validate_state, trusted::exec_types::VDeployment,
-};
+use crate::vdeployment_controller::trusted::exec_types::{VDeployment, VDeploymentSpec};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -36,6 +34,16 @@ use shim_layer::controller_runtime::run_controller;
 use std::env;
 // use deps_hack::warp::{reply, Filter, Reply};
 use std::convert::Infallible;
+use std::error::Error;
+
+pub fn validate_state(vdep: &VDeployment) -> Result<(), String> {
+    // Call executable state validation
+    if vdep.state_validation() {
+        Ok(())
+    } else {
+        Err("Invalid VDeployment".to_string())
+    }
+}
 
 pub async fn validate_handler(
     body: AdmissionReview<KubeDynamicObject>,
