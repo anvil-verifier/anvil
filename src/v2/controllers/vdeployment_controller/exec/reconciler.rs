@@ -240,15 +240,13 @@ pub fn done_state(state: VDeploymentReconcileState) -> (state_prime: VDeployment
 // wrapper functions to avoid duplication
 
 // create new vrs
-#[verifier(external_body)]
 pub fn create_new_vrs(state: VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
     state.new_vrs@.is_None(),
 ensures
-    res.0@ == model_reconciler::create_new_vrs(state@, vd@).0,
     res.1@.is_Some() && model_reconciler::create_new_vrs(state@, vd@).1.is_Some(),
-    option_view(res.1@) == model_reconciler::create_new_vrs(state@, vd@).1,
+    (res.0@, option_view(res.1)) == model_reconciler::create_new_vrs(state@, vd@),
 {
     let new_vrs = make_replica_set(vd);
     let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -265,15 +263,14 @@ ensures
 }
 
 // scale new vrs to desired replicas
-#[verifier(external_body)]
 pub fn scale_new_vrs(state: VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
+    vd@.well_formed(),
     state.new_vrs@.is_Some(),
     state.new_vrs.unwrap()@.well_formed(),
 ensures
-    res.0@ == model_reconciler::scale_new_vrs(state@, vd@).0,
     res.1@.is_Some() && model_reconciler::scale_new_vrs(state@, vd@).1.is_Some(),
-    option_view(res.1@) == model_reconciler::scale_new_vrs(state@, vd@).1,
+    (res.0@, option_view(res.1)) == model_reconciler::scale_new_vrs(state@, vd@),
 {
     let mut new_vrs = state.new_vrs.unwrap();
     let mut new_spec = new_vrs.spec();
@@ -293,20 +290,21 @@ ensures
     return (state_prime, Some(Request::KRequest(req)))
 }
 
-// scale down old vrs to 0 replicas 
-#[verifier(external_body)]
+// scale down old vrs to 0 replicas
 pub fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
     state@.old_vrs_list.len() > 0,
+    state@.old_vrs_list[state.old_vrs_list.len() - 1].well_formed(),
 ensures
-    res.0@ == model_reconciler::scale_down_old_vrs(state@, vd@).0,
     res.1@.is_Some() && model_reconciler::scale_down_old_vrs(state@, vd@).1.is_Some(),
-    option_view(res.1@) == model_reconciler::scale_down_old_vrs(state@, vd@).1,
+    (res.0@, option_view(res.1)) == model_reconciler::scale_down_old_vrs(state@, vd@),
 {
     let mut old_vrs_list = state.old_vrs_list;
     let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
     old_vrs_list.pop();
+    // somehow it's necessary
+    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::scale_down_old_vrs(state@, vd@).0.old_vrs_list);
     let mut new_spec = old_vrs.spec();
     new_spec.set_replicas(0);
     old_vrs.set_spec(new_spec);
