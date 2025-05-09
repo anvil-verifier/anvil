@@ -137,7 +137,8 @@ impl ResourceView for VReplicaSetView {
         &&& self.spec.template.is_Some()
         &&& self.spec.template.get_Some_0().metadata.is_Some()
         &&& self.spec.template.get_Some_0().spec.is_Some()
-        // selector matches template's metadata's labels
+        // kubernetes requires selector matches template's metadata's labels
+        // and also requires selector to be non-empty, so it implicitly requires that the labels are non-empty
         &&& self.spec.template.get_Some_0().metadata.get_Some_0().labels.is_Some()
         &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.get_Some_0())
     }
