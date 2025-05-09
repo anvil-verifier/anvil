@@ -1,0 +1,22 @@
+apiVersion: anvil.dev/v1
+kind: VDeployment
+metadata:
+  name: recreate-with-rollingupdate
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container-test
+          image: nginx:latest
+  strategy:
+    type: "Recreate"
+    rollingUpdate:   # Recreate should not have rollingUpdate configuration
+      maxSurge: 1
+      maxUnavailable: 1

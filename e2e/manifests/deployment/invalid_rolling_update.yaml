@@ -1,0 +1,22 @@
+apiVersion: anvil.dev/v1
+kind: VDeployment
+metadata:
+  name: invalid-rolling-update
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container-test
+          image: nginx:latest
+  strategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 0      
+      maxUnavailable: 0

@@ -56,6 +56,15 @@ pub enum Error {
 
     #[error("Pods are inconsistent with replica set!")]
     VReplicaSetFailed,
+
+    #[error("Deployment list generation failed!")]
+    VDeploymentListFailed,
+
+    #[error("Valid VDeployment failed admission!")]
+    VDeploymentValidAdmissionFailed,
+
+    #[error("Invalid VDeployment passed admission!")]
+    VDeploymentInvalidAdmissionPassed,
 }
 
 pub async fn apply_file(
