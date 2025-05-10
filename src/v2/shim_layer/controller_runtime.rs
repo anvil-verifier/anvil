@@ -356,6 +356,12 @@ where
                                 }
                             }
                         }
+                        KubeGetThenUpdateRequest::GetThenUpdateRequest(req) => {
+                            check_fault_timing = true;
+                            kube_resp = KubeAPIResponse::GetThenUpdateResponse(
+                                transactional_get_then_update_by_retry(req),
+                            );
+                        }
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
                 }
@@ -383,6 +389,72 @@ where
     }
 
     return Ok(Action::requeue(Duration::from_secs(60)));
+}
+
+pub async fn transactional_get_then_update_by_retry(
+    req: KubeGetThenUpdateRequest,
+) -> KubeGetThenUpdateResponse {
+    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+        client.clone(),
+        &req.namespace,
+        req.api_resource.as_kube_ref(),
+    );
+    let pp = PostParams::default();
+    let key = req.key();
+    let obj_to_update = req.obj.into_kube();
+    while (true) {
+        let get_result = api.get(&req.name).await;
+        if let Err(err) = get_result {
+            info!(
+                "{} Get of Get-then-Update {} failed with error: {}",
+                log_header, key, err
+            );
+            return KubeGetThenUpdateResponse {
+                res: Err(kube_error_to_ghost(&err)),
+            };
+        }
+        let current_obj = DynamicObject::from_kube(get_result.unwrap());
+        if !current_obj
+            .metadata()
+            .owner_references_contains(req.controller_owner_ref)
+        {
+            return KubeGetThenUpdateResponse {
+                res: Err(APIError::TransactionPredicateError),
+            };
+        }
+
+        let mut obj_to_update = req.obj.into_kube();
+        obj_to_update.metadata.uid = current_obj.as_kube_ref().metadata.uid.clone();
+        obj_to_update.metadata.resource_version =
+            current_obj.as_kube_ref().metadata.resource_version.clone();
+        match api.replace(&update_req.name, &pp, &obj_to_update).await {
+            Err(err) => {
+                let api_err = kube_error_to_ghost(&err);
+                match api_err {
+                    APIError::Conflict => {
+                        info!(
+                            "{} Update of Get-then-Update {} failed with Conflict; retry...",
+                            log_header, key
+                        );
+                        continue;
+                    }
+                    _ => {
+                        info!(
+                            "{} Update of Get-then-Update {} failed with error: {}",
+                            log_header, key, err
+                        );
+                        return KubeUpdateResponse { res: Err(api_err) };
+                    }
+                }
+            }
+            Ok(obj) => {
+                info!("{} Update {} done", log_header, key);
+                return KubeUpdateResponse {
+                    res: Ok(DynamicObject::from_kube(obj)),
+                };
+            }
+        }
+    }
 }
 
 // error_policy defines the controller's behavior when the reconcile ends with an error.
