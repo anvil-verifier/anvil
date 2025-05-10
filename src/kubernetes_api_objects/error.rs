@@ -17,6 +17,7 @@ pub enum APIError {
     InternalError,
     Timeout,
     ServerTimeout,
+    TransactionPredicateError,
     Other
 }
 
