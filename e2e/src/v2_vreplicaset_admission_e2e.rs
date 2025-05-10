@@ -40,7 +40,7 @@ pub async fn v2_vreplicaset_admission_e2e_test()-> Result<(), Error>{
     }
 
     // contains test cases
-    let manifest_dir = "../manifests/replicaset";
+    let manifest_dir = "./manifests/replicaset";
     let paths = fs::read_dir(manifest_dir).unwrap();
 
     for path in paths {
