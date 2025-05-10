@@ -17,7 +17,7 @@ pub enum APIError {
     InternalError,
     Timeout,
     ServerTimeout,
-    TransactionPredicateError,
+    TransactionAbort,
     Other
 }
 
@@ -35,6 +35,7 @@ impl std::fmt::Debug for APIError {
             APIError::InternalError => write!(f, "InternalError"),
             APIError::Timeout => write!(f, "Timeout"),
             APIError::ServerTimeout => write!(f, "ServerTimeout"),
+            APIError::TransactionAbort => write!(f, "TransactionAbort"),
             APIError::Other => write!(f, "Other"),
         }
     }

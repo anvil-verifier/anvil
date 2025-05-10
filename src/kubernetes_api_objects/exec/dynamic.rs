@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::exec::{object_meta::*, resource::*};
 use crate::kubernetes_api_objects::spec::dynamic::*;
-use crate::vstd_ext::option_lib::option_view;
 use vstd::prelude::*;
 
 verus! {

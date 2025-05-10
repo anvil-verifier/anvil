@@ -182,7 +182,7 @@ where
                             match api.get(&get_req.name).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse {
-                                        res: Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_api_error(&err)),
                                     });
                                     info!("{} Get {} failed with error: {}", log_header, key, err);
                                 }
@@ -205,7 +205,7 @@ where
                             match api.list(&lp).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::ListResponse(KubeListResponse {
-                                        res: Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_api_error(&err)),
                                     });
                                     info!("{} List {} failed with error: {}", log_header, key, err);
                                 }
@@ -235,7 +235,7 @@ where
                                 Err(err) => {
                                     kube_resp =
                                         KubeAPIResponse::CreateResponse(KubeCreateResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         });
                                     info!(
                                         "{} Create {} failed with error: {}",
@@ -269,7 +269,7 @@ where
                                 Err(err) => {
                                     kube_resp =
                                         KubeAPIResponse::DeleteResponse(KubeDeleteResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         });
                                     info!(
                                         "{} Delete {} failed with error: {}",
@@ -299,7 +299,7 @@ where
                                 Err(err) => {
                                     kube_resp =
                                         KubeAPIResponse::UpdateResponse(KubeUpdateResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         });
                                     info!(
                                         "{} Update {} failed with error: {}",
@@ -338,7 +338,7 @@ where
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::UpdateStatusResponse(
                                         KubeUpdateStatusResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         },
                                     );
                                     info!(
@@ -410,7 +410,7 @@ pub async fn transactional_get_then_update_by_retry(
                 log_header, key, err
             );
             return KubeGetThenUpdateResponse {
-                res: Err(kube_error_to_ghost(&err)),
+                res: Err(kube_error_to_api_error(&err)),
             };
         }
         let current_obj = DynamicObject::from_kube(get_result.unwrap());
@@ -419,7 +419,7 @@ pub async fn transactional_get_then_update_by_retry(
             .owner_references_contains(req.controller_owner_ref)
         {
             return KubeGetThenUpdateResponse {
-                res: Err(APIError::TransactionPredicateError),
+                res: Err(APIError::TransactionAbort),
             };
         }
 
@@ -429,7 +429,7 @@ pub async fn transactional_get_then_update_by_retry(
             current_obj.as_kube_ref().metadata.resource_version.clone();
         match api.replace(&update_req.name, &pp, &obj_to_update).await {
             Err(err) => {
-                let api_err = kube_error_to_ghost(&err);
+                let api_err = kube_error_to_api_error(&err);
                 match api_err {
                     APIError::Conflict => {
                         info!(
@@ -472,11 +472,11 @@ pub struct Data {
     pub client: Client,
 }
 
-// kube_error_to_ghost translates the API error from kube-rs APIs
+// kube_error_to_api_error translates the API error from kube-rs APIs
 // to the form that can be processed by reconcile_core.
 
 // TODO: match more error types.
-pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
+pub fn kube_error_to_api_error(error: &deps_hack::kube::Error) -> APIError {
     match error {
         deps_hack::kube::Error::Api(error_resp) => {
             if &error_resp.reason == "NotFound" {

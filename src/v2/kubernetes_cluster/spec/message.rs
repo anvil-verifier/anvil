@@ -75,6 +75,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
         APIResponse::DeleteResponse(delete_resp) => delete_resp.res.is_Ok(),
         APIResponse::UpdateResponse(update_resp) => update_resp.res.is_Ok(),
         APIResponse::UpdateStatusResponse(update_status_resp) => update_status_resp.res.is_Ok(),
+        APIResponse::GetThenUpdateResponse(resp) => resp.res.is_Ok(),
     }
 }
 
@@ -108,6 +109,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
             APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
             APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
             APIResponse::UpdateStatusResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateStatusRequest(),
+            APIResponse::GetThenUpdateResponse(_) => req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest(),
         }
     }
     ||| {
@@ -129,6 +131,7 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message, err: APIError) -> M
         APIRequest::DeleteRequest(_) => form_delete_resp_msg(req_msg, DeleteResponse{res: Err(err)}),
         APIRequest::UpdateRequest(_) => form_update_resp_msg(req_msg, UpdateResponse{res: Err(err)}),
         APIRequest::UpdateStatusRequest(_) => form_update_status_resp_msg(req_msg, UpdateStatusResponse{res: Err(err)}),
+        APIRequest::GetThenUpdateRequest(_) => form_get_then_update_resp_msg(req_msg, GetThenUpdateResponse{res: Err(err)}),
     }
 }
 
@@ -189,6 +192,25 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
         obj: obj,
     }))
 }
+
+pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: StringView, controller_owner_ref: OwnerReferenceView, obj: DynamicObjectView) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest{
+        namespace: namespace,
+        name: name,
+        controller_owner_ref: controller_owner_ref,
+        obj: obj,
+    }))
+}
+
+pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
+    if recv.is_Some() {
+        recv.get_Some_0().dst == host_id
+    } else {
+        true
+    }
+}
+
+// Helper functions that return a predicate on Message
 
 pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {
     |msg: Message| {

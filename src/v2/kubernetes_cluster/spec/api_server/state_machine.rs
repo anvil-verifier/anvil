@@ -654,6 +654,42 @@ pub open spec fn handle_update_status_request_msg(installed_types: InstalledType
     (s_prime, form_update_status_resp_msg(msg, resp))
 }
 
+pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
+    recommends
+        msg.content.is_get_then_update_request(),
+{
+    let req = msg.content.get_get_then_update_request();
+    let get_req = GetRequest {
+        key: req.key()
+    };
+    let get_resp = handle_get_request(get_req, s);
+    match get_resp.res {
+        Ok(_) => {
+            let current_obj = s.resources[req.key()];
+            if current_obj.metadata.owner_references_contains(req.controller_owner_ref) {
+                let new_obj = DynamicObjectView {
+                    metadata: ObjectMetaView {
+                        resource_version: current_obj.metadata.resource_version,
+                        uid: current_obj.metadata.uid,
+                        ..req.obj.metadata
+                    },
+                    ..req.obj
+                };
+                let update_req = UpdateRequest {
+                    name: req.name,
+                    namespace: req.namespace,
+                    obj: new_obj,
+                };
+                let (s_prime, update_resp) = handle_update_request(installed_types, update_req, s);
+                (s_prime, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: update_resp.res}))
+            } else {
+                (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::TransactionAbort)}))
+            }
+        }
+        Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: get_resp.res}))
+    }
+}
+
 pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_APIRequest(),
@@ -665,6 +701,7 @@ pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Messag
         APIRequest::DeleteRequest(_) => handle_delete_request_msg(msg, s),
         APIRequest::UpdateRequest(_) => handle_update_request_msg(installed_types, msg, s),
         APIRequest::UpdateStatusRequest(_) => handle_update_status_request_msg(installed_types, msg, s),
+        APIRequest::GetThenUpdateRequest(_) => handle_get_then_update_request_msg(installed_types, msg, s),
     }
 }
 
