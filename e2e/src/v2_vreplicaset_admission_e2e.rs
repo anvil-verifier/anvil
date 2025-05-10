@@ -9,7 +9,6 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomRe
 use tracing::*;
 use std::fs;
 
-mod common;
 use crate::common::*;
 
 pub async fn v2_vreplicaset_admission_e2e_test()-> Result<(), Error>{
