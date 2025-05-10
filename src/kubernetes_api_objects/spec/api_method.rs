@@ -4,6 +4,7 @@ use crate::kubernetes_api_objects::error::APIError;
 use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
     dynamic::*,
+    owner_reference::*,
     preconditions::*,
 };
 use crate::vstd_ext::string_view::*;
@@ -26,6 +27,7 @@ pub enum APIRequest {
     DeleteRequest(DeleteRequest),
     UpdateRequest(UpdateRequest),
     UpdateStatusRequest(UpdateStatusRequest),
+    GetThenUpdateRequest(GetThenUpdateRequest),
 }
 
 // GetRequest gets an object with the key (kind, name and namespace).
@@ -114,8 +116,20 @@ impl UpdateStatusRequest {
 }
 
 pub struct GetThenUpdateRequest {
-    pub key: ObjectRef,
-    pub f: spec_fn(DynamicObjectView) -> Option<DynamicObjectView>,
+    pub namespace: StringView,
+    pub name: StringView,
+    pub controller_owner_ref: OwnerReferenceView,
+    pub obj: DynamicObjectView,
+}
+
+impl GetThenUpdateRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.obj.kind,
+            namespace: self.namespace,
+            name: self.name,
+        }
+    }
 }
 
 // APIResponse represents API responses sent from the Kubernetes API for specifications.
@@ -128,6 +142,7 @@ pub enum APIResponse {
     DeleteResponse(DeleteResponse),
     UpdateResponse(UpdateResponse),
     UpdateStatusResponse(UpdateStatusResponse),
+    GetThenUpdateResponse(GetThenUpdateResponse),
 }
 
 // GetResponse has the object returned by GetRequest.

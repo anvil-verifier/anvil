@@ -30,6 +30,7 @@ pub enum KubeAPIRequest {
     DeleteRequest(KubeDeleteRequest),
     UpdateRequest(KubeUpdateRequest),
     UpdateStatusRequest(KubeUpdateStatusRequest),
+    GetThenUpdateRequest(KubeGetThenUpdateRequest),
 }
 
 // KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
@@ -193,23 +194,22 @@ impl View for KubeUpdateStatusRequest {
     }
 }
 
-pub struct KubeGetThenUpdateRequest<T: ObjectGenerator> {
+pub struct KubeGetThenUpdateRequest {
     pub api_resource: ApiResource,
     pub name: String,
     pub namespace: String,
-    pub generator: T,
+    pub controller_owner_ref: OwnerReference,
+    pub obj: DynamicObject,
 }
 
-impl<T: ObjectGenerator> View for KubeGetThenUpdateRequest<T> {
+impl View for KubeGetThenUpdateRequest {
     type V = GetThenUpdateRequest;
     open spec fn view(&self) -> GetThenUpdateRequest {
         GetThenUpdateRequest {
-            key: ObjectRef {
-                kind: self.api_resource@.kind,
-                name: self.name@,
-                namespace: self.namespace@,
-            },
-            f: |obj: DynamicObjectView| T::f_spec(obj)
+            name: self.name@,
+            namespace: self.namespace@,
+            controller_owner_ref: self.controller_owner_ref@,
+            obj: self.obj@,
         }
     }
 }
@@ -225,6 +225,7 @@ impl View for KubeAPIRequest {
             KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(delete_req@),
             KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(update_req@),
             KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(update_status_req@),
+            KubeAPIRequest::GetThenUpdateRequest(req) => APIRequest::GetThenUpdateRequest(req@),
         }
     }
 }
@@ -249,6 +250,7 @@ pub enum KubeAPIResponse {
     DeleteResponse(KubeDeleteResponse),
     UpdateResponse(KubeUpdateResponse),
     UpdateStatusResponse(KubeUpdateStatusResponse),
+    GetThenUpdateResponse(KubeGetThenUpdateResponse),
 }
 
 // KubeGetResponse has the object returned by KubeGetRequest.
@@ -373,10 +375,207 @@ impl View for KubeAPIResponse {
             KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(delete_resp@),
             KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp@),
             KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp@),
+            KubeAPIResponse::GetThenUpdateResponse(resp) => APIResponse::GetThenUpdateResponse(resp@),
         }
     }
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+// TODO: replace it with option_view
+=======
+impl KubeAPIResponse {
+    pub fn is_get_response(&self) -> (res: bool)
+        ensures
+            res == self.is_GetResponse(),
+    {
+        match self {
+            KubeAPIResponse::GetResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_get_response_ref(&self) -> (resp: &KubeGetResponse)
+        requires self.is_GetResponse(),
+        ensures resp == self.get_GetResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::GetResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_get_response(self) -> (resp: KubeGetResponse)
+        requires self.is_GetResponse(),
+        ensures resp == self.get_GetResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::GetResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_list_response(&self) -> (res: bool)
+        ensures
+            res == self.is_ListResponse(),
+    {
+        match self {
+            KubeAPIResponse::ListResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_list_response_ref(&self) -> (resp: &KubeListResponse)
+        requires self.is_ListResponse(),
+        ensures resp == self.get_ListResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::ListResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_list_response(self) -> (resp: KubeListResponse)
+        requires self.is_ListResponse(),
+        ensures resp == self.get_ListResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::ListResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_create_response(&self) -> (res: bool)
+        ensures
+            res == self.is_CreateResponse(),
+    {
+        match self {
+            KubeAPIResponse::CreateResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_create_response_ref(&self) -> (resp: &KubeCreateResponse)
+        requires self.is_CreateResponse(),
+        ensures resp == self.get_CreateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::CreateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_create_response(self) -> (resp: KubeCreateResponse)
+        requires self.is_CreateResponse(),
+        ensures resp == self.get_CreateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::CreateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_update_response(&self) -> (res: bool)
+        ensures res == self.is_UpdateResponse(),
+    {
+        match self {
+            KubeAPIResponse::UpdateResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_update_response_ref(&self) -> (resp: &KubeUpdateResponse)
+        requires self.is_UpdateResponse(),
+        ensures resp == self.get_UpdateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_update_response(self) -> (resp: KubeUpdateResponse)
+        requires self.is_UpdateResponse(),
+        ensures resp == self.get_UpdateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_update_status_response(&self) -> (res: bool)
+        ensures
+            res == self.is_UpdateStatusResponse(),
+    {
+        match self {
+            KubeAPIResponse::UpdateStatusResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_update_status_response_ref(&self) -> (resp: &KubeUpdateStatusResponse)
+        requires self.is_UpdateStatusResponse(),
+        ensures resp == self.get_UpdateStatusResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateStatusResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_update_status_response(self) -> (resp: KubeUpdateStatusResponse)
+        requires self.is_UpdateStatusResponse(),
+        ensures resp == self.get_UpdateStatusResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateStatusResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_delete_response(&self) -> (res: bool)
+        ensures
+            res == self.is_DeleteResponse(),
+    {
+        match self {
+            KubeAPIResponse::DeleteResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_delete_response_ref(&self) -> (resp: &KubeDeleteResponse)
+        requires self.is_DeleteResponse(),
+        ensures resp == self.get_DeleteResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::DeleteResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_delete_response(self) -> (resp: KubeDeleteResponse)
+        requires self.is_DeleteResponse(),
+        ensures resp == self.get_DeleteResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::DeleteResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+}
+
+// TODO: replace it with deep view
+>>>>>>> 1cb315b (Support Get-then-Update)
+pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
+    match resp {
+        Some(resp) => Some(resp@),
+        None => None,
+    }
+}
+
+>>>>>>> 58cc24a3 (Support Get-then-Update)
 }
 
 macro_rules! declare_kube_api_response_helper_methods {
