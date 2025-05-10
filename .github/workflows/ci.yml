@@ -480,13 +480,13 @@ jobs:
       - name: Deploy vreplicaset admission controller
         run: |
           VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --no-verify --time
-          docker build -f docker/controller/Dockerfile.local -t local/vreplicaset-admission-controller:v0.1.0 --build-arg APP=v2_vreplicaset_admission .
+          docker build -f docker/controller/Dockerfile.local -t local/admission-controller:v0.1.0 --build-arg APP=v2_vreplicaset_admission .
           kind create cluster --config deploy/kind.yaml
-          kind load docker-image local/vreplicaset-admission-controller:v0.1.0
-          cd src/v2/controllers/vreplicaset_controller/admission_control
-          ./setup.sh
+          kind load docker-image local/admission-controller:v0.1.0
+          cd e2e
+          ./admission_setup.sh vreplicaset
       - name: Run vreplicaset e2e tests for admission
-        run: cd src/v2/controllers/vreplicaset_controller/admission_control/tests && cargo run
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset-admission
   vstatefulset-admission-e2e-test:
     needs:
       - build-and-cache-verus
