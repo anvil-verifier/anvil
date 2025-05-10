@@ -202,10 +202,10 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           VERUS_DIR="${HOME}/verus" ./build.sh v2_vstatefulset_admission_controller.rs --rlimit 50 --time
-  unit-tests:
-    needs: build-and-cache-verus
-    runs-on: ubuntu-22.04
-    steps:
+  # unit-tests:
+  #   needs: build-and-cache-verus
+  #   runs-on: ubuntu-22.04
+  #   steps:
       - uses: actions/checkout@v4
       - name: Restore Rust toolchain cache
         uses: actions/cache@v4

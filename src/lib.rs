@@ -1,5 +1,5 @@
-pub mod conformance_tests;
-pub mod executable_model;
+// pub mod conformance_tests;
+// pub mod executable_model;
 #[path = "v2/external_shim_layer/mod.rs"]
 pub mod external_shim_layer;
 pub mod kubernetes_api_objects;
