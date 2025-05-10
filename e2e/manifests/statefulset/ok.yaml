@@ -1,0 +1,20 @@
+apiVersion: anvil.dev/v1
+kind: VStatefulSet
+metadata:
+  name: statefulset-ok
+spec:
+  serviceName: "test-app"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container-statefulset-ok
+          image: nginx:latest
+          ports:
+            - containerPort: 80

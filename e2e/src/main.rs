@@ -5,6 +5,7 @@ pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
 pub mod v2_vreplicaset_e2e;
 pub mod zookeeper_e2e;
+pub mod v2_vstatefulset_admission_e2e;
 pub mod v2_vdeployment_admission_e2e;
 
 use common::Error;
@@ -14,6 +15,7 @@ use std::str::FromStr;
 use std::{env, sync::Arc};
 use tracing::*;
 use v2_vreplicaset_e2e::v2_vreplicaset_e2e_test;
+use v2_vstatefulset_admission_e2e::v2_vstatefulset_admission_e2e_test;
 use v2_vdeployment_admission_e2e::v2_vdeployment_admission_e2e_test;
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
 
@@ -55,6 +57,10 @@ async fn main() -> Result<(), Error> {
         "v2-vreplicaset" => {
             info!("Running v2-vreplicaset end-to-end test");
             return v2_vreplicaset_e2e_test().await;
+        }
+        "v2-vstatefulset-admission" => {
+            info!("Running v2-vstatefulset-admission end-to-end test");
+            return v2_vstatefulset_admission_e2e_test().await;
         }
         "v2-vdeployment-admission" => {
             info!("Running v2-vdeployment-admission end-to-end test");

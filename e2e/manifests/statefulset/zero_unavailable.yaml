@@ -1,0 +1,22 @@
+apiVersion: anvil.dev/v1
+kind: VStatefulSet
+metadata:
+  name: zero-max-unavailable-reject
+spec:
+  serviceName: "test-app"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container
+          image: nginx:latest
+  updateStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxUnavailable: 0 
