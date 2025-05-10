@@ -57,6 +57,15 @@ pub enum Error {
     #[error("Pods are inconsistent with replica set!")]
     VReplicaSetFailed,
 
+    #[error("ReplicaSet list generation failed!")]
+    VReplicaSetListFailed,
+
+    #[error("Valid VReplicaSet failed admission!")]
+    VReplicaSetValidAdmissionFailed,
+
+    #[error("Invalid VReplicaSet passed admission!")]
+    VReplicaSetInvalidAdmissionPassed,
+
     #[error("StatefulSet list generation failed!")]
     VStatefulSetListFailed,
 
