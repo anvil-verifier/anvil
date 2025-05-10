@@ -206,22 +206,22 @@ jobs:
   #   needs: build-and-cache-verus
   #   runs-on: ubuntu-22.04
   #   steps:
-      - uses: actions/checkout@v4
-      - name: Restore Rust toolchain cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.home_dir }}/verus/source
-            ${{ env.home_dir }}/verus/dependencies
-            ${{ env.home_dir }}/.cargo
-            ${{ env.home_dir }}/.rustup
-          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Pin home to version 0.5.9 (workaround)
-        run: |
-          ln -s $HOME/verus ../verus
-          cargo update home --precise 0.5.9
-      - name: Run unit tests
-        run: cargo test unit_tests
+  #     - uses: actions/checkout@v4
+  #     - name: Restore Rust toolchain cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ${{ env.home_dir }}/verus/source
+  #           ${{ env.home_dir }}/verus/dependencies
+  #           ${{ env.home_dir }}/.cargo
+  #           ${{ env.home_dir }}/.rustup
+  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+  #     - name: Pin home to version 0.5.9 (workaround)
+  #       run: |
+  #         ln -s $HOME/verus ../verus
+  #         cargo update home --precise 0.5.9
+  #     - name: Run unit tests
+  #       run: cargo test unit_tests
   # conformance-tests:
   #   needs:
   #     - build-and-cache-verus
