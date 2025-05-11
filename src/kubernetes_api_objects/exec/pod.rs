@@ -75,15 +75,6 @@ impl Pod {
         self.inner.spec = Some(spec.into_kube());
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Pod { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Pod) -> (pod: Pod)
-    {
-        Pod { inner: inner }
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures res@.kind == PodView::kind(),
@@ -252,12 +243,6 @@ impl PodSpec {
     {
         self.inner.image_pull_secrets = Some(image_pull_secrets.into_iter().map(|r: LocalObjectReference| r.into_kube()).collect())
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec { PodSpec { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec { self.inner }
 }
 
 #[verifier(external_body)]
@@ -271,13 +256,6 @@ impl View for PodSecurityContext {
     spec fn view(&self) -> PodSecurityContextView;
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PodSecurityContext> for PodSecurityContext {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext) -> PodSecurityContext { PodSecurityContext { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSecurityContext { self.inner }
-}
-
 #[verifier(external_body)]
 pub struct LocalObjectReference {
     inner: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
@@ -289,11 +267,18 @@ impl View for LocalObjectReference {
     spec fn view(&self) -> LocalObjectReferenceView;
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::LocalObjectReference> for LocalObjectReference {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference) -> LocalObjectReference { LocalObjectReference { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LocalObjectReference { self.inner }
 }
 
-}
+implement_resource_wrapper!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod);
+
+implement_resource_wrapper!(PodSpec, deps_hack::k8s_openapi::api::core::v1::PodSpec);
+
+implement_resource_wrapper!(
+    PodSecurityContext,
+    deps_hack::k8s_openapi::api::core::v1::PodSecurityContext
+);
+
+implement_resource_wrapper!(
+    LocalObjectReference,
+    deps_hack::k8s_openapi::api::core::v1::LocalObjectReference
+);

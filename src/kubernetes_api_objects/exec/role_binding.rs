@@ -81,12 +81,6 @@ impl RoleBinding {
         RoleBinding { inner: self.inner.clone() }
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding) -> RoleBinding { RoleBinding { inner: inner } }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures res@.kind == RoleBindingView::kind(),
@@ -160,7 +154,6 @@ impl RoleRef {
         self.inner.kind.clone()
     }
 
-
     #[verifier(external_body)]
     pub fn set_api_group(&mut self, api_group: String)
         ensures self@ == old(self)@.with_api_group(api_group@),
@@ -181,12 +174,6 @@ impl RoleRef {
     {
         self.inner.name = name;
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef) -> RoleRef { RoleRef { inner: inner } }
 }
 
 #[verifier(external_body)]
@@ -226,12 +213,10 @@ impl Subject {
     {
         self.inner.namespace = Some(namespace);
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Subject { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Subject) -> Subject { Subject { inner: inner } }
 }
 
 }
+
+implement_resource_wrapper!(RoleRef, deps_hack::k8s_openapi::api::rbac::v1::RoleRef);
+
+implement_resource_wrapper!(Subject, deps_hack::k8s_openapi::api::rbac::v1::Subject);

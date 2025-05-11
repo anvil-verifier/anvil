@@ -129,17 +129,6 @@ impl StatefulSet {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSet> for StatefulSet {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet) -> StatefulSet {
-        StatefulSet { inner: inner }
-    }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
-        self.inner
-    }
-}
-
 #[verifier(external_body)]
 pub struct StatefulSetSpec {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec,
@@ -284,17 +273,6 @@ impl StatefulSetSpec {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for StatefulSetSpec {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec) -> StatefulSetSpec {
-        StatefulSetSpec { inner: inner }
-    }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
-        self.inner
-    }
-}
-
 #[verifier(external_body)]
 pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
@@ -332,13 +310,6 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy { StatefulSetPersistentVolumeClaimRetentionPolicy { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy { self.inner }
-}
-
 #[verifier(external_body)]
 pub struct StatefulSetStatus {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus,
@@ -357,11 +328,24 @@ impl StatefulSetStatus {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus> for StatefulSetStatus {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus { StatefulSetStatus { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus { self.inner }
 }
 
-}
+implement_resource_wrapper!(
+    StatefulSet,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSet
+);
+
+implement_resource_wrapper!(
+    StatefulSetSpec,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec
+);
+
+implement_resource_wrapper!(
+    StatefulSetStatus,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus
+);
+
+implement_resource_wrapper!(
+    StatefulSetPersistentVolumeClaimRetentionPolicy,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy
+);

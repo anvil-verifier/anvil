@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::volume::*;
 use vstd::prelude::*;
 
@@ -71,12 +72,6 @@ impl Volume {
         self.inner.downward_api = Some(downward_api.into_kube());
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Volume { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> Volume { Volume { inner } }
-
     // Methods for the fields that Anvil currently does not reason about
 
     #[verifier(external_body)]
@@ -110,12 +105,6 @@ impl EmptyDirVolumeSource {
     {
         EmptyDirVolumeSource { inner: self.inner.clone() }
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource) -> EmptyDirVolumeSource { EmptyDirVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -146,12 +135,6 @@ impl HostPathVolumeSource {
     {
         self.inner.path = path;
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource) -> HostPathVolumeSource { HostPathVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -182,12 +165,6 @@ impl ConfigMapVolumeSource {
     {
         self.inner.name = Some(name);
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource) -> ConfigMapVolumeSource { ConfigMapVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -220,12 +197,6 @@ impl SecretVolumeSource {
     {
         self.inner.secret_name = Some(secret_name);
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource) -> SecretVolumeSource { SecretVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -256,12 +227,6 @@ impl ProjectedVolumeSource {
     {
         self.inner.sources = Some(sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect());
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource) -> ProjectedVolumeSource { ProjectedVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -292,12 +257,6 @@ impl VolumeProjection {
     {
         self.inner.secret = Some(secret.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeProjection { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection) -> VolumeProjection { VolumeProjection { inner } }
 }
 
 #[verifier(external_body)]
@@ -335,12 +294,6 @@ impl ConfigMapProjection {
     {
         self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection) -> ConfigMapProjection { ConfigMapProjection { inner } }
 }
 
 #[verifier(external_body)]
@@ -378,12 +331,6 @@ impl SecretProjection {
     {
         self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecretProjection { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection) -> SecretProjection { SecretProjection { inner } }
 }
 
 #[verifier(external_body)]
@@ -414,12 +361,6 @@ impl KeyToPath {
     {
         self.inner.path = path;
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::KeyToPath { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath) -> KeyToPath { KeyToPath { inner } }
 }
 
 #[verifier(external_body)]
@@ -450,12 +391,6 @@ impl DownwardAPIVolumeSource {
     {
         self.inner.items = Some(items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect());
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource) -> DownwardAPIVolumeSource { DownwardAPIVolumeSource { inner } }
 }
 
 #[verifier(external_body)]
@@ -486,12 +421,6 @@ impl DownwardAPIVolumeFile {
     {
         self.inner.path = path;
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile) -> DownwardAPIVolumeFile { DownwardAPIVolumeFile { inner } }
 }
 
 #[verifier(external_body)]
@@ -538,12 +467,65 @@ impl ObjectFieldSelector {
     {
         self.inner.api_version = Some(api_version);
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector) -> (object_field_selector: ObjectFieldSelector) { ObjectFieldSelector { inner } }
 }
 
 }
+
+implement_resource_wrapper!(Volume, deps_hack::k8s_openapi::api::core::v1::Volume);
+
+implement_resource_wrapper!(
+    EmptyDirVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource
+);
+
+implement_resource_wrapper!(
+    HostPathVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource
+);
+
+implement_resource_wrapper!(
+    ConfigMapVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource
+);
+
+implement_resource_wrapper!(
+    SecretVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource
+);
+
+implement_resource_wrapper!(
+    ProjectedVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource
+);
+
+implement_resource_wrapper!(
+    VolumeProjection,
+    deps_hack::k8s_openapi::api::core::v1::VolumeProjection
+);
+
+implement_resource_wrapper!(
+    ConfigMapProjection,
+    deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection
+);
+
+implement_resource_wrapper!(
+    SecretProjection,
+    deps_hack::k8s_openapi::api::core::v1::SecretProjection
+);
+
+implement_resource_wrapper!(KeyToPath, deps_hack::k8s_openapi::api::core::v1::KeyToPath);
+
+implement_resource_wrapper!(
+    DownwardAPIVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource
+);
+
+implement_resource_wrapper!(
+    DownwardAPIVolumeFile,
+    deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile
+);
+
+implement_resource_wrapper!(
+    ObjectFieldSelector,
+    deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector
+);

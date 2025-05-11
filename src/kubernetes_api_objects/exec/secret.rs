@@ -95,12 +95,6 @@ impl Secret {
         Secret { inner: self.inner.clone() }
     }
 
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Secret) -> Secret { Secret { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Secret { self.inner }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures res@.kind == SecretView::kind(),

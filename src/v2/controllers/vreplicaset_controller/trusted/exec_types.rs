@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
+    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vreplicaset_controller::trusted::spec_types;
 use crate::vstd_ext::string_map::StringMap;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
+
 verus! {
 
 #[verifier(external_body)]
@@ -76,11 +77,11 @@ impl VReplicaSet {
         }
     }
 
-    pub fn state_validation(&self) -> (res: bool) 
+    pub fn state_validation(&self) -> (res: bool)
         ensures
             res == self@.state_validation()
     {
-        
+
         // replicas exists and non-negative
         if let Some(replicas) = self.spec().replicas() {
             if replicas < 0 {
@@ -102,7 +103,7 @@ impl VReplicaSet {
             if template.metadata().is_none() || template.spec().is_none() {
                 return false;
             }
-            
+
             // Map::empty() did not compile
             if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
                 return false;
@@ -111,16 +112,9 @@ impl VReplicaSet {
         } else {
             return false;
         }
-    
+
         true
     }
-}
-
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::VReplicaSet> for VReplicaSet {
-    fn from_kube(inner: deps_hack::VReplicaSet) -> VReplicaSet { VReplicaSet { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::VReplicaSet { self.inner }
 }
 
 #[verifier(external_body)]
@@ -161,3 +155,5 @@ impl VReplicaSetSpec {
 }
 
 }
+
+implement_resource_wrapper!(VReplicaSet, deps_hack::VReplicaSet);

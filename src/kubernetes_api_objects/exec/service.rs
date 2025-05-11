@@ -81,12 +81,6 @@ impl Service {
         self.inner.spec = Some(spec.into_kube());
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Service { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Service) -> Service { Service { inner: inner } }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures res@.kind == ServiceView::kind(),
@@ -208,12 +202,6 @@ impl ServiceSpec {
     {
         self.inner.publish_not_ready_addresses = None;
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec { ServiceSpec { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec { self.inner }
 }
 
 #[verifier(external_body)]
@@ -270,12 +258,18 @@ impl ServicePort {
     {
         self.inner.protocol = Some(protocol);
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort { ServicePort { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort { self.inner }
 }
 
 }
+
+implement_resource_wrapper!(Service, deps_hack::k8s_openapi::api::core::v1::Service);
+
+implement_resource_wrapper!(
+    ServiceSpec,
+    deps_hack::k8s_openapi::api::core::v1::ServiceSpec
+);
+
+implement_resource_wrapper!(
+    ServicePort,
+    deps_hack::k8s_openapi::api::core::v1::ServicePort
+);

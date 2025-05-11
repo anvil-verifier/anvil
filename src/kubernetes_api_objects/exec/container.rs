@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::exec::{resource_requirements::*, volume::*};
+use crate::kubernetes_api_objects::exec::{resource::*, resource_requirements::*, volume::*};
 use crate::kubernetes_api_objects::spec::container::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -123,12 +123,6 @@ impl Container {
     {
         self.inner.security_context = Some(security_context.into_kube())
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Container) -> Container { Container { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container { self.inner }
 }
 
 #[verifier(external_body)]
@@ -190,12 +184,6 @@ impl ContainerPort {
     {
         self.inner.protocol.clone()
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort) -> ContainerPort { ContainerPort { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ContainerPort { self.inner }
 }
 
 #[verifier(external_body)]
@@ -257,12 +245,6 @@ impl VolumeMount {
     {
         self.inner.mount_propagation = Some(mount_propagation)
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount) -> VolumeMount { VolumeMount { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeMount { self.inner }
 }
 
 #[verifier(external_body)]
@@ -335,14 +317,6 @@ impl Probe {
     {
         self.inner.timeout_seconds = Some(timeout_seconds);
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Probe) -> Probe {
-        Probe { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Probe { self.inner }
 }
 
 #[verifier(external_body)]
@@ -373,14 +347,6 @@ impl ExecAction {
     {
         self.inner.command = Some(command);
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ExecAction) -> ExecAction {
-        ExecAction { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ExecAction { self.inner }
 }
 
 #[verifier(external_body)]
@@ -418,14 +384,6 @@ impl TCPSocketAction {
     {
         self.inner.port = deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(port);
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction) -> TCPSocketAction { TCPSocketAction { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
-        self.inner
-    }
 }
 
 #[verifier(external_body)]
@@ -456,12 +414,6 @@ impl Lifecycle {
     {
         self.inner.pre_stop = Some(handler.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle) -> Lifecycle { Lifecycle { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Lifecycle { self.inner }
 }
 
 #[verifier(external_body)]
@@ -492,14 +444,6 @@ impl LifecycleHandler {
     {
         self.inner.exec = Some(exec.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler) -> LifecycleHandler {
-        LifecycleHandler { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LifecycleHandler { self.inner }
 }
 
 #[verifier(external_body)]
@@ -567,12 +511,6 @@ impl EnvVar {
     {
         self.inner.value_from = Some(value_from.into_kube())
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVar) -> EnvVar { EnvVar { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVar { self.inner }
 }
 
 #[verifier(external_body)]
@@ -607,12 +545,6 @@ impl EnvVarSource {
     {
         self.inner.field_ref = Some(field_ref.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource) -> EnvVarSource { EnvVarSource { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVarSource { self.inner }
 }
 
 #[verifier(external_body)]
@@ -622,12 +554,49 @@ pub struct SecurityContext {
 
 impl SecurityContext {
     pub spec fn view(&self) -> SecurityContextView;
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::SecurityContext) -> SecurityContext { SecurityContext { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::SecurityContext { self.inner }
 }
 
 }
+
+implement_resource_wrapper!(Container, deps_hack::k8s_openapi::api::core::v1::Container);
+
+implement_resource_wrapper!(Lifecycle, deps_hack::k8s_openapi::api::core::v1::Lifecycle);
+
+implement_resource_wrapper!(
+    ContainerPort,
+    deps_hack::k8s_openapi::api::core::v1::ContainerPort
+);
+
+implement_resource_wrapper!(
+    VolumeMount,
+    deps_hack::k8s_openapi::api::core::v1::VolumeMount
+);
+
+implement_resource_wrapper!(
+    TCPSocketAction,
+    deps_hack::k8s_openapi::api::core::v1::TCPSocketAction
+);
+
+implement_resource_wrapper!(
+    LifecycleHandler,
+    deps_hack::k8s_openapi::api::core::v1::LifecycleHandler
+);
+
+implement_resource_wrapper!(
+    ExecAction,
+    deps_hack::k8s_openapi::api::core::v1::ExecAction
+);
+
+implement_resource_wrapper!(Probe, deps_hack::k8s_openapi::api::core::v1::Probe);
+
+implement_resource_wrapper!(EnvVar, deps_hack::k8s_openapi::api::core::v1::EnvVar);
+
+implement_resource_wrapper!(
+    EnvVarSource,
+    deps_hack::k8s_openapi::api::core::v1::EnvVarSource
+);
+
+implement_resource_wrapper!(
+    SecurityContext,
+    deps_hack::k8s_openapi::api::core::v1::SecurityContext
+);

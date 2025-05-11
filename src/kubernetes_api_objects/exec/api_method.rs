@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::exec::{api_resource::*, dynamic::*, preconditions::*};
+use crate::kubernetes_api_objects::exec::{
+    api_resource::*, dynamic::*, preconditions::*, resource::*,
+};
 use crate::kubernetes_api_objects::spec::{api_method::*, common::ObjectRef};
 use crate::vstd_ext::option_lib::*;
 use vstd::prelude::*;

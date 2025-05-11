@@ -78,12 +78,6 @@ impl Role {
         Role { inner: self.inner.clone() }
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Role { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Role) -> Role { Role { inner: inner } }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures res@.kind == RoleView::kind(),
@@ -177,13 +171,11 @@ impl PolicyRule {
     {
         self.inner.verbs = verbs
     }
-
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::PolicyRule { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule) -> PolicyRule { PolicyRule { inner: inner } }
 }
 
 }
+
+implement_resource_wrapper!(
+    PolicyRule,
+    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule
+);
