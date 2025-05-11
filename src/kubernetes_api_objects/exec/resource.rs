@@ -80,6 +80,27 @@ macro_rules! implement_wrapper_type {
 
 pub use implement_wrapper_type;
 
+use vstd::prelude::*;
+#[macro_export]
+macro_rules! implement_custom_wrapper_type {
+    ($t:ident, $it:ty, $vt:ty) => {
+        implement_wrapper_type!($t, $it, $vt);
+
+        verus! {
+        impl $t {
+            #[verifier(external_body)]
+            pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+                ensures owner_reference@ == self@.controller_owner_ref(),
+            {
+                OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
+            }
+        }
+        }
+    };
+}
+
+pub use implement_custom_wrapper_type;
+
 pub trait ResourceWrapper<T>: Sized {
     fn from_kube(inner: T) -> Self;
 
