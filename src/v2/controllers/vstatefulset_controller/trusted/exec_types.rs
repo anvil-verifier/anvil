@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, persistent_volume_claim::*
+    api_resource::*, label_selector::*, persistent_volume_claim::*, pod_template_spec::*,
+    prelude::*, resource::*,
 };
-use crate::kubernetes_api_objects::spec::{resource::*, persistent_volume_claim::*, volume_resource_requirements::*};
+use crate::kubernetes_api_objects::spec::{
+    persistent_volume_claim::*, resource::*, volume_resource_requirements::*,
+};
 use crate::vstatefulset_controller::trusted::spec_types;
 use crate::vstd_ext::string_map::*;
 use deps_hack::kube::Resource;
@@ -226,13 +229,6 @@ impl VStatefulSet {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::VStatefulSet> for VStatefulSet {
-    fn from_kube(inner: deps_hack::VStatefulSet) -> VStatefulSet { VStatefulSet { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::VStatefulSet { self.inner }
-}
-
 #[verifier(external_body)]
 pub struct VStatefulSetSpec {
     inner: deps_hack::VStatefulSetSpec,
@@ -339,6 +335,8 @@ impl VStatefulSetSpec {
     }
 }
 
+// TODO: merge the definitions below into kubernetes_api_objects
+
 #[verifier(external_body)]
 pub struct StatefulSetUpdateStrategy {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy,
@@ -396,17 +394,6 @@ impl StatefulSetUpdateStrategy {
         ensures self@ == old(self)@.with_rolling_update(rolling_update@),
     {
         self.inner.rolling_update = Some(rolling_update.into_kube());
-    }
-}
-
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy> for StatefulSetUpdateStrategy {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy) -> StatefulSetUpdateStrategy {
-        StatefulSetUpdateStrategy { inner: inner }
-    }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy {
-        self.inner
     }
 }
 
@@ -477,16 +464,6 @@ impl RollingUpdateStatefulSetStrategy {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy> for RollingUpdateStatefulSetStrategy {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy) -> RollingUpdateStatefulSetStrategy {
-        RollingUpdateStatefulSetStrategy { inner: inner }
-    }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy {
-        self.inner
-    }
-}
 
 #[verifier(external_body)]
 pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
@@ -545,17 +522,6 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy {
-        StatefulSetPersistentVolumeClaimRetentionPolicy { inner: inner }
-    }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
-        self.inner
-    }
-}
-
 #[verifier(external_body)]
 pub struct StatefulSetOrdinals {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals,
@@ -600,14 +566,26 @@ impl StatefulSetOrdinals {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals> for StatefulSetOrdinals {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals) -> StatefulSetOrdinals {
-        StatefulSetOrdinals { inner: inner }
-    }
+}
 
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals {
-        self.inner
-    }
-}
-}
+implement_resource_wrapper_trait!(VStatefulSet, deps_hack::VStatefulSet);
+
+implement_resource_wrapper_trait!(
+    StatefulSetUpdateStrategy,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy
+);
+
+implement_resource_wrapper_trait!(
+    RollingUpdateStatefulSetStrategy,
+    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy
+);
+
+implement_resource_wrapper_trait!(
+    StatefulSetOrdinals,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals
+);
+
+implement_resource_wrapper_trait!(
+    StatefulSetPersistentVolumeClaimRetentionPolicy,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy
+);

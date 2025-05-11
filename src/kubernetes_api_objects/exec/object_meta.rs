@@ -256,11 +256,9 @@ impl ObjectMeta {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta { ObjectMeta { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta { self.inner }
 }
 
-}
+implement_resource_wrapper_trait!(
+    ObjectMeta,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta
+);

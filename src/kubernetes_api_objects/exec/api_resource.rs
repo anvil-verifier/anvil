@@ -19,24 +19,8 @@ pub struct ApiResource {
 
 impl ApiResource {
     pub spec fn view(&self) -> ApiResourceView;
-
-    #[verifier(external)]
-    pub fn as_kube_ref(&self) -> &deps_hack::kube::api::ApiResource {
-        &self.inner
-    }
-}
-
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::kube::api::ApiResource> for ApiResource {
-    fn from_kube(inner: deps_hack::kube::api::ApiResource) -> ApiResource {
-        ApiResource {
-            inner: inner
-        }
-    }
-
-    fn into_kube(self) -> deps_hack::kube::api::ApiResource {
-        self.inner
-    }
 }
 
 }
+
+implement_resource_wrapper_trait!(ApiResource, deps_hack::kube::api::ApiResource);

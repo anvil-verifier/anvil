@@ -66,158 +66,6 @@ pub enum MessageContent {
     ExternalResponse(ExternalResponse),
 }
 
-// Some handy methods for pattern matching and retrieving information from MessageContent
-impl MessageContent {
-    pub open spec fn is_get_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_GetRequest()
-    }
-
-    pub open spec fn get_get_request(self) -> GetRequest
-        recommends
-            self.is_get_request()
-    {
-        self.get_APIRequest_0().get_GetRequest_0()
-    }
-
-    pub open spec fn is_list_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_ListRequest()
-    }
-
-    pub open spec fn get_list_request(self) -> ListRequest
-        recommends
-            self.is_list_request()
-    {
-        self.get_APIRequest_0().get_ListRequest_0()
-    }
-
-    pub open spec fn is_create_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_CreateRequest()
-    }
-
-    pub open spec fn get_create_request(self) -> CreateRequest
-        recommends
-            self.is_create_request()
-    {
-        self.get_APIRequest_0().get_CreateRequest_0()
-    }
-
-    pub open spec fn is_delete_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_DeleteRequest()
-    }
-
-    pub open spec fn is_delete_request_with_key(self, key: ObjectRef) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_DeleteRequest()
-        &&& self.get_APIRequest_0().get_DeleteRequest_0().key == key
-    }
-
-    pub open spec fn get_delete_request(self) -> DeleteRequest
-        recommends
-            self.is_delete_request()
-    {
-        self.get_APIRequest_0().get_DeleteRequest_0()
-    }
-
-    pub open spec fn is_update_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateRequest()
-    }
-
-    pub open spec fn is_update_request_with_key(self, key: ObjectRef) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateRequest()
-        &&& self.get_APIRequest_0().get_UpdateRequest_0().key() == key
-    }
-
-    pub open spec fn get_update_request(self) -> UpdateRequest
-        recommends
-            self.is_update_request()
-    {
-        self.get_APIRequest_0().get_UpdateRequest_0()
-    }
-
-    pub open spec fn is_update_status_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateStatusRequest()
-    }
-
-    pub open spec fn is_update_status_request_with_key(self, key: ObjectRef) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateStatusRequest()
-        &&& self.get_APIRequest_0().get_UpdateStatusRequest_0().key() == key
-    }
-
-    pub open spec fn get_update_status_request(self) -> UpdateStatusRequest
-        recommends
-            self.is_update_status_request()
-    {
-        self.get_APIRequest_0().get_UpdateStatusRequest_0()
-    }
-
-    pub open spec fn is_get_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_GetResponse()
-    }
-
-    pub open spec fn get_get_response(self) -> GetResponse
-        recommends
-            self.is_get_response()
-    {
-        self.get_APIResponse_0().get_GetResponse_0()
-    }
-
-    pub open spec fn is_create_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_CreateResponse()
-    }
-
-    pub open spec fn get_create_response(self) -> CreateResponse
-        recommends
-            self.is_create_response()
-    {
-        self.get_APIResponse_0().get_CreateResponse_0()
-    }
-
-    pub open spec fn is_update_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_UpdateResponse()
-    }
-
-    pub open spec fn get_update_response(self) -> UpdateResponse
-        recommends
-            self.is_update_response()
-    {
-        self.get_APIResponse_0().get_UpdateResponse_0()
-    }
-
-    pub open spec fn is_delete_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_DeleteResponse()
-    }
-
-    pub open spec fn get_delete_response(self) -> DeleteResponse
-        recommends
-            self.is_delete_response()
-    {
-        self.get_APIResponse_0().get_DeleteResponse_0()
-    }
-
-    pub open spec fn is_list_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_ListResponse()
-    }
-
-    pub open spec fn get_list_response(self) -> ListResponse
-        recommends
-            self.is_list_response()
-    {
-        self.get_APIResponse_0().get_ListResponse_0()
-    }
-}
 
 pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     match resp {
@@ -293,42 +141,6 @@ pub open spec fn form_msg(src: HostId, dst: HostId, rpc_id: RPCId, msg_content: 
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message, resp: GetResponse) -> Message
-    recommends req_msg.content.is_get_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
-}
-
-pub open spec fn form_list_resp_msg(req_msg: Message, resp: ListResponse) -> Message
-    recommends req_msg.content.is_list_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
-}
-
-pub open spec fn form_create_resp_msg(req_msg: Message, resp: CreateResponse) -> Message
-    recommends req_msg.content.is_create_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
-}
-
-pub open spec fn form_delete_resp_msg(req_msg: Message, resp: DeleteResponse) -> Message
-    recommends req_msg.content.is_delete_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
-}
-
-pub open spec fn form_update_resp_msg(req_msg: Message, resp: UpdateResponse) -> Message
-    recommends req_msg.content.is_update_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
-}
-
-pub open spec fn form_update_status_resp_msg(req_msg: Message, resp: UpdateStatusResponse) -> Message
-    recommends req_msg.content.is_update_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
-}
-
 pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalResponse) -> Message
     recommends req_msg.content.is_ExternalRequest(),
 {
@@ -385,45 +197,6 @@ pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bo
     }
 }
 
-pub open spec fn create_msg_for(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_create_request()
-        && msg.content.get_create_request().namespace == key.namespace
-        && msg.content.get_create_request().obj.kind == key.kind
-        && msg.content.get_create_request().obj.metadata.name.is_Some()
-        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
-}
-
-pub open spec fn update_msg_for(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_update_request()
-        && msg.content.get_update_request().key() == key
-}
-
-pub open spec fn update_status_msg_for(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_update_status_request()
-        && msg.content.get_update_status_request().key() == key
-}
-
-pub open spec fn delete_msg_for(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_delete_request()
-        && msg.content.get_delete_request().key == key
-}
-
-pub open spec fn update_status_msg_from_bc_for(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.src.is_BuiltinController()
-        && msg.content.is_update_status_request()
-        && msg.content.get_update_status_request().key() == key
-}
-
 pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
     if recv.is_Some() {
         recv.get_Some_0().dst == host_id
@@ -432,20 +205,223 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
     }
 }
 
-pub open spec fn resource_get_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
+}
+
+macro_rules! declare_message_content_req_helper_methods {
+    ($is_fun:ident, $get_fun:ident, $req_type:ty, $project:ident) => {
+        verus! {
+        impl MessageContent {
+            pub open spec fn $is_fun(self) -> bool {
+                &&& self is APIRequest
+                &&& self.get_APIRequest_0() is $req_type
+            }
+
+            pub open spec fn $get_fun(self) -> $req_type {
+                self.get_APIRequest_0().$project()
+            }
+        }
+        }
+    };
+}
+
+macro_rules! declare_message_content_req_helper_methods_with_key {
+    ($is_fun:ident, $req_type:ty, $project:ident) => {
+        verus! {
+        impl MessageContent {
+            pub open spec fn $is_fun(self, key: ObjectRef) -> bool {
+                &&& self is APIRequest
+                &&& self.get_APIRequest_0() is $req_type
+                &&& self.get_APIRequest_0().$project().key() == key
+            }
+        }
+        }
+    };
+}
+
+macro_rules! declare_message_content_resp_helper_methods {
+    ($is_fun:ident, $get_fun:ident, $resp_type:ty, $project:ident) => {
+        verus! {
+        impl MessageContent {
+            pub open spec fn $is_fun(self) -> bool {
+                &&& self is APIResponse
+                &&& self.get_APIResponse_0() is $resp_type
+            }
+
+            pub open spec fn $get_fun(self) -> $resp_type {
+                self.get_APIResponse_0().$project()
+            }
+        }
+        }
+    };
+}
+
+declare_message_content_req_helper_methods!(
+    is_get_request,
+    get_get_request,
+    GetRequest,
+    get_GetRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    is_list_request,
+    get_list_request,
+    ListRequest,
+    get_ListRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    is_create_request,
+    get_create_request,
+    CreateRequest,
+    get_CreateRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    is_delete_request,
+    get_delete_request,
+    DeleteRequest,
+    get_DeleteRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    is_update_request,
+    get_update_request,
+    UpdateRequest,
+    get_UpdateRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    is_update_status_request,
+    get_update_status_request,
+    UpdateStatusRequest,
+    get_UpdateStatusRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    is_delete_request_with_key,
+    DeleteRequest,
+    get_DeleteRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    is_update_request_with_key,
+    UpdateRequest,
+    get_UpdateRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    is_update_status_request_with_key,
+    UpdateStatusRequest,
+    get_UpdateStatusRequest_0
+);
+
+declare_message_content_resp_helper_methods!(
+    is_get_response,
+    get_get_response,
+    GetResponse,
+    get_GetResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    is_list_response,
+    get_list_response,
+    ListResponse,
+    get_ListResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    is_create_response,
+    get_create_response,
+    CreateResponse,
+    get_CreateResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    is_delete_response,
+    get_delete_response,
+    DeleteResponse,
+    get_DeleteResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    is_update_response,
+    get_update_response,
+    UpdateResponse,
+    get_UpdateResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    is_update_status_response,
+    get_update_status_response,
+    UpdateStatusResponse,
+    get_UpdateStatusResponse_0
+);
+
+macro_rules! declare_form_resp_msg_functions {
+    ($fun:ident, $resp_type:ty) => {
+        verus! {
+        pub open spec fn $fun(req_msg: Message, resp: $resp_type) -> Message {
+            form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::$resp_type(resp)))
+        }
+        }
+    };
+}
+
+declare_form_resp_msg_functions!(form_get_resp_msg, GetResponse);
+
+declare_form_resp_msg_functions!(form_list_resp_msg, ListResponse);
+
+declare_form_resp_msg_functions!(form_create_resp_msg, CreateResponse);
+
+declare_form_resp_msg_functions!(form_delete_resp_msg, DeleteResponse);
+
+declare_form_resp_msg_functions!(form_update_resp_msg, UpdateResponse);
+
+declare_form_resp_msg_functions!(form_update_status_resp_msg, UpdateStatusResponse);
+
+macro_rules! declare_is_req_msg_functions {
+    ($is_fun:ident, $is_req:ident, $get_req:ident) => {
+        verus! {
+        pub open spec fn $is_fun(key: ObjectRef) -> spec_fn(Message) -> bool {
+            |msg: Message| msg.dst.is_APIServer() && msg.content.$is_req() && msg.content.$get_req().key() == key
+        }
+        }
+    };
+}
+
+declare_is_req_msg_functions!(resource_get_request_msg, is_get_request, get_get_request);
+
+declare_is_req_msg_functions!(
+    resource_update_request_msg,
+    is_update_request,
+    get_update_request
+);
+
+declare_is_req_msg_functions!(
+    resource_update_status_request_msg,
+    is_update_status_request,
+    get_update_status_request
+);
+
+declare_is_req_msg_functions!(
+    resource_delete_request_msg,
+    is_delete_request,
+    get_delete_request
+);
+
+verus! {
+
+pub open spec fn update_status_msg_from_bc_for(key: ObjectRef) -> spec_fn(Message) -> bool {
     |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_get_request()
-        && msg.content.get_get_request().key == key
+        resource_update_status_request_msg(key)(msg) && msg.src.is_BuiltinController()
 }
 
 pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
     |msg: Message|
         msg.dst.is_APIServer()
         && msg.content.is_create_request()
-        && msg.content.get_create_request().namespace == key.namespace
-        && msg.content.get_create_request().obj.metadata.name == Some(key.name)
-        && msg.content.get_create_request().obj.kind == key.kind
+        && msg.content.get_create_request().obj.metadata.name.is_Some()
+        && msg.content.get_create_request().key() == key
 }
 
 // This is mainly used for reasoning about create requests with generate name
@@ -459,64 +435,41 @@ pub open spec fn resource_create_request_msg_without_name(kind: Kind, namespace:
         && msg.content.get_create_request().obj.kind == kind
 }
 
-pub open spec fn resource_update_status_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_update_status_request()
-        && msg.content.get_update_status_request().key() == key
 }
 
-pub open spec fn resource_update_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_update_request()
-        && msg.content.get_update_request().key() == key
+macro_rules! declare_is_ok_resp_msg_functions {
+    ($is_ok_fun:ident, $is_ok_for_fun:ident, $is_resp:ident, $get_resp:ident) => {
+        verus! {
+        pub open spec fn $is_ok_fun() -> spec_fn(Message) -> bool {
+            |msg: Message|
+                msg.src.is_APIServer() && msg.content.$is_resp() && msg.content.$get_resp().res.is_Ok()
+        }
+
+        pub open spec fn $is_ok_for_fun(key: ObjectRef) -> spec_fn(Message) -> bool {
+            |msg: Message|
+                $is_ok_fun()(msg) && msg.content.$get_resp().res.get_Ok_0().object_ref() == key
+        }
+        }
+    };
 }
 
-pub open spec fn resource_delete_request_msg(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_APIServer()
-        && msg.content.is_delete_request()
-        && msg.content.get_delete_request().key == key
-}
+declare_is_ok_resp_msg_functions!(
+    is_ok_get_response_msg,
+    is_ok_get_response_msg_and_matches_key,
+    is_get_response,
+    get_get_response
+);
 
-pub open spec fn is_ok_get_response_msg() -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.src.is_APIServer()
-        && msg.content.is_get_response()
-        && msg.content.get_get_response().res.is_Ok()
-}
+declare_is_ok_resp_msg_functions!(
+    is_ok_create_response_msg,
+    is_ok_create_response_msg_and_matches_key,
+    is_create_response,
+    get_create_response
+);
 
-pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        is_ok_get_response_msg()(msg)
-        && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
-}
-
-pub open spec fn is_ok_update_response_msg() -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.src.is_APIServer()
-        && msg.content.is_update_response()
-        && msg.content.get_update_response().res.is_Ok()
-}
-
-pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        is_ok_update_response_msg()(msg)
-        && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
-}
-
-pub open spec fn is_ok_create_response_msg() -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.src.is_APIServer()
-        && msg.content.is_create_response()
-        && msg.content.get_create_response().res.is_Ok()
-}
-
-pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        is_ok_create_response_msg()(msg)
-        && msg.content.get_create_response().res.get_Ok_0().object_ref() == key
-}
-
-}
+declare_is_ok_resp_msg_functions!(
+    is_ok_update_response_msg,
+    is_ok_update_response_msg_and_matches_key,
+    is_update_response,
+    get_update_response
+);

@@ -8,8 +8,6 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{daemon_set::*, resource::*};
 use vstd::prelude::*;
 
-verus! {
-
 // DaemonSet is a type of API object used for managing daemon applications,
 // mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
 // A DaemonSet object allows different types of Volumes attached to the pods,
@@ -22,40 +20,15 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/.
 
-#[verifier(external_body)]
-pub struct DaemonSet {
-    inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSet,
-}
+implement_wrapper_type!(
+    DaemonSet,
+    deps_hack::k8s_openapi::api::apps::v1::DaemonSet,
+    DaemonSetView
+);
 
-
-impl View for DaemonSet {
-    type V = DaemonSetView;
-
-    spec fn view(&self) -> DaemonSetView;
-}
+verus! {
 
 impl DaemonSet {
-    #[verifier(external_body)]
-    pub fn default() -> (daemon_set: DaemonSet)
-        ensures daemon_set@ == DaemonSetView::default(),
-    {
-        DaemonSet { inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSet::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        DaemonSet { inner: self.inner.clone() }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<DaemonSetSpec>)
         ensures
@@ -66,56 +39,11 @@ impl DaemonSet {
     }
 
     #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: DaemonSetSpec)
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
     }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == DaemonSetView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::apps::v1::DaemonSet>(&()))
-    }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    // Convert a DynamicObject to a DaemonSet
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<DaemonSet, UnmarshalError>)
-        ensures
-            res.is_Ok() == DaemonSetView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == DaemonSetView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::DaemonSet>();
-        if parse_result.is_ok() {
-            let res = DaemonSet { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
-    }
-}
-
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSet> for DaemonSet {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSet) -> DaemonSet { DaemonSet { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSet { self.inner }
 }
 
 #[verifier(external_body)]
@@ -169,13 +97,6 @@ impl DaemonSetSpec {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec> for DaemonSetSpec {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec) -> DaemonSetSpec { DaemonSetSpec { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec { self.inner }
-}
-
 #[verifier(external_body)]
 pub struct DaemonSetStatus {
     inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus,
@@ -192,11 +113,16 @@ impl DaemonSetStatus {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus> for DaemonSetStatus {
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus) -> DaemonSetStatus { DaemonSetStatus { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus { self.inner }
 }
 
-}
+implement_resource_wrapper_trait!(DaemonSet, deps_hack::k8s_openapi::api::apps::v1::DaemonSet);
+
+implement_resource_wrapper_trait!(
+    DaemonSetSpec,
+    deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec
+);
+
+implement_resource_wrapper_trait!(
+    DaemonSetStatus,
+    deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus
+);

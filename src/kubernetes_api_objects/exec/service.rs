@@ -8,8 +8,6 @@ use crate::kubernetes_api_objects::spec::{resource::*, service::*};
 use crate::vstd_ext::string_map::StringMap;
 use vstd::prelude::*;
 
-verus! {
-
 // Service is a type of API object used for exposing a network application
 // that is running as one or more Pods in your cluster.
 // A Service object can be used to assign stable IP addresses and DNS names to pods.
@@ -20,41 +18,15 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/services-networking/service/.
 
-#[verifier(external_body)]
-pub struct Service {
-    inner: deps_hack::k8s_openapi::api::core::v1::Service,
-}
+implement_wrapper_type!(
+    Service,
+    deps_hack::k8s_openapi::api::core::v1::Service,
+    ServiceView
+);
 
-impl View for Service {
-    type V = ServiceView;
-
-    spec fn view(&self) -> ServiceView;
-}
+verus! {
 
 impl Service {
-    #[verifier(external_body)]
-    pub fn default() -> (service: Service)
-        ensures service@ == ServiceView::default(),
-    {
-        Service {
-            inner: deps_hack::k8s_openapi::api::core::v1::Service::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        Service { inner: self.inner.clone() }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<ServiceSpec>)
         ensures
@@ -68,52 +40,10 @@ impl Service {
     }
 
     #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: ServiceSpec)
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Service { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Service) -> Service { Service { inner: inner } }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == ServiceView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Service>(&()))
-    }
-
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Service, UnmarshalError>)
-        ensures
-            res.is_Ok() == ServiceView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == ServiceView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Service>();
-        if parse_result.is_ok() {
-            let res = Service { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -208,12 +138,6 @@ impl ServiceSpec {
     {
         self.inner.publish_not_ready_addresses = None;
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec) -> ServiceSpec { ServiceSpec { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec { self.inner }
 }
 
 #[verifier(external_body)]
@@ -270,12 +194,18 @@ impl ServicePort {
     {
         self.inner.protocol = Some(protocol);
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServicePort) -> ServicePort { ServicePort { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort { self.inner }
 }
 
 }
+
+implement_resource_wrapper_trait!(Service, deps_hack::k8s_openapi::api::core::v1::Service);
+
+implement_resource_wrapper_trait!(
+    ServiceSpec,
+    deps_hack::k8s_openapi::api::core::v1::ServiceSpec
+);
+
+implement_resource_wrapper_trait!(
+    ServicePort,
+    deps_hack::k8s_openapi::api::core::v1::ServicePort
+);

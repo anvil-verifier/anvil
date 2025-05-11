@@ -92,11 +92,9 @@ impl LabelSelector {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector> for LabelSelector {
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector) -> LabelSelector { LabelSelector { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector { self.inner }
 }
 
-}
+implement_resource_wrapper_trait!(
+    LabelSelector,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector
+);

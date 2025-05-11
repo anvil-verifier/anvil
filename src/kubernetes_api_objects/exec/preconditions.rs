@@ -47,12 +47,8 @@ impl Preconditions {
     {
         self.inner.resource_version = object_meta.into_kube().resource_version;
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::kube::api::Preconditions) -> Preconditions { Preconditions { inner: inner } }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::kube::api::Preconditions { self.inner }
 }
 
 }
+
+implement_resource_wrapper_trait!(Preconditions, deps_hack::kube::api::Preconditions);

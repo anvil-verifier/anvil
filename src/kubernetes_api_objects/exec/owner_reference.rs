@@ -43,11 +43,9 @@ impl OwnerReference {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference> for OwnerReference {
-    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference) -> OwnerReference { OwnerReference { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference { self.inner }
 }
 
-}
+implement_resource_wrapper_trait!(
+    OwnerReference,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference
+);

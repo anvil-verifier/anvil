@@ -7,42 +7,17 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{resource::*, role::*};
 use vstd::prelude::*;
 
-verus! {
-
 // This definition is a wrapper of Role defined at
 // https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role.rs.
 // It is supposed to be used in exec controller code.
 //
 // More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
 
-#[verifier(external_body)]
-pub struct Role {
-    inner: deps_hack::k8s_openapi::api::rbac::v1::Role,
-}
+implement_wrapper_type!(Role, deps_hack::k8s_openapi::api::rbac::v1::Role, RoleView);
 
-impl View for Role {
-    type V = RoleView;
-
-    spec fn view(&self) -> RoleView;
-}
+verus! {
 
 impl Role {
-    #[verifier(external_body)]
-    pub fn default() -> (role: Role)
-        ensures role@ == RoleView::default(),
-    {
-        Role {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::Role::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn rules(&self) -> (policy_rules: Option<Vec<PolicyRule>>)
         ensures
@@ -56,61 +31,12 @@ impl Role {
     }
 
     #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_rules(&mut self, policy_rules: Vec<PolicyRule>)
         ensures self@ == old(self)@.with_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
         )
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (c: Self)
-        ensures c@ == self@,
-    {
-        Role { inner: self.inner.clone() }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Role { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Role) -> Role { Role { inner: inner } }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == RoleView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::rbac::v1::Role>(&()))
-    }
-
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Role, UnmarshalError>)
-        ensures
-            res.is_Ok() == RoleView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == RoleView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::Role>();
-        if parse_result.is_ok() {
-            let res = Role { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -177,13 +103,11 @@ impl PolicyRule {
     {
         self.inner.verbs = verbs
     }
-
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::PolicyRule { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule) -> PolicyRule { PolicyRule { inner: inner } }
 }
 
 }
+
+implement_resource_wrapper_trait!(
+    PolicyRule,
+    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule
+);

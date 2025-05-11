@@ -17,8 +17,8 @@ pub use thiserror;
 pub use tokio;
 pub use tracing;
 pub use tracing_subscriber;
-pub use zookeeper;
 pub use warp;
+pub use zookeeper;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -272,7 +272,13 @@ pub struct FluentBitConfigSpec {
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource,
+    Default,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
 #[kube(shortname = "vrs", namespaced)]
@@ -280,6 +286,22 @@ pub struct VReplicaSetSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
     pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
+}
+
+impl VReplicaSet {
+    pub fn default() -> Self {
+        Self {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+            spec: VReplicaSetSpec::default(),
+        }
+    }
+
+    pub fn clone(&self) -> Self {
+        Self {
+            metadata: self.metadata.clone(),
+            spec: self.spec.clone(),
+        }
+    }
 }
 
 #[derive(
