@@ -92,7 +92,7 @@ pub open spec fn state_comes_with_a_pending_request(self, controller_id: int, st
 }
 
 // TODO: Investigate flaky proof.
-#[verifier(rlimit(4000))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -223,7 +223,7 @@ pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(self, spec: Temp
 pub open spec fn cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceView>() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef| {
-            let unmarshal_result = 
+            let unmarshal_result =
                 T::unmarshal(s.resources()[key]);
             #[trigger] s.resources().contains_key(key)
             && key.kind.is_CustomResourceKind()
@@ -255,7 +255,7 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomR
     T::marshal_status_preserves_integrity();
     T::unmarshal_result_determined_by_unmarshal_spec_and_status();
     T::validation_result_determined_by_spec_and_status();
-    
+
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(self.next()),
@@ -267,7 +267,7 @@ pub proof fn lemma_always_cr_objects_in_etcd_satisfy_state_validation<T: CustomR
 pub open spec fn cr_objects_in_schedule_satisfy_state_validation<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef| {
-            let unmarshal_result = 
+            let unmarshal_result =
                 T::unmarshal(s.scheduled_reconciles(controller_id)[key]);
             #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
             && key.kind.is_CustomResourceKind()
@@ -310,7 +310,7 @@ pub proof fn lemma_always_cr_objects_in_schedule_satisfy_state_validation<T: Cus
 pub open spec fn cr_objects_in_reconcile_satisfy_state_validation<T: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef| {
-            let unmarshal_result = 
+            let unmarshal_result =
                 T::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr);
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
             && key.kind.is_CustomResourceKind()
@@ -356,7 +356,7 @@ pub proof fn lemma_always_cr_objects_in_reconcile_satisfy_state_validation<T: Cu
 pub open spec fn cr_states_are_unmarshallable<S: Marshallable, K: CustomResourceView>(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef| {
-            let unmarshal_result = 
+            let unmarshal_result =
                 S::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state);
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
             && key.kind.is_CustomResourceKind()
@@ -370,7 +370,7 @@ pub proof fn lemma_always_cr_states_are_unmarshallable<R, S, K, EReq, EResp>(
     self, spec: TempPred<ClusterState>, controller_id: int
 )
     where
-        R: Reconciler<S, K, EReq, EResp>, 
+        R: Reconciler<S, K, EReq, EResp>,
         K: CustomResourceView,
         S: Marshallable,
         EReq: Marshallable,
@@ -379,7 +379,7 @@ pub proof fn lemma_always_cr_states_are_unmarshallable<R, S, K, EReq, EResp>(
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.type_is_installed_in_cluster::<K>(),
-        self.controller_models.contains_key(controller_id), 
+        self.controller_models.contains_key(controller_id),
         self.controller_models[controller_id].reconcile_model == Self::installed_reconcile_model::<R, S, K, EReq, EResp>(),
     ensures spec.entails(always(lift_state(Self::cr_states_are_unmarshallable::<S, K>(controller_id)))),
 {
@@ -416,7 +416,7 @@ pub proof fn lemma_always_cr_objects_in_schedule_have_correct_kind<T: CustomReso
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.type_is_installed_in_cluster::<T>(),
-        self.controller_models.contains_key(controller_id), 
+        self.controller_models.contains_key(controller_id),
         self.controller_models[controller_id].reconcile_model.kind == T::kind(),
     ensures spec.entails(always(lift_state(Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id)))),
 {
@@ -452,7 +452,7 @@ pub proof fn lemma_always_cr_objects_in_reconcile_have_correct_kind<T: CustomRes
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.type_is_installed_in_cluster::<T>(),
-        self.controller_models.contains_key(controller_id), 
+        self.controller_models.contains_key(controller_id),
         self.controller_models[controller_id].reconcile_model.kind == T::kind(),
     ensures spec.entails(always(lift_state(Self::cr_objects_in_reconcile_have_correct_kind::<T>(controller_id)))),
 {
@@ -473,7 +473,7 @@ pub proof fn lemma_always_cr_objects_in_reconcile_have_correct_kind<T: CustomRes
         lift_state(Self::cr_objects_in_schedule_have_correct_kind::<T>(controller_id))
     );
     init_invariant(spec, self.init(), stronger_next, inv);
-} 
+}
 
 pub open spec fn ongoing_reconciles_is_finite(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -538,7 +538,7 @@ pub open spec fn every_ongoing_reconcile_has_lower_id_than_allocator(controller_
     |s: ClusterState| {
         forall |key: ObjectRef|
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            ==> s.ongoing_reconciles(controller_id)[key].reconcile_id 
+            ==> s.ongoing_reconciles(controller_id)[key].reconcile_id
                     < s.reconcile_id_allocator(controller_id).reconcile_id_counter
     }
 }
@@ -583,7 +583,7 @@ pub open spec fn every_ongoing_reconcile_has_unique_id(controller_id: int) -> St
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key1)
             && #[trigger] s.ongoing_reconciles(controller_id).contains_key(key2)
             && key1 != key2
-            ==>  s.ongoing_reconciles(controller_id)[key1].reconcile_id 
+            ==>  s.ongoing_reconciles(controller_id)[key1].reconcile_id
                     != s.ongoing_reconciles(controller_id)[key2].reconcile_id
     }
 }
