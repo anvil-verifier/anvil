@@ -34,6 +34,12 @@ pub struct GetRequest {
     pub key: ObjectRef,
 }
 
+impl GetRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        self.key
+    }
+}
+
 // ListRequest lists all the objects of kind in namespace.
 
 pub struct ListRequest {

@@ -349,7 +349,7 @@ pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIR
 }
 
 macro_rules! declare_kube_api_response_helper_methods {
-    ($resp_type:ty, $resp_view_type:ty, $is_fun:ident, $as_ref_fun:ident, $into_fun:ident, $project:ident) => {
+    ($is_fun:ident, $as_ref_fun:ident, $into_fun:ident, $resp_type:ty, $kube_resp_type:ty, $project:ident) => {
         verus! {
 
         impl KubeAPIResponse {
@@ -362,7 +362,7 @@ macro_rules! declare_kube_api_response_helper_methods {
                 }
             }
 
-            pub fn $as_ref_fun(&self) -> (resp: &$resp_view_type)
+            pub fn $as_ref_fun(&self) -> (resp: &$kube_resp_type)
                 requires self is $resp_type,
                 ensures resp == self.$project(),
             {
@@ -372,7 +372,7 @@ macro_rules! declare_kube_api_response_helper_methods {
                 }
             }
 
-            pub fn $into_fun(self) -> (resp: $resp_view_type)
+            pub fn $into_fun(self) -> (resp: $kube_resp_type)
                 requires self is $resp_type,
                 ensures resp == self.$project(),
             {
@@ -388,55 +388,55 @@ macro_rules! declare_kube_api_response_helper_methods {
 }
 
 declare_kube_api_response_helper_methods!(
-    GetResponse,
-    KubeGetResponse,
     is_get_response,
     as_get_response_ref,
     into_get_response,
+    GetResponse,
+    KubeGetResponse,
     get_GetResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
-    ListResponse,
-    KubeListResponse,
     is_list_response,
     as_list_response_ref,
     into_list_response,
+    ListResponse,
+    KubeListResponse,
     get_ListResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
-    CreateResponse,
-    KubeCreateResponse,
     is_create_response,
     as_create_response_ref,
     into_create_response,
+    CreateResponse,
+    KubeCreateResponse,
     get_CreateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
-    DeleteResponse,
-    KubeDeleteResponse,
     is_delete_response,
     as_delete_response_ref,
     into_delete_response,
+    DeleteResponse,
+    KubeDeleteResponse,
     get_DeleteResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
-    UpdateResponse,
-    KubeUpdateResponse,
     is_update_response,
     as_update_response_ref,
     into_update_response,
+    UpdateResponse,
+    KubeUpdateResponse,
     get_UpdateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
-    UpdateStatusResponse,
-    KubeUpdateStatusResponse,
     is_update_status_response,
     as_update_response_status_ref,
     into_update_status_response,
+    UpdateStatusResponse,
+    KubeUpdateStatusResponse,
     get_UpdateStatusResponse_0
 );
