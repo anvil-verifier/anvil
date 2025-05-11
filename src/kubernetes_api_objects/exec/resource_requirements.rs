@@ -48,7 +48,7 @@ impl ResourceRequirements {
 
 }
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ResourceRequirements,
     deps_hack::k8s_openapi::api::core::v1::ResourceRequirements
 );

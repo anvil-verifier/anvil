@@ -49,4 +49,4 @@ impl std::fmt::Debug for DynamicObject {
 
 }
 
-implement_resource_wrapper!(DynamicObject, deps_hack::kube::api::DynamicObject);
+implement_resource_wrapper_trait!(DynamicObject, deps_hack::kube::api::DynamicObject);

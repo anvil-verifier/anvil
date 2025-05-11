@@ -471,61 +471,61 @@ impl ObjectFieldSelector {
 
 }
 
-implement_resource_wrapper!(Volume, deps_hack::k8s_openapi::api::core::v1::Volume);
+implement_resource_wrapper_trait!(Volume, deps_hack::k8s_openapi::api::core::v1::Volume);
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     EmptyDirVolumeSource,
     deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     HostPathVolumeSource,
     deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ConfigMapVolumeSource,
     deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     SecretVolumeSource,
     deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ProjectedVolumeSource,
     deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     VolumeProjection,
     deps_hack::k8s_openapi::api::core::v1::VolumeProjection
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ConfigMapProjection,
     deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     SecretProjection,
     deps_hack::k8s_openapi::api::core::v1::SecretProjection
 );
 
-implement_resource_wrapper!(KeyToPath, deps_hack::k8s_openapi::api::core::v1::KeyToPath);
+implement_resource_wrapper_trait!(KeyToPath, deps_hack::k8s_openapi::api::core::v1::KeyToPath);
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     DownwardAPIVolumeSource,
     deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     DownwardAPIVolumeFile,
     deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ObjectFieldSelector,
     deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector
 );

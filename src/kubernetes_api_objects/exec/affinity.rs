@@ -25,4 +25,4 @@ impl Affinity {
 
 }
 
-implement_resource_wrapper!(Affinity, deps_hack::k8s_openapi::api::core::v1::Affinity);
+implement_resource_wrapper_trait!(Affinity, deps_hack::k8s_openapi::api::core::v1::Affinity);

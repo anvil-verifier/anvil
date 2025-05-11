@@ -48,7 +48,7 @@ impl VolumeResourceRequirements {
 
 }
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     VolumeResourceRequirements,
     deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements
 );

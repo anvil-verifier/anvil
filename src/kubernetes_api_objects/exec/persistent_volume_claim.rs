@@ -7,8 +7,6 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, resource::*};
 use vstd::prelude::*;
 
-verus! {
-
 // PersistentVolumeClaim is a type of API object representing a request for storage (typically used by a Pod).
 // PersistentVolumeClaim objects are often defined in StatefulSet objects as the Volumes mounted to the Pods.
 //
@@ -18,16 +16,13 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/storage/persistent-volumes/.
 
-#[verifier(external_body)]
-pub struct PersistentVolumeClaim {
-    inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
-}
+implement_wrapper_type!(
+    PersistentVolumeClaim,
+    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
+    PersistentVolumeClaimView
+);
 
-impl View for PersistentVolumeClaim {
-    type V = PersistentVolumeClaimView;
-
-    spec fn view(&self) -> PersistentVolumeClaimView;
-}
+verus! {
 
 impl PersistentVolumeClaim {
     #[verifier(external_body)]
@@ -35,22 +30,6 @@ impl PersistentVolumeClaim {
         ensures b == (self.view() == other.view())
     {
         self.inner == other.inner
-    }
-
-    #[verifier(external_body)]
-    pub fn default() -> (pvc: PersistentVolumeClaim)
-        ensures pvc@ == PersistentVolumeClaimView::default(),
-    {
-        PersistentVolumeClaim {
-            inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -66,47 +45,10 @@ impl PersistentVolumeClaim {
     }
 
     #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures
-            self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PersistentVolumeClaimSpec)
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
-    }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == PersistentVolumeClaimView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>(&()))
-    }
-
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<PersistentVolumeClaim, UnmarshalError>)
-        ensures
-            res.is_Ok() == PersistentVolumeClaimView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == PersistentVolumeClaimView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>();
-        if parse_result.is_ok() {
-            let res = PersistentVolumeClaim { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -159,12 +101,12 @@ impl PersistentVolumeClaimSpec {
 
 }
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     PersistentVolumeClaim,
     deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     PersistentVolumeClaimSpec,
     deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec
 );

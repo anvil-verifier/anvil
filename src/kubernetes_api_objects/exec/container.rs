@@ -558,45 +558,45 @@ impl SecurityContext {
 
 }
 
-implement_resource_wrapper!(Container, deps_hack::k8s_openapi::api::core::v1::Container);
+implement_resource_wrapper_trait!(Container, deps_hack::k8s_openapi::api::core::v1::Container);
 
-implement_resource_wrapper!(Lifecycle, deps_hack::k8s_openapi::api::core::v1::Lifecycle);
+implement_resource_wrapper_trait!(Lifecycle, deps_hack::k8s_openapi::api::core::v1::Lifecycle);
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ContainerPort,
     deps_hack::k8s_openapi::api::core::v1::ContainerPort
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     VolumeMount,
     deps_hack::k8s_openapi::api::core::v1::VolumeMount
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     TCPSocketAction,
     deps_hack::k8s_openapi::api::core::v1::TCPSocketAction
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     LifecycleHandler,
     deps_hack::k8s_openapi::api::core::v1::LifecycleHandler
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     ExecAction,
     deps_hack::k8s_openapi::api::core::v1::ExecAction
 );
 
-implement_resource_wrapper!(Probe, deps_hack::k8s_openapi::api::core::v1::Probe);
+implement_resource_wrapper_trait!(Probe, deps_hack::k8s_openapi::api::core::v1::Probe);
 
-implement_resource_wrapper!(EnvVar, deps_hack::k8s_openapi::api::core::v1::EnvVar);
+implement_resource_wrapper_trait!(EnvVar, deps_hack::k8s_openapi::api::core::v1::EnvVar);
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     EnvVarSource,
     deps_hack::k8s_openapi::api::core::v1::EnvVarSource
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     SecurityContext,
     deps_hack::k8s_openapi::api::core::v1::SecurityContext
 );

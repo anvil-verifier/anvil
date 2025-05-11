@@ -94,7 +94,7 @@ impl LabelSelector {
 
 }
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     LabelSelector,
     deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector
 );

@@ -8,8 +8,6 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{resource::*, stateful_set::*};
 use vstd::prelude::*;
 
-verus! {
-
 // StatefulSet is a type of API object used for managing stateful applications,
 // mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
 // A StatefulSet object allows different types of Volumes attached to the pods,
@@ -22,39 +20,15 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/.
 
-#[verifier(external_body)]
-pub struct StatefulSet {
-    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet,
-}
+implement_wrapper_type!(
+    StatefulSet,
+    deps_hack::k8s_openapi::api::apps::v1::StatefulSet,
+    StatefulSetView
+);
 
-impl View for StatefulSet {
-    type V = StatefulSetView;
-
-    spec fn view(&self) -> StatefulSetView;
-}
+verus! {
 
 impl StatefulSet {
-    #[verifier(external_body)]
-    pub fn default() -> (stateful_set: StatefulSet)
-        ensures stateful_set@ == StatefulSetView::default(),
-    {
-        StatefulSet { inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        StatefulSet { inner: self.inner.clone() }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<StatefulSetSpec>)
         ensures
@@ -82,50 +56,10 @@ impl StatefulSet {
     }
 
     #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: StatefulSetSpec)
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
-    }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == StatefulSetView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>(&()))
-    }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
-    }
-
-    // Convert a DynamicObject to a StatefulSet
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<StatefulSet, UnmarshalError>)
-        ensures
-            res.is_Ok() == StatefulSetView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == StatefulSetView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>();
-        if parse_result.is_ok() {
-            let res = StatefulSet { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -330,22 +264,22 @@ impl StatefulSetStatus {
 
 }
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     StatefulSet,
     deps_hack::k8s_openapi::api::apps::v1::StatefulSet
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     StatefulSetSpec,
     deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     StatefulSetStatus,
     deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     StatefulSetPersistentVolumeClaimRetentionPolicy,
     deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy
 );

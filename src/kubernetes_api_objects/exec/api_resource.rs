@@ -23,4 +23,4 @@ impl ApiResource {
 
 }
 
-implement_resource_wrapper!(ApiResource, deps_hack::kube::api::ApiResource);
+implement_resource_wrapper_trait!(ApiResource, deps_hack::kube::api::ApiResource);

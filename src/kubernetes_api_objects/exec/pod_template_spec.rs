@@ -71,7 +71,7 @@ impl PodTemplateSpec {
 
 }
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     PodTemplateSpec,
     deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec
 );

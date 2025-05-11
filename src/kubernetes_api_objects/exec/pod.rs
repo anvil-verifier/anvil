@@ -9,8 +9,6 @@ use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
-verus! {
-
 // Pod is a type of API object used for grouping one or more containers that share storage and network resources.
 // This is the smallest deployable unit in Kubernetes.
 //
@@ -23,32 +21,11 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
 
-#[verifier(external_body)]
-pub struct Pod {
-    inner: deps_hack::k8s_openapi::api::core::v1::Pod,
-}
+implement_wrapper_type!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod, PodView);
 
-impl View for Pod {
-    type V = PodView;
-
-    spec fn view(&self) -> PodView;
-}
+verus! {
 
 impl Pod {
-    #[verifier(external_body)]
-    pub fn default() -> (pod: Pod)
-        ensures pod@ == PodView::default(),
-    {
-        Pod { inner: deps_hack::k8s_openapi::api::core::v1::Pod::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<PodSpec>)
         ensures
@@ -62,48 +39,10 @@ impl Pod {
     }
 
     #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: PodSpec)
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
-    }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == PodView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Pod>(&()))
-    }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    // Convert a DynamicObject to a Pod
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, UnmarshalError>)
-        ensures
-            res.is_Ok() == PodView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == PodView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Pod>();
-        if parse_result.is_ok() {
-            let res = Pod { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -269,16 +208,16 @@ impl View for LocalObjectReference {
 
 }
 
-implement_resource_wrapper!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod);
+implement_resource_wrapper_trait!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod);
 
-implement_resource_wrapper!(PodSpec, deps_hack::k8s_openapi::api::core::v1::PodSpec);
+implement_resource_wrapper_trait!(PodSpec, deps_hack::k8s_openapi::api::core::v1::PodSpec);
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     PodSecurityContext,
     deps_hack::k8s_openapi::api::core::v1::PodSecurityContext
 );
 
-implement_resource_wrapper!(
+implement_resource_wrapper_trait!(
     LocalObjectReference,
     deps_hack::k8s_openapi::api::core::v1::LocalObjectReference
 );
