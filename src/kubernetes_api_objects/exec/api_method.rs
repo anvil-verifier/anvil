@@ -202,6 +202,13 @@ pub struct KubeGetThenUpdateRequest {
     pub obj: DynamicObject,
 }
 
+impl KubeGetThenUpdateRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
+    }
+}
+
 impl View for KubeGetThenUpdateRequest {
     type V = GetThenUpdateRequest;
     open spec fn view(&self) -> GetThenUpdateRequest {

@@ -46,7 +46,7 @@ impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, model_resource::
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let found_sts = sts.unwrap();
-            if found_sts.metadata().owner_references_only_contains(zk.controller_owner_ref())
+            if found_sts.metadata().owner_references_only_contains(&zk.controller_owner_ref())
             && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
                 return Ok(update_stateful_set(zk, &found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
             }

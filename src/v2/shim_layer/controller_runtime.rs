@@ -356,10 +356,15 @@ where
                                 }
                             }
                         }
-                        KubeGetThenUpdateRequest::GetThenUpdateRequest(req) => {
+                        KubeAPIRequest::GetThenUpdateRequest(req) => {
                             check_fault_timing = true;
                             kube_resp = KubeAPIResponse::GetThenUpdateResponse(
-                                transactional_get_then_update_by_retry(req),
+                                transactional_get_then_update_by_retry(
+                                    client,
+                                    req,
+                                    log_header.clone(),
+                                )
+                                .await,
                             );
                         }
                     }
@@ -392,7 +397,9 @@ where
 }
 
 pub async fn transactional_get_then_update_by_retry(
+    client: &Client,
     req: KubeGetThenUpdateRequest,
+    log_header: String,
 ) -> KubeGetThenUpdateResponse {
     let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
         client.clone(),
@@ -401,8 +408,9 @@ pub async fn transactional_get_then_update_by_retry(
     );
     let pp = PostParams::default();
     let key = req.key();
-    let obj_to_update = req.obj.into_kube();
-    while (true) {
+    let mut obj_to_update = req.obj.into_kube();
+
+    loop {
         let get_result = api.get(&req.name).await;
         if let Err(err) = get_result {
             info!(
@@ -416,18 +424,17 @@ pub async fn transactional_get_then_update_by_retry(
         let current_obj = DynamicObject::from_kube(get_result.unwrap());
         if !current_obj
             .metadata()
-            .owner_references_contains(req.controller_owner_ref)
+            .owner_references_contains(&req.controller_owner_ref)
         {
             return KubeGetThenUpdateResponse {
                 res: Err(APIError::TransactionAbort),
             };
         }
 
-        let mut obj_to_update = req.obj.into_kube();
         obj_to_update.metadata.uid = current_obj.as_kube_ref().metadata.uid.clone();
         obj_to_update.metadata.resource_version =
             current_obj.as_kube_ref().metadata.resource_version.clone();
-        match api.replace(&update_req.name, &pp, &obj_to_update).await {
+        match api.replace(&req.name, &pp, &obj_to_update).await {
             Err(err) => {
                 let api_err = kube_error_to_api_error(&err);
                 match api_err {
@@ -443,13 +450,13 @@ pub async fn transactional_get_then_update_by_retry(
                             "{} Update of Get-then-Update {} failed with error: {}",
                             log_header, key, err
                         );
-                        return KubeUpdateResponse { res: Err(api_err) };
+                        return KubeGetThenUpdateResponse { res: Err(api_err) };
                     }
                 }
             }
             Ok(obj) => {
                 info!("{} Update {} done", log_header, key);
-                return KubeUpdateResponse {
+                return KubeGetThenUpdateResponse {
                     res: Ok(DynamicObject::from_kube(obj)),
                 };
             }
