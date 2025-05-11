@@ -68,46 +68,46 @@ pub enum MessageContent {
 
 // Some handy methods for pattern matching and retrieving information from MessageContent
 impl MessageContent {
-    pub open spec fn is_get_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_GetRequest()
-    }
+    // pub open spec fn is_get_request(self) -> bool {
+    //     &&& self.is_APIRequest()
+    //     &&& self.get_APIRequest_0().is_GetRequest()
+    // }
 
-    pub open spec fn get_get_request(self) -> GetRequest
-        recommends
-            self.is_get_request()
-    {
-        self.get_APIRequest_0().get_GetRequest_0()
-    }
+    // pub open spec fn get_get_request(self) -> GetRequest
+    //     recommends
+    //         self.is_get_request()
+    // {
+    //     self.get_APIRequest_0().get_GetRequest_0()
+    // }
 
-    pub open spec fn is_list_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_ListRequest()
-    }
+    // pub open spec fn is_list_request(self) -> bool {
+    //     &&& self.is_APIRequest()
+    //     &&& self.get_APIRequest_0().is_ListRequest()
+    // }
 
-    pub open spec fn get_list_request(self) -> ListRequest
-        recommends
-            self.is_list_request()
-    {
-        self.get_APIRequest_0().get_ListRequest_0()
-    }
+    // pub open spec fn get_list_request(self) -> ListRequest
+    //     recommends
+    //         self.is_list_request()
+    // {
+    //     self.get_APIRequest_0().get_ListRequest_0()
+    // }
 
-    pub open spec fn is_create_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_CreateRequest()
-    }
+    // pub open spec fn is_create_request(self) -> bool {
+    //     &&& self.is_APIRequest()
+    //     &&& self.get_APIRequest_0().is_CreateRequest()
+    // }
 
-    pub open spec fn get_create_request(self) -> CreateRequest
-        recommends
-            self.is_create_request()
-    {
-        self.get_APIRequest_0().get_CreateRequest_0()
-    }
+    // pub open spec fn get_create_request(self) -> CreateRequest
+    //     recommends
+    //         self.is_create_request()
+    // {
+    //     self.get_APIRequest_0().get_CreateRequest_0()
+    // }
 
-    pub open spec fn is_delete_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_DeleteRequest()
-    }
+    // pub open spec fn is_delete_request(self) -> bool {
+    //     &&& self.is_APIRequest()
+    //     &&& self.get_APIRequest_0().is_DeleteRequest()
+    // }
 
     pub open spec fn is_delete_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
@@ -115,17 +115,17 @@ impl MessageContent {
         &&& self.get_APIRequest_0().get_DeleteRequest_0().key == key
     }
 
-    pub open spec fn get_delete_request(self) -> DeleteRequest
-        recommends
-            self.is_delete_request()
-    {
-        self.get_APIRequest_0().get_DeleteRequest_0()
-    }
+    // pub open spec fn get_delete_request(self) -> DeleteRequest
+    //     recommends
+    //         self.is_delete_request()
+    // {
+    //     self.get_APIRequest_0().get_DeleteRequest_0()
+    // }
 
-    pub open spec fn is_update_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateRequest()
-    }
+    // pub open spec fn is_update_request(self) -> bool {
+    //     &&& self.is_APIRequest()
+    //     &&& self.get_APIRequest_0().is_UpdateRequest()
+    // }
 
     pub open spec fn is_update_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
@@ -133,17 +133,17 @@ impl MessageContent {
         &&& self.get_APIRequest_0().get_UpdateRequest_0().key() == key
     }
 
-    pub open spec fn get_update_request(self) -> UpdateRequest
-        recommends
-            self.is_update_request()
-    {
-        self.get_APIRequest_0().get_UpdateRequest_0()
-    }
+    // pub open spec fn get_update_request(self) -> UpdateRequest
+    //     recommends
+    //         self.is_update_request()
+    // {
+    //     self.get_APIRequest_0().get_UpdateRequest_0()
+    // }
 
-    pub open spec fn is_update_status_request(self) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateStatusRequest()
-    }
+    // pub open spec fn is_update_status_request(self) -> bool {
+    //     &&& self.is_APIRequest()
+    //     &&& self.get_APIRequest_0().is_UpdateStatusRequest()
+    // }
 
     pub open spec fn is_update_status_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
@@ -151,73 +151,14 @@ impl MessageContent {
         &&& self.get_APIRequest_0().get_UpdateStatusRequest_0().key() == key
     }
 
-    pub open spec fn get_update_status_request(self) -> UpdateStatusRequest
-        recommends
-            self.is_update_status_request()
-    {
-        self.get_APIRequest_0().get_UpdateStatusRequest_0()
-    }
-
-    pub open spec fn is_get_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_GetResponse()
-    }
-
-    pub open spec fn get_get_response(self) -> GetResponse
-        recommends
-            self.is_get_response()
-    {
-        self.get_APIResponse_0().get_GetResponse_0()
-    }
-
-    pub open spec fn is_create_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_CreateResponse()
-    }
-
-    pub open spec fn get_create_response(self) -> CreateResponse
-        recommends
-            self.is_create_response()
-    {
-        self.get_APIResponse_0().get_CreateResponse_0()
-    }
-
-    pub open spec fn is_update_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_UpdateResponse()
-    }
-
-    pub open spec fn get_update_response(self) -> UpdateResponse
-        recommends
-            self.is_update_response()
-    {
-        self.get_APIResponse_0().get_UpdateResponse_0()
-    }
-
-    pub open spec fn is_delete_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_DeleteResponse()
-    }
-
-    pub open spec fn get_delete_response(self) -> DeleteResponse
-        recommends
-            self.is_delete_response()
-    {
-        self.get_APIResponse_0().get_DeleteResponse_0()
-    }
-
-    pub open spec fn is_list_response(self) -> bool {
-        &&& self.is_APIResponse()
-        &&& self.get_APIResponse_0().is_ListResponse()
-    }
-
-    pub open spec fn get_list_response(self) -> ListResponse
-        recommends
-            self.is_list_response()
-    {
-        self.get_APIResponse_0().get_ListResponse_0()
-    }
+    // pub open spec fn get_update_status_request(self) -> UpdateStatusRequest
+    //     recommends
+    //         self.is_update_status_request()
+    // {
+    //     self.get_APIRequest_0().get_UpdateStatusRequest_0()
+    // }
 }
+
 
 pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     match resp {
@@ -520,3 +461,121 @@ pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> sp
 }
 
 }
+
+macro_rules! declare_message_content_req_helper_methods {
+    ($req_type:ty, $is_fun:ident, $get_fun:ident, $project:ident) => {
+        verus! {
+        impl MessageContent {
+            pub open spec fn $is_fun(self) -> bool {
+                &&& self is APIRequest
+                &&& self->APIRequest_0 is $req_type
+            }
+
+            pub open spec fn $get_fun(self) -> $req_type {
+                self.get_APIRequest_0().$project()
+            }
+        }
+        }
+    };
+}
+
+macro_rules! declare_message_content_resp_helper_methods {
+    ($resp_type:ty, $is_fun:ident, $get_fun:ident, $project:ident) => {
+        verus! {
+        impl MessageContent {
+            pub open spec fn $is_fun(self) -> bool {
+                &&& self is APIResponse
+                &&& self->APIResponse_0 is $resp_type
+            }
+
+            pub open spec fn $get_fun(self) -> $resp_type {
+                self.get_APIResponse_0().$project()
+            }
+        }
+        }
+    };
+}
+
+declare_message_content_req_helper_methods!(
+    GetRequest,
+    is_get_request,
+    get_get_request,
+    get_GetRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    ListRequest,
+    is_list_request,
+    get_list_request,
+    get_ListRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    CreateRequest,
+    is_create_request,
+    get_create_request,
+    get_CreateRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    DeleteRequest,
+    is_delete_request,
+    get_delete_request,
+    get_DeleteRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    UpdateRequest,
+    is_update_request,
+    get_update_request,
+    get_UpdateRequest_0
+);
+
+declare_message_content_req_helper_methods!(
+    UpdateStatusRequest,
+    is_update_status_request,
+    get_update_status_request,
+    get_UpdateStatusRequest_0
+);
+
+declare_message_content_resp_helper_methods!(
+    GetResponse,
+    is_get_response,
+    get_get_response,
+    get_GetResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    ListResponse,
+    is_list_response,
+    get_list_response,
+    get_ListResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    CreateResponse,
+    is_create_response,
+    get_create_response,
+    get_CreateResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    DeleteResponse,
+    is_delete_response,
+    get_delete_response,
+    get_DeleteResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    UpdateResponse,
+    is_update_response,
+    get_update_response,
+    get_UpdateResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
+    UpdateStatusResponse,
+    is_update_status_response,
+    get_update_status_response,
+    get_UpdateStatusResponse_0
+);
