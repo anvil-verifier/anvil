@@ -68,64 +68,11 @@ pub enum MessageContent {
 
 // Some handy methods for pattern matching and retrieving information from MessageContent
 impl MessageContent {
-    // pub open spec fn is_get_request(self) -> bool {
-    //     &&& self.is_APIRequest()
-    //     &&& self.get_APIRequest_0().is_GetRequest()
-    // }
-
-    // pub open spec fn get_get_request(self) -> GetRequest
-    //     recommends
-    //         self.is_get_request()
-    // {
-    //     self.get_APIRequest_0().get_GetRequest_0()
-    // }
-
-    // pub open spec fn is_list_request(self) -> bool {
-    //     &&& self.is_APIRequest()
-    //     &&& self.get_APIRequest_0().is_ListRequest()
-    // }
-
-    // pub open spec fn get_list_request(self) -> ListRequest
-    //     recommends
-    //         self.is_list_request()
-    // {
-    //     self.get_APIRequest_0().get_ListRequest_0()
-    // }
-
-    // pub open spec fn is_create_request(self) -> bool {
-    //     &&& self.is_APIRequest()
-    //     &&& self.get_APIRequest_0().is_CreateRequest()
-    // }
-
-    // pub open spec fn get_create_request(self) -> CreateRequest
-    //     recommends
-    //         self.is_create_request()
-    // {
-    //     self.get_APIRequest_0().get_CreateRequest_0()
-    // }
-
-    // pub open spec fn is_delete_request(self) -> bool {
-    //     &&& self.is_APIRequest()
-    //     &&& self.get_APIRequest_0().is_DeleteRequest()
-    // }
-
     pub open spec fn is_delete_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
         &&& self.get_APIRequest_0().is_DeleteRequest()
         &&& self.get_APIRequest_0().get_DeleteRequest_0().key == key
     }
-
-    // pub open spec fn get_delete_request(self) -> DeleteRequest
-    //     recommends
-    //         self.is_delete_request()
-    // {
-    //     self.get_APIRequest_0().get_DeleteRequest_0()
-    // }
-
-    // pub open spec fn is_update_request(self) -> bool {
-    //     &&& self.is_APIRequest()
-    //     &&& self.get_APIRequest_0().is_UpdateRequest()
-    // }
 
     pub open spec fn is_update_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
@@ -133,30 +80,11 @@ impl MessageContent {
         &&& self.get_APIRequest_0().get_UpdateRequest_0().key() == key
     }
 
-    // pub open spec fn get_update_request(self) -> UpdateRequest
-    //     recommends
-    //         self.is_update_request()
-    // {
-    //     self.get_APIRequest_0().get_UpdateRequest_0()
-    // }
-
-    // pub open spec fn is_update_status_request(self) -> bool {
-    //     &&& self.is_APIRequest()
-    //     &&& self.get_APIRequest_0().is_UpdateStatusRequest()
-    // }
-
     pub open spec fn is_update_status_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
         &&& self.get_APIRequest_0().is_UpdateStatusRequest()
         &&& self.get_APIRequest_0().get_UpdateStatusRequest_0().key() == key
     }
-
-    // pub open spec fn get_update_status_request(self) -> UpdateStatusRequest
-    //     recommends
-    //         self.is_update_status_request()
-    // {
-    //     self.get_APIRequest_0().get_UpdateStatusRequest_0()
-    // }
 }
 
 
@@ -468,7 +396,7 @@ macro_rules! declare_message_content_req_helper_methods {
         impl MessageContent {
             pub open spec fn $is_fun(self) -> bool {
                 &&& self is APIRequest
-                &&& self->APIRequest_0 is $req_type
+                &&& self.get_APIRequest_0() is $req_type
             }
 
             pub open spec fn $get_fun(self) -> $req_type {
@@ -485,7 +413,7 @@ macro_rules! declare_message_content_resp_helper_methods {
         impl MessageContent {
             pub open spec fn $is_fun(self) -> bool {
                 &&& self is APIResponse
-                &&& self->APIResponse_0 is $resp_type
+                &&& self.get_APIResponse_0() is $resp_type
             }
 
             pub open spec fn $get_fun(self) -> $resp_type {

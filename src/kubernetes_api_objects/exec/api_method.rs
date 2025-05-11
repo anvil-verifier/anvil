@@ -364,7 +364,7 @@ macro_rules! declare_kube_api_response_helper_methods {
 
             pub fn $as_ref_fun(&self) -> (resp: &$resp_view_type)
                 requires self is $resp_type,
-                ensures resp == self->$project,
+                ensures resp == self.$project(),
             {
                 match self {
                     KubeAPIResponse::$resp_type(resp) => resp,
@@ -374,7 +374,7 @@ macro_rules! declare_kube_api_response_helper_methods {
 
             pub fn $into_fun(self) -> (resp: $resp_view_type)
                 requires self is $resp_type,
-                ensures resp == self->$project,
+                ensures resp == self.$project(),
             {
                 match self {
                     KubeAPIResponse::$resp_type(resp) => resp,
@@ -393,7 +393,7 @@ declare_kube_api_response_helper_methods!(
     is_get_response,
     as_get_response_ref,
     into_get_response,
-    GetResponse_0
+    get_GetResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -402,7 +402,7 @@ declare_kube_api_response_helper_methods!(
     is_list_response,
     as_list_response_ref,
     into_list_response,
-    ListResponse_0
+    get_ListResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -411,7 +411,7 @@ declare_kube_api_response_helper_methods!(
     is_create_response,
     as_create_response_ref,
     into_create_response,
-    CreateResponse_0
+    get_CreateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -420,7 +420,7 @@ declare_kube_api_response_helper_methods!(
     is_delete_response,
     as_delete_response_ref,
     into_delete_response,
-    DeleteResponse_0
+    get_DeleteResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -429,7 +429,7 @@ declare_kube_api_response_helper_methods!(
     is_update_response,
     as_update_response_ref,
     into_update_response,
-    UpdateResponse_0
+    get_UpdateResponse_0
 );
 
 declare_kube_api_response_helper_methods!(
@@ -438,5 +438,5 @@ declare_kube_api_response_helper_methods!(
     is_update_status_response,
     as_update_response_status_ref,
     into_update_status_response,
-    UpdateStatusResponse_0
+    get_UpdateStatusResponse_0
 );
