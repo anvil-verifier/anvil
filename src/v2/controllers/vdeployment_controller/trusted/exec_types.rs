@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
+    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vdeployment_controller::trusted::{spec_types, step::*};
@@ -78,12 +78,6 @@ impl VDeployment {
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::VDeployment> for VDeployment {
-    fn from_kube(inner: deps_hack::VDeployment) -> VDeployment { VDeployment { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::VDeployment { self.inner }
-}
 
 #[verifier(external_body)]
 pub struct VDeploymentSpec {
@@ -123,3 +117,5 @@ impl VDeploymentSpec {
 }
 
 }
+
+implement_resource_wrapper_trait!(VDeployment, deps_hack::VDeployment);

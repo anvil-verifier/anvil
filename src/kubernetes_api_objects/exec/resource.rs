@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 use vstd::prelude::*;
 
-// This trait defines the methods that each wrapper of Kubernetes resource object should implement
 pub trait ResourceWrapper<T>: Sized {
     fn from_kube(inner: T) -> Self;
 
@@ -14,7 +13,7 @@ pub trait ResourceWrapper<T>: Sized {
 }
 
 #[macro_export]
-macro_rules! implement_resource_wrapper {
+macro_rules! implement_resource_wrapper_trait {
     ($t:ty, $it:ty) => {
         impl ResourceWrapper<$it> for $t {
             fn from_kube(inner: $it) -> $t {
@@ -36,4 +35,4 @@ macro_rules! implement_resource_wrapper {
     };
 }
 
-pub use implement_resource_wrapper;
+pub use implement_resource_wrapper_trait;
