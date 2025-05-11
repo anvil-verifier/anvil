@@ -115,6 +115,11 @@ impl UpdateStatusRequest {
     }
 }
 
+// GetThenUpdateRequest replaces the existing obj with a new one only when it's owned by controller_owner_ref and avoids
+// conflicts caused by version race.
+//
+// TODO: GetThenUpdateRequest should carry a spec_fn(DynamicObjectView) -> Option<DynamicObjectView>
+
 pub struct GetThenUpdateRequest {
     pub namespace: StringView,
     pub name: StringView,
@@ -180,6 +185,8 @@ pub struct UpdateResponse {
 pub struct UpdateStatusResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
+
+// GetThenUpdateResponse has the object updated by GetThenUpdateRequest.
 
 pub struct GetThenUpdateResponse {
     pub res: Result<DynamicObjectView, APIError>,

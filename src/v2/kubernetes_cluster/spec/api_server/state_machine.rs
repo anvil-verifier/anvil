@@ -653,11 +653,17 @@ pub open spec fn handle_update_status_request_msg(installed_types: InstalledType
     (s_prime, form_update_status_resp_msg(msg, resp))
 }
 
+// get_then_update performs transactional operations by first getting the object, and then apply an update when some
+// condition holds. A get_then_update request will never fail due to conflicting operations from other controllers.
+//
+// Note that get_then_update is not provided by etcd. It can be implemented by retrying the update upon conflict errors.
+// The retry's termination can be proved with a fairness assumption.
 pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_get_then_update_request(),
 {
     let req = msg.content.get_get_then_update_request();
+    // Step 1: get the object
     let get_req = GetRequest {
         key: req.key()
     };
@@ -665,7 +671,12 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
     match get_resp.res {
         Ok(_) => {
             let current_obj = s.resources[req.key()];
+            // Step 2: if the object exists, perform a check using a predicate on object
+            // The predicate: Is the current object owned by req.controller_owner_ref?
+            // TODO: the predicate should be provided by clients instead of the hardcoded one
             if current_obj.metadata.owner_references_contains(req.controller_owner_ref) {
+                // Step 3: if the check passes, overwrite the object with the new one
+                // Note that resource_version and uid comes from the current object to avoid conflict error
                 let new_obj = DynamicObjectView {
                     metadata: ObjectMetaView {
                         resource_version: current_obj.metadata.resource_version,

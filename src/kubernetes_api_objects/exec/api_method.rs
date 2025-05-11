@@ -194,6 +194,10 @@ impl View for KubeUpdateStatusRequest {
     }
 }
 
+// KubeGetThenUpdateRequest has the name as the parameter of Api.get() and the obj as the parameter of Api.replace().
+//
+// TODO: KubeGetThenUpdateRequest should carry a Box<dyn Fn(DynamicObject) -> Option<DynamicObject>> when Verus supports dyn
+
 pub struct KubeGetThenUpdateRequest {
     pub api_resource: ApiResource,
     pub name: String,
@@ -356,7 +360,7 @@ impl View for KubeUpdateStatusResponse {
     }
 }
 
-// KubeUpdateResponse has the object updated by KubeUpdateRequest.
+// KubeGetThenUpdateResponse has the object updated by KubeGetThenUpdateRequest.
 
 pub struct KubeGetThenUpdateResponse {
     pub res: Result<DynamicObject, APIError>,
@@ -387,11 +391,6 @@ impl View for KubeAPIResponse {
     }
 }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-// TODO: replace it with option_view
-=======
 impl KubeAPIResponse {
     pub fn is_get_response(&self) -> (res: bool)
         ensures
@@ -573,16 +572,6 @@ impl KubeAPIResponse {
     }
 }
 
-// TODO: replace it with deep view
->>>>>>> 1cb315b (Support Get-then-Update)
-pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
-    match resp {
-        Some(resp) => Some(resp@),
-        None => None,
-    }
-}
-
->>>>>>> 58cc24a3 (Support Get-then-Update)
 }
 
 macro_rules! declare_kube_api_response_helper_methods {

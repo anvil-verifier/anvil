@@ -396,6 +396,9 @@ where
     return Ok(Action::requeue(Duration::from_secs(60)));
 }
 
+// transactional_get_then_update_by_retry retries get and then update upon conflict errors to simulate atomic operations.
+// This guarantees that the entire get_then_update operation will not fail due to conflicts between concurrent
+// controllers. Note that transactional_get_then_update_by_retry's termination depends on fairness assumptions.
 pub async fn transactional_get_then_update_by_retry(
     client: &Client,
     req: KubeGetThenUpdateRequest,
@@ -411,6 +414,7 @@ pub async fn transactional_get_then_update_by_retry(
     let mut obj_to_update = req.obj.into_kube();
 
     loop {
+        // Step 1: get the object
         let get_result = api.get(&req.name).await;
         if let Err(err) = get_result {
             info!(
@@ -421,6 +425,9 @@ pub async fn transactional_get_then_update_by_retry(
                 res: Err(kube_error_to_api_error(&err)),
             };
         }
+        // Step 2: if the object exists, perform a check using a predicate on object
+        // The predicate: Is the current object owned by req.controller_owner_ref?
+        // TODO: the predicate should be provided by clients instead of the hardcoded one
         let current_obj = DynamicObject::from_kube(get_result.unwrap());
         if !current_obj
             .metadata()
@@ -430,7 +437,8 @@ pub async fn transactional_get_then_update_by_retry(
                 res: Err(APIError::TransactionAbort),
             };
         }
-
+        // Step 3: if the check passes, overwrite the object with the new one
+        // Note that resource_version and uid comes from the current object to avoid conflict error
         obj_to_update.metadata.uid = current_obj.as_kube_ref().metadata.uid.clone();
         obj_to_update.metadata.resource_version =
             current_obj.as_kube_ref().metadata.resource_version.clone();
@@ -439,6 +447,7 @@ pub async fn transactional_get_then_update_by_retry(
                 let api_err = kube_error_to_api_error(&err);
                 match api_err {
                     APIError::Conflict => {
+                        // Retry upon a conflict error
                         info!(
                             "{} Update of Get-then-Update {} failed with Conflict; retry...",
                             log_header, key
