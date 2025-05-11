@@ -447,8 +447,7 @@ pub open spec fn update_request_admission_check_helper(installed_types: Installe
     } else if obj.metadata.uid.is_Some()
         && obj.metadata.uid != s.resources[key].metadata.uid {
         // Update fails because the object has a wrong uid
-        // TODO: double check the Error type
-        Some(APIError::InternalError)
+        Some(APIError::Conflict)
     } else {
         None
     }
