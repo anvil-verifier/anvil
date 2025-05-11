@@ -66,27 +66,6 @@ pub enum MessageContent {
     ExternalResponse(ExternalResponse),
 }
 
-// Some handy methods for pattern matching and retrieving information from MessageContent
-impl MessageContent {
-    pub open spec fn is_delete_request_with_key(self, key: ObjectRef) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_DeleteRequest()
-        &&& self.get_APIRequest_0().get_DeleteRequest_0().key == key
-    }
-
-    pub open spec fn is_update_request_with_key(self, key: ObjectRef) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateRequest()
-        &&& self.get_APIRequest_0().get_UpdateRequest_0().key() == key
-    }
-
-    pub open spec fn is_update_status_request_with_key(self, key: ObjectRef) -> bool {
-        &&& self.is_APIRequest()
-        &&& self.get_APIRequest_0().is_UpdateStatusRequest()
-        &&& self.get_APIRequest_0().get_UpdateStatusRequest_0().key() == key
-    }
-}
-
 
 pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     match resp {
@@ -160,42 +139,6 @@ pub open spec fn form_msg(src: HostId, dst: HostId, rpc_id: RPCId, msg_content: 
         rpc_id: rpc_id,
         content: msg_content,
     }
-}
-
-pub open spec fn form_get_resp_msg(req_msg: Message, resp: GetResponse) -> Message
-    recommends req_msg.content.is_get_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::GetResponse(resp)))
-}
-
-pub open spec fn form_list_resp_msg(req_msg: Message, resp: ListResponse) -> Message
-    recommends req_msg.content.is_list_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::ListResponse(resp)))
-}
-
-pub open spec fn form_create_resp_msg(req_msg: Message, resp: CreateResponse) -> Message
-    recommends req_msg.content.is_create_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::CreateResponse(resp)))
-}
-
-pub open spec fn form_delete_resp_msg(req_msg: Message, resp: DeleteResponse) -> Message
-    recommends req_msg.content.is_delete_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::DeleteResponse(resp)))
-}
-
-pub open spec fn form_update_resp_msg(req_msg: Message, resp: UpdateResponse) -> Message
-    recommends req_msg.content.is_update_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateResponse(resp)))
-}
-
-pub open spec fn form_update_status_resp_msg(req_msg: Message, resp: UpdateStatusResponse) -> Message
-    recommends req_msg.content.is_update_request(),
-{
-    form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::UpdateStatusResponse(resp)))
 }
 
 pub open spec fn form_external_resp_msg(req_msg: Message, resp: ExternalResponse) -> Message
@@ -390,6 +333,8 @@ pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> sp
 
 }
 
+// Some handy (but repeated) functions generated using macro
+
 macro_rules! declare_message_content_req_helper_methods {
     ($req_type:ty, $is_fun:ident, $get_fun:ident, $project:ident) => {
         verus! {
@@ -401,6 +346,20 @@ macro_rules! declare_message_content_req_helper_methods {
 
             pub open spec fn $get_fun(self) -> $req_type {
                 self.get_APIRequest_0().$project()
+            }
+        }
+        }
+    };
+}
+
+macro_rules! declare_message_content_req_helper_methods_with_key {
+    ($req_type:ty, $is_fun:ident, $project:ident) => {
+        verus! {
+        impl MessageContent {
+            pub open spec fn $is_fun(self, key: ObjectRef) -> bool {
+                &&& self is APIRequest
+                &&& self.get_APIRequest_0() is $req_type
+                &&& self.get_APIRequest_0().$project().key() == key
             }
         }
         }
@@ -466,6 +425,24 @@ declare_message_content_req_helper_methods!(
     get_UpdateStatusRequest_0
 );
 
+declare_message_content_req_helper_methods_with_key!(
+    DeleteRequest,
+    is_delete_request_with_key,
+    get_DeleteRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    UpdateRequest,
+    is_update_request_with_key,
+    get_UpdateRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    UpdateStatusRequest,
+    is_update_status_request_with_key,
+    get_UpdateStatusRequest_0
+);
+
 declare_message_content_resp_helper_methods!(
     GetResponse,
     is_get_response,
@@ -507,3 +484,25 @@ declare_message_content_resp_helper_methods!(
     get_update_status_response,
     get_UpdateStatusResponse_0
 );
+
+macro_rules! declare_form_resp_msg_functions {
+    ($resp_type:ty, $fun:ident) => {
+        verus! {
+        pub open spec fn $fun(req_msg: Message, resp: $resp_type) -> Message {
+            form_msg(req_msg.dst, req_msg.src, req_msg.rpc_id, MessageContent::APIResponse(APIResponse::$resp_type(resp)))
+        }
+        }
+    };
+}
+
+declare_form_resp_msg_functions!(GetResponse, form_get_resp_msg);
+
+declare_form_resp_msg_functions!(ListResponse, form_list_resp_msg);
+
+declare_form_resp_msg_functions!(CreateResponse, form_create_resp_msg);
+
+declare_form_resp_msg_functions!(DeleteResponse, form_delete_resp_msg);
+
+declare_form_resp_msg_functions!(UpdateResponse, form_update_resp_msg);
+
+declare_form_resp_msg_functions!(UpdateStatusResponse, form_update_status_resp_msg);

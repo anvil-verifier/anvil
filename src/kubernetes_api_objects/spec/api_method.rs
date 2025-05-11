@@ -65,6 +65,12 @@ pub struct DeleteRequest {
     pub preconditions: Option<PreconditionsView>,
 }
 
+impl DeleteRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        self.key
+    }
+}
+
 // UpdateRequest replaces the existing obj with a new one.
 
 pub struct UpdateRequest {
