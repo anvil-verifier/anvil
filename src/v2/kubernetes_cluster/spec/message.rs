@@ -261,48 +261,7 @@ pub open spec fn resource_delete_request_msg(key: ObjectRef) -> spec_fn(Message)
         && msg.content.get_delete_request().key == key
 }
 
-pub open spec fn is_ok_get_response_msg() -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.src.is_APIServer()
-        && msg.content.is_get_response()
-        && msg.content.get_get_response().res.is_Ok()
 }
-
-pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        is_ok_get_response_msg()(msg)
-        && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
-}
-
-pub open spec fn is_ok_update_response_msg() -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.src.is_APIServer()
-        && msg.content.is_update_response()
-        && msg.content.get_update_response().res.is_Ok()
-}
-
-pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        is_ok_update_response_msg()(msg)
-        && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
-}
-
-pub open spec fn is_ok_create_response_msg() -> spec_fn(Message) -> bool {
-    |msg: Message|
-        msg.src.is_APIServer()
-        && msg.content.is_create_response()
-        && msg.content.get_create_response().res.is_Ok()
-}
-
-pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> spec_fn(Message) -> bool {
-    |msg: Message|
-        is_ok_create_response_msg()(msg)
-        && msg.content.get_create_response().res.get_Ok_0().object_ref() == key
-}
-
-}
-
-// Some handy (but repeated) functions generated using macro
 
 macro_rules! declare_message_content_req_helper_methods {
     ($req_type:ty, $is_fun:ident, $get_fun:ident, $project:ident) => {
@@ -475,3 +434,40 @@ declare_form_resp_msg_functions!(DeleteResponse, form_delete_resp_msg);
 declare_form_resp_msg_functions!(UpdateResponse, form_update_resp_msg);
 
 declare_form_resp_msg_functions!(UpdateStatusResponse, form_update_status_resp_msg);
+
+macro_rules! declare_is_ok_resp_msg_functions {
+    ($is_ok_fun:ident, $is_ok_for_fun:ident, $is:ident, $get:ident) => {
+        verus! {
+        pub open spec fn $is_ok_fun() -> spec_fn(Message) -> bool {
+            |msg: Message|
+                msg.src.is_APIServer() && msg.content.$is() && msg.content.$get().res.is_Ok()
+        }
+
+        pub open spec fn $is_ok_for_fun(key: ObjectRef) -> spec_fn(Message) -> bool {
+            |msg: Message|
+                $is_ok_fun()(msg) && msg.content.$get().res.get_Ok_0().object_ref() == key
+        }
+        }
+    };
+}
+
+declare_is_ok_resp_msg_functions!(
+    is_ok_get_response_msg,
+    is_ok_get_response_msg_and_matches_key,
+    is_get_response,
+    get_get_response
+);
+
+declare_is_ok_resp_msg_functions!(
+    is_ok_create_response_msg,
+    is_ok_create_response_msg_and_matches_key,
+    is_create_response,
+    get_create_response
+);
+
+declare_is_ok_resp_msg_functions!(
+    is_ok_update_response_msg,
+    is_ok_update_response_msg_and_matches_key,
+    is_update_response,
+    get_update_response
+);
