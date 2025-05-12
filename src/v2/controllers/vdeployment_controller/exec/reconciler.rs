@@ -117,9 +117,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             return (state_prime, Some(Request::KRequest(req)))
         },
         VDeploymentReconcileStep::AfterListVRS => {
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok()) {
+            if !(is_some_k_list_resp!(resp_o) && extract_some_k_list_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
@@ -159,9 +157,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             return (done_state(state), None);
         },
         VDeploymentReconcileStep::AfterCreateNewVRS => {
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()) {
+            if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if state.new_vrs.is_none() {
@@ -184,9 +180,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
         }
         VDeploymentReconcileStep::AfterScaleNewVRS => {
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()) {
+            if !(is_some_k_update_resp!(resp_o) && extract_some_k_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if state.old_vrs_list.len() > 0 {
@@ -199,9 +193,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
         },
         VDeploymentReconcileStep::AfterScaleDownOldVRS => {
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-                && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()) {
+            if !(is_some_k_update_resp!(resp_o) && extract_some_k_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if state.old_vrs_list.len() > 0 {

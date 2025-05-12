@@ -209,6 +209,34 @@ macro_rules! extract_some_k_list_resp {
     };
 }
 
+#[macro_export]
+macro_rules! extract_some_k_get_resp_as_ref {
+    ($r:expr) => {
+        $r.as_ref().unwrap().as_k_response_ref().as_get_response_ref().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_create_resp_as_ref {
+    ($r:expr) => {
+        $r.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_update_resp_as_ref {
+    ($r:expr) => {
+        $r.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_list_resp_as_ref {
+    ($r:expr) => {
+        $r.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res
+    };
+}
+
 pub use is_some_k_get_resp;
 pub use is_some_k_create_resp;
 pub use is_some_k_update_resp;
@@ -217,5 +245,9 @@ pub use extract_some_k_get_resp;
 pub use extract_some_k_create_resp;
 pub use extract_some_k_update_resp;
 pub use extract_some_k_list_resp;
+pub use extract_some_k_get_resp_as_ref;
+pub use extract_some_k_create_resp_as_ref;
+pub use extract_some_k_update_resp_as_ref;
+pub use extract_some_k_list_resp_as_ref;
 
 }
