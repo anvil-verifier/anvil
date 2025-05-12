@@ -30,6 +30,7 @@ pub enum KubeAPIRequest {
     DeleteRequest(KubeDeleteRequest),
     UpdateRequest(KubeUpdateRequest),
     UpdateStatusRequest(KubeUpdateStatusRequest),
+    GetThenDeleteRequest(KubeGetThenDeleteRequest),
     GetThenUpdateRequest(KubeGetThenUpdateRequest),
 }
 
@@ -194,6 +195,38 @@ impl View for KubeUpdateStatusRequest {
     }
 }
 
+// KubeGetThenDeleteRequest has the name as the parameter of Api.get() and Api.delete(), and namespace to instantiate an Api.
+//
+// TODO: KubeGetThenDeleteRequest should carry a Box<dyn Fn(DynamicObject) -> bool> when Verus supports dyn
+
+pub struct KubeGetThenDeleteRequest {
+    pub api_resource: ApiResource,
+    pub name: String,
+    pub namespace: String,
+    pub owner_ref: OwnerReference,
+}
+
+impl KubeGetThenDeleteRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
+    }
+}
+
+impl View for KubeGetThenDeleteRequest {
+    type V = GetThenDeleteRequest;
+    open spec fn view(&self) -> GetThenDeleteRequest {
+        GetThenDeleteRequest {
+            key: ObjectRef {
+                kind: self.api_resource@.kind,
+                name: self.name@,
+                namespace: self.namespace@,
+            },
+            owner_ref: self.owner_ref@,
+        }
+    }
+}
+
 // KubeGetThenUpdateRequest has the name as the parameter of Api.get() and the obj as the parameter of Api.replace().
 //
 // TODO: KubeGetThenUpdateRequest should carry a Box<dyn Fn(DynamicObject) -> Option<DynamicObject>> when Verus supports dyn
@@ -202,7 +235,7 @@ pub struct KubeGetThenUpdateRequest {
     pub api_resource: ApiResource,
     pub name: String,
     pub namespace: String,
-    pub controller_owner_ref: OwnerReference,
+    pub owner_ref: OwnerReference,
     pub obj: DynamicObject,
 }
 
@@ -219,7 +252,7 @@ impl View for KubeGetThenUpdateRequest {
         GetThenUpdateRequest {
             name: self.name@,
             namespace: self.namespace@,
-            controller_owner_ref: self.controller_owner_ref@,
+            owner_ref: self.owner_ref@,
             obj: self.obj@,
         }
     }
@@ -236,6 +269,7 @@ impl View for KubeAPIRequest {
             KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(delete_req@),
             KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(update_req@),
             KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(update_status_req@),
+            KubeAPIRequest::GetThenDeleteRequest(req) => APIRequest::GetThenDeleteRequest(req@),
             KubeAPIRequest::GetThenUpdateRequest(req) => APIRequest::GetThenUpdateRequest(req@),
         }
     }
@@ -261,6 +295,7 @@ pub enum KubeAPIResponse {
     DeleteResponse(KubeDeleteResponse),
     UpdateResponse(KubeUpdateResponse),
     UpdateStatusResponse(KubeUpdateStatusResponse),
+    GetThenDeleteResponse(KubeGetThenDeleteResponse),
     GetThenUpdateResponse(KubeGetThenUpdateResponse),
 }
 
@@ -312,7 +347,7 @@ impl View for KubeCreateResponse {
     }
 }
 
-// DeleteResponse has (last version of) the object deleted by DeleteRequest.
+// KubeDeleteResponse does NOT have the object.
 
 pub struct KubeDeleteResponse {
     pub res: Result<(), APIError>,
@@ -376,6 +411,22 @@ impl View for KubeGetThenUpdateResponse {
     }
 }
 
+// KubeGetThenDeleteResponse does NOT have the object.
+
+pub struct KubeGetThenDeleteResponse {
+    pub res: Result<(), APIError>,
+}
+
+impl View for KubeGetThenDeleteResponse {
+    type V = GetThenDeleteResponse;
+    open spec fn view(&self) -> GetThenDeleteResponse {
+        match self.res {
+            Ok(_) => GetThenDeleteResponse { res: Ok(()) },
+            Err(e) => GetThenDeleteResponse { res: Err(e) },
+        }
+    }
+}
+
 impl View for KubeAPIResponse {
     type V = APIResponse;
     open spec fn view(&self) -> APIResponse {
@@ -386,6 +437,7 @@ impl View for KubeAPIResponse {
             KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(delete_resp@),
             KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp@),
             KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp@),
+            KubeAPIResponse::GetThenDeleteResponse(resp) => APIResponse::GetThenDeleteResponse(resp@),
             KubeAPIResponse::GetThenUpdateResponse(resp) => APIResponse::GetThenUpdateResponse(resp@),
         }
     }

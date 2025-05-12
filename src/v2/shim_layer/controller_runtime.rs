@@ -1,5 +1,6 @@
 use crate::external_shim_layer::*;
 use crate::kubernetes_api_objects::error::*;
+use crate::kubernetes_api_objects::exec::prelude::Preconditions;
 use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -356,6 +357,17 @@ where
                                 }
                             }
                         }
+                        KubeAPIRequest::GetThenDeleteRequest(req) => {
+                            check_fault_timing = true;
+                            kube_resp = KubeAPIResponse::GetThenDeleteResponse(
+                                transactional_get_then_delete_by_retry(
+                                    client,
+                                    req,
+                                    log_header.clone(),
+                                )
+                                .await,
+                            );
+                        }
                         KubeAPIRequest::GetThenUpdateRequest(req) => {
                             check_fault_timing = true;
                             kube_resp = KubeAPIResponse::GetThenUpdateResponse(
@@ -396,6 +408,80 @@ where
     return Ok(Action::requeue(Duration::from_secs(60)));
 }
 
+// transactional_get_then_delete_by_retry retries get and then delete upon conflict errors to simulate atomic operations.
+// This guarantees that the entire get_then_delete operation will not fail due to conflicts between concurrent
+// controllers. Note that transactional_get_then_delete_by_retry's termination depends on fairness assumptions.
+pub async fn transactional_get_then_delete_by_retry(
+    client: &Client,
+    req: KubeGetThenDeleteRequest,
+    log_header: String,
+) -> KubeGetThenDeleteResponse {
+    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+        client.clone(),
+        &req.namespace,
+        req.api_resource.as_kube_ref(),
+    );
+    let key = req.key();
+
+    loop {
+        // Step 1: get the object
+        let get_result = api.get(&req.name).await;
+        if let Err(err) = get_result {
+            info!(
+                "{} Get of Get-then-Delete {} failed with error: {}",
+                log_header, key, err
+            );
+            return KubeGetThenDeleteResponse {
+                res: Err(kube_error_to_api_error(&err)),
+            };
+        }
+        // Step 2: if the object exists, perform a check using a predicate on object
+        // The predicate: Is the current object owned by req.owner_ref?
+        // TODO: the predicate should be provided by clients instead of the hardcoded one
+        let current_obj = DynamicObject::from_kube(get_result.unwrap());
+        if !current_obj
+            .metadata()
+            .owner_references_contains(&req.owner_ref)
+        {
+            return KubeGetThenDeleteResponse {
+                res: Err(APIError::TransactionAbort),
+            };
+        }
+        // Step 3: if the check passes, delete the object with a precondition
+        // Note that resource_version and uid comes from the current object to avoid conflict error
+        let dp = DeleteParams::default().preconditions(deps_hack::kube::api::Preconditions {
+            resource_version: current_obj.as_kube_ref().metadata.resource_version.clone(),
+            uid: current_obj.as_kube_ref().metadata.uid.clone(),
+        });
+        match api.delete(&req.name, &dp).await {
+            Err(err) => {
+                let api_err = kube_error_to_api_error(&err);
+                match api_err {
+                    APIError::Conflict => {
+                        // Retry upon a conflict error
+                        info!(
+                            "{} Delete of Get-then-Delete {} failed with Conflict; retry...",
+                            log_header, key
+                        );
+                        continue;
+                    }
+                    _ => {
+                        info!(
+                            "{} Delete of Get-then-Delete {} failed with error: {}",
+                            log_header, key, err
+                        );
+                        return KubeGetThenDeleteResponse { res: Err(api_err) };
+                    }
+                }
+            }
+            Ok(obj) => {
+                info!("{} Delete {} done", log_header, key);
+                return KubeGetThenDeleteResponse { res: Ok(()) };
+            }
+        }
+    }
+}
+
 // transactional_get_then_update_by_retry retries get and then update upon conflict errors to simulate atomic operations.
 // This guarantees that the entire get_then_update operation will not fail due to conflicts between concurrent
 // controllers. Note that transactional_get_then_update_by_retry's termination depends on fairness assumptions.
@@ -426,12 +512,12 @@ pub async fn transactional_get_then_update_by_retry(
             };
         }
         // Step 2: if the object exists, perform a check using a predicate on object
-        // The predicate: Is the current object owned by req.controller_owner_ref?
+        // The predicate: Is the current object owned by req.owner_ref?
         // TODO: the predicate should be provided by clients instead of the hardcoded one
         let current_obj = DynamicObject::from_kube(get_result.unwrap());
         if !current_obj
             .metadata()
-            .owner_references_contains(&req.controller_owner_ref)
+            .owner_references_contains(&req.owner_ref)
         {
             return KubeGetThenUpdateResponse {
                 res: Err(APIError::TransactionAbort),

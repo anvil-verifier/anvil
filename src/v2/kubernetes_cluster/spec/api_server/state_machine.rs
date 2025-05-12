@@ -653,11 +653,48 @@ pub open spec fn handle_update_status_request_msg(installed_types: InstalledType
     (s_prime, form_update_status_resp_msg(msg, resp))
 }
 
+// get_then_delete performs transactional operations by first getting the object, and then apply an delete when some
+// condition holds. A get_then_delete request will never fail due to conflicting operations from other controllers.
+//
+// Note that get_then_delete is not provided by etcd. It can be implemented by retrying the delete upon conflict errors.
+// The retry's termination depends on fairness assumption.
+pub open spec fn handle_get_then_delete_request_msg(msg: Message, s: APIServerState) -> (APIServerState, Message)
+    recommends
+        msg.content.is_get_then_delete_request(),
+{
+    let req = msg.content.get_get_then_delete_request();
+    // Step 1: get the object
+    let get_req = GetRequest {
+        key: req.key
+    };
+    let get_resp = handle_get_request(get_req, s);
+    match get_resp.res {
+        Ok(_) => {
+            let current_obj = s.resources[req.key()];
+            // Step 2: if the object exists, perform a check using a predicate on object
+            // The predicate: Is the current object owned by req.owner_ref?
+            // TODO: the predicate should be provided by clients instead of the hardcoded one
+            if current_obj.metadata.owner_references_contains(req.owner_ref) {
+                // Step 3: if the check passes, delete the object
+                let delete_req = DeleteRequest {
+                    key: req.key,
+                    preconditions: None,
+                };
+                let (s_prime, delete_resp) = handle_delete_request(delete_req, s);
+                (s_prime, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: delete_resp.res}))
+            } else {
+                (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(APIError::TransactionAbort)}))
+            }
+        }
+        Err(err) => (s, form_get_then_delete_resp_msg(msg, GetThenDeleteResponse {res: Err(err)}))
+    }
+}
+
 // get_then_update performs transactional operations by first getting the object, and then apply an update when some
 // condition holds. A get_then_update request will never fail due to conflicting operations from other controllers.
 //
 // Note that get_then_update is not provided by etcd. It can be implemented by retrying the update upon conflict errors.
-// The retry's termination can be proved with a fairness assumption.
+// The retry's termination depends on fairness assumption.
 pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTypes, msg: Message, s: APIServerState) -> (APIServerState, Message)
     recommends
         msg.content.is_get_then_update_request(),
@@ -672,9 +709,9 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
         Ok(_) => {
             let current_obj = s.resources[req.key()];
             // Step 2: if the object exists, perform a check using a predicate on object
-            // The predicate: Is the current object owned by req.controller_owner_ref?
+            // The predicate: Is the current object owned by req.owner_ref?
             // TODO: the predicate should be provided by clients instead of the hardcoded one
-            if current_obj.metadata.owner_references_contains(req.controller_owner_ref) {
+            if current_obj.metadata.owner_references_contains(req.owner_ref) {
                 // Step 3: if the check passes, overwrite the object with the new one
                 // Note that resource_version and uid comes from the current object to avoid conflict error
                 let new_obj = DynamicObjectView {
@@ -696,7 +733,7 @@ pub open spec fn handle_get_then_update_request_msg(installed_types: InstalledTy
                 (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(APIError::TransactionAbort)}))
             }
         }
-        Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: get_resp.res}))
+        Err(err) => (s, form_get_then_update_resp_msg(msg, GetThenUpdateResponse {res: Err(err)}))
     }
 }
 
@@ -711,6 +748,7 @@ pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Messag
         APIRequest::DeleteRequest(_) => handle_delete_request_msg(msg, s),
         APIRequest::UpdateRequest(_) => handle_update_request_msg(installed_types, msg, s),
         APIRequest::UpdateStatusRequest(_) => handle_update_status_request_msg(installed_types, msg, s),
+        APIRequest::GetThenDeleteRequest(_) => handle_get_then_delete_request_msg(msg, s),
         APIRequest::GetThenUpdateRequest(_) => handle_get_then_update_request_msg(installed_types, msg, s),
     }
 }

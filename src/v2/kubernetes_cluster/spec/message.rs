@@ -75,6 +75,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
         APIResponse::DeleteResponse(delete_resp) => delete_resp.res.is_Ok(),
         APIResponse::UpdateResponse(update_resp) => update_resp.res.is_Ok(),
         APIResponse::UpdateStatusResponse(update_status_resp) => update_status_resp.res.is_Ok(),
+        APIResponse::GetThenDeleteResponse(resp) => resp.res.is_Ok(),
         APIResponse::GetThenUpdateResponse(resp) => resp.res.is_Ok(),
     }
 }
@@ -109,6 +110,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
             APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
             APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
             APIResponse::UpdateStatusResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateStatusRequest(),
+            APIResponse::GetThenDeleteResponse(_) => req_msg.content.get_APIRequest_0().is_GetThenDeleteRequest(),
             APIResponse::GetThenUpdateResponse(_) => req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest(),
         }
     }
@@ -131,6 +133,7 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message, err: APIError) -> M
         APIRequest::DeleteRequest(_) => form_delete_resp_msg(req_msg, DeleteResponse{res: Err(err)}),
         APIRequest::UpdateRequest(_) => form_update_resp_msg(req_msg, UpdateResponse{res: Err(err)}),
         APIRequest::UpdateStatusRequest(_) => form_update_status_resp_msg(req_msg, UpdateStatusResponse{res: Err(err)}),
+        APIRequest::GetThenDeleteRequest(_) => form_get_then_delete_resp_msg(req_msg, GetThenDeleteResponse{res: Err(err)}),
         APIRequest::GetThenUpdateRequest(_) => form_get_then_update_resp_msg(req_msg, GetThenUpdateResponse{res: Err(err)}),
     }
 }
@@ -193,11 +196,19 @@ pub open spec fn update_status_req_msg_content(namespace: StringView, name: Stri
     }))
 }
 
-pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: StringView, controller_owner_ref: OwnerReferenceView, obj: DynamicObjectView) -> MessageContent {
+pub open spec fn get_then_delete_req_msg_content(key: ObjectRef, owner_ref: OwnerReferenceView) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::GetThenDeleteRequest(GetThenDeleteRequest{
+        key: key,
+        owner_ref: owner_ref,
+    }))
+}
+
+
+pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: StringView, owner_ref: OwnerReferenceView, obj: DynamicObjectView) -> MessageContent {
     MessageContent::APIRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest{
         namespace: namespace,
         name: name,
-        controller_owner_ref: controller_owner_ref,
+        owner_ref: owner_ref,
         obj: obj,
     }))
 }
@@ -313,6 +324,13 @@ declare_message_content_req_helper_methods!(
 );
 
 declare_message_content_req_helper_methods!(
+    is_get_then_delete_request,
+    get_get_then_delete_request,
+    GetThenDeleteRequest,
+    get_GetThenDeleteRequest_0
+);
+
+declare_message_content_req_helper_methods!(
     is_get_then_update_request,
     get_get_then_update_request,
     GetThenUpdateRequest,
@@ -335,6 +353,12 @@ declare_message_content_req_helper_methods_with_key!(
     is_update_status_request_with_key,
     UpdateStatusRequest,
     get_UpdateStatusRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    is_get_then_delete_request_with_key,
+    GetThenDeleteRequest,
+    get_GetThenDeleteRequest_0
 );
 
 declare_message_content_req_helper_methods_with_key!(
@@ -386,6 +410,13 @@ declare_message_content_resp_helper_methods!(
 );
 
 declare_message_content_resp_helper_methods!(
+    is_get_then_delete_response,
+    get_get_then_delete_response,
+    GetThenDeleteResponse,
+    get_GetThenDeleteResponse_0
+);
+
+declare_message_content_resp_helper_methods!(
     is_get_then_update_response,
     get_get_then_update_response,
     GetThenUpdateResponse,
@@ -413,6 +444,8 @@ declare_form_resp_msg_functions!(form_delete_resp_msg, DeleteResponse);
 declare_form_resp_msg_functions!(form_update_resp_msg, UpdateResponse);
 
 declare_form_resp_msg_functions!(form_update_status_resp_msg, UpdateStatusResponse);
+
+declare_form_resp_msg_functions!(form_get_then_delete_resp_msg, GetThenDeleteResponse);
 
 declare_form_resp_msg_functions!(form_get_then_update_resp_msg, GetThenUpdateResponse);
 
@@ -444,6 +477,12 @@ declare_is_req_msg_functions!(
     resource_delete_request_msg,
     is_delete_request,
     get_delete_request
+);
+
+declare_is_req_msg_functions!(
+    resource_get_then_delete_request_msg,
+    is_get_then_delete_request,
+    get_get_then_delete_request
 );
 
 declare_is_req_msg_functions!(
