@@ -288,18 +288,11 @@ pub struct VReplicaSetSpec {
     pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
 }
 
-impl VReplicaSet {
-    pub fn default() -> Self {
+impl Default for VReplicaSet {
+    fn default() -> Self {
         Self {
             metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
             spec: VReplicaSetSpec::default(),
-        }
-    }
-
-    pub fn clone(&self) -> Self {
-        Self {
-            metadata: self.metadata.clone(),
-            spec: self.spec.clone(),
         }
     }
 }
