@@ -213,16 +213,6 @@ pub open spec fn get_then_update_req_msg_content(namespace: StringView, name: St
     }))
 }
 
-pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
-    if recv.is_Some() {
-        recv.get_Some_0().dst == host_id
-    } else {
-        true
-    }
-}
-
-// Helper functions that return a predicate on Message
-
 pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bool {
     |msg: Message| {
         &&& msg.rpc_id < rpc_id
@@ -230,6 +220,13 @@ pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bo
     }
 }
 
+pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
+    if recv.is_Some() {
+        recv.get_Some_0().dst == host_id
+    } else {
+        true
+    }
+}
 
 }
 
