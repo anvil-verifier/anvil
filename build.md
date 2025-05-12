@@ -77,6 +77,7 @@ If deployment/test failed, you can manually run `./deploy.sh <controller_name> [
 **4**
 ```
 cd e2e
+# ./admission_setup.sh <controller_name> for admission test
 cargo run -- <controller_name>
 ```
 

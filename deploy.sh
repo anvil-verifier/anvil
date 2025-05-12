@@ -32,8 +32,8 @@ if [ "$app" == "v2-vdeployment" ]; then
     kind load docker-image local/v2-vreplicaset-controller:v0.1.0 --name $cluster_name
 fi
 
-if [ "$app" == "v2-vreplicaset-admission" ]; then
-    cd src/v2/controllers/vreplicaset_controller/admission_control && ./setup.sh
+# admission controller has a different deployment process
+if [ $(echo $app | awk -F'-' '{print $NF}') == "admission" ]; then
     exit 0
 fi
 

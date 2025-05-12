@@ -407,7 +407,11 @@ jobs:
       - name: Deploy vreplicaset admission controller
         run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset-admission
+        run: |
+          . "$HOME/.cargo/env" 
+          cd e2e
+          ./admission_setup.sh vreplicaset
+          cargo run -- v2-vreplicaset-admission
   vstatefulset-admission-e2e-test:
     needs:
       - build-and-cache-verus
@@ -430,15 +434,13 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vstatefulset admission controller
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vstatefulset-admission --build
+      - name: Run vstatefulset e2e tests for admission
         run: |
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vstatefulset_admission_controller.rs --no-verify --time
-          docker build -f docker/controller/Dockerfile.local -t local/admission-controller:v0.1.0 --build-arg APP=v2_vstatefulset_admission .
-          kind create cluster --config deploy/kind.yaml
-          kind load docker-image local/admission-controller:v0.1.0
+          . "$HOME/.cargo/env" 
           cd e2e
           ./admission_setup.sh vstatefulset
-      - name: Run vstatefulset e2e tests for admission
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vstatefulset-admission
+          cargo run -- v2-vstatefulset-admission
   vreplicaset-e2e-test:
     needs:
       - build-and-cache-verus
