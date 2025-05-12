@@ -85,7 +85,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none.is_None() {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(vrs_list_or_none.get_Some_0(), vd);
+                    let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.get_Some_0(), vd), vd);
                     let state = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStepView::Error,
                         new_vrs: None,
