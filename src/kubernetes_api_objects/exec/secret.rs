@@ -18,7 +18,7 @@ use vstd::prelude::*;
 //
 // More detailed information: https://kubernetes.io/docs/concepts/configuration/secret/.
 
-implement_wrapper_type!(
+implement_object_wrapper_type!(
     Secret,
     deps_hack::k8s_openapi::api::core::v1::Secret,
     SecretView

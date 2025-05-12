@@ -16,7 +16,7 @@ use vstd::prelude::*;
 //
 // More detailed information: https://kubernetes.io/docs/concepts/storage/persistent-volumes/.
 
-implement_wrapper_type!(
+implement_object_wrapper_type!(
     PersistentVolumeClaim,
     deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
     PersistentVolumeClaimView

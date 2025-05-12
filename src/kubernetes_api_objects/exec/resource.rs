@@ -1,36 +1,36 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use vstd::prelude::*;
+
 #[macro_export]
-macro_rules! implement_wrapper_type {
+macro_rules! implement_field_wrapper_type {
     ($t:ident, $it:ty, $vt:ty) => {
         verus! {
+
         #[verifier(external_body)]
         pub struct $t {
             inner: $it,
         }
 
-        impl View for $t {
-            type V = $vt;
-
-            spec fn view(&self) -> $vt;
         }
 
+        implement_view_trait!($t, $vt);
+        implement_deep_view_trait!($t, $vt);
+        implement_default_trait!($t, $it, $vt);
+        implement_clone_trait!($t);
+    };
+}
+
+pub use implement_field_wrapper_type;
+
+#[macro_export]
+macro_rules! implement_object_wrapper_type {
+    ($t:ident, $it:ty, $vt:ty) => {
+        implement_field_wrapper_type!($t, $it, $vt);
+
+        verus! {
+
         impl $t {
-            #[verifier(external_body)]
-            pub fn default() -> (res: $t)
-                ensures res@ == $vt::default(),
-            {
-                Self { inner: $it::default() }
-            }
-
-            #[verifier(external_body)]
-            pub fn clone(&self) -> (res: Self)
-                ensures res@ == self@,
-            {
-                Self { inner: self.inner.clone() }
-            }
-
             #[verifier(external_body)]
             pub fn metadata(&self) -> (metadata: ObjectMeta)
                 ensures metadata@ == self@.metadata,
@@ -74,19 +74,21 @@ macro_rules! implement_wrapper_type {
                 }
             }
         }
+
         }
     };
 }
 
-pub use implement_wrapper_type;
+pub use implement_object_wrapper_type;
 
 use vstd::prelude::*;
 #[macro_export]
-macro_rules! implement_custom_wrapper_type {
+macro_rules! implement_custom_object_wrapper_type {
     ($t:ident, $it:ty, $vt:ty) => {
-        implement_wrapper_type!($t, $it, $vt);
+        implement_object_wrapper_type!($t, $it, $vt);
 
         verus! {
+
         impl $t {
             #[verifier(external_body)]
             pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
@@ -95,11 +97,88 @@ macro_rules! implement_custom_wrapper_type {
                 OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
             }
         }
+
         }
     };
 }
 
-pub use implement_custom_wrapper_type;
+pub use implement_custom_object_wrapper_type;
+
+#[macro_export]
+macro_rules! implement_view_trait {
+    ($t:ty, $vt:ty) => {
+        verus! {
+
+        impl View for $t {
+            type V = $vt;
+
+            spec fn view(&self) -> $vt;
+        }
+
+        }
+    };
+}
+
+pub use implement_view_trait;
+
+#[macro_export]
+macro_rules! implement_deep_view_trait {
+    ($t:ty, $vt:ty) => {
+        verus! {
+
+        impl DeepView for $t {
+            type V = $vt;
+
+            open spec fn deep_view(&self) -> $vt {
+                self@
+            }
+        }
+
+        }
+    };
+}
+
+pub use implement_deep_view_trait;
+
+#[macro_export]
+macro_rules! implement_default_trait {
+    ($t:ty, $it:ty, $vt:ty) => {
+        verus! {
+
+        impl std::default::Default for $t {
+            #[verifier(external_body)]
+            fn default() -> (res: $t)
+                ensures res@ == $vt::default(),
+            {
+                Self { inner: $it::default() }
+            }
+        }
+
+        }
+    };
+}
+
+pub use implement_default_trait;
+
+#[macro_export]
+macro_rules! implement_clone_trait {
+    ($t:ty) => {
+        verus! {
+
+        impl std::clone::Clone for $t {
+            #[verifier(external_body)]
+            fn clone(&self) -> (res: $t)
+                ensures res@ == self@
+            {
+                Self { inner: self.inner.clone() }
+            }
+        }
+
+        }
+    };
+}
+
+pub use implement_clone_trait;
 
 pub trait ResourceWrapper<T>: Sized {
     fn from_kube(inner: T) -> Self;
@@ -135,20 +214,3 @@ macro_rules! implement_resource_wrapper_trait {
 }
 
 pub use implement_resource_wrapper_trait;
-
-#[macro_export]
-macro_rules! implement_deep_view_trait {
-    ($t:ty, $vt:ty) => {
-        verus! {
-        impl DeepView for $t {
-            type V = $vt;
-
-            open spec fn deep_view(&self) -> $vt {
-                self@
-            }
-        }
-        }
-    };
-}
-
-pub use implement_deep_view_trait;

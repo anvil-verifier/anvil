@@ -21,7 +21,7 @@ use vstd::prelude::*;
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
 
-implement_wrapper_type!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod, PodView);
+implement_object_wrapper_type!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod, PodView);
 
 verus! {
 
@@ -43,16 +43,6 @@ impl Pod {
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = Some(spec.into_kube());
-    }
-}
-
-impl std::clone::Clone for Pod {
-
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: Pod)
-        ensures result == self
-    {
-        Pod { inner: self.inner.clone() }
     }
 }
 

@@ -13,7 +13,7 @@ use vstd::prelude::*;
 //
 // More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
 
-implement_wrapper_type!(Role, deps_hack::k8s_openapi::api::rbac::v1::Role, RoleView);
+implement_object_wrapper_type!(Role, deps_hack::k8s_openapi::api::rbac::v1::Role, RoleView);
 
 verus! {
 

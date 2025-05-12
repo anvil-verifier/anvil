@@ -20,7 +20,7 @@ use vstd::prelude::*;
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/.
 
-implement_wrapper_type!(
+implement_object_wrapper_type!(
     DaemonSet,
     deps_hack::k8s_openapi::api::apps::v1::DaemonSet,
     DaemonSetView
