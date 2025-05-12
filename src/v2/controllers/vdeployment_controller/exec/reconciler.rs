@@ -90,11 +90,12 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
     }
 }
 
-// ???
-// 1. how to keep deployment's rollout history
-// https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment
-// 2. User manages deployments, dc updates vrs_list by rollout or rollback. There should be a user-monkey step just like pod-monkey
-// 2.5 How rollout and rollback works with rs
+// Features to be supported:
+// 1. rolling is supported, recreate is not. It waits for all old pods to stop running before adding new vrs.
+// 2. maxSurge and maxUnavailable are not supported.
+// 3. clean up old vrs is not supported. It's defined by "d.Spec.RevisionHistoryLimit" to keep that many replicas,
+//    which also requires the support for revisions inside annotations to sort old rs and status of vd (will not clean up if vd is paused, etc.)
+// 4. rollback is not supported.
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(vd@, option_view(resp_o), state@),
