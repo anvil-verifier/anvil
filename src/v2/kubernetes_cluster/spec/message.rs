@@ -219,13 +219,6 @@ pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bo
     }
 }
 
-pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
-    if recv.is_Some() {
-        recv.get_Some_0().dst == host_id
-    } else {
-        true
-    }
-}
 
 }
 
@@ -319,6 +312,13 @@ declare_message_content_req_helper_methods!(
     get_UpdateStatusRequest_0
 );
 
+declare_message_content_req_helper_methods!(
+    is_get_then_update_request,
+    get_get_then_update_request,
+    GetThenUpdateRequest,
+    get_GetThenUpdateRequest_0
+);
+
 declare_message_content_req_helper_methods_with_key!(
     is_delete_request_with_key,
     DeleteRequest,
@@ -335,6 +335,12 @@ declare_message_content_req_helper_methods_with_key!(
     is_update_status_request_with_key,
     UpdateStatusRequest,
     get_UpdateStatusRequest_0
+);
+
+declare_message_content_req_helper_methods_with_key!(
+    is_get_then_update_request_with_key,
+    GetThenUpdateRequest,
+    get_GetThenUpdateRequest_0
 );
 
 declare_message_content_resp_helper_methods!(
@@ -379,6 +385,13 @@ declare_message_content_resp_helper_methods!(
     get_UpdateStatusResponse_0
 );
 
+declare_message_content_resp_helper_methods!(
+    is_get_then_update_response,
+    get_get_then_update_response,
+    GetThenUpdateResponse,
+    get_GetThenUpdateResponse_0
+);
+
 macro_rules! declare_form_resp_msg_functions {
     ($fun:ident, $resp_type:ty) => {
         verus! {
@@ -400,6 +413,8 @@ declare_form_resp_msg_functions!(form_delete_resp_msg, DeleteResponse);
 declare_form_resp_msg_functions!(form_update_resp_msg, UpdateResponse);
 
 declare_form_resp_msg_functions!(form_update_status_resp_msg, UpdateStatusResponse);
+
+declare_form_resp_msg_functions!(form_get_then_update_resp_msg, GetThenUpdateResponse);
 
 macro_rules! declare_is_req_msg_functions {
     ($is_fun:ident, $is_req:ident, $get_req:ident) => {
@@ -429,6 +444,12 @@ declare_is_req_msg_functions!(
     resource_delete_request_msg,
     is_delete_request,
     get_delete_request
+);
+
+declare_is_req_msg_functions!(
+    resource_get_then_update_request_msg,
+    is_get_then_update_request,
+    get_get_then_update_request
 );
 
 verus! {
