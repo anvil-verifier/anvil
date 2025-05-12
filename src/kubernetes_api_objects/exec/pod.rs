@@ -23,14 +23,18 @@ use vstd::prelude::*;
 
 implement_object_wrapper_type!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod, PodView);
 
+implement_field_wrapper_type!(
+    PodSpec,
+    deps_hack::k8s_openapi::api::core::v1::PodSpec,
+    PodSpecView
+);
+
 verus! {
 
 impl Pod {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<PodSpec>)
-        ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+        ensures self@.spec == spec.deep_view(),
     {
         match &self.inner.spec {
             Some(s) => Some(PodSpec::from_kube(s.clone())),
@@ -46,28 +50,7 @@ impl Pod {
     }
 }
 
-#[verifier(external_body)]
-pub struct PodSpec {
-    inner: deps_hack::k8s_openapi::api::core::v1::PodSpec,
-}
-
 impl PodSpec {
-    pub spec fn view(&self) -> PodSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (pod_spec: PodSpec)
-        ensures pod_spec@ == PodSpecView::default(),
-    {
-        PodSpec { inner: deps_hack::k8s_openapi::api::core::v1::PodSpec::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (p: PodSpec)
-        ensures p@ == self@,
-    {
-        PodSpec { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_affinity(&mut self, affinity: Affinity)
         ensures self@ == old(self)@.with_affinity(affinity@),
