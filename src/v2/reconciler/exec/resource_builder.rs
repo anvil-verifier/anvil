@@ -24,13 +24,13 @@ pub trait ResourceBuilder<K: View, T: View, SpecBuilder: resource_builder::Resou
         requires Self::requirements(cr@),
         ensures
             res.is_Ok() == SpecBuilder::state_after_create(cr@, obj@, state@).is_Ok(),
-            res.is_Ok() ==> (res.get_Ok_0().0@, opt_req_to_view(&res.get_Ok_0().1)) == SpecBuilder::state_after_create(cr@, obj@, state@).get_Ok_0();
+            res.is_Ok() ==> (res.get_Ok_0().0@, res.get_Ok_0().1.deep_view()) == SpecBuilder::state_after_create(cr@, obj@, state@).get_Ok_0();
 
     fn state_after_update(cr: &K, obj: DynamicObject, state: T) -> (res: Result<(T, Option<KubeAPIRequest>), ()>)
         requires Self::requirements(cr@),
         ensures
             res.is_Ok() == SpecBuilder::state_after_update(cr@, obj@, state@).is_Ok(),
-            res.is_Ok() ==> (res.get_Ok_0().0@, opt_req_to_view(&res.get_Ok_0().1)) == SpecBuilder::state_after_update(cr@, obj@, state@).get_Ok_0();
+            res.is_Ok() ==> (res.get_Ok_0().0@, res.get_Ok_0().1.deep_view()) == SpecBuilder::state_after_update(cr@, obj@, state@).get_Ok_0();
 }
 
 pub open spec fn resource_res_to_view<T: View>(res: Result<T, ()>) -> Result<T::V, ()> {

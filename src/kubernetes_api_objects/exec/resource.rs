@@ -135,3 +135,20 @@ macro_rules! implement_resource_wrapper_trait {
 }
 
 pub use implement_resource_wrapper_trait;
+
+#[macro_export]
+macro_rules! implement_deep_view_trait {
+    ($t:ty, $vt:ty) => {
+        verus! {
+        impl DeepView for $t {
+            type V = $vt;
+
+            open spec fn deep_view(&self) -> $vt {
+                self@
+            }
+        }
+        }
+    };
+}
+
+pub use implement_deep_view_trait;

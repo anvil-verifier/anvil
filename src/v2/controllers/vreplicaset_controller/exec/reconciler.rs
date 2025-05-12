@@ -94,7 +94,7 @@ pub fn reconcile_error(state: &VReplicaSetReconcileState) -> (res: bool)
 
 pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidEResp>>, state: VReplicaSetReconcileState) -> (res: (VReplicaSetReconcileState, Option<Request<VoidEReq>>))
     requires v_replica_set@.well_formed(),
-    ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(v_replica_set@, option_view(resp_o), state@),
+    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(v_replica_set@, resp_o.deep_view(), state@),
 {
     let namespace = v_replica_set.metadata().namespace().unwrap();
     match &state.reconcile_step {

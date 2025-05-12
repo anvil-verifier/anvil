@@ -134,7 +134,7 @@ impl View for KubeDeleteRequest {
                 name: self.name@,
                 namespace: self.namespace@,
             },
-            preconditions: option_view(self.preconditions),
+            preconditions: self.preconditions.deep_view(),
         }
     }
 }
@@ -208,11 +208,11 @@ impl View for KubeAPIRequest {
     }
 }
 
-// TODO: replace it with option_view
-pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
-    match req {
-        Some(req) => Some(req@),
-        None => None,
+impl DeepView for KubeAPIRequest {
+    type V = APIRequest;
+
+    open spec fn deep_view(&self) -> APIRequest {
+        self@
     }
 }
 
@@ -337,14 +337,6 @@ impl View for KubeAPIResponse {
             KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp@),
             KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp@),
         }
-    }
-}
-
-// TODO: replace it with option_view
-pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
-    match resp {
-        Some(resp) => Some(resp@),
-        None => None,
     }
 }
 

@@ -6,20 +6,6 @@ use vstd::pervasive::unreached;
 
 verus! {
 
-pub struct VoidEReq {}
-
-impl View for VoidEReq {
-    type V = VoidEReqView;
-    spec fn view(&self) -> VoidEReqView;
-}
-
-pub struct VoidEResp {}
-
-impl View for VoidEResp {
-    type V = VoidERespView;
-    spec fn view(&self) -> VoidERespView;
-}
-
 // Third-party libraries can also receive requests from reconciler.
 // T: The input type of the third-party library of the reconciler which should also be defined by the developer.
 // Typically, T can be an enum type, which lists all the possible supporting handlings the developer need support from the
@@ -31,6 +17,26 @@ impl View for VoidEResp {
 pub enum Request<T: View> {
     KRequest(KubeAPIRequest),
     ExternalRequest(T),
+}
+
+impl<T: View> View for Request<T> {
+    type V = RequestView<T::V>;
+
+    open spec fn view(&self) -> RequestView<T::V> {
+        match self {
+            Request::KRequest(req) => RequestView::KRequest(req@),
+            Request::ExternalRequest(req) => RequestView::ExternalRequest(req@),
+        }
+    }
+}
+
+// Request<T>.view() is already deep, so we reuse it for DeepView
+impl<T: View> DeepView for Request<T> {
+    type V = RequestView<T::V>;
+
+    open spec fn deep_view(&self) -> RequestView<T::V> {
+        self@
+    }
 }
 
 // The response type should be consistent with the Request type.
@@ -45,7 +51,7 @@ pub enum Response<T: View> {
     ExternalResponse(T),
 }
 
-impl <T: View> View for Response<T> {
+impl<T: View> View for Response<T> {
     type V = ResponseView<T::V>;
 
     open spec fn view(&self) -> ResponseView<T::V> {
@@ -54,7 +60,15 @@ impl <T: View> View for Response<T> {
             Response::ExternalResponse(resp) => ResponseView::ExternalResponse(resp@),
         }
     }
+}
 
+// Response<T>.view() is already deep, so we reuse it for DeepView
+impl<T: View> DeepView for Response<T> {
+    type V = ResponseView<T::V>;
+
+    open spec fn deep_view(&self) -> ResponseView<T::V> {
+        self@
+    }
 }
 
 impl <T: View> Response<T> {
@@ -117,15 +131,22 @@ impl <T: View> Response<T> {
     }
 }
 
-impl <T: View> View for Request<T> {
-    type V = RequestView<T::V>;
+// VoidEReq and VoidEResp can be used for controllers that only interact with Kubernetes API
 
-    open spec fn view(&self) -> RequestView<T::V> {
-        match self {
-            Request::KRequest(req) => RequestView::KRequest(req@),
-            Request::ExternalRequest(req) => RequestView::ExternalRequest(req@),
-        }
-    }
+pub struct VoidEReq {}
+
+impl View for VoidEReq {
+    type V = VoidEReqView;
+
+    spec fn view(&self) -> VoidEReqView;
+}
+
+pub struct VoidEResp {}
+
+impl View for VoidEResp {
+    type V = VoidERespView;
+
+    spec fn view(&self) -> VoidERespView;
 }
 
 #[macro_export]
