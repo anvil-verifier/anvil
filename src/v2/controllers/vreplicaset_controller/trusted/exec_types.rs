@@ -176,11 +176,7 @@ impl VReplicaSetSpec {
         ensures vreplicaset_spec@ == spec_types::VReplicaSetSpecView::default(),
     {
         VReplicaSetSpec {
-            inner: deps_hack::VReplicaSetSpec {
-                replicas: None,
-                selector: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
-                template: None,
-            },
+            inner: deps_hack::VReplicaSetSpec::default()
         }
     }
 
