@@ -75,8 +75,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    // TODO: prove this invariant holds from the start.
-    assume(spec.entails(always(lift_state(helper_invariants::each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(controller_id)))));
+    helper_invariants::lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(spec, cluster, controller_id);
     cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
     cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
     

@@ -621,7 +621,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vrs: VRep
     spec_entails_always_tla_forall(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vrs.object_ref(), unwrap_local_state_closure(
         |s: VReplicaSetReconcileState| s.reconcile_step.is_AfterDeletePod()
     ))));
-    lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(spec, vrs, cluster, controller_id);
+    lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(spec, cluster, controller_id);
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
