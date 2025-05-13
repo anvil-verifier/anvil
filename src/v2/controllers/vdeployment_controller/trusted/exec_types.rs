@@ -49,7 +49,7 @@ impl VDeployment {
         ensures b == self@.well_formed(),
     {
         self.metadata().well_formed()
-        && self.metadata().namespace().is_Some()
+        && self.metadata().namespace().is_some()
         && self.state_validation()
     }
 
