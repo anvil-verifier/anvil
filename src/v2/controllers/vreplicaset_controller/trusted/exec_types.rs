@@ -125,7 +125,7 @@ impl VReplicaSet {
             res == self@.state_validation()
     {
 
-        // replicas exists and non-negative
+        // replicas doesn't exist (eq to 1) or non-negative
         if let Some(replicas) = self.spec().replicas() {
             if replicas < 0 {
                 return false;

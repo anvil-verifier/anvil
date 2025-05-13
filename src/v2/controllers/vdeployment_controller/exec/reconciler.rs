@@ -96,6 +96,8 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 // 3. clean up old vrs is not supported. It's defined by "d.Spec.RevisionHistoryLimit" to keep that many replicas,
 //    which also requires the support for revisions inside annotations to sort old rs and status of vd (will not clean up if vd is paused, etc.)
 // 4. rollback is not supported.
+// *. When having multiple new vrs, k8s deterministically chooses the oldest one.
+//    We may not need to support this if we can prove this doesn't happen for our controller.
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(vd@, option_view(resp_o), state@),
