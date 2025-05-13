@@ -253,6 +253,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
                         &&& msg.src.is_APIServer()
                         &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& is_ok_resp(msg.content.get_APIResponse_0())
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.is_list_response()
