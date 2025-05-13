@@ -207,14 +207,13 @@ pub open spec fn handle_get_request(req: GetRequest, s: APIServerState) -> GetRe
 
 #[verifier(inline)]
 pub open spec fn handle_list_request(req: ListRequest, s: APIServerState) -> ListResponse {
-    let selector = |o: DynamicObjectView| {
+    // s.resources.values() returns the set of objects in s.resources
+    // This will not make list return fewer number of objects because
+    // each object is unique in terms of {name, namespace, kind}
+    ListResponse{res: Ok(s.resources.values().filter(|o: DynamicObjectView| {
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
-    };
-    // s.resources.values() returns the set of objects in s.resources
-    // this will not make list return fewer number of objects because
-    // each object is unique in terms of {name, namespace, kind}
-    ListResponse{res: Ok(s.resources.values().filter(selector).to_seq())}
+    }).to_seq())}
 }
 
 pub open spec fn create_request_admission_check(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> Option<APIError> {
