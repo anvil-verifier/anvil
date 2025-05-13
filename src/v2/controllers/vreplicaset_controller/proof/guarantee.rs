@@ -15,14 +15,18 @@ use vstd::prelude::*;
 
 verus! {
 
+// This invariant is a strengthened version of `vrs_guarantee_delete_req` that
+// requires that any delete request sent by a VReplicaSet controller has a
+// resource version precondition that is less than the resource version
+// counter of the API server. Essentially, this prevents the delete request
+// from interfering with newly created or updated objects.
 spec fn stronger_vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key];
         &&& req.key.kind == Kind::PodKind
         &&& req.preconditions.is_Some()
         &&& req.preconditions.get_Some_0().resource_version.is_Some()
-        // resource version on request must be less than rv counter.
-        // this is the only strengthened condition.
+        // strengthened condition.
         &&& req.preconditions.get_Some_0().resource_version.get_Some_0() < 
             s.api_server.resource_version_counter
         &&& {
