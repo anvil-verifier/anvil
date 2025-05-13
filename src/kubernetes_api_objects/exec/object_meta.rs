@@ -191,7 +191,6 @@ impl ObjectMeta {
         ensures b == self@.well_formed(),
     {
         self.inner.name.is_some()
-            && self.inner.namespace.is_some()
             && self.inner.resource_version.is_some()
             && self.inner.uid.is_some()
     }
@@ -238,7 +237,7 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn unset_label(&mut self, key: String)
+    pub fn remove_label(&mut self, key: String)
         ensures self@ == old(self)@.without_label(key@),
     {
         if self.inner.labels.is_some() {

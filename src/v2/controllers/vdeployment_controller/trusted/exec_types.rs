@@ -45,6 +45,15 @@ impl VDeployment {
     }
 
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed()
+        && self.metadata().namespace().is_Some()
+        && self.state_validation()
+    }
+
+    #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
         ensures owner_reference@ == self@.controller_owner_ref(),
     {
