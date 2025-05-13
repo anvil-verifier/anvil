@@ -14,6 +14,7 @@ pub open spec fn vrs_eventually_stable_reconciliation_per_cr(vrs: VReplicaSetVie
     Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))
 }
 
+// TODO: rewrite it to s.resources().values().filter(selector).to_seq().filter(...).len() == ...
 pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let pods: Set<ObjectRef> = Set::new(|key: ObjectRef| {
