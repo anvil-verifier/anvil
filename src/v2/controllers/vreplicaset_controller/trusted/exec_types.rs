@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, resource::*,
+    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vreplicaset_controller::trusted::spec_types;
-use crate::vstd_ext::string_map::StringMap;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 

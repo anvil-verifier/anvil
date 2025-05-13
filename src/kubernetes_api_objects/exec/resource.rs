@@ -81,7 +81,6 @@ macro_rules! implement_object_wrapper_type {
 
 pub use implement_object_wrapper_type;
 
-use vstd::prelude::*;
 #[macro_export]
 macro_rules! implement_custom_object_wrapper_type {
     ($t:ident, $it:ty, $vt:ty) => {
