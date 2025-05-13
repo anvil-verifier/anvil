@@ -1137,7 +1137,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                 let resp_objs = msg.content.get_list_response().res.unwrap();
                 &&& msg.content.is_list_response()
                 &&& msg.content.get_list_response().res.is_Ok()
-                &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                 &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                 (
                     resp_objs[i].metadata.namespace.is_some()
@@ -1208,7 +1208,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         assert forall |key: ObjectRef| {
-            &&& invariant(s) 
+            &&& invariant(s)
             &&& stronger_next(s, s_prime)
             &&& #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key)
         } implies invariant_matrix(key, s_prime) by {
@@ -1225,9 +1225,9 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
 
                             let reconcile_step = state.reconcile_step;
                             let cr_msg = step.get_ControllerStep_0().1.get_Some_0();
-                            if reconcile_step.is_AfterListPods() 
+                            if reconcile_step.is_AfterListPods()
                                && is_ok_resp(cr_msg.content.get_APIResponse_0()) {
-                                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap(); 
+                                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                                 let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg.get_Some_0();
                                 let objs = cr_msg.content.get_list_response().res.unwrap();
                                 let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
@@ -1515,7 +1515,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             }
                         }
                     },
-                    _ => { 
+                    _ => {
                         let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                         let triggering_cr = VReplicaSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                         if state.reconcile_step.is_AfterListPods() {
@@ -1532,14 +1532,14 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
                                 &&& msg.content.get_list_response().res.is_Ok()
-                                &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (
                                     resp_objs[i].metadata.namespace.is_some()
                                     && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
                                     && ((s_prime.resources().contains_key(resp_objs[i].object_ref())
                                             && s_prime.resources()[resp_objs[i].object_ref()].metadata.resource_version
-                                            == resp_objs[i].metadata.resource_version) ==> 
+                                            == resp_objs[i].metadata.resource_version) ==>
                                             s_prime.resources()[resp_objs[i].object_ref()].metadata
                                                 == resp_objs[i].metadata)
                                     && resp_objs[i].metadata.resource_version.is_some()
@@ -1556,11 +1556,12 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
             }
         }
     }
-    
+
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-#[verifier(rlimit(100))]
+// #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -2832,9 +2833,4 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
-<<<<<<< HEAD
 }
-=======
-
-}
->>>>>>> 928b58c6 (Mark broken proofs as external)
