@@ -147,7 +147,6 @@ impl VReplicaSet {
                 return false;
             }
 
-            // Map::empty() did not compile
             if let Some(labels) = template.metadata().unwrap().labels() {
                 if !self.spec().selector().matches(labels) {
                     return false;
