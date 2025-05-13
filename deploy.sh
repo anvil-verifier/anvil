@@ -34,6 +34,25 @@ fi
 
 # admission controller has a different deployment process
 if [ $(echo $app | awk -F'-' '{print $NF}') == "admission" ]; then
+    app=${app%-admission}
+    app_filename=${app_filename%_admission}
+    set -o pipefail
+    kubectl create -f deploy/${app_filename}/crd.yaml
+    echo "Creating Webhook Server Certs"
+    mkdir -p certs
+    openssl genrsa -out certs/tls.key 2048
+    openssl req -new -key certs/tls.key -out certs/tls.csr -subj "/CN=admission-server.default.svc"
+    openssl x509 -req -extfile <(printf "subjectAltName=DNS:admission-server.default.svc") -in certs/tls.csr -signkey certs/tls.key -out certs/tls.crt
+
+    echo "Creating Webhook Server TLS Secret"
+    kubectl create secret tls admission-server-tls \
+        --cert "certs/tls.crt" \
+        --key "certs/tls.key"
+    echo "Creating Webhook Server Deployment"
+    kubectl create -f e2e/manifests/admission_server.yaml
+    CA_PEM64="$(openssl base64 -A < certs/tls.crt)"
+    echo "Creating K8s Webhooks"
+    sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"${app#v2-}"s'@g' <"manifests/admission_webhooks.yaml" | kubectl create -f -
     exit 0
 fi
 
