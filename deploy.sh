@@ -52,7 +52,7 @@ if [ $(echo $app | awk -F'-' '{print $NF}') == "admission" ]; then
     kubectl create -f e2e/manifests/admission_server.yaml
     CA_PEM64="$(openssl base64 -A < certs/tls.crt)"
     echo "Creating K8s Webhooks"
-    sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"${app#v2-}"s'@g' <"manifests/admission_webhooks.yaml" | kubectl create -f -
+    sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"${app#v2-}"s'@g' <"e2e/manifests/admission_webhooks.yaml" | kubectl create -f -
     exit 0
 fi
 
