@@ -22,6 +22,8 @@ impl View for VReplicaSet {
     spec fn view(&self) -> spec_types::VReplicaSetView;
 }
 
+implement_deep_view_trait!(VReplicaSet, spec_types::VReplicaSetView);
+
 impl std::clone::Clone for VReplicaSet {
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)

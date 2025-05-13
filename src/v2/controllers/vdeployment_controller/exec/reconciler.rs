@@ -29,7 +29,7 @@ impl View for VDeploymentReconcileState {
     open spec fn view(&self) -> model_reconciler::VDeploymentReconcileState {
         model_reconciler::VDeploymentReconcileState {
             reconcile_step: self.reconcile_step@,
-            new_vrs: option_view(self.new_vrs),
+            new_vrs: self.new_vrs.deep_view(),
             old_vrs_list: self.old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
         }
     }
@@ -100,7 +100,7 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 //    We may not need to support this if we can prove this doesn't happen for our controller.
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
-    ensures (res.0@, option_view(res.1)) == model_reconciler::reconcile_core(vd@, option_view(resp_o), state@),
+    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
 {
     let namespace = vd.metadata().namespace().unwrap();
     match state.reconcile_step {
@@ -241,7 +241,7 @@ requires
     state.new_vrs@.is_None(),
 ensures
     res.1@.is_Some() && model_reconciler::create_new_vrs(state@, vd@).1.is_Some(),
-    (res.0@, option_view(res.1)) == model_reconciler::create_new_vrs(state@, vd@),
+    (res.0@, res.1.deep_view()) == model_reconciler::create_new_vrs(state@, vd@),
 {
     let new_vrs = make_replica_set(vd);
     let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -265,7 +265,7 @@ requires
     state.new_vrs.unwrap()@.well_formed(),
 ensures
     res.1@.is_Some() && model_reconciler::scale_new_vrs(state@, vd@).1.is_Some(),
-    (res.0@, option_view(res.1)) == model_reconciler::scale_new_vrs(state@, vd@),
+    (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(state@, vd@),
 {
     let mut new_vrs = state.new_vrs.unwrap();
     let mut new_spec = new_vrs.spec();
@@ -293,7 +293,7 @@ requires
     state@.old_vrs_list[state.old_vrs_list.len() - 1].well_formed(),
 ensures
     res.1@.is_Some() && model_reconciler::scale_down_old_vrs(state@, vd@).1.is_Some(),
-    (res.0@, option_view(res.1)) == model_reconciler::scale_down_old_vrs(state@, vd@),
+    (res.0@, res.1.deep_view()) == model_reconciler::scale_down_old_vrs(state@, vd@),
 {
     let mut old_vrs_list = state.old_vrs_list;
     let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
