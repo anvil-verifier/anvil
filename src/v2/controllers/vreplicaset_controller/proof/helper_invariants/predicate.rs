@@ -403,4 +403,75 @@ pub open spec fn vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp (
     }
 }
 
+pub open spec fn test_invariant(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            ==> {
+                let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                let filtered_pods = state.filtered_pods.unwrap();
+                &&& triggering_cr.object_ref() == key
+                &&& triggering_cr.metadata().well_formed()
+                &&& state.filtered_pods.is_Some() ==>
+                // Maintained across deletes, 
+                // maintained across creates since all new keys with generate_name
+                // are unique, maintained across updates since there are
+                // no updates.
+                    forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len() ==>
+                    (
+                        filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                        && ((s.resources().contains_key(filtered_pods[i].object_ref())
+                                && s.resources()[filtered_pods[i].object_ref()].metadata.resource_version
+                                    == filtered_pods[i].metadata.resource_version) ==>
+                            (s.resources()[filtered_pods[i].object_ref()].metadata.owner_references_contains(
+                                triggering_cr.controller_owner_ref()
+                                )
+                             ))
+                        && filtered_pods[i].metadata.resource_version.is_some()
+                        && filtered_pods[i].metadata.resource_version.unwrap()
+                            < s.api_server.resource_version_counter
+                    )
+                // Special case: the above property holds on a list response to the
+                // appropriate request. 
+                &&& state.reconcile_step.is_AfterListPods() ==> {
+                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.content.is_list_request()
+                    &&& req_msg.content.get_list_request() == ListRequest {
+                        kind: PodView::kind(),
+                        namespace: triggering_cr.metadata.namespace.unwrap(),
+                    }
+                    &&& forall |msg| {
+                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                        &&& msg.src.is_APIServer()
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& is_ok_resp(msg.content.get_APIResponse_0())
+                    } ==> {
+                        let resp_objs = msg.content.get_list_response().res.unwrap();
+                        &&& msg.content.is_list_response()
+                        &&& msg.content.get_list_response().res.is_Ok()
+                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
+                        (
+                            resp_objs[i].metadata.namespace.is_some()
+                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                            && ((s.resources().contains_key(resp_objs[i].object_ref())
+                                    && s.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                    == resp_objs[i].metadata.resource_version) ==> 
+                                    s.resources()[resp_objs[i].object_ref()].metadata
+                                        == resp_objs[i].metadata)
+                            && resp_objs[i].metadata.resource_version.is_some()
+                            && resp_objs[i].metadata.resource_version.unwrap()
+                                    < s.api_server.resource_version_counter
+                        )
+                    }
+                }
+            }
+    }
+}
+
 }
