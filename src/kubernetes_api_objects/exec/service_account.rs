@@ -17,7 +17,7 @@ use vstd::prelude::*;
 //
 // More detailed information: https://kubernetes.io/docs/concepts/security/service-accounts/.
 
-implement_wrapper_type!(
+implement_object_wrapper_type!(
     ServiceAccount,
     deps_hack::k8s_openapi::api::core::v1::ServiceAccount,
     ServiceAccountView

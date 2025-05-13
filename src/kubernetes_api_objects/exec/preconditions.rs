@@ -17,6 +17,8 @@ impl View for Preconditions {
     spec fn view(&self) -> PreconditionsView;
 }
 
+implement_deep_view_trait!(Preconditions, PreconditionsView);
+
 impl std::clone::Clone for Preconditions {
     #[verifier(external_body)]
     fn clone(&self) -> (result: Preconditions)

@@ -42,7 +42,7 @@ where
     // It conforms to the model's reconcile_core.
     fn reconcile_core(cr: &Self::K, resp_o: Option<Response<Self::EResp>>, state: Self::S) -> (res: (Self::S, Option<Request<Self::EReq>>))
         requires cr@.metadata().well_formed() && cr@.state_validation(),
-        ensures (res.0@, option_view(res.1)) == Self::M::reconcile_core(cr@, option_view(resp_o), state@);
+        ensures (res.0@, res.1.deep_view()) == Self::M::reconcile_core(cr@, resp_o.deep_view(), state@);
 
     // reconcile_done is used to tell the controller_runtime whether this reconcile round is done.
     // If it is true, controller_runtime will requeue the reconcile.
