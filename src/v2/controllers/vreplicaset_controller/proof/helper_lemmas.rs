@@ -148,7 +148,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
             &&& filtered_pods.no_duplicates()
-            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pods_old(vrs, s.resources()).len()
+            &&& filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pod_keys(vrs, s.resources()).len()
             // .mk_map(PodView::unmarshal).values() == .map_values(|p: PodView| p.marshal())
             &&& filtered_pods.to_set() == matching_pod_entries(vrs, s.resources()).values().mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).values()
         }),
@@ -215,7 +215,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()));
         }
     }
-    assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pods_old(vrs, s.resources()).len()) by {
+    assert(filtered_pods.len() == matching_pod_entries(vrs, s.resources()).len() == matching_pod_keys(vrs, s.resources()).len()) by {
         assert(matching_pod_entries(vrs, s.resources()).values() == filtered_objs.to_set());
         assert(resp_objs.no_duplicates());
         seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
@@ -229,7 +229,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) == filtered_pods);
         assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).len() == filtered_pods.len());
         assert(filtered_pods.len() == filtered_pods.len());
-        assert(matching_pod_entries(vrs, s.resources()).len() == matching_pods_old(vrs, s.resources()).len());
+        assert(matching_pod_entries(vrs, s.resources()).len() == matching_pod_keys(vrs, s.resources()).len());
     }
 }
 
