@@ -23,7 +23,7 @@ pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePr
     }
 }
 
-// TODO: Investigate flaky proof.
+// TODO: investigate flaky proof.
 #[verifier(rlimit(100))]
 pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(self, spec: TempPred<ClusterState>)
     requires

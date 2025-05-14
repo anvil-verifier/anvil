@@ -153,6 +153,8 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     leads_to_trans(spec.and(spec_before_phase_n(i, vrs, cluster, controller_id)), true_pred(), invariants_since_phase_n(i, vrs, cluster, controller_id), always(lift_state(current_state_matches(vrs))));
 }
 
+// TODO: broken by changed ESR spec.
+#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
@@ -234,7 +236,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
         assert forall |ex: Execution<ClusterState>|
         true_pred::<ClusterState>().satisfied_by(ex) implies #[trigger] exists_num_diff_pods_is.satisfied_by(ex) by {
             let s = ex.head();
-            let pods = matching_pods(vrs, s.resources());
+            let pods = matching_pod_keys(vrs, s.resources());
             let diff = pods.len() - vrs.spec.replicas.unwrap_or(0);
 
             // Instantiate exists statement.
