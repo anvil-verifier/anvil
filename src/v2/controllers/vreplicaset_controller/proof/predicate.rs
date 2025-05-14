@@ -73,7 +73,7 @@ pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, contr
 }
 
 // Predicates for reasoning about pods
-pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<ObjectRef> {
+pub open spec fn matching_pods_old(vrs: VReplicaSetView, resources: StoredState) -> Set<ObjectRef> {
     Set::new(|key: ObjectRef| {
         let obj = resources[key];
         &&& resources.contains_key(key)
