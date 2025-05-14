@@ -14,15 +14,13 @@ pub open spec fn vrs_eventually_stable_reconciliation_per_cr(vrs: VReplicaSetVie
     Cluster::eventually_stable_reconciliation_per_cr(vrs, |vrs| current_state_matches(vrs))
 }
 
-// TODO: rewrite it to s.resources().values().filter(selector).to_seq().filter(...).len() == ...
 pub open spec fn current_state_matches(vrs: VReplicaSetView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let pods: Set<ObjectRef> = Set::new(|key: ObjectRef| {
-            &&& s.resources().contains_key(key)
-            &&& owned_selector_match_is(vrs, s.resources()[key])
-        });
-        pods.len() == vrs.spec.replicas.unwrap_or(0)
-    }
+    |s: ClusterState|
+        matching_pods(vrs, s.resources()).len() == vrs.spec.replicas.unwrap_or(0)
+}
+
+pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<DynamicObjectView> {
+    resources.values().filter(|obj: DynamicObjectView| owned_selector_match_is(vrs, obj))
 }
 
 pub open spec fn owned_selector_match_is(vrs: VReplicaSetView, obj: DynamicObjectView) -> bool {
