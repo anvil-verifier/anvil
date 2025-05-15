@@ -9,6 +9,7 @@ use crate::kubernetes_api_objects::exec::{
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vdeployment_controller::model::reconciler as model_reconciler;
+use crate::vdeployment_controller::trusted::util as model_util;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vstd_ext::option_lib::*;
 use vstd::{prelude::*, seq_lib::*};
@@ -329,13 +330,13 @@ ensures res == model_reconciler::match_replicas(vrs@, vd@),
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
 ensures
-    option_vec_view(vrs_list_or_none) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)),
+    option_vec_view(vrs_list_or_none) == model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)),
 {
     let mut vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
 
     proof {
-        let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+        let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
         if model_result.is_some() {
             assert_seqs_equal!(
                 vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
@@ -348,7 +349,7 @@ ensures
     invariant
         idx <= objs.len(),
         ({
-            let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+            let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
             &&& (model_result.is_some() ==>
                     vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
             &&& forall|i: int| 0 <= i < idx ==> VReplicaSetView::unmarshal(#[trigger] objs@[i]@).is_ok()
@@ -359,7 +360,7 @@ ensures
                 vrs_list.push(vrs);
                 proof {
                     // Show that the vrs Vec and the model_result are equal up to index idx + 1.
-                    let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+                    let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
                     if (model_result.is_some()) {
                         assert(model_result.unwrap().take((idx + 1) as int)
                             == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
@@ -374,7 +375,7 @@ ensures
                 proof {
                     // Show that if a vrs was unable to be serialized, the model would return None.
                     let model_input = objs@.map_values(|obj: DynamicObject| obj@);
-                    let model_result = model_reconciler::objects_to_vrs_list(model_input);
+                    let model_result = model_util::objects_to_vrs_list(model_input);
                     assert(
                         model_input
                             .filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err())
@@ -390,7 +391,7 @@ ensures
 
     proof {
         let model_input = objs@.map_values(|obj: DynamicObject| obj@);
-        let model_result = model_reconciler::objects_to_vrs_list(model_input);
+        let model_result = model_util::objects_to_vrs_list(model_input);
 
         // Prove, by contradiction, that the model_result can't be None.
         let filter_result = model_input.filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err());
@@ -413,7 +414,7 @@ fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vr
 requires
     vd@.well_formed(),
 ensures
-    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
     forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
@@ -422,7 +423,7 @@ ensures
     proof {
         assert(
             filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@)
+            model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@)
         );
     }
 
@@ -430,7 +431,7 @@ ensures
     invariant
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
-            == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
+            == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
         forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];
@@ -470,8 +471,8 @@ requires
     // and new/old vrs has replicas -> vrs.state_validation()
     forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed()
 ensures
-    res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
-    res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
+    res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
+    res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
     forall |i: int| 0 <= i < res.0.len() ==> (#[trigger] res.0[i])@.well_formed(),
     forall |i: int| 0 <= i < res.1.len() ==> (#[trigger] res.1[i])@.well_formed(),
 {
@@ -482,11 +483,11 @@ ensures
     proof {
         assert(
             new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).0
+            model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).0
         );
         assert(
             old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
+            model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
         );
         assert(forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed());
         assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed());
@@ -501,8 +502,8 @@ ensures
             forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list_view[i].well_formed()
         }),
         idx <= vrs_list.len(),
-        new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
-        old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
+        new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
+        old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
         forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed(),
         forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed(),
     {
@@ -519,7 +520,7 @@ ensures
         proof { // so we have it again, any ways to avoid this?
             assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
             let new_spec_filter = |vrs: VReplicaSetView|
-                model_reconciler::match_template_without_hash(vd@, vrs);
+                model_util::match_template_without_hash(vd@, vrs);
             let old_spec_filter = |vrs: VReplicaSetView|
                 !new_spec_filter(vrs)
                 && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
@@ -555,7 +556,7 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
 requires
     vd@.well_formed(),
 ensures
-    vrs@ == model_reconciler::make_replica_set(vd@),
+    vrs@ == model_util::make_replica_set(vd@),
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut vrs = VReplicaSet::default();
@@ -584,14 +585,14 @@ ensures
     spec.set_template(template);
     vrs.set_spec(spec);
     proof {
-        assert(template@ == model_reconciler::template_with_hash(vd@, pod_template_hash@));
-        let model_labels = model_reconciler::make_replica_set(vd@).spec.selector.match_labels.unwrap();
+        assert(template@ == model_util::template_with_hash(vd@, pod_template_hash@));
+        let model_labels = model_util::make_replica_set(vd@).spec.selector.match_labels.unwrap();
         assert(labels@ == model_labels) by {
             assert(labels@ == vd@.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash@));
             assert(pod_template_hash@ == int_to_string_view(vd@.metadata.resource_version.unwrap()));
             assert(model_labels == labels@);
         }
-        assert(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels);
+        assert(vrs@.spec.selector.match_labels == model_util::make_replica_set(vd@).spec.selector.match_labels);
     }
     vrs
 }
@@ -600,7 +601,7 @@ pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template_spec:
 requires
     vd@.well_formed(),
 ensures
-    pod_template_spec@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
+    pod_template_spec@ == #[trigger] model_util::template_with_hash(vd@, hash@),
 {
     let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
     let mut template_meta = ObjectMeta::default();
@@ -609,7 +610,7 @@ ensures
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(template_meta);
     pod_template_spec.set_spec(vd.spec().template().spec().unwrap().clone());
-    assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
+    assert(pod_template_spec@.metadata.unwrap().labels == model_util::template_with_hash(vd@, hash@).metadata.unwrap().labels);
     pod_template_spec
 }
 
@@ -617,7 +618,7 @@ pub fn match_template_without_hash(vd: &VDeployment, vrs: &VReplicaSet) -> (res:
 requires
     vd@.well_formed(),
     vrs@.well_formed(),
-ensures res == model_reconciler::match_template_without_hash(vd@, vrs@),
+ensures res == model_util::match_template_without_hash(vd@, vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
@@ -632,12 +633,12 @@ pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerRe
 requires
     vd@.well_formed(),
 ensures
-    owner_references@.map_values(|or: OwnerReference| or@) ==  model_reconciler::make_owner_references(vd@),
+    owner_references@.map_values(|or: OwnerReference| or@) ==  model_util::make_owner_references(vd@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(vd.controller_owner_ref());
     proof {
-        assert(owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@) =~= model_reconciler::make_owner_references(vd@));
+        assert(owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@) =~= model_util::make_owner_references(vd@));
     }
     owner_references
 }
