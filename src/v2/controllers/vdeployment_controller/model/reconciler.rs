@@ -296,7 +296,7 @@ pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDep
     (new_vrs_list, old_vrs_list)
 }
 
-// see https://github.com/kubernetes/kubernetes/blob/cdc807a9e849b651fb48c962cc18e25d39ec5edf/pkg/controller/deployment/sync.go#L196-L210
+// See https://github.com/kubernetes/kubernetes/blob/cdc807a9e849b651fb48c962cc18e25d39ec5edf/pkg/controller/deployment/sync.go#L196-L210
 // pod template hash is used to prevent old and new vrs from owning the same pod
 // here we use resource_version of vd as a hash
 //
