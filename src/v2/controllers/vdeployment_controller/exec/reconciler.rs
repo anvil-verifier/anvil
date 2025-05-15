@@ -61,14 +61,15 @@ impl Reconciler for VDeploymentReconciler {
     }
 }
 
-#[verifier(external_body)]
 pub fn reconcile_init_state() -> (state: VDeploymentReconcileState)
     ensures state@ == model_reconciler::reconcile_init_state(),
 {
+    let old_vrs_list = Vec::<VReplicaSet>::new();
+    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::reconcile_init_state().old_vrs_list);
     VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::Init,
         new_vrs: None,
-        old_vrs_list: Vec::new(),
+        old_vrs_list: old_vrs_list,
     }
 }
 
