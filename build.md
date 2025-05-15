@@ -39,7 +39,7 @@ go_version: "^1.20"
 
 Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<controller_name>` corresponds to entry file in `src`
 
-> You can refer to verus' document for more argument usage by `verus --help`
+> More argument usage by `verus --help`
 
 ## Build and Test
 
@@ -48,8 +48,6 @@ Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<c
 `VERUS_DIR=../verus ./build.sh <controller_name.rs> [--no-verify] [other verus arguments]`
 
 `--no-verify` is optional for fast build. Controller built without this option from the section above can be directly used, but verifications could take long time.
-
-> It's recommended to put `VERUS_DIR` in your shell's config file.
 
 ### Test pipeline
 
@@ -77,8 +75,7 @@ If deployment/test failed, you can manually run `./deploy.sh <controller_name> [
 **4**
 ```
 cd e2e
-# ./admission_setup.sh <controller_name> for admission test
 cargo run -- <controller_name>
 ```
 
-> You can find more examples in `.github/workflows/ci.yml`
+> More examples in `.github/workflows/ci.yml`
