@@ -52,7 +52,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::St
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
             let found_sts = sts.unwrap();
-            if found_sts.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref())
+            if found_sts.metadata().owner_references_only_contains(&rabbitmq.controller_owner_ref())
             && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
                 return Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
             }

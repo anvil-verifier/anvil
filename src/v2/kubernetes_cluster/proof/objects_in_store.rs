@@ -88,6 +88,8 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
                             APIRequest::DeleteRequest(_) => {}
                             APIRequest::UpdateRequest(_) => {}
                             APIRequest::UpdateStatusRequest(_) => {}
+                            APIRequest::GetThenDeleteRequest(_) => {}
+                            APIRequest::GetThenUpdateRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -114,6 +116,8 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
                             APIRequest::DeleteRequest(_) => {}
                             APIRequest::UpdateRequest(_) => {}
                             APIRequest::UpdateStatusRequest(_) => {}
+                            APIRequest::GetThenDeleteRequest(_) => {}
+                            APIRequest::GetThenUpdateRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -166,6 +170,15 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                             }
                             APIRequest::UpdateRequest(_) => {}
                             APIRequest::UpdateStatusRequest(_) => {}
+                            APIRequest::GetThenDeleteRequest(_) => {
+                                let obj = s.resources()[key];
+                                let t_obj = T::unmarshal(obj).get_Ok_0();
+                                T::unmarshal_result_determined_by_unmarshal_spec_and_status();
+                                T::validation_result_determined_by_spec_and_status();
+                                assert(t_obj.state_validation() == T::spec_status_validation(t_obj.spec(), t_obj.status()));
+                                assert(valid_object(obj, self.installed_types));
+                            }
+                            APIRequest::GetThenUpdateRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -183,6 +196,8 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                             APIRequest::DeleteRequest(_) => {}
                             APIRequest::UpdateRequest(_) => {}
                             APIRequest::UpdateStatusRequest(_) => {}
+                            APIRequest::GetThenDeleteRequest(_) => {}
+                            APIRequest::GetThenUpdateRequest(_) => {}
                         }
                     }
                     _ => {}
@@ -255,7 +270,7 @@ pub proof fn lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(s
 
 pub open spec fn etcd_is_finite() -> StatePred<ClusterState> {
     |s: ClusterState| s.resources().dom().finite()
-} 
+}
 
 pub proof fn lemma_always_etcd_is_finite(
     self, spec: TempPred<ClusterState>,

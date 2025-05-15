@@ -20,10 +20,14 @@ pub open spec fn every_update_msg_sets_owner_references_as(
     key: ObjectRef, requirements: spec_fn(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        forall |msg: Message|
+        &&& forall |msg: Message|
             s.in_flight().contains(msg)
             && #[trigger] resource_update_request_msg(key)(msg)
             ==> requirements(msg.content.get_update_request().obj.metadata.owner_references)
+        &&& forall |msg: Message|
+            s.in_flight().contains(msg)
+            && #[trigger] resource_get_then_update_request_msg(key)(msg)
+            ==> requirements(msg.content.get_get_then_update_request().obj.metadata.owner_references)
     }
 }
 
@@ -238,6 +242,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                 let req = input.get_Some_0();
                 if resource_create_request_msg(key)(req) {} else {}
                 if resource_update_request_msg(key)(req) {} else {}
+                if resource_get_then_update_request_msg(key)(req) {} else {}
                 if resource_create_request_msg_without_name(key.kind, key.namespace)(req) {} else {}
             },
             _ => {}

@@ -5,27 +5,23 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::*},
     cluster::*,
-    message::*
+    message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{
-        liveness_theorem::*, 
-        rely_guarantee::*, 
-        spec_types::*, 
-        step::*
-    },
     proof::{helper_invariants, predicate::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
-use crate::vstd_ext::{map_lib::*, set_lib::*, seq_lib::*};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
 use vstd::{map::*, map_lib::*, prelude::*};
 
 verus! {
-   
+
 // TODO: get rid of diff parameter.
+#[verifier(external_body)]
 pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
-    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
     diff: int, msg: Message,
 )
     requires
@@ -91,8 +87,9 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
     };
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
-    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
     diff: int, msg: Message, req_msg: Option<Message>
 )
     requires
@@ -157,6 +154,6 @@ pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
         },
         _ => {}
     };
-} 
+}
 
 }

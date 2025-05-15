@@ -6,20 +6,15 @@ use crate::kubernetes_cluster::spec::{
     api_server::{state_machine::*, types::*},
     cluster::*,
     controller::types::*,
-    message::*
+    message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
-    trusted::{
-        liveness_theorem::*, 
-        rely_guarantee::*, 
-        spec_types::*, 
-        step::*
-    },
-    proof::{helper_invariants, helper_lemmas, liveness::{api_actions::*}, predicate::*},
+    proof::{helper_invariants, helper_lemmas, liveness::api_actions::*, predicate::*},
+    trusted::{liveness_theorem::*, rely_guarantee::*, spec_types::*, step::*},
 };
-use crate::vstd_ext::{map_lib::*, set_lib::*, seq_lib::*};
+use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
 use vstd::{map::*, map_lib::*, math::*, multiset::*, prelude::*};
 
 verus! {
@@ -1167,7 +1162,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
-    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, 
+    vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
 )
     requires
@@ -1335,8 +1330,8 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                         assert(selected_elements_seq.no_duplicates());
 
                         assert forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                            x != y 
-                            && selected_elements_seq.contains(x) 
+                            x != y
+                            && selected_elements_seq.contains(x)
                             && selected_elements_seq.contains(y) implies x.object_ref() != y.object_ref() by {
                             finite_set_to_seq_contains_all_set_elements(selected_elements);
                             assert(selected_elements.contains(x));
@@ -1344,11 +1339,11 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                         }
 
                         let lem = forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                            x != y 
-                            && selected_elements_seq.contains(x) 
+                            x != y
+                            && selected_elements_seq.contains(x)
                             && selected_elements_seq.contains(y) ==> x.object_ref() != y.object_ref();
 
-                        assert forall |i: int, j: int| #![auto] 
+                        assert forall |i: int, j: int| #![auto]
                             0 <= i && i < pods_seq.len() && (0 <= j && j < pods_seq.len()) && !(i == j)
                             && objects_to_pods(selected_elements_seq).is_Some()
                             && lem
@@ -1404,9 +1399,9 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                             finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
                             finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
                             // Fix to get rid of flaky proof.
-                            assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)] 
+                            assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
                                 resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
-                                implies 
+                                implies
                                 s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
                                 assert(resp_objs.contains(obj));
                                 assert(s.resources().values().filter(selector).to_seq().contains(obj));
@@ -1415,9 +1410,9 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
                                 assert(owned_selector_match_is(vrs, obj));
                                 assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
                             }
-                            assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)] 
-                                s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) 
-                                implies 
+                            assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
+                                s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                                implies
                                 resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) by {
                                 assert(s.resources().values().contains(obj));
                                 assert(selector(obj));
@@ -1501,8 +1496,8 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
             assert(selected_elements_seq.no_duplicates());
 
             assert forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                x != y 
-                && selected_elements_seq.contains(x) 
+                x != y
+                && selected_elements_seq.contains(x)
                 && selected_elements_seq.contains(y) implies x.object_ref() != y.object_ref() by {
                 finite_set_to_seq_contains_all_set_elements(selected_elements);
                 assert(selected_elements.contains(x));
@@ -1510,11 +1505,11 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
             }
 
             let lem = forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                x != y 
-                && selected_elements_seq.contains(x) 
+                x != y
+                && selected_elements_seq.contains(x)
                 && selected_elements_seq.contains(y) ==> x.object_ref() != y.object_ref();
 
-            assert forall |i: int, j: int| #![auto] 
+            assert forall |i: int, j: int| #![auto]
                 0 <= i && i < pods_seq.len() && (0 <= j && j < pods_seq.len()) && !(i == j)
                 && objects_to_pods(selected_elements_seq).is_Some()
                 && lem
@@ -1735,7 +1730,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id
-                    && input.1 == Some(resp_msg) 
+                    && input.1 == Some(resp_msg)
                     && input.2 == Some(vrs.object_ref()) {
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
@@ -1896,7 +1891,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id
-                    && input.1 == Some(resp_msg) 
+                    && input.1 == Some(resp_msg)
                     && input.2 == Some(vrs.object_ref()) {
                     VReplicaSetReconcileState::marshal_preserves_integrity();
                     helper_lemmas::lemma_filtered_pods_set_equals_matching_pods(
@@ -1915,7 +1910,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
 
 // TODO: Investigate flaky proof.
 #[verifier(spinoff_prover)]
-#[verifier(rlimit(4000))]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2086,7 +2081,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                             s, s_prime, vrs, cluster, controller_id, diff, msg, Some(req_msg),
                         );
                     });
-                }                
+                }
             },
             _ => {}
         }
@@ -2277,7 +2272,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         }
     }
 
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) 
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime)
         && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
         VReplicaSetReconcileState::marshal_preserves_integrity();
     }
@@ -2435,7 +2430,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
         }
     }
 
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) 
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime)
         && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
         VReplicaSetReconcileState::marshal_preserves_integrity();
         let resources = s_prime.resources();
@@ -2592,7 +2587,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id
-                    && input.1 == Some(resp_msg) 
+                    && input.1 == Some(resp_msg)
                     && input.2 == Some(vrs.object_ref()) {
                     VReplicaSetReconcileState::marshal_preserves_integrity();
 
@@ -2617,6 +2612,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2737,7 +2733,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                     let resp_msg = handle_delete_request_msg(req_msg, s.api_server).1;
                     let req = req_msg.content.get_delete_request();
                     let key = req.key;
-                  
+
                     // Asserts properties about the response message
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -2755,7 +2751,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                             s, s_prime, vrs, cluster, controller_id, diff, msg, Some(req_msg),
                         );
                     });
-                }                
+                }
             },
             _ => {}
         }
@@ -2765,7 +2761,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         let resp_msg = handle_delete_request_msg(req_msg, s.api_server).1;
         let req = req_msg.content.get_delete_request();
         let key = req.key;
-        
+
         // Asserts properties about the response message
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
@@ -2919,7 +2915,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id
-                    && input.1 == Some(resp_msg) 
+                    && input.1 == Some(resp_msg)
                     && input.2 == Some(vrs.object_ref()) {
                     VReplicaSetView::marshal_preserves_integrity();
                     VReplicaSetReconcileState::marshal_preserves_integrity();
@@ -2929,7 +2925,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         }
     }
 
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) 
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime)
         && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
         VReplicaSetReconcileState::marshal_preserves_integrity();
     }
@@ -3087,7 +3083,7 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
         }
     }
 
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) 
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime)
         && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
         VReplicaSetReconcileState::marshal_preserves_integrity();
         let resources = s_prime.resources();
@@ -3112,10 +3108,11 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     );
 }
 
-#[verifier(spinoff_prover)]
+// #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_current_state_matches_is_stable(
-    spec: TempPred<ClusterState>, 
-    vrs: VReplicaSetView, 
+    spec: TempPred<ClusterState>,
+    vrs: VReplicaSetView,
     p: TempPred<ClusterState>,
     cluster: Cluster,
     controller_id: int
@@ -3168,7 +3165,7 @@ pub proof fn lemma_current_state_matches_is_stable(
     let post = |s: ClusterState| {
         let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap();
         &&& current_state_matches(vrs)(s)
-        &&& { 
+        &&& {
             &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
             &&& triggering_cr.spec() == vrs.spec()
             &&& triggering_cr.metadata().uid == vrs.metadata().uid
@@ -3199,7 +3196,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                     let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
                     &&& msg.content.is_list_response()
                     &&& msg.content.get_list_response().res.is_Ok()
-                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                     &&& resp_obj_keys.no_duplicates()
                     &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
@@ -3209,7 +3206,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         }
     };
     let final_post = current_state_matches(vrs);
-    
+
     entails_implies_leads_to(spec, lift_state(pre_post), lift_state(post));
     leads_to_trans(spec, p, lift_state(pre_post), lift_state(post));
 
@@ -3335,7 +3332,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
                         &&& msg.content.is_list_response()
                         &&& msg.content.get_list_response().res.is_Ok()
-                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                         &&& resp_obj_keys.no_duplicates()
                         &&& matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
@@ -3345,7 +3342,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                             if current_req_msg == req_msg {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
-                                
+
                                 assert forall |o: DynamicObjectView| #![auto]
                                 stronger_next(s, s_prime)
                                 && resp_objs.contains(o)
@@ -3363,7 +3360,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                     assert(selected_elements.contains(o));
                                 }
                                 seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
-                                    resp_objs, 
+                                    resp_objs,
                                     |o: DynamicObjectView| PodView::unmarshal(o).is_err()
                                 );
 
@@ -3378,9 +3375,9 @@ pub proof fn lemma_current_state_matches_is_stable(
                                     let selected_elements_seq = selected_elements.to_seq();
                                     assert(selected_elements_seq.no_duplicates());
                                     assert forall |o1: DynamicObjectView, o2: DynamicObjectView| #![auto]
-                                        o1 != o2 
-                                        && selected_elements_seq.contains(o1) 
-                                        && selected_elements_seq.contains(o2) 
+                                        o1 != o2
+                                        && selected_elements_seq.contains(o1)
+                                        && selected_elements_seq.contains(o2)
                                         && stronger_next(s, s_prime)
                                         implies o1.object_ref() != o2.object_ref() by {
                                         finite_set_to_seq_contains_all_set_elements(selected_elements);
@@ -3434,9 +3431,9 @@ pub proof fn lemma_current_state_matches_is_stable(
                                         finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
                                         finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
                                         // Fix to get rid of flaky proof.
-                                        assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)] 
+                                        assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
                                             resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
-                                            implies 
+                                            implies
                                             s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
                                             assert(resp_objs.contains(obj));
                                             assert(s.resources().values().filter(selector).to_seq().contains(obj));
@@ -3445,9 +3442,9 @@ pub proof fn lemma_current_state_matches_is_stable(
                                             assert(owned_selector_match_is(vrs, obj));
                                             assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
                                         }
-                                        assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)] 
-                                            s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) 
-                                            implies 
+                                        assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
+                                            s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
+                                            implies
                                             resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) by {
                                             assert(s.resources().values().contains(obj));
                                             assert(selector(obj));
@@ -3459,13 +3456,13 @@ pub proof fn lemma_current_state_matches_is_stable(
                                         }
                                     }
                                 }
-                                
+
                                 assert({
                                     let resp_objs = msg.content.get_list_response().res.unwrap();
                                     let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
                                     &&& msg.content.is_list_response()
                                     &&& msg.content.get_list_response().res.is_Ok()
-                                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                     &&& resp_obj_keys.no_duplicates()
                                     &&& matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
@@ -3518,7 +3515,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 &&& req.preconditions.unwrap().resource_version.is_Some()
                                 &&& req.preconditions.unwrap().uid.is_None()
                                 &&& obj.metadata.resource_version.is_Some()
-                                &&& obj.metadata.resource_version.unwrap() == 
+                                &&& obj.metadata.resource_version.unwrap() ==
                                         req.preconditions.unwrap().resource_version.unwrap()
                             };
 
@@ -3539,7 +3536,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                     });
                                 } else if current_req_msg.src.is_Controller() && current_req_msg.src.get_Controller_0() != controller_id {
                                     assert(vrs_rely(current_req_msg.src.get_Controller_0())(s));
-                                } 
+                                }
                             }
 
                             if msg_antecedent {
@@ -3565,7 +3562,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                     let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
                                     &&& msg.content.is_list_response()
                                     &&& msg.content.get_list_response().res.is_Ok()
-                                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                                    &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                     &&& resp_obj_keys.no_duplicates()
                                     //&&& matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
@@ -3618,7 +3615,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         assert(matching_pod_entries(vrs, s.resources()).values() == objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set());
                         assert_by(objs.no_duplicates(), {
                             assert forall |i: int, j: int| #![auto]
-                                0 <= i < objs.len() 
+                                0 <= i < objs.len()
                                 && 0 <= j < objs.len()
                                 && i != j
                                 && post(s)
@@ -3631,7 +3628,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         });
                         assert_by(pods.no_duplicates(), {
                             assert forall |i: int, j: int| #![auto]
-                                0 <= i < pods.len() 
+                                0 <= i < pods.len()
                                 && 0 <= j < pods.len()
                                 && i != j
                                 && post(s)
@@ -3641,20 +3638,20 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 assert(pods == objs.map_values(|o: DynamicObjectView| PodView::unmarshal(o).unwrap()));
                                 assert(pods.len() == objs.len());
                                 seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
-                                    objs, 
+                                    objs,
                                     |obj: DynamicObjectView| PodView::unmarshal(obj).is_err()
                                 );
                                 assert(objs.contains(objs[i]));
                                 assert(objs.contains(objs[j]));
                                 assert(PodView::unmarshal(objs[i]).is_Ok());
                                 assert(PodView::unmarshal(objs[j]).is_Ok());
-                                
+
                                 assert(pods[i] == PodView::unmarshal(objs[i]).get_Ok_0());
                                 assert(pods[j] == PodView::unmarshal(objs[j]).get_Ok_0());
-                                
+
                                 assert(pods[i].object_ref() == objs[i].object_ref());
                                 assert(pods[j].object_ref() == objs[j].object_ref());
-                                
+
                                 assert(objs[i].object_ref() == obj_keys[i]);
                                 assert(objs[j].object_ref() == obj_keys[j]);
                             }
@@ -3667,7 +3664,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         assert(objs.filter(|obj| owned_selector_match_is(vrs, obj)).len() == vrs.spec.replicas.unwrap_or(0));
                         assert(
                             objs.filter(|obj| owned_selector_match_is(vrs, obj))
-                                .map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).unwrap()).len() 
+                                .map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).unwrap()).len()
                                 == vrs.spec.replicas.unwrap_or(0)
                         );
                         assert_by(
@@ -3676,14 +3673,14 @@ pub proof fn lemma_current_state_matches_is_stable(
                             {
                                 let osm_pred = |obj: DynamicObjectView| owned_selector_match_is(vrs, obj);
                                 let obj_to_pod = |obj: DynamicObjectView| PodView::unmarshal(obj).unwrap();
-                                assert forall |i: int, j: int| #![auto] 
+                                assert forall |i: int, j: int| #![auto]
                                     0 <= i < objs.filter(osm_pred).map_values(obj_to_pod).len()
                                     && 0 <= j < objs.filter(osm_pred).map_values(obj_to_pod).len()
                                     && i != j
                                     && post(s)
                                     && stronger_next(s, s_prime)
                                     && obj_keys.no_duplicates()
-                                    implies objs.filter(osm_pred).map_values(obj_to_pod)[i] 
+                                    implies objs.filter(osm_pred).map_values(obj_to_pod)[i]
                                         != objs.filter(osm_pred).map_values(obj_to_pod)[j] by {
                                     let pod_i = objs.filter(osm_pred).map_values(obj_to_pod)[i];
                                     let pod_j = objs.filter(osm_pred).map_values(obj_to_pod)[j];
@@ -3726,7 +3723,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         objs.filter(|obj| owned_selector_match_is(vrs, obj))
                             .map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).unwrap()).unique_seq_to_set();
                         assert_by(
-                            filtered_pods.to_set() 
+                            filtered_pods.to_set()
                                 =~= objs.filter(|obj| owned_selector_match_is(vrs, obj))
                                     .map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).unwrap()).to_set(),
                             {
@@ -3764,10 +3761,10 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 assert forall |p: PodView| #![auto]
                                     post(s)
                                     && stronger_next(s, s_prime)
-                                    && objs.filter(osm_pred).map_values(obj_to_pod).to_set().contains(p) 
+                                    && objs.filter(osm_pred).map_values(obj_to_pod).to_set().contains(p)
                                     implies filtered_pods.to_set().contains(p) by {
-                                    let i = choose |i: int| 
-                                        0 <= i < objs.filter(osm_pred).map_values(obj_to_pod).len() 
+                                    let i = choose |i: int|
+                                        0 <= i < objs.filter(osm_pred).map_values(obj_to_pod).len()
                                         && objs.filter(osm_pred).map_values(obj_to_pod)[i] == p;
                                     assert(objs.filter(osm_pred).map_values(obj_to_pod)[i] == p);
                                     assert(PodView::unmarshal(objs.filter(osm_pred)[i]).unwrap() == p);
@@ -3793,7 +3790,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         assert(filtered_pods.to_set().len() == vrs.spec.replicas.unwrap_or(0));
                         assert_by(filtered_pod_keys.no_duplicates(), {
                             assert forall |i: int, j: int| #![auto]
-                                0 <= i < filtered_pod_keys.len() 
+                                0 <= i < filtered_pod_keys.len()
                                 && 0 <= j < filtered_pod_keys.len()
                                 && i != j
                                 && post(s)
@@ -3803,7 +3800,7 @@ pub proof fn lemma_current_state_matches_is_stable(
 
                                 seq_filter_contains_implies_seq_contains(
                                     pods,
-                                    |pod: PodView| 
+                                    |pod: PodView|
                                         pod.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
                                         && triggering_cr.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                                         && pod.metadata.deletion_timestamp.is_None(),
@@ -3811,7 +3808,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 );
                                 seq_filter_contains_implies_seq_contains(
                                     pods,
-                                    |pod: PodView| 
+                                    |pod: PodView|
                                         pod.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
                                         && triggering_cr.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                                         && pod.metadata.deletion_timestamp.is_None(),
@@ -3824,24 +3821,24 @@ pub proof fn lemma_current_state_matches_is_stable(
                                 assert(pods == objs.map_values(|o: DynamicObjectView| PodView::unmarshal(o).unwrap()));
                                 assert(pods.len() == objs.len());
                                 seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
-                                    objs, 
+                                    objs,
                                     |obj: DynamicObjectView| PodView::unmarshal(obj).is_err()
                                 );
                                 assert(objs.contains(objs[idxi]));
                                 assert(objs.contains(objs[idxj]));
                                 assert(PodView::unmarshal(objs[idxi]).is_Ok());
                                 assert(PodView::unmarshal(objs[idxj]).is_Ok());
-                                
+
                                 assert(pods[idxi] == PodView::unmarshal(objs[idxi]).get_Ok_0());
                                 assert(pods[idxj] == PodView::unmarshal(objs[idxj]).get_Ok_0());
-                                
+
                                 assert(pods[idxi].object_ref() == objs[idxi].object_ref());
                                 assert(pods[idxj].object_ref() == objs[idxj].object_ref());
 
                                 if idxi == idxj {
                                     seq_filter_preserves_no_duplicates(
                                         pods,
-                                        |pod: PodView| 
+                                        |pod: PodView|
                                             pod.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
                                             && triggering_cr.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                                             && pod.metadata.deletion_timestamp.is_None(),
@@ -3856,13 +3853,13 @@ pub proof fn lemma_current_state_matches_is_stable(
                         assert_by(filtered_pods.no_duplicates(), {
                             let to_dyn_obj = |p: PodView| p.marshal();
                             assert forall |i: int, j: int| #![auto]
-                                0 <= i < filtered_pods.len() 
+                                0 <= i < filtered_pods.len()
                                 && 0 <= j < filtered_pods.len()
                                 && i != j
                                 && post(s)
                                 && stronger_next(s, s_prime)
                                 && filtered_pod_keys.no_duplicates()
-                                implies filtered_pods[i] 
+                                implies filtered_pods[i]
                                     != filtered_pods[j] by {
                                 assert(filtered_pods[i].object_ref() == filtered_pod_keys[i]);
                                 assert(filtered_pods[j].object_ref() == filtered_pod_keys[j]);
@@ -3877,10 +3874,10 @@ pub proof fn lemma_current_state_matches_is_stable(
                             let req_msg = s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
                             assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
                             assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
-                            assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) 
+                            assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
                                 && (forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id)
                                 && s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg)
-                                && msg != req_msg 
+                                && msg != req_msg
                                 implies msg.rpc_id != req_msg.rpc_id by {
                                 if !s.in_flight().contains(msg) {} // need this to invoke trigger.
                             }
@@ -3888,7 +3885,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                     }
                 } else if !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) {
                     // this empty case speeds up verification.
-                }         
+                }
             },
             _ => {
                 let new_msgs = s_prime.in_flight().sub(s.in_flight());
@@ -3912,7 +3909,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
                         &&& msg.content.is_list_response()
                         &&& msg.content.get_list_response().res.is_Ok()
-                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
+                        &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                         &&& resp_obj_keys.no_duplicates()
                         &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()

@@ -107,6 +107,12 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr<T: Custom
                         } else if input.get_Some_0().content.is_update_request() {
                             assert(T::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
                             assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
+                        } else if input.get_Some_0().content.is_get_then_update_request() {
+                            assert(T::unmarshal(input.get_Some_0().content.get_get_then_update_request().obj).is_Ok());
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
+                        } else if input.get_Some_0().content.is_get_then_delete_request() {
+                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
                         } else {
                             assert(input.get_Some_0().content.is_update_status_request());
                             assert(T::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
@@ -186,6 +192,12 @@ proof fn lemma_always_triggering_cr_is_in_correct_order<T: CustomResourceView>(s
                             assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
                         } else if input.get_Some_0().content.is_update_request() {
                             assert(T::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
+                        } else if input.get_Some_0().content.is_get_then_update_request() {
+                            assert(T::unmarshal(input.get_Some_0().content.get_get_then_update_request().obj).is_Ok());
+                            assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
+                        } else if input.get_Some_0().content.is_get_then_delete_request() {
+                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(T::unmarshal(s_prime.resources()[key]).get_Ok_0().transition_validation(T::unmarshal(s.resources()[key]).get_Ok_0()));
                         } else {
                             assert(input.get_Some_0().content.is_update_status_request());

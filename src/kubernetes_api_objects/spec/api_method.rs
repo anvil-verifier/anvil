@@ -4,6 +4,7 @@ use crate::kubernetes_api_objects::error::APIError;
 use crate::kubernetes_api_objects::spec::{
     common::{Kind, ObjectRef},
     dynamic::*,
+    owner_reference::*,
     preconditions::*,
 };
 use crate::vstd_ext::string_view::*;
@@ -26,6 +27,8 @@ pub enum APIRequest {
     DeleteRequest(DeleteRequest),
     UpdateRequest(UpdateRequest),
     UpdateStatusRequest(UpdateStatusRequest),
+    GetThenDeleteRequest(GetThenDeleteRequest),
+    GetThenUpdateRequest(GetThenUpdateRequest),
 }
 
 // GetRequest gets an object with the key (kind, name and namespace).
@@ -113,6 +116,44 @@ impl UpdateStatusRequest {
     }
 }
 
+// GetThenDeleteRequest deletes the object with the key only when it's owned by owner_ref and avoids conflicts caused by
+// version race.
+//
+// TODO: GetThenUpdateRequest should carry a spec_fn(DynamicObjectView) -> bool
+
+pub struct GetThenDeleteRequest {
+    pub key: ObjectRef,
+    pub owner_ref: OwnerReferenceView,
+}
+
+impl GetThenDeleteRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        self.key
+    }
+}
+
+// GetThenUpdateRequest replaces the existing obj with a new one only when it's owned by owner_ref and avoids
+// conflicts caused by version race.
+//
+// TODO: GetThenUpdateRequest should carry a spec_fn(DynamicObjectView) -> Option<DynamicObjectView>
+
+pub struct GetThenUpdateRequest {
+    pub namespace: StringView,
+    pub name: StringView,
+    pub owner_ref: OwnerReferenceView,
+    pub obj: DynamicObjectView,
+}
+
+impl GetThenUpdateRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.obj.kind,
+            namespace: self.namespace,
+            name: self.name,
+        }
+    }
+}
+
 // APIResponse represents API responses sent from the Kubernetes API for specifications.
 
 #[is_variant]
@@ -123,6 +164,8 @@ pub enum APIResponse {
     DeleteResponse(DeleteResponse),
     UpdateResponse(UpdateResponse),
     UpdateStatusResponse(UpdateStatusResponse),
+    GetThenDeleteResponse(GetThenDeleteResponse),
+    GetThenUpdateResponse(GetThenUpdateResponse),
 }
 
 // GetResponse has the object returned by GetRequest.
@@ -159,6 +202,18 @@ pub struct UpdateResponse {
 
 pub struct UpdateStatusResponse {
     pub res: Result<DynamicObjectView, APIError>,
+}
+
+// GetThenUpdateResponse has the object updated by GetThenUpdateRequest.
+
+pub struct GetThenUpdateResponse {
+    pub res: Result<DynamicObjectView, APIError>,
+}
+
+// GetThenDeleteResponse does NOT contain the object that gets deleted.
+
+pub struct GetThenDeleteResponse {
+    pub res: Result<(), APIError>,
 }
 
 }

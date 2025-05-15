@@ -1,5 +1,6 @@
 use crate::external_shim_layer::*;
 use crate::kubernetes_api_objects::error::*;
+use crate::kubernetes_api_objects::exec::prelude::Preconditions;
 use crate::kubernetes_api_objects::exec::{api_method::*, dynamic::*, resource::*};
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -182,7 +183,7 @@ where
                             match api.get(&get_req.name).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse {
-                                        res: Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_api_error(&err)),
                                     });
                                     info!("{} Get {} failed with error: {}", log_header, key, err);
                                 }
@@ -205,7 +206,7 @@ where
                             match api.list(&lp).await {
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::ListResponse(KubeListResponse {
-                                        res: Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_api_error(&err)),
                                     });
                                     info!("{} List {} failed with error: {}", log_header, key, err);
                                 }
@@ -235,7 +236,7 @@ where
                                 Err(err) => {
                                     kube_resp =
                                         KubeAPIResponse::CreateResponse(KubeCreateResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         });
                                     info!(
                                         "{} Create {} failed with error: {}",
@@ -269,7 +270,7 @@ where
                                 Err(err) => {
                                     kube_resp =
                                         KubeAPIResponse::DeleteResponse(KubeDeleteResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         });
                                     info!(
                                         "{} Delete {} failed with error: {}",
@@ -299,7 +300,7 @@ where
                                 Err(err) => {
                                     kube_resp =
                                         KubeAPIResponse::UpdateResponse(KubeUpdateResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         });
                                     info!(
                                         "{} Update {} failed with error: {}",
@@ -338,7 +339,7 @@ where
                                 Err(err) => {
                                     kube_resp = KubeAPIResponse::UpdateStatusResponse(
                                         KubeUpdateStatusResponse {
-                                            res: Err(kube_error_to_ghost(&err)),
+                                            res: Err(kube_error_to_api_error(&err)),
                                         },
                                     );
                                     info!(
@@ -355,6 +356,28 @@ where
                                     info!("{} UpdateStatus {} done", log_header, key);
                                 }
                             }
+                        }
+                        KubeAPIRequest::GetThenDeleteRequest(req) => {
+                            check_fault_timing = true;
+                            kube_resp = KubeAPIResponse::GetThenDeleteResponse(
+                                transactional_get_then_delete_by_retry(
+                                    client,
+                                    req,
+                                    log_header.clone(),
+                                )
+                                .await,
+                            );
+                        }
+                        KubeAPIRequest::GetThenUpdateRequest(req) => {
+                            check_fault_timing = true;
+                            kube_resp = KubeAPIResponse::GetThenUpdateResponse(
+                                transactional_get_then_update_by_retry(
+                                    client,
+                                    req,
+                                    log_header.clone(),
+                                )
+                                .await,
+                            );
                         }
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
@@ -385,6 +408,157 @@ where
     return Ok(Action::requeue(Duration::from_secs(60)));
 }
 
+// transactional_get_then_delete_by_retry retries get and then delete upon conflict errors to simulate atomic operations.
+// This guarantees that the entire get_then_delete operation will not fail due to conflicts between concurrent
+// controllers. Note that transactional_get_then_delete_by_retry's termination depends on fairness assumptions.
+pub async fn transactional_get_then_delete_by_retry(
+    client: &Client,
+    req: KubeGetThenDeleteRequest,
+    log_header: String,
+) -> KubeGetThenDeleteResponse {
+    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+        client.clone(),
+        &req.namespace,
+        req.api_resource.as_kube_ref(),
+    );
+    let key = req.key();
+
+    loop {
+        // Step 1: get the object
+        let get_result = api.get(&req.name).await;
+        if let Err(err) = get_result {
+            info!(
+                "{} Get of Get-then-Delete {} failed with error: {}",
+                log_header, key, err
+            );
+            return KubeGetThenDeleteResponse {
+                res: Err(kube_error_to_api_error(&err)),
+            };
+        }
+        // Step 2: if the object exists, perform a check using a predicate on object
+        // The predicate: Is the current object owned by req.owner_ref?
+        // TODO: the predicate should be provided by clients instead of the hardcoded one
+        let current_obj = DynamicObject::from_kube(get_result.unwrap());
+        if !current_obj
+            .metadata()
+            .owner_references_contains(&req.owner_ref)
+        {
+            return KubeGetThenDeleteResponse {
+                res: Err(APIError::TransactionAbort),
+            };
+        }
+        // Step 3: if the check passes, delete the object with a precondition
+        // Note that resource_version and uid comes from the current object to avoid conflict error
+        let dp = DeleteParams::default().preconditions(deps_hack::kube::api::Preconditions {
+            resource_version: current_obj.as_kube_ref().metadata.resource_version.clone(),
+            uid: current_obj.as_kube_ref().metadata.uid.clone(),
+        });
+        match api.delete(&req.name, &dp).await {
+            Err(err) => {
+                let api_err = kube_error_to_api_error(&err);
+                match api_err {
+                    APIError::Conflict => {
+                        // Retry upon a conflict error
+                        info!(
+                            "{} Delete of Get-then-Delete {} failed with Conflict; retry...",
+                            log_header, key
+                        );
+                        continue;
+                    }
+                    _ => {
+                        info!(
+                            "{} Delete of Get-then-Delete {} failed with error: {}",
+                            log_header, key, err
+                        );
+                        return KubeGetThenDeleteResponse { res: Err(api_err) };
+                    }
+                }
+            }
+            Ok(obj) => {
+                info!("{} Delete {} done", log_header, key);
+                return KubeGetThenDeleteResponse { res: Ok(()) };
+            }
+        }
+    }
+}
+
+// transactional_get_then_update_by_retry retries get and then update upon conflict errors to simulate atomic operations.
+// This guarantees that the entire get_then_update operation will not fail due to conflicts between concurrent
+// controllers. Note that transactional_get_then_update_by_retry's termination depends on fairness assumptions.
+pub async fn transactional_get_then_update_by_retry(
+    client: &Client,
+    req: KubeGetThenUpdateRequest,
+    log_header: String,
+) -> KubeGetThenUpdateResponse {
+    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+        client.clone(),
+        &req.namespace,
+        req.api_resource.as_kube_ref(),
+    );
+    let pp = PostParams::default();
+    let key = req.key();
+    let mut obj_to_update = req.obj.into_kube();
+
+    loop {
+        // Step 1: get the object
+        let get_result = api.get(&req.name).await;
+        if let Err(err) = get_result {
+            info!(
+                "{} Get of Get-then-Update {} failed with error: {}",
+                log_header, key, err
+            );
+            return KubeGetThenUpdateResponse {
+                res: Err(kube_error_to_api_error(&err)),
+            };
+        }
+        // Step 2: if the object exists, perform a check using a predicate on object
+        // The predicate: Is the current object owned by req.owner_ref?
+        // TODO: the predicate should be provided by clients instead of the hardcoded one
+        let current_obj = DynamicObject::from_kube(get_result.unwrap());
+        if !current_obj
+            .metadata()
+            .owner_references_contains(&req.owner_ref)
+        {
+            return KubeGetThenUpdateResponse {
+                res: Err(APIError::TransactionAbort),
+            };
+        }
+        // Step 3: if the check passes, overwrite the object with the new one
+        // Note that resource_version and uid comes from the current object to avoid conflict error
+        obj_to_update.metadata.uid = current_obj.as_kube_ref().metadata.uid.clone();
+        obj_to_update.metadata.resource_version =
+            current_obj.as_kube_ref().metadata.resource_version.clone();
+        match api.replace(&req.name, &pp, &obj_to_update).await {
+            Err(err) => {
+                let api_err = kube_error_to_api_error(&err);
+                match api_err {
+                    APIError::Conflict => {
+                        // Retry upon a conflict error
+                        info!(
+                            "{} Update of Get-then-Update {} failed with Conflict; retry...",
+                            log_header, key
+                        );
+                        continue;
+                    }
+                    _ => {
+                        info!(
+                            "{} Update of Get-then-Update {} failed with error: {}",
+                            log_header, key, err
+                        );
+                        return KubeGetThenUpdateResponse { res: Err(api_err) };
+                    }
+                }
+            }
+            Ok(obj) => {
+                info!("{} Update {} done", log_header, key);
+                return KubeGetThenUpdateResponse {
+                    res: Ok(DynamicObject::from_kube(obj)),
+                };
+            }
+        }
+    }
+}
+
 // error_policy defines the controller's behavior when the reconcile ends with an error.
 pub fn error_policy<K>(_object: Arc<K>, _error: &Error, _ctx: Arc<Data>) -> Action
 where
@@ -400,11 +574,11 @@ pub struct Data {
     pub client: Client,
 }
 
-// kube_error_to_ghost translates the API error from kube-rs APIs
+// kube_error_to_api_error translates the API error from kube-rs APIs
 // to the form that can be processed by reconcile_core.
 
 // TODO: match more error types.
-pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
+pub fn kube_error_to_api_error(error: &deps_hack::kube::Error) -> APIError {
     match error {
         deps_hack::kube::Error::Api(error_resp) => {
             if &error_resp.reason == "NotFound" {

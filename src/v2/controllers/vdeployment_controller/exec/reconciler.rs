@@ -1,19 +1,17 @@
 #![allow(unused_imports)]
 
-use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_api_objects::exec::{
-    prelude::*,
-    pod_template_spec::PodTemplateSpec,
-    label_selector::LabelSelector,
+    label_selector::LabelSelector, pod_template_spec::PodTemplateSpec, prelude::*,
 };
+use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
+use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vstd_ext::option_lib::*;
-use vstd::{prelude::*, seq_lib::*};
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 use deps_hack::tracing::{error, info};
+use vstd::{prelude::*, seq_lib::*};
 
 verus! {
 
@@ -434,7 +432,7 @@ ensures
         forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];
-        if vrs.metadata().owner_references_contains(vd.controller_owner_ref()) 
+        if vrs.metadata().owner_references_contains(&vd.controller_owner_ref())
         && !vrs.metadata().has_deletion_timestamp()
         && vrs.well_formed() {
             filtered_vrs_list.push(vrs.clone());

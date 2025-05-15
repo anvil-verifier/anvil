@@ -387,7 +387,7 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
         // TODO: check other conditions such as pod status
         // Check the following conditions:
         // (1) the pod's label should match the replica set's selector
-        if pod.metadata().owner_references_contains(v_replica_set.controller_owner_ref())
+        if pod.metadata().owner_references_contains(&v_replica_set.controller_owner_ref())
         && v_replica_set.spec().selector().matches(pod.metadata().labels().unwrap_or(StringMap::new()))
         // (2) the pod should not be terminating (its deletion timestamp is nil)
         && !pod.metadata().has_deletion_timestamp() {

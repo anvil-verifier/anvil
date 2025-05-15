@@ -44,7 +44,7 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::DaemonS
         let ds = DaemonSet::unmarshal(obj);
         if ds.is_ok() {
             let found_ds = ds.unwrap();
-            if found_ds.metadata().owner_references_only_contains(fb.controller_owner_ref()) && found_ds.spec().is_some() {
+            if found_ds.metadata().owner_references_only_contains(&fb.controller_owner_ref()) && found_ds.spec().is_some() {
                 return Ok(update_daemon_set(fb, found_ds).marshal());
             }
         }
