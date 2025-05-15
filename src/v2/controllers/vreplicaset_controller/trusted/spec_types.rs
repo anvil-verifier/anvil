@@ -134,13 +134,14 @@ impl ResourceView for VReplicaSetView {
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels.is_Some()
         &&& self.spec.selector.match_labels.get_Some_0().len() > 0
-        // template and its metadata ane spec exists
-        &&& self.spec.template.metadata.is_Some()
-        &&& self.spec.template.spec.is_Some()
+        // template, and its metadata ane spec exists
+        &&& self.spec.template.is_Some()
+        &&& self.spec.template.get_Some_0().metadata.is_Some()
+        &&& self.spec.template.get_Some_0().spec.is_Some()
         // kubernetes requires selector matches template's metadata's labels
         // and also requires selector to be non-empty, so it implicitly requires that the labels are non-empty
-        &&& self.spec.template.metadata.get_Some_0().labels.is_Some()
-        &&& self.spec.selector.matches(self.spec.template.metadata.get_Some_0().labels.get_Some_0())
+        &&& self.spec.template.get_Some_0().metadata.get_Some_0().labels.is_Some()
+        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.get_Some_0())
     }
 
     open spec fn transition_validation(self, old_obj: VReplicaSetView) -> bool {
@@ -167,7 +168,7 @@ impl CustomResourceView for VReplicaSetView {
 pub struct VReplicaSetSpecView {
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
-    pub template: PodTemplateSpecView,
+    pub template: Option<PodTemplateSpecView>,
 }
 
 impl VReplicaSetSpecView {
@@ -175,7 +176,7 @@ impl VReplicaSetSpecView {
         VReplicaSetSpecView {
             replicas: None,
             selector: LabelSelectorView::default(),
-            template: PodTemplateSpecView::default(),
+            template: None,
         }
     }
 
@@ -195,7 +196,7 @@ impl VReplicaSetSpecView {
 
     pub open spec fn with_template(self, template: PodTemplateSpecView) -> VReplicaSetSpecView {
         VReplicaSetSpecView {
-            template: template,
+            template: Some(template),
             ..self
         }
     }

@@ -619,7 +619,7 @@ requires
     vrs@.well_formed(),
 ensures res == model_reconciler::match_template_without_hash(vd@, vrs@),
 {
-    let mut vrs_template = vrs.spec().template().clone();
+    let mut vrs_template = vrs.spec().template().unwrap().clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
     labels.remove(&"pod-template-hash".to_string());
     let mut template_meta = vrs_template.metadata().unwrap().clone();

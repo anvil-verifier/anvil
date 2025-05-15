@@ -421,7 +421,7 @@ fn make_pod(v_replica_set: &VReplicaSet) -> (pod: Pod)
     requires v_replica_set@.well_formed(),
     ensures pod@ == model_reconciler::make_pod(v_replica_set@),
 {
-    let template = v_replica_set.spec().template();
+    let template = v_replica_set.spec().template().unwrap();
     let mut pod = Pod::default();
     pod.set_metadata({
         let mut metadata = ObjectMeta::default();

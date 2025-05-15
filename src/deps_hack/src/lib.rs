@@ -285,7 +285,7 @@ pub struct FluentBitConfigSpec {
 pub struct VReplicaSetSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
-    pub template: k8s_openapi::api::core::v1::PodTemplateSpec,
+    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec,>
 }
 
 impl Default for VReplicaSet {

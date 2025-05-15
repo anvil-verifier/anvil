@@ -319,7 +319,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
             selector: LabelSelectorView {
                 match_labels: Some(match_labels),
             },
-            template: template_with_hash(vd, pod_template_hash)
+            template: Some(template_with_hash(vd, pod_template_hash))
         },
         ..VReplicaSetView::default()
     }
@@ -338,7 +338,7 @@ pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> Po
 }
 
 pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
-    let vrs_template = vrs.spec.template;
+    let vrs_template = vrs.spec.template.unwrap();
     vd.spec.template == PodTemplateSpecView {
         metadata: Some(ObjectMetaView {
             labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),

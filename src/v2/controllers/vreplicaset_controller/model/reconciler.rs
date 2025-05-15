@@ -235,7 +235,7 @@ pub open spec fn filter_pods(pods: Seq<PodView>, v_replica_set: VReplicaSetView)
 }
 
 pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {
-    let template = v_replica_set.spec.template;
+    let template = v_replica_set.spec.template.unwrap();
     let pod = PodView::default();
     let pod = PodView {
         spec: template.spec,
