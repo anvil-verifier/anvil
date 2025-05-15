@@ -374,16 +374,14 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
                     if vrs.metadata.labels.is_some()
                         && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                         && vrs.spec.replicas.is_some_and(|v| v == 3)
-                        && vrs.spec.template.is_some()
-                        && vrs.spec.template.as_ref().unwrap().spec.is_some()
-                        && vrs.spec.template.as_ref().unwrap().spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.10")
+                        && vrs.spec.template.spec.is_some()
+                        && vrs.spec.template.spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.10")
                     {
                         info!("New VReplicaSet has correct label, image and is scaled up.");
                     } else if vrs.metadata.labels.is_some()
                         && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
-                        && vrs.spec.template.is_some()
-                        && vrs.spec.template.as_ref().unwrap().spec.is_some()
-                        && vrs.spec.template.as_ref().unwrap().spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.9")
+                        && vrs.spec.template.spec.is_some()
+                        && vrs.spec.template.spec.as_ref().unwrap().containers[0].image.as_ref().is_some_and(|v| v == "k8s.gcr.io/pause:3.9")
                     {
                         if vrs.spec.replicas.is_some_and(|v| v == 0) {
                             info!("Old VReplicaSet is scaled down.");
@@ -488,20 +486,18 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
                             // vrs metadata labels should not change
                             && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                             && vrs.spec.replicas.is_some_and(|v| v == 3)
-                            && vrs.spec.template.is_some()
-                            && vrs.spec.template.as_ref().unwrap().metadata.is_some()
-                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.is_some()
-                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.as_ref().unwrap().get("app").is_some_and(|v| v == "bar")
+                            && vrs.spec.template.metadata.is_some()
+                            && vrs.spec.template.metadata.as_ref().unwrap().labels.is_some()
+                            && vrs.spec.template.metadata.as_ref().unwrap().labels.as_ref().unwrap().get("app").is_some_and(|v| v == "bar")
                             && vrs.spec.selector.match_labels.is_some()
                             && vrs.spec.selector.match_labels.as_ref().unwrap().get("app").is_some_and(|v| v == "bar")
                         {
                             info!("New VRS {} has correct labels and selector.", vrs.metadata.name.as_ref().unwrap());
                         } else if vrs.metadata.labels.is_some()
                             && vrs.metadata.labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
-                            && vrs.spec.template.is_some()
-                            && vrs.spec.template.as_ref().unwrap().metadata.is_some()
-                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.is_some()
-                            && vrs.spec.template.as_ref().unwrap().metadata.as_ref().unwrap().labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
+                            && vrs.spec.template.metadata.is_some()
+                            && vrs.spec.template.metadata.as_ref().unwrap().labels.is_some()
+                            && vrs.spec.template.metadata.as_ref().unwrap().labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                             && vrs.spec.selector.match_labels.is_some()
                             && vrs.spec.selector.match_labels.as_ref().unwrap().get("app").is_some_and(|v| v == "pause-demo")
                         {
