@@ -22,6 +22,7 @@ pub struct LabelSelector {
 }
 
 impl LabelSelector {
+
     pub spec fn view(&self) -> LabelSelectorView;
 
     #[verifier(external_body)]
@@ -69,7 +70,7 @@ impl LabelSelector {
     // TODO: prove it and maybe move to a different lib
     #[verifier(external_body)]
     pub fn matches(&self, labels: StringMap) -> (res: bool)
-        ensures res == self@.matches(labels@)
+        ensures res == self@.matches(labels@),
     {
         if self.match_labels().is_none() {
             true

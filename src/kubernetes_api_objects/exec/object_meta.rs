@@ -187,6 +187,15 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.inner.name.is_some()
+            && self.inner.resource_version.is_some()
+            && self.inner.uid.is_some()
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
     {
@@ -212,6 +221,28 @@ impl ObjectMeta {
         ensures self@ == old(self)@.with_labels(labels@),
     {
         self.inner.labels = Some(labels.into_rust_map());
+    }
+
+    #[verifier(external_body)]
+    pub fn add_label(&mut self, key: String, value: String)
+        ensures self@ == old(self)@.add_label(key@, value@),
+    {
+        if self.inner.labels.is_none() {
+            let mut labels = std::collections::BTreeMap::new();
+            labels.insert(key, value);
+            self.inner.labels = Some(labels);
+        } else {
+            self.inner.labels.as_mut().unwrap().insert(key, value);
+        };
+    }
+
+    #[verifier(external_body)]
+    pub fn remove_label(&mut self, key: String)
+        ensures self@ == old(self)@.without_label(key@),
+    {
+        if self.inner.labels.is_some() {
+            self.inner.labels.as_mut().unwrap().remove(&key);
+        }
     }
 
     #[verifier(external_body)]

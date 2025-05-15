@@ -5,8 +5,7 @@ use crate::kubernetes_api_objects::exec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
-use crate::vdeployment_controller::trusted::{spec_types, step::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vdeployment_controller::trusted::spec_types;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
@@ -46,6 +45,15 @@ impl VDeployment {
     }
 
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed()
+        && self.metadata().namespace().is_some()
+        && self.state_validation()
+    }
+
+    #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
         ensures owner_reference@ == self@.controller_owner_ref(),
     {
@@ -76,6 +84,45 @@ impl VDeployment {
             Err(())
         }
     }
+
+    // similar to VReplicaSet::state_validation
+    pub fn state_validation(&self) -> (res: bool)
+        ensures
+            res == self@.state_validation(),
+    {
+        
+        // replicas doesn't exist (eq to 1) or non-negative
+        if let Some(replicas) = self.spec().replicas() {
+            if replicas < 0 {
+                return false;
+            }
+        }
+
+        // Check if selector's match_labels exist and are non-empty
+        if let Some(match_labels) = self.spec().selector().match_labels() {
+            if match_labels.len() <= 0 {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        // template metadata and spec exist
+        let template = self.spec().template();
+        if template.metadata().is_none() || template.spec().is_none() {
+            return false;
+        }
+        if let Some(labels) = template.metadata().unwrap().labels() {
+            if !self.spec().selector().matches(labels) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        true
+
+    }
 }
 
 
@@ -104,15 +151,10 @@ impl VDeploymentSpec {
     }
 
     #[verifier(external_body)]
-    pub fn template(&self) -> (template: Option<PodTemplateSpec>)
-        ensures
-            template.is_Some() == self@.template.is_Some(),
-            template.is_Some() ==> template.get_Some_0()@ == self@.template.get_Some_0(),
+    pub fn template(&self) -> (template: PodTemplateSpec)
+        ensures template@ == self@.template,
     {
-        match &self.inner.template {
-            Some(t) => Some(PodTemplateSpec::from_kube(t.clone())),
-            None => None
-        }
+        PodTemplateSpec::from_kube(self.inner.template.clone())
     }
 }
 
