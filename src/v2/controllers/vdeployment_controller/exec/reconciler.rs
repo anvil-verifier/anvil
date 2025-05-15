@@ -575,7 +575,7 @@ ensures
     if vd.spec().replicas().is_some() {
         spec.set_replicas(vd.spec().replicas().unwrap());
     }
-    let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap().clone();
+    let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
     labels.insert("pod-template-hash".to_string(), pod_template_hash.clone());
     let mut label_selector = LabelSelector::default();
     label_selector.set_match_labels(labels);
@@ -587,7 +587,7 @@ ensures
         assert(template@ == model_reconciler::template_with_hash(vd@, pod_template_hash@));
         let model_labels = model_reconciler::make_replica_set(vd@).spec.selector.match_labels.unwrap();
         assert(labels@ == model_labels) by {
-            assert(labels@ == vd@.spec.template.unwrap().metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash@));
+            assert(labels@ == vd@.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash@));
             assert(pod_template_hash@ == int_to_string_view(vd@.metadata.resource_version.unwrap()));
             assert(model_labels == labels@);
         }
@@ -602,13 +602,13 @@ requires
 ensures
     pod_template_spec@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
 {
-    let mut labels = vd.spec().template().unwrap().metadata().unwrap().labels().unwrap().clone();
+    let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
     let mut template_meta = ObjectMeta::default();
     template_meta.set_labels(labels);
     template_meta.add_label("pod-template-hash".to_string(), hash);
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(template_meta);
-    pod_template_spec.set_spec(vd.spec().template().unwrap().spec().unwrap().clone());
+    pod_template_spec.set_spec(vd.spec().template().spec().unwrap().clone());
     assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
     pod_template_spec
 }
@@ -619,13 +619,13 @@ requires
     vrs@.well_formed(),
 ensures res == model_reconciler::match_template_without_hash(vd@, vrs@),
 {
-    let mut vrs_template = vrs.spec().template().unwrap().clone();
+    let mut vrs_template = vrs.spec().template().clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
     labels.remove(&"pod-template-hash".to_string());
     let mut template_meta = vrs_template.metadata().unwrap().clone();
     template_meta.set_labels(labels);
     vrs_template.set_metadata(template_meta);
-    vd.spec().template().unwrap().eq(&vrs_template)
+    vd.spec().template().eq(&vrs_template)
 }
 
 pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerReference>)

@@ -107,20 +107,15 @@ impl VDeployment {
             return false;
         }
 
-        // template, metadata, and spec exist
-        if let Some(template) = self.spec().template() {
-            if template.metadata().is_none() || template.spec().is_none() {
+        // template metadata and spec exist
+        let template = self.spec().template();
+        if template.metadata().is_none() || template.spec().is_none() {
+            return false;
+        }
+        if let Some(labels) = template.metadata().unwrap().labels() {
+            if !self.spec().selector().matches(labels) {
                 return false;
             }
-
-            if let Some(labels) = template.metadata().unwrap().labels() {
-                if !self.spec().selector().matches(labels) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-
         } else {
             return false;
         }
@@ -156,15 +151,10 @@ impl VDeploymentSpec {
     }
 
     #[verifier(external_body)]
-    pub fn template(&self) -> (template: Option<PodTemplateSpec>)
-        ensures
-            template.is_Some() == self@.template.is_Some(),
-            template.is_Some() ==> template.get_Some_0()@ == self@.template.get_Some_0(),
+    pub fn template(&self) -> (template: PodTemplateSpec)
+        ensures template@ == self@.template,
     {
-        match &self.inner.template {
-            Some(t) => Some(PodTemplateSpec::from_kube(t.clone())),
-            None => None
-        }
+        PodTemplateSpec::from_kube(self.inner.template.clone())
     }
 }
 
