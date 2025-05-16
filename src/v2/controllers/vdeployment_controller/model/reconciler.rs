@@ -149,7 +149,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             }
         },
         VDeploymentReconcileStepView::AfterScaleNewVRS => {
-            if !(is_some_k_update_resp_view!(resp_o) && extract_some_k_update_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o).is_Ok()) {
                 (error_state(state), None)
             } else {
                 if state.old_vrs_list.len() > 0 {
@@ -164,7 +164,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             }
         },
         VDeploymentReconcileStepView::AfterScaleDownOldVRS => {
-            if !(is_some_k_update_resp_view!(resp_o) && extract_some_k_update_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o).is_Ok()) {
                 (error_state(state), None)
             } else {
                 if state.old_vrs_list.len() > 0 {
@@ -225,9 +225,10 @@ pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeployment
         },
         ..new_vrs
     };
-    let req = APIRequest::UpdateRequest(UpdateRequest {
+    let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
         name: new_vrs.metadata.name.unwrap(),
         namespace: vd.metadata.namespace.unwrap(),
+        owner_ref: vd.controller_owner_ref(),
         obj: new_vrs.marshal(),
     });
     let state_prime = VDeploymentReconcileState {
@@ -242,9 +243,10 @@ pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeployment
 pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let old_vrs_list = state.old_vrs_list;
     let old_vrs = old_vrs_list.last();
-    let req = APIRequest::UpdateRequest(UpdateRequest {
+    let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
         name: old_vrs.metadata.name.unwrap(),
         namespace: vd.metadata.namespace.unwrap(),
+        owner_ref: vd.controller_owner_ref(),
         obj: VReplicaSetView {
             spec: VReplicaSetSpecView {
                 replicas: Some(0 as int),
