@@ -460,13 +460,7 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vdeployment admission controller
-        run: |
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vdeployment_admission_controller.rs --no-verify --time
-          docker build -f docker/controller/Dockerfile.local -t local/admission-controller:v0.1.0 --build-arg APP=v2_vdeployment_admission .
-          kind create cluster --config deploy/kind.yaml
-          kind load docker-image local/admission-controller:v0.1.0
-          cd e2e
-          ./admission_setup.sh vdeployment
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vdeployment-admission --build
       - name: Run vdeployment e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vdeployment-admission
   vreplicaset-e2e-test:
