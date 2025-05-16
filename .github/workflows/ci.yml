@@ -210,8 +210,7 @@ jobs:
       - name: Restore Verus cache
         uses: actions/cache@v4
         with:
-          path: |-cache-verus
-
+          path: |-
             ${{ env.home_dir }}/verus/source
             ${{ env.home_dir }}/verus/dependencies
             ${{ env.home_dir }}/.cargo
