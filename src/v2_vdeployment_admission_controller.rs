@@ -11,6 +11,8 @@ pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
+#[path = "v2/controllers/vreplicaset_controller/mod.rs"]
+pub mod vreplicaset_controller;
 #[path = "v2/controllers/vdeployment_controller/mod.rs"]
 pub mod vdeployment_controller;
 pub mod vstd_ext;
