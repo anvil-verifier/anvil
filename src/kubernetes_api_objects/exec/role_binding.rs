@@ -7,55 +7,26 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{resource::*, role_binding::*};
 use vstd::prelude::*;
 
-verus! {
-
-
 // This definition is a wrapper of RoleBinding defined at
 // https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role_binding.rs.
 // It is supposed to be used in exec controller code.
 //
 // More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
 
-#[verifier(external_body)]
-pub struct RoleBinding {
-    inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding,
-}
+implement_object_wrapper_type!(
+    RoleBinding,
+    deps_hack::k8s_openapi::api::rbac::v1::RoleBinding,
+    RoleBindingView
+);
 
-impl View for RoleBinding {
-    type V = RoleBindingView;
-
-    spec fn view(&self) -> RoleBindingView;
-}
+verus! {
 
 impl RoleBinding {
-    #[verifier(external_body)]
-    pub fn default() -> (role_binding: RoleBinding)
-        ensures role_binding@ == RoleBindingView::default(),
-    {
-        RoleBinding {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn role_ref(&self) -> (role_ref: RoleRef)
         ensures role_ref@ == self@.role_ref,
     {
         RoleRef::from_kube(self.inner.role_ref.clone())
-    }
-
-    #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
@@ -72,48 +43,6 @@ impl RoleBinding {
         self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (c: Self)
-        ensures c@ == self@,
-    {
-        RoleBinding { inner: self.inner.clone() }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding) -> RoleBinding { RoleBinding { inner: inner } }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == RoleBindingView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>(&()))
-    }
-
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RoleBinding, UnmarshalError>)
-        ensures
-            res.is_Ok() == RoleBindingView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>();
-        if parse_result.is_ok() {
-            let res = RoleBinding { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -160,7 +89,6 @@ impl RoleRef {
         self.inner.kind.clone()
     }
 
-
     #[verifier(external_body)]
     pub fn set_api_group(&mut self, api_group: String)
         ensures self@ == old(self)@.with_api_group(api_group@),
@@ -181,12 +109,6 @@ impl RoleRef {
     {
         self.inner.name = name;
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef) -> RoleRef { RoleRef { inner: inner } }
 }
 
 #[verifier(external_body)]
@@ -226,12 +148,10 @@ impl Subject {
     {
         self.inner.namespace = Some(namespace);
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::Subject { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::rbac::v1::Subject) -> Subject { Subject { inner: inner } }
 }
 
 }
+
+implement_resource_wrapper_trait!(RoleRef, deps_hack::k8s_openapi::api::rbac::v1::RoleRef);
+
+implement_resource_wrapper_trait!(Subject, deps_hack::k8s_openapi::api::rbac::v1::Subject);

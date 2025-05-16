@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
+    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::resource::*;
-use crate::vdeployment_controller::trusted::{spec_types, step::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vdeployment_controller::trusted::spec_types;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
@@ -55,6 +54,15 @@ impl VDeployment {
     }
 
     #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed()
+        && self.metadata().namespace().is_some()
+        && self.state_validation()
+    }
+
+    #[verifier(external_body)]
     pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
         ensures owner_reference@ == self@.controller_owner_ref(),
     {
@@ -86,11 +94,13 @@ impl VDeployment {
         }
     }
 
+    // similar to VReplicaSet::state_validation
     pub fn state_validation(&self) -> (res: bool)
         ensures
-            res == self@.state_validation()
+            res == self@.state_validation(),
     {
-        // replicas exists and non-negative
+        
+        // replicas doesn't exist (eq to 1) or non-negative
         if let Some(replicas) = self.spec().replicas() {
             if replicas < 0 {
                 return false;
@@ -167,24 +177,24 @@ impl VDeployment {
             return false;
         }
 
-        // template, metadata, and spec exist
-        if self.spec().template().metadata().is_none() || self.spec().template().spec().is_none() {
+        // template metadata and spec exist
+        let template = self.spec().template();
+        if template.metadata().is_none() || template.spec().is_none() {
             return false;
         }
-        // Map::empty() did not compile
-        if !self.spec().selector().matches(self.spec().template().metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+        if let Some(labels) = template.metadata().unwrap().labels() {
+            if !self.spec().selector().matches(labels) {
+                return false;
+            }
+        } else {
             return false;
         }
+
         true
+
     }
 }
 
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::VDeployment> for VDeployment {
-    fn from_kube(inner: deps_hack::VDeployment) -> VDeployment { VDeployment { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::VDeployment { self.inner }
-}
 
 #[verifier(external_body)]
 pub struct VDeploymentSpec {
@@ -416,3 +426,5 @@ impl RollingUpdateDeployment {
 }
 // END DEPLOYMENT STRATEGY EXEC IMPLEMENTATION
 }
+
+implement_resource_wrapper_trait!(VDeployment, deps_hack::VDeployment);

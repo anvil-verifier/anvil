@@ -27,29 +27,12 @@ impl DynamicObject {
         &self.inner.metadata
     }
 
-    #[verifier(external)]
-    pub fn as_kube_ref(&self) -> &deps_hack::kube::api::DynamicObject {
-        &self.inner
-    }
-
-    #[verifier(external)]
-    pub fn as_kube_mut_ref(&mut self) -> &mut deps_hack::kube::api::DynamicObject {
-        &mut self.inner
-    }
-
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
-}
-
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {
-    fn from_kube(inner: deps_hack::kube::api::DynamicObject) -> DynamicObject { DynamicObject { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::kube::api::DynamicObject { self.inner }
 }
 
 impl std::clone::Clone for DynamicObject {
@@ -65,3 +48,5 @@ impl std::fmt::Debug for DynamicObject {
 }
 
 }
+
+implement_resource_wrapper_trait!(DynamicObject, deps_hack::kube::api::DynamicObject);

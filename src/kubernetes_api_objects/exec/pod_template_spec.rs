@@ -15,6 +15,13 @@ impl PodTemplateSpec {
     pub spec fn view(&self) -> PodTemplateSpecView;
 
     #[verifier(external_body)]
+    pub fn eq(&self, other: &Self) -> (b: bool)
+        ensures b == (self.view() == other.view())
+    {
+        self.inner == other.inner
+    }
+
+    #[verifier(external_body)]
     pub fn default() -> (pod_template_spec: PodTemplateSpec)
         ensures pod_template_spec@ == PodTemplateSpecView::default(),
     {
@@ -67,14 +74,11 @@ impl PodTemplateSpec {
     {
         self.inner.spec = Some(spec.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec) -> PodTemplateSpec {
-        PodTemplateSpec { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec { self.inner }
 }
 
 }
+
+implement_resource_wrapper_trait!(
+    PodTemplateSpec,
+    deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec
+);

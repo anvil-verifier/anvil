@@ -253,6 +253,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                         &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
                         &&& msg.src.is_APIServer()
                         &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& is_ok_resp(msg.content.get_APIResponse_0())
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.is_list_response()
@@ -376,7 +377,7 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
     }
 }
 
-pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp (
+pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.resources().contains_key(vrs.object_ref()) ==> {
@@ -385,7 +386,7 @@ pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp (
     }
 }
 
-pub open spec fn vrs_in_schedule_does_not_have_deletion_timestamp (
+pub open spec fn vrs_in_schedule_does_not_have_deletion_timestamp(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
@@ -394,7 +395,7 @@ pub open spec fn vrs_in_schedule_does_not_have_deletion_timestamp (
     }
 }
 
-pub open spec fn vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp (
+pub open spec fn vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {

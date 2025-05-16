@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
+    label_selector::*, pod_template_spec::*, prelude::*,
 };
-use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::vdeployment_controller::trusted::step::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -22,6 +19,7 @@ pub type VDeploymentStatusView = EmptyStatusView;
 impl VDeploymentView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.well_formed()
+        &&& self.metadata.namespace.is_Some()
         &&& self.state_validation()
     }
 
@@ -163,9 +161,11 @@ impl ResourceView for VDeploymentView {
         &&& self.spec.selector.match_labels.get_Some_0().len() > 0
         // template and its metadata ane spec exists
         &&& self.spec.template.metadata.is_Some()
+        // can be derived from selector match labels
+        &&& self.spec.template.metadata.get_Some_0().labels.is_Some()
         &&& self.spec.template.spec.is_Some()
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.metadata.get_Some_0().labels.unwrap_or(Map::empty()))
+        &&& self.spec.selector.matches(self.spec.template.metadata.get_Some_0().labels.get_Some_0())
     }
 
 

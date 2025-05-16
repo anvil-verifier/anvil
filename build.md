@@ -39,7 +39,7 @@ go_version: "^1.20"
 
 Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<controller_name>` corresponds to entry file in `src`
 
-> You can refer to verus' document for more argument usage by `verus --help`
+> More argument usage by `verus --help`
 
 ## Build and Test
 
@@ -48,8 +48,6 @@ Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<c
 `VERUS_DIR=../verus ./build.sh <controller_name.rs> [--no-verify] [other verus arguments]`
 
 `--no-verify` is optional for fast build. Controller built without this option from the section above can be directly used, but verifications could take long time.
-
-> It's recommended to put `VERUS_DIR` in your shell's config file.
 
 ### Test pipeline
 
@@ -60,14 +58,24 @@ Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<c
 3. Setup cluster, apply controller image using [kind](https://kind.sigs.k8s.io/).
 4. Apply test specified in `e2e/src` and workload in `deploy` by `deploy.sh`
 
-This process can be automated with
+This process can be automated with:
+
+**1-3**
 
 ```
 ./local-test.sh <controller_name> [--build|--build-remote]
 Usage:
 	--build:		Call ./build.sh to build the controller before test, should have VERUS_DIR speccified
 	--build-remote:		Call ./build.sh to build the controller image using Verus builder. This is useful when host has different runtime environment from image (Ubuntu 22.04), for example, different glibc version
-	unspecified:		Just use existing host built controller to setup the controller image. Assume binary is ready in `src/<controller_name>`
+	unspecified:		Just use existing built controller image to set up kind cluster. Assume the image is named as `local/$app-controller:v0.1.0`
 ```
 
-> You can find more examples in `.github/workflows/ci.yml`
+If deployment/test failed, you can manually run `./deploy.sh <controller_name> [local|remote]` to reset the e2e test environment.
+
+**4**
+```
+cd e2e
+cargo run -- <controller_name>
+```
+
+> More examples in `.github/workflows/ci.yml`

@@ -17,6 +17,7 @@ pub type VReplicaSetStatusView = EmptyStatusView;
 impl VReplicaSetView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.well_formed()
+        &&& self.metadata.namespace.is_Some()
         &&& self.state_validation()
     }
 
@@ -27,6 +28,20 @@ impl VReplicaSetView {
             kind: Self::kind(),
             name: self.metadata.name.get_Some_0(),
             uid: self.metadata.uid.get_Some_0(),
+        }
+    }
+
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> VReplicaSetView {
+        VReplicaSetView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
+    pub open spec fn with_spec(self, spec: VReplicaSetSpecView) -> VReplicaSetView {
+        VReplicaSetView {
+            spec: spec,
+            ..self
         }
     }
 }
@@ -119,12 +134,14 @@ impl ResourceView for VReplicaSetView {
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels.is_Some()
         &&& self.spec.selector.match_labels.get_Some_0().len() > 0
-        // template and its metadata ane spec exists
+        // template, and its metadata ane spec exists
         &&& self.spec.template.is_Some()
         &&& self.spec.template.get_Some_0().metadata.is_Some()
         &&& self.spec.template.get_Some_0().spec.is_Some()
-        // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.unwrap_or(Map::empty()))
+        // kubernetes requires selector matches template's metadata's labels
+        // and also requires selector to be non-empty, so it implicitly requires that the labels are non-empty
+        &&& self.spec.template.get_Some_0().metadata.get_Some_0().labels.is_Some()
+        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.get_Some_0())
     }
 
     open spec fn transition_validation(self, old_obj: VReplicaSetView) -> bool {
@@ -143,13 +160,46 @@ impl CustomResourceView for VReplicaSetView {
         }.state_validation()
     }
 
-    proof fn validation_result_determined_by_spec_and_status() {}
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status())
+    {}
 }
 
 pub struct VReplicaSetSpecView {
     pub replicas: Option<int>,
     pub selector: LabelSelectorView,
     pub template: Option<PodTemplateSpecView>,
+}
+
+impl VReplicaSetSpecView {
+    pub open spec fn default() -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            replicas: None,
+            selector: LabelSelectorView::default(),
+            template: None,
+        }
+    }
+
+    pub open spec fn with_replicas(self, replicas: int) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            replicas: Some(replicas),
+            ..self
+        }
+    }
+
+    pub open spec fn with_selector(self, selector: LabelSelectorView) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            selector: selector,
+            ..self
+        }
+    }
+
+    pub open spec fn with_template(self, template: PodTemplateSpecView) -> VReplicaSetSpecView {
+        VReplicaSetSpecView {
+            template: Some(template),
+            ..self
+        }
+    }
 }
 
 }

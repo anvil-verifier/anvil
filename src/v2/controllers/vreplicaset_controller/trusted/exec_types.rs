@@ -6,9 +6,9 @@ use crate::kubernetes_api_objects::exec::{
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vreplicaset_controller::trusted::spec_types;
-use crate::vstd_ext::string_map::StringMap;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
+
 verus! {
 
 #[verifier(external_body)]
@@ -22,7 +22,39 @@ impl View for VReplicaSet {
     spec fn view(&self) -> spec_types::VReplicaSetView;
 }
 
+implement_deep_view_trait!(VReplicaSet, spec_types::VReplicaSetView);
+
+impl std::clone::Clone for VReplicaSet {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self,
+    {
+        VReplicaSet { inner: self.inner.clone() }
+    }
+}
+
 impl VReplicaSet {
+    #[verifier(external_body)]
+    pub fn default() -> (vreplicaset: VReplicaSet)
+        ensures vreplicaset@ == spec_types::VReplicaSetView::default(),
+    {
+        VReplicaSet {
+            inner: deps_hack::VReplicaSet {
+                metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+                spec: deps_hack::VReplicaSetSpec::default(),
+            }
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn well_formed(&self) -> (b: bool)
+        ensures b == self@.well_formed(),
+    {
+        self.metadata().well_formed()
+        && self.metadata().namespace().is_some()
+        && self.state_validation()
+    }
+
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
@@ -52,6 +84,20 @@ impl VReplicaSet {
         OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
     }
 
+    #[verifier(external_body)]
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
+        ensures self@ == old(self)@.with_metadata(metadata@),
+    {
+        self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: VReplicaSetSpec)
+        ensures self@ == old(self)@.with_spec(spec@),
+    {
+        self.inner.spec = spec.into_kube();
+    }
+
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn marshal(self) -> (obj: DynamicObject)
@@ -76,12 +122,12 @@ impl VReplicaSet {
         }
     }
 
-    pub fn state_validation(&self) -> (res: bool) 
+    pub fn state_validation(&self) -> (res: bool)
         ensures
             res == self@.state_validation()
     {
-        
-        // replicas exists and non-negative
+
+        // replicas doesn't exist (eq to 1) or non-negative
         if let Some(replicas) = self.spec().replicas() {
             if replicas < 0 {
                 return false;
@@ -102,25 +148,20 @@ impl VReplicaSet {
             if template.metadata().is_none() || template.spec().is_none() {
                 return false;
             }
-            
-            // Map::empty() did not compile
-            if !self.spec().selector().matches(template.metadata().unwrap().labels().unwrap_or(StringMap::empty())) {
+
+            if let Some(labels) = template.metadata().unwrap().labels() {
+                if !self.spec().selector().matches(labels) {
+                    return false;
+                }
+            } else {
                 return false;
             }
-
         } else {
             return false;
         }
-    
+
         true
     }
-}
-
-#[verifier(external)]
-impl ResourceWrapper<deps_hack::VReplicaSet> for VReplicaSet {
-    fn from_kube(inner: deps_hack::VReplicaSet) -> VReplicaSet { VReplicaSet { inner: inner } }
-
-    fn into_kube(self) -> deps_hack::VReplicaSet { self.inner }
 }
 
 #[verifier(external_body)]
@@ -130,6 +171,15 @@ pub struct VReplicaSetSpec {
 
 impl VReplicaSetSpec {
     pub spec fn view(&self) -> spec_types::VReplicaSetSpecView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (vreplicaset_spec: VReplicaSetSpec)
+        ensures vreplicaset_spec@ == spec_types::VReplicaSetSpecView::default(),
+    {
+        VReplicaSetSpec {
+            inner: deps_hack::VReplicaSetSpec::default()
+        }
+    }
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
@@ -158,6 +208,36 @@ impl VReplicaSetSpec {
             None => None
         }
     }
+
+    #[verifier(external_body)]
+    pub fn set_replicas(&mut self, replicas: i32)
+        ensures self@ == old(self)@.with_replicas(replicas as int),
+    {
+        self.inner.replicas = Some(replicas);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_selector(&mut self, selector: LabelSelector)
+       ensures self@ == old(self)@.with_selector(selector@),
+    {
+        self.inner.selector = selector.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_template(&mut self, template: PodTemplateSpec)
+        ensures self@ == old(self)@.with_template(template@),
+    {
+        self.inner.template = Some(template.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::VReplicaSetSpec { self.inner }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::VReplicaSetSpec) -> VReplicaSetSpec { VReplicaSetSpec { inner: inner } }
+
 }
 
 }
+
+implement_resource_wrapper_trait!(VReplicaSet, deps_hack::VReplicaSet);

@@ -207,11 +207,13 @@ pub open spec fn handle_get_request(req: GetRequest, s: APIServerState) -> GetRe
 
 #[verifier(inline)]
 pub open spec fn handle_list_request(req: ListRequest, s: APIServerState) -> ListResponse {
-    let selector = |o: DynamicObjectView| {
+    // s.resources.values() returns the set of objects in s.resources
+    // This will not make list return fewer number of objects because
+    // each object is unique in terms of {name, namespace, kind}
+    ListResponse{res: Ok(s.resources.values().filter(|o: DynamicObjectView| {
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
-    };
-    ListResponse{res: Ok(map_to_seq(s.resources, selector))}
+    }).to_seq())}
 }
 
 pub open spec fn create_request_admission_check(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> Option<APIError> {
@@ -251,7 +253,7 @@ pub closed spec fn generate_name(s: APIServerState) -> StringView;
 // For more details, see the implementation: https://github.com/kubernetes/kubernetes/blob/v1.30.0/staging/src/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L432-L443
 #[verifier(external_body)]
 pub proof fn generated_name_is_unique(s: APIServerState)
-    ensures 
+    ensures
         forall |key| #[trigger] s.resources.contains_key(key) ==> key.name != generate_name(s),
 {}
 

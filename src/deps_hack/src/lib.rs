@@ -17,8 +17,8 @@ pub use thiserror;
 pub use tokio;
 pub use tracing;
 pub use tracing_subscriber;
-pub use zookeeper;
 pub use warp;
+pub use zookeeper;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -272,21 +272,42 @@ pub struct FluentBitConfigSpec {
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource,
+    Default,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
 #[kube(shortname = "vrs", namespaced)]
 pub struct VReplicaSetSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
-    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
+    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec,>
+}
+
+impl Default for VReplicaSet {
+    fn default() -> Self {
+        Self {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+            spec: VReplicaSetSpec::default(),
+        }
+    }
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource,
+    Default,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VDeployment")]
-#[kube(shortname = "vrs", namespaced)]
+#[kube(shortname = "vd", namespaced)]
 pub struct VDeploymentSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
@@ -299,6 +320,15 @@ pub struct VDeploymentSpec {
     #[serde(rename = "progressDeadlineSeconds")]
     pub progress_deadline_seconds: Option<i32>,
     pub paused: Option<bool>,
+}
+
+impl Default for VDeployment {
+    fn default() -> Self {
+        Self {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+            spec: VDeploymentSpec::default(),
+        }
+    }
 }
 
 #[derive(

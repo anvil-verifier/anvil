@@ -34,6 +34,12 @@ pub struct GetRequest {
     pub key: ObjectRef,
 }
 
+impl GetRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        self.key
+    }
+}
+
 // ListRequest lists all the objects of kind in namespace.
 
 pub struct ListRequest {
@@ -63,6 +69,12 @@ impl CreateRequest {
 pub struct DeleteRequest {
     pub key: ObjectRef,
     pub preconditions: Option<PreconditionsView>,
+}
+
+impl DeleteRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        self.key
+    }
 }
 
 // UpdateRequest replaces the existing obj with a new one.
