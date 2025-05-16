@@ -4,6 +4,7 @@ use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
     label_selector::*, pod_template_spec::*, prelude::*,
 };
+use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
 verus! {
