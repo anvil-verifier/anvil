@@ -73,6 +73,7 @@ async fn main() -> Result<(), Error> {
         "v2-vdeployment-admission" => {
             info!("Running v2-vdeployment-admission end-to-end test");
             return v2_vdeployment_admission_e2e_test().await;
+        }
         "v2-vdeployment" => {
             info!("Running v2-vdeployment end-to-end test");
             return v2_vdeployment_e2e_test().await;
