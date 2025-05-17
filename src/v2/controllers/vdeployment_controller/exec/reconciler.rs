@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vdeployment_controller::model::reconciler as model_reconciler;
+use crate::vdeployment_controller::trusted::util as model_util;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vstd_ext::option_lib::*;
@@ -329,13 +330,13 @@ ensures res == model_reconciler::match_replicas(vrs@, vd@),
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
 ensures
-    option_vec_view(vrs_list_or_none) == model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)),
+    option_vec_view(vrs_list_or_none) == model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@)),
 {
     let mut vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
 
     proof {
-        let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+        let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
         if model_result.is_some() {
             assert_seqs_equal!(
                 vrs_list@.map_values(|vrs: VReplicaSet| vrs@),
@@ -348,7 +349,7 @@ ensures
     invariant
         idx <= objs.len(),
         ({
-            let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+            let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
             &&& (model_result.is_some() ==>
                     vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
             &&& forall|i: int| 0 <= i < idx ==> VReplicaSetView::unmarshal(#[trigger] objs@[i]@).is_ok()
@@ -359,7 +360,7 @@ ensures
                 vrs_list.push(vrs);
                 proof {
                     // Show that the vrs Vec and the model_result are equal up to index idx + 1.
-                    let model_result = model_reconciler::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
+                    let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
                     if (model_result.is_some()) {
                         assert(model_result.unwrap().take((idx + 1) as int)
                             == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
@@ -374,7 +375,7 @@ ensures
                 proof {
                     // Show that if a vrs was unable to be serialized, the model would return None.
                     let model_input = objs@.map_values(|obj: DynamicObject| obj@);
-                    let model_result = model_reconciler::objects_to_vrs_list(model_input);
+                    let model_result = model_util::objects_to_vrs_list(model_input);
                     assert(
                         model_input
                             .filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err())
@@ -390,7 +391,7 @@ ensures
 
     proof {
         let model_input = objs@.map_values(|obj: DynamicObject| obj@);
-        let model_result = model_reconciler::objects_to_vrs_list(model_input);
+        let model_result = model_util::objects_to_vrs_list(model_input);
 
         // Prove, by contradiction, that the model_result can't be None.
         let filter_result = model_input.filter(|obj: DynamicObjectView| VReplicaSetView::unmarshal(obj).is_err());
@@ -413,7 +414,7 @@ fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vr
 requires
     vd@.well_formed(),
 ensures
-    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
     forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
@@ -422,7 +423,7 @@ ensures
     proof {
         assert(
             filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@)
+            model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@)
         );
     }
 
@@ -430,7 +431,7 @@ ensures
     invariant
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
-            == model_reconciler::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
+            == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
         forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];
@@ -519,7 +520,7 @@ ensures
         proof { // so we have it again, any ways to avoid this?
             assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
             let new_spec_filter = |vrs: VReplicaSetView|
-                model_reconciler::match_template_without_hash(vd@, vrs);
+                model_util::match_template_without_hash(vd@, vrs);
             let old_spec_filter = |vrs: VReplicaSetView|
                 !new_spec_filter(vrs)
                 && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
@@ -617,7 +618,7 @@ pub fn match_template_without_hash(vd: &VDeployment, vrs: &VReplicaSet) -> (res:
 requires
     vd@.well_formed(),
     vrs@.well_formed(),
-ensures res == model_reconciler::match_template_without_hash(vd@, vrs@),
+ensures res == model_util::match_template_without_hash(vd@, vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();

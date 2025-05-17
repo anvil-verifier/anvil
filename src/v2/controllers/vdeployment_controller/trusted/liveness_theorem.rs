@@ -2,8 +2,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::model::reconciler::*;
+use crate::vdeployment_controller::trusted::{spec_types::*, util::*};
 use crate::vreplicaset_controller::trusted::liveness_theorem::*;
 use vstd::prelude::*;
 
@@ -21,7 +20,7 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
         &&& old_vrs_list.len() == 0
         &&& new_vrs_list[0].spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
         &&& match_template_without_hash(vd, new_vrs_list[0])
-        &&& current_state_matches(new_vrs_list[0])
+        //&&& current_state_matches(new_vrs_list[0])
     }
 }
 

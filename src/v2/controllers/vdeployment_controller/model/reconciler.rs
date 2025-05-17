@@ -5,10 +5,10 @@ use crate::kubernetes_api_objects::spec::{
     pod_template_spec::PodTemplateSpecView,
     label_selector::LabelSelectorView,
 };
+use crate::vstd_ext::string_view::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::trusted::{spec_types::*, step::*};
-use crate::vstd_ext::string_view::*;
+use crate::vdeployment_controller::trusted::{spec_types::*, step::*, util::*};
 use vstd::prelude::*;
 
 verus! {
@@ -267,21 +267,6 @@ pub open spec fn match_replicas(vrs: VReplicaSetView, vd: VDeploymentView) -> bo
     vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
 }
 
-pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list: Option<Seq<VReplicaSetView>>) {
-    if objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() != 0 {
-        None
-    } else {
-        Some(objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()))
-    }
-}
-
-pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (filtered_vrs_list: Seq<VReplicaSetView>) {
-    vrs_list.filter(|vrs: VReplicaSetView|
-        vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-        && vrs.metadata.deletion_timestamp.is_None()
-        && vrs.well_formed())
-}
-
 pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (Seq<VReplicaSetView>, Seq<VReplicaSetView>))
 // we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
 {
@@ -336,17 +321,6 @@ pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> Po
         }),
         spec: Some(vd.spec.template.spec.unwrap()),
         ..PodTemplateSpecView::default()
-    }
-}
-
-pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
-    let vrs_template = vrs.spec.template.unwrap();
-    vd.spec.template == PodTemplateSpecView {
-        metadata: Some(ObjectMetaView {
-            labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
-            ..vrs_template.metadata.unwrap()
-        }),
-        ..vrs_template
     }
 }
 
