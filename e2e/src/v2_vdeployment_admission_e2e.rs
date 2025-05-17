@@ -26,7 +26,6 @@ pub async fn v2_vdeployment_admission_e2e_test() -> Result<(), Error> {
     }
 
     let discovery = Discovery::new(client.clone()).run().await?;
-
     let deployments = crd_api.list(&Default::default()).await;
 
     match deployments{
