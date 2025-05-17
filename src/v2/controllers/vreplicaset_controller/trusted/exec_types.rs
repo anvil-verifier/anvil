@@ -11,40 +11,14 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
-pub struct VReplicaSet {
-    inner: deps_hack::VReplicaSet
-}
-
-impl View for VReplicaSet {
-    type V = spec_types::VReplicaSetView;
-
-    spec fn view(&self) -> spec_types::VReplicaSetView;
-}
-
-implement_deep_view_trait!(VReplicaSet, spec_types::VReplicaSetView);
-
-impl std::clone::Clone for VReplicaSet {
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: Self)
-        ensures result == self,
-    {
-        VReplicaSet { inner: self.inner.clone() }
-    }
-}
+implement_resource_wrapper_trait!(VReplicaSet, deps_hack::VReplicaSet);
+implement_custom_object_wrapper_type!(
+    VReplicaSet,
+    deps_hack::VReplicaSet,
+    spec_types::VReplicaSetView
+);
 
 impl VReplicaSet {
-    #[verifier(external_body)]
-    pub fn default() -> (vreplicaset: VReplicaSet)
-        ensures vreplicaset@ == spec_types::VReplicaSetView::default(),
-    {
-        VReplicaSet {
-            inner: deps_hack::VReplicaSet {
-                metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
-                spec: deps_hack::VReplicaSetSpec::default(),
-            }
-        }
-    }
 
     #[verifier(external_body)]
     pub fn well_formed(&self) -> (b: bool)
@@ -56,13 +30,6 @@ impl VReplicaSet {
     }
 
     #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
-    #[verifier(external_body)]
     pub fn spec(&self) -> (spec: VReplicaSetSpec)
         ensures spec@ == self@.spec,
     {
@@ -70,56 +37,10 @@ impl VReplicaSet {
     }
 
     #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == spec_types::VReplicaSetView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::VReplicaSet>(&()))
-    }
-
-    #[verifier(external_body)]
-    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-        ensures owner_reference@ == self@.controller_owner_ref(),
-    {
-        // We can safely unwrap here because the trait method implementation always returns a Some(...)
-        OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn set_metadata(&mut self, metadata: ObjectMeta)
-        ensures self@ == old(self)@.with_metadata(metadata@),
-    {
-        self.inner.metadata = metadata.into_kube();
-    }
-
-    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: VReplicaSetSpec)
         ensures self@ == old(self)@.with_spec(spec@),
     {
         self.inner.spec = spec.into_kube();
-    }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<VReplicaSet, UnmarshalError>)
-        ensures
-            res.is_Ok() == spec_types::VReplicaSetView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == spec_types::VReplicaSetView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::VReplicaSet>();
-        if parse_result.is_ok() {
-            let res = VReplicaSet { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 
     pub fn state_validation(&self) -> (res: bool)
@@ -164,22 +85,14 @@ impl VReplicaSet {
     }
 }
 
-#[verifier(external_body)]
-pub struct VReplicaSetSpec {
-    inner: deps_hack::VReplicaSetSpec,
-}
+implement_resource_wrapper_trait!(VReplicaSetSpec, deps_hack::VReplicaSetSpec);
+implement_field_wrapper_type!(
+    VReplicaSetSpec,
+    deps_hack::VReplicaSetSpec,
+    spec_types::VReplicaSetSpecView
+);
 
 impl VReplicaSetSpec {
-    pub spec fn view(&self) -> spec_types::VReplicaSetSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (vreplicaset_spec: VReplicaSetSpec)
-        ensures vreplicaset_spec@ == spec_types::VReplicaSetSpecView::default(),
-    {
-        VReplicaSetSpec {
-            inner: deps_hack::VReplicaSetSpec::default()
-        }
-    }
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
@@ -229,15 +142,6 @@ impl VReplicaSetSpec {
     {
         self.inner.template = Some(template.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::VReplicaSetSpec { self.inner }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::VReplicaSetSpec) -> VReplicaSetSpec { VReplicaSetSpec { inner: inner } }
-
 }
 
 }
-
-implement_resource_wrapper_trait!(VReplicaSet, deps_hack::VReplicaSet);

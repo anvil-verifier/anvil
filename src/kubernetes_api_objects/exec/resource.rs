@@ -53,6 +53,7 @@ macro_rules! implement_object_wrapper_type {
             }
 
             #[verifier(external_body)]
+            // NOTE: This function assumes serde_json::to_string won't fail!
             pub fn marshal(self) -> (obj: DynamicObject)
                 ensures obj@ == self@.marshal(),
             {
