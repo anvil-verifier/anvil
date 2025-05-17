@@ -166,55 +166,60 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           VERUS_DIR="${HOME}/verus" ./build.sh v2_vstatefulset_controller.rs --rlimit 50 --time
-  # unit-tests:
-  #   needs: build-and-cache-verus
-  #   runs-on: ubuntu-22.04
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Restore Rust toolchain cache
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ${{ env.home_dir }}/verus/source
-  #           ${{ env.home_dir }}/verus/dependencies
-  #           ${{ env.home_dir }}/.cargo
-  #           ${{ env.home_dir }}/.rustup
-  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
-  #     - name: Pin home to version 0.5.9 (workaround)
-  #       run: |
-  #         ln -s $HOME/verus ../verus
-  #         cargo update home --precise 0.5.9
-  #     - name: Run unit tests
-  #       run: cargo test unit_tests
-  # conformance-tests:
-  #   needs:
-  #     - build-and-cache-verus
-  #   runs-on: ubuntu-22.04
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Restore Rust toolchain cache
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ${{ env.home_dir }}/verus/source
-  #           ${{ env.home_dir }}/verus/dependencies
-  #           ${{ env.home_dir }}/.cargo
-  #           ${{ env.home_dir }}/.rustup
-  #         key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v5
-  #       with:
-  #         go-version: ${{ env.go_version }}
-  #     - name: Install kind
-  #       run: go install sigs.k8s.io/kind@v$kind_version
-  #     - name: Set up a kind cluster
-  #       run: kind create cluster
-  #     - name: Pin home to version 0.5.9 (workaround)
-  #       run: |
-  #         ln -s $HOME/verus ../verus
-  #         cargo update home --precise 0.5.9
-  #     - name: Run conformance tests
-  #       run: cargo test conformance_tests -- --nocapture
+  vreplicaset-admission-verification:
+    needs: build-and-cache-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Verify vreplicaset admission controller
+        run: |
+          . "$HOME/.cargo/env"
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --rlimit 50 --time
+  vstatefulset-admission-verification:
+    needs: build-and-cache-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Verify vstatefulset admission controller
+        run: |
+          . "$HOME/.cargo/env"
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vstatefulset_admission_controller.rs --rlimit 50 --time
+  vdeployment-admission-verification:
+    needs: build-and-cache-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |-
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Verify vdeployment admission controller
+        run: |
+          . "$HOME/.cargo/env"
+          VERUS_DIR="${HOME}/verus" ./build.sh v2_vdeployment_admission_controller.rs --rlimit 50 --time
   framework-v2-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -433,6 +438,31 @@ jobs:
         run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vstatefulset-admission --build
       - name: Run vstatefulset e2e tests for admission
         run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vstatefulset-admission
+  vdeployment-admission-e2e-test:
+    needs:
+      - build-and-cache-verus
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Verus cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.home_dir }}/verus/source
+            ${{ env.home_dir }}/verus/dependencies
+            ${{ env.home_dir }}/.cargo
+            ${{ env.home_dir }}/.rustup
+          key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.go_version }}
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v$kind_version
+      - name: Deploy vdeployment admission controller
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vdeployment-admission --build
+      - name: Run vdeployment e2e tests for admission
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vdeployment-admission
   vreplicaset-e2e-test:
     needs:
       - build-and-cache-verus

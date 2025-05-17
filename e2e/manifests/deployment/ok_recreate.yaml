@@ -1,0 +1,19 @@
+apiVersion: anvil.dev/v1
+kind: VDeployment
+metadata:
+  name: valid-recreate
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+        - name: container-test
+          image: nginx:latest
+  strategy:
+    type: "Recreate"

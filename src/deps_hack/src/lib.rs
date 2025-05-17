@@ -312,6 +312,14 @@ pub struct VDeploymentSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
     pub template: k8s_openapi::api::core::v1::PodTemplateSpec,
+    #[serde(rename = "minReadySeconds")]
+    pub min_ready_seconds: Option<i32>,
+    pub strategy: Option<k8s_openapi::api::apps::v1::DeploymentStrategy>,
+    #[serde(rename = "revisionHistoryLimit")]
+    pub revision_history_limit: Option<i32>,
+    #[serde(rename = "progressDeadlineSeconds")]
+    pub progress_deadline_seconds: Option<i32>,
+    pub paused: Option<bool>,
 }
 
 impl Default for VDeployment {

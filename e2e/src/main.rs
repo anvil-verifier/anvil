@@ -8,6 +8,7 @@ pub mod v2_vdeployment_e2e;
 pub mod zookeeper_e2e;
 pub mod v2_vstatefulset_admission_e2e;
 pub mod v2_vreplicaset_admission_e2e;
+pub mod v2_vdeployment_admission_e2e;
 
 use common::Error;
 use fluent_e2e::fluent_e2e_test;
@@ -18,6 +19,7 @@ use tracing::*;
 use v2_vreplicaset_e2e::v2_vreplicaset_e2e_test;
 use v2_vreplicaset_admission_e2e::v2_vreplicaset_admission_e2e_test;
 use v2_vstatefulset_admission_e2e::v2_vstatefulset_admission_e2e_test;
+use v2_vdeployment_admission_e2e::v2_vdeployment_admission_e2e_test;
 use v2_vdeployment_e2e::v2_vdeployment_e2e_test;
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
 
@@ -67,6 +69,10 @@ async fn main() -> Result<(), Error> {
         "v2-vstatefulset-admission" => {
             info!("Running v2-vstatefulset-admission end-to-end test");
             return v2_vstatefulset_admission_e2e_test().await;
+        }
+        "v2-vdeployment-admission" => {
+            info!("Running v2-vdeployment-admission end-to-end test");
+            return v2_vdeployment_admission_e2e_test().await;
         }
         "v2-vdeployment" => {
             info!("Running v2-vdeployment end-to-end test");
