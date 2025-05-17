@@ -54,7 +54,7 @@ pub open spec vd_rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> 
 // Q: how to get controller type in ClusterState?
 pub open spec fn vd_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::CustomResourceKind("vreplicaset"@) ==> 
+        req.obj.kind == Kind::CustomResourceKind("vdeployment"@) ==> 
             req.obj.metadata.resource_version.is_Some()
             && !{
                 let etcd_obj = s.resources()[req.key()];
@@ -86,7 +86,7 @@ pub open spec fn vd_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterStat
     }
 }
 
-pub open spec fn vd_reply(other_id: int) -> StatePred<ClusterState> {
+pub open spec fn vd_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -131,7 +131,7 @@ pub open spec fn vd_guarantee_update_req(req: UpdateRequest) -> StatePred<Cluste
 //      and will not delete when the number of vrs is not greater than vd.Spec.RevisionHistoryLimit
 pub open spec fn vd_guarantee_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        true
+        false
     }
 }
 
