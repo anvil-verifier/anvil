@@ -182,7 +182,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
         }
         VDeploymentReconcileStep::AfterScaleNewVRS => {
-            if !(is_some_k_update_resp!(resp_o) && extract_some_k_update_resp_as_ref!(resp_o).is_ok()) {
+            if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if state.old_vrs_list.len() > 0 {
@@ -195,7 +195,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
         },
         VDeploymentReconcileStep::AfterScaleDownOldVRS => {
-            if !(is_some_k_update_resp!(resp_o) && extract_some_k_update_resp_as_ref!(resp_o).is_ok()) {
+            if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if state.old_vrs_list.len() > 0 {
@@ -270,10 +270,11 @@ ensures
     let mut new_spec = new_vrs.spec();
     new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
     new_vrs.set_spec(new_spec);
-    let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+    let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
         api_resource: VReplicaSet::api_resource(),
         namespace: vd.metadata().namespace().unwrap(),
         name: new_vrs.metadata().name().unwrap(),
+        owner_ref: vd.controller_owner_ref(),
         obj: new_vrs.clone().marshal()
     });
     let state_prime = VDeploymentReconcileState {
@@ -302,10 +303,11 @@ ensures
     let mut new_spec = old_vrs.spec();
     new_spec.set_replicas(0);
     old_vrs.set_spec(new_spec);
-    let req = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+    let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
         api_resource: VReplicaSet::api_resource(),
         namespace: vd.metadata().namespace().unwrap(),
         name: old_vrs.metadata().name().unwrap(),
+        owner_ref: vd.controller_owner_ref(),
         obj: old_vrs.clone().marshal()
     });
     let state_prime = VDeploymentReconcileState {

@@ -537,3 +537,21 @@ declare_kube_api_response_helper_methods!(
     KubeUpdateStatusResponse,
     get_UpdateStatusResponse_0
 );
+
+declare_kube_api_response_helper_methods!(
+    is_get_then_update_response,
+    as_get_then_update_response_ref,
+    into_get_then_update_response,
+    GetThenUpdateResponse,
+    KubeGetThenUpdateResponse,
+    get_GetThenUpdateResponse_0
+);
+
+declare_kube_api_response_helper_methods!(
+    is_get_then_delete_response,
+    as_get_then_delete_response_ref,
+    into_get_then_delete_response,
+    GetThenDeleteResponse,
+    KubeGetThenDeleteResponse,
+    get_GetThenDeleteResponse_0
+);

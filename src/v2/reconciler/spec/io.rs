@@ -99,6 +99,30 @@ macro_rules! is_some_k_list_resp_view {
 }
 
 #[macro_export]
+macro_rules! is_some_k_delete_resp_view {
+    ($r:expr) => {
+        $r.is_Some() && $r.get_Some_0().is_KResponse()
+        && $r.get_Some_0().get_KResponse_0().is_DeleteResponse()
+    };
+}
+
+#[macro_export]
+macro_rules! is_some_k_get_then_update_resp_view {
+    ($r:expr) => {
+        $r.is_Some() && $r.get_Some_0().is_KResponse()
+        && $r.get_Some_0().get_KResponse_0().is_GetThenUpdateResponse()
+    };
+}
+
+#[macro_export]
+macro_rules! is_some_k_get_then_delete_resp_view {
+    ($r:expr) => {
+        $r.is_Some() && $r.get_Some_0().is_KResponse()
+        && $r.get_Some_0().get_KResponse_0().is_GetThenDeleteResponse()
+    };
+}
+
+#[macro_export]
 macro_rules! extract_some_k_get_resp_view {
     ($r:expr) => {
         $r.get_Some_0().get_KResponse_0().get_GetResponse_0().res
@@ -126,13 +150,40 @@ macro_rules! extract_some_k_list_resp_view {
     };
 }
 
+#[macro_export]
+macro_rules! extract_some_k_delete_resp_view {
+    ($r:expr) => {
+        $r.get_Some_0().get_KResponse_0().get_DeleteResponse_0().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_get_then_update_resp_view {
+    ($r:expr) => {
+        $r.get_Some_0().get_KResponse_0().get_GetThenUpdateResponse_0().res
+    };
+}
+
+#[macro_export]
+macro_rules! extract_some_k_get_then_delete_resp_view {
+    ($r:expr) => {
+        $r.get_Some_0().get_KResponse_0().get_GetThenDeleteResponse_0().res
+    };
+}
+
 pub use is_some_k_get_resp_view;
 pub use is_some_k_create_resp_view;
 pub use is_some_k_update_resp_view;
 pub use is_some_k_list_resp_view;
+pub use is_some_k_delete_resp_view;
+pub use is_some_k_get_then_update_resp_view;
+pub use is_some_k_get_then_delete_resp_view;
 pub use extract_some_k_get_resp_view;
 pub use extract_some_k_create_resp_view;
 pub use extract_some_k_update_resp_view;
 pub use extract_some_k_list_resp_view;
+pub use extract_some_k_delete_resp_view;
+pub use extract_some_k_get_then_update_resp_view;
+pub use extract_some_k_get_then_delete_resp_view;
 
 }
