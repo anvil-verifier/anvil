@@ -534,6 +534,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_create_or_get_then_delete_request_not_from_controller_on_pods(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -827,6 +828,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )

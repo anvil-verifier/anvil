@@ -207,6 +207,7 @@ pub proof fn invariants_since_phase_v_is_stable(vrs: VReplicaSetView, cluster: C
     always_p_is_stable(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)));
 }
 
+#[verifier(external_body)]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, i: nat)
     requires 
         1 <= i <= 5,
