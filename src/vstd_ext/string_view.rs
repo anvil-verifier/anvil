@@ -7,6 +7,15 @@ verus! {
 
 pub type StringView = Seq<char>;
 
+// helper function to circumvent the lack of support for String in spec
+#[verifier(external_body)]
+pub fn string_equal(s1: &String, s2: &str) -> (res: bool)
+    ensures
+        s1@ == s2@ <==> res,
+{
+    s1 == s2
+}
+
 #[verifier(external_body)]
 pub fn i32_to_string(i: i32) -> (s: String)
     ensures s@ == int_to_string_view(i as int),

@@ -6,19 +6,11 @@ use crate::kubernetes_api_objects::exec::{
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vdeployment_controller::trusted::spec_types;
+use crate::vstd_ext::string_view::*;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
 verus! {
-
-// helper function to circumvent the lack of support for String in spec
-#[verifier(external_body)]
-pub fn string_equal(s1: &String, s2: &str) -> (res: bool)
-    ensures
-        s1@ == s2@ <==> res,
-{
-    s1 == s2
-}
 
 implement_custom_object_wrapper_type!(
     VDeployment,
