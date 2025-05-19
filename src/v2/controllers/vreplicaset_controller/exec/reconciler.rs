@@ -117,12 +117,10 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
             }
         },
         VReplicaSetReconcileStep::AfterListPods => {
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_list_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_list_response_ref().res.is_ok()) {
+            if !(is_some_k_list_resp!(resp_o) && extract_some_k_list_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            let objs = resp_o.unwrap().into_k_response().into_list_response().res.unwrap();
+            let objs = extract_some_k_list_resp!(resp_o).unwrap();
             let pods_or_none = objects_to_pods(objs);
             if pods_or_none.is_none() {
                 return (error_state(state), None);
@@ -159,15 +157,11 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 if pod_name_or_none.is_none() {
                     return (error_state(state), None);
                 }
-                let req = KubeAPIRequest::DeleteRequest(KubeDeleteRequest {
+                let req = KubeAPIRequest::GetThenDeleteRequest(KubeGetThenDeleteRequest {
                     api_resource: Pod::api_resource(),
                     name: pod_name_or_none.unwrap(),
                     namespace: namespace,
-                    preconditions: {
-                        let mut pre = Preconditions::default();
-                        pre.set_resource_version_from_object_meta(filtered_pods[diff - 1].metadata());
-                        Some(pre)
-                    },
+                    owner_ref: v_replica_set.controller_owner_ref(),
                 });
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
@@ -179,9 +173,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
         },
         VReplicaSetReconcileStep::AfterCreatePod(diff) => {
             let diff = *diff;
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()) {
+            if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if diff == 0 {
@@ -206,9 +198,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
         },
         VReplicaSetReconcileStep::AfterDeletePod(diff) => {
             let diff = *diff;
-            if !(resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_delete_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_delete_response_ref().res.is_ok()) {
+            if !(is_some_k_get_then_delete_resp!(resp_o) && extract_some_k_get_then_delete_resp!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             if diff == 0 {
@@ -228,17 +218,11 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 if pod_name_or_none.is_none() {
                     return (error_state(state), None);
                 }
-                let req = KubeAPIRequest::DeleteRequest(KubeDeleteRequest {
+                let req = KubeAPIRequest::GetThenDeleteRequest(KubeGetThenDeleteRequest {
                     api_resource: Pod::api_resource(),
                     name: pod_name_or_none.unwrap(),
                     namespace: namespace,
-                    preconditions: {
-                        let mut pre = Preconditions::default();
-                        pre.set_resource_version_from_object_meta(
-                            state.filtered_pods.as_ref().unwrap()[diff - 1].metadata()
-                        );
-                        Some(pre)
-                    },
+                    owner_ref: v_replica_set.controller_owner_ref(),
                 });
                 let state_prime = VReplicaSetReconcileState {
                     reconcile_step: VReplicaSetReconcileStep::AfterDeletePod(diff - 1),
