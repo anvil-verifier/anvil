@@ -12,12 +12,37 @@ verus! {
 // Other controllers don't create VRS owned by a VDeployment.
 pub open spec fn vd_rely_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::CustomResourceKind("vreplicaset"@) ==> !{
+        req.obj.kind == VReplicaSetView::kind() ==> !{
             let owner_references = req.obj.metadata.owner_references.get_Some_0();
             &&& req.obj.metadata.owner_references.is_Some()
             &&& exists |vd: VDeploymentView| 
                 #[trigger] owner_references.contains(vd.controller_owner_ref())
         }
+    }
+}
+
+// As update is not fully deprecated we need to consider it, same applies to delete
+pub open spec fn vd_rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        req.obj.kind == VReplicaSetView::kind() ==>
+            req.obj.metadata.resource_version.is_Some()
+            // Prevents 1): where other controllers update vrs already owned
+            // by a VDeployment.
+            && !{
+                let etcd_obj = s.resources()[req.key()];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vd: VDeploymentView| 
+                    #[trigger] owner_references.contains(vd.controller_owner_ref())
+            }
+            // Prevents 2): where other controllers update vrs so they become
+            // owned by a VDeployment.
+            && (req.obj.metadata.owner_references.is_Some() ==>
+                    forall |vd: VDeploymentView| 
+                        ! #[trigger] req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
     }
 }
 
@@ -27,7 +52,7 @@ pub open spec fn vd_rely_create_req(req: CreateRequest) -> StatePred<ClusterStat
 // by a VDeployment.
 pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::CustomResourceKind("vreplicaset"@) ==>
+        req.obj.kind == VReplicaSetView::kind() ==>
             req.obj.metadata.resource_version.is_Some()
             // Prevents 1): where other controllers update vrs already owned
             // by a VDeployment.
@@ -68,10 +93,29 @@ pub open spec fn vd_rely_update_status_req(req: UpdateStatusRequest) -> StatePre
     }
 }
 
+pub open spec fn vd_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        req.key.kind == VReplicaSetView::kind() ==>
+            req.preconditions.is_Some()
+            && req.preconditions.get_Some_0().resource_version.is_Some()
+            && !{
+                let etcd_obj = s.resources()[req.key];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& s.resources().contains_key(req.key)
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version
+                    == req.preconditions.get_Some_0().resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vd: VDeploymentView| 
+                    #[trigger] owner_references.contains(vd.controller_owner_ref())
+            }
+    }
+}
+
 // Other controllers don't try to delete vrs owned by a VDeployment.
 pub open spec fn vd_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.key.kind == Kind::CustomResourceKind("vreplicaset"@) ==>
+        req.key.kind == VReplicaSetView::kind() ==>
             // preconditions not supported yet in GetThenDeleteRequest
             // req.preconditions.is_Some()
             // && req.preconditions.get_Some_0().resource_version.is_Some()
@@ -99,8 +143,10 @@ pub open spec fn vd_rely(other_id: int) -> StatePred<ClusterState> {
             &&& msg.src == HostId::Controller(other_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::CreateRequest(req) => vd_rely_create_req(req)(s),
+            APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_rely_get_then_update_req(req)(s),
             APIRequest::UpdateStatusRequest(req) => vd_rely_update_status_req(req)(s),
+            APIRequest::DeleteRequest(req) => vd_rely_delete_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => vd_rely_get_then_delete_req(req)(s),
             _ => true,
         }
@@ -112,7 +158,7 @@ pub open spec fn vd_rely(other_id: int) -> StatePred<ClusterState> {
 // VD only creates VRS owned by itself.
 pub open spec fn vd_guarantee_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& req.obj.kind == Kind::CustomResourceKind("vreplicaset"@)
+        &&& req.obj.kind == VReplicaSetView::kind()
         &&& req.obj.metadata.owner_references.is_Some()
         &&& exists |vd: VDeploymentView| 
             req.obj.metadata.owner_references.get_Some_0() == seq![#[trigger] vd.controller_owner_ref()]
@@ -123,11 +169,11 @@ pub open spec fn vd_guarantee_create_req(req: CreateRequest) -> StatePred<Cluste
 pub open spec fn vd_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
-        &&& req.obj.kind == Kind::CustomResourceKind("vreplicaset"@)
+        &&& req.obj.kind == VReplicaSetView::kind()
         &&& req.obj.metadata.resource_version.is_Some()
         &&& exists |vd: VDeploymentView|
             req.owner_ref == vd.controller_owner_ref()
-            && req.obj.metadata.owner_references.get_Some_0() == seq![#[trigger] vd.controller_owner_ref()]
+            && req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
     }
 }
 
@@ -141,12 +187,12 @@ pub open spec fn vd_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -> 
     }
 }
 
-pub open spec fn vd_guarantee(other_id: int) -> StatePred<ClusterState> {
+pub open spec fn vd_guarantee(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
-            &&& msg.src == HostId::Controller(other_id)
+            &&& msg.src == HostId::Controller(controller_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s),
