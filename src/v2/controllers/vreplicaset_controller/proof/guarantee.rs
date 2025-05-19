@@ -75,7 +75,6 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         spec.entails(always(lift_state(vrs_guarantee(controller_id))))
 {
     let invariant = vrs_guarantee(controller_id);
-    let stronger_invariant = stronger_vrs_guarantee(controller_id);
 
     cluster.lemma_always_cr_states_are_unmarshallable::<VReplicaSetReconciler, VReplicaSetReconcileState, VReplicaSetView, VoidEReqView, VoidERespView>(spec, controller_id);
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
@@ -101,7 +100,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
     );
 
-    assert forall |s, s_prime| stronger_invariant(s) && #[trigger] stronger_next(s, s_prime) implies stronger_invariant(s_prime) by {
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         VReplicaSetView::marshal_preserves_integrity();
         VReplicaSetReconcileState::marshal_preserves_integrity();
         PodView::marshal_preserves_integrity();
@@ -112,7 +111,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 let req_msg = req_msg_opt.unwrap();
 
                 assert forall |msg| {
-                    &&& stronger_invariant(s)
+                    &&& invariant(s)
                     &&& stronger_next(s, s_prime)
                     &&& #[trigger] s_prime.in_flight().contains(msg)
                     &&& msg.content.is_APIRequest()
@@ -120,7 +119,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 } implies match msg.content.get_APIRequest_0() {
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
-                    APIRequest::DeleteRequest(req) => stronger_vrs_guarantee_delete_req(req)(s_prime),
+                    APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -129,7 +128,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
             Step::ControllerStep((id, _, cr_key_opt)) => {
                 let cr_key = cr_key_opt.get_Some_0();
                 assert forall |msg| {
-                    &&& stronger_invariant(s)
+                    &&& invariant(s)
                     &&& stronger_next(s, s_prime)
                     &&& #[trigger] s_prime.in_flight().contains(msg)
                     &&& msg.content.is_APIRequest()
@@ -137,15 +136,15 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 } implies match msg.content.get_APIRequest_0() {
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
-                    APIRequest::DeleteRequest(req) => stronger_vrs_guarantee_delete_req(req)(s_prime),
+                    APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
 
                     if id == controller_id {
                         let new_msgs = s_prime.in_flight().sub(s.in_flight());
-                        if new_msgs.contains(msg) && msg.content.is_delete_request() {
-                            let req = msg.content.get_delete_request();
+                        if new_msgs.contains(msg) && msg.content.is_get_then_delete_request() {
+                            let req = msg.content.get_get_then_delete_request();
                             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
 
@@ -161,7 +160,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 
                                 assert forall |i| #![auto] 
                                     0 <= i < filtered_pods.len()
-                                    && stronger_invariant(s)
+                                    && invariant(s)
                                     && stronger_next(s, s_prime)
                                     implies
                                     (filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
@@ -216,13 +215,11 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                             if state.reconcile_step.is_AfterDeletePod() || state.reconcile_step.is_AfterListPods() {
                                 let etcd_obj = s.resources()[req.key];
                                 if s.resources().contains_key(req.key)
-                                    && etcd_obj.metadata.resource_version
-                                        == req.preconditions.get_Some_0().resource_version {
+                                    && etcd_obj.metadata.owner_references_contains(req.owner_ref) {
                                     let owners = etcd_obj.metadata.owner_references.get_Some_0();
                                     let controller_owners = owners.filter(
                                         |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
                                     );
-
                                     assert(controller_owners.len() <= 1);
                                     assert(etcd_obj.metadata.owner_references_contains(
                                         triggering_cr.controller_owner_ref()));
@@ -238,7 +235,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
             }
             _ => {
                 assert forall |msg| {
-                    &&& stronger_invariant(s)
+                    &&& invariant(s)
                     &&& stronger_next(s, s_prime)
                     &&& #[trigger] s_prime.in_flight().contains(msg)
                     &&& msg.content.is_APIRequest()
@@ -246,7 +243,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 } implies match msg.content.get_APIRequest_0() {
                     APIRequest::ListRequest(_) => true,
                     APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s_prime),
-                    APIRequest::DeleteRequest(req) => stronger_vrs_guarantee_delete_req(req)(s_prime),
+                    APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s_prime),
                     _ => false, 
                 } by {
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
@@ -255,8 +252,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         }
     }
 
-    init_invariant(spec, cluster.init(), stronger_next, stronger_invariant);
-    always_weaken(spec, lift_state(stronger_invariant), lift_state(invariant));
+    init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
 }
