@@ -534,6 +534,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_create_or_get_then_delete_request_not_from_controller_on_pods(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
