@@ -74,12 +74,10 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
             }
         },
         VReplicaSetRecStepView::AfterListPods => {
-            if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_ListResponse()
-            && resp_o.get_Some_0().get_KResponse_0().get_ListResponse_0().res.is_ok()) {
+            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o).is_Ok()) {
                 (error_state(state), None)
             } else {
-                let objs = resp_o.unwrap().get_KResponse_0().get_ListResponse_0().res.unwrap();
+                let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
                 let pods_or_none = objects_to_pods(objs);
                 if pods_or_none.is_none() {
                     (error_state(state), None)
@@ -115,16 +113,13 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                             if pod_name_or_none.is_none() {
                                 (error_state(state), None)
                             } else {
-                                let req = APIRequest::DeleteRequest(DeleteRequest {
+                                let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
                                     key: ObjectRef {
                                         kind: PodView::kind(),
                                         name: pod_name_or_none.unwrap(),
                                         namespace: namespace,
                                     },
-                                    preconditions: Some(PreconditionsView {
-                                        uid: None,
-                                        resource_version: filtered_pods[diff - 1].metadata.resource_version
-                                    }),
+                                    owner_ref: v_replica_set.controller_owner_ref(),
                                 });
                                 let state_prime = VReplicaSetReconcileState {
                                     reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),
@@ -140,9 +135,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
         },
         VReplicaSetRecStepView::AfterCreatePod(diff) => {
             let diff = *diff;
-            if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
-            && resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res.is_ok()) {
+            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o).is_Ok()) {
                 (error_state(state), None)
             } else if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
@@ -165,9 +158,7 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
         },
         VReplicaSetRecStepView::AfterDeletePod(diff) => {
             let diff = *diff;
-            if !(resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_DeleteResponse()
-            && resp_o.get_Some_0().get_KResponse_0().get_DeleteResponse_0().res.is_ok()) {
+            if !(is_some_k_get_then_delete_resp_view!(resp_o) && extract_some_k_get_then_delete_resp_view!(resp_o).is_Ok()) {
                 (error_state(state), None)
             } else if diff == 0 {
                 let state_prime = VReplicaSetReconcileState {
@@ -185,16 +176,13 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
                     if pod_name_or_none.is_none() {
                         (error_state(state), None)
                     } else {
-                        let req = APIRequest::DeleteRequest(DeleteRequest {
+                        let req = APIRequest::GetThenDeleteRequest(GetThenDeleteRequest {
                             key: ObjectRef {
                                 kind: PodView::kind(),
                                 name: pod_name_or_none.unwrap(),
                                 namespace: namespace,
                             },
-                            preconditions: Some(PreconditionsView {
-                                uid: None,
-                                resource_version: state.filtered_pods.unwrap()[diff - 1].metadata.resource_version
-                            }),
+                            owner_ref: v_replica_set.controller_owner_ref(),
                         });
                         let state_prime = VReplicaSetReconcileState {
                             reconcile_step: VReplicaSetRecStepView::AfterDeletePod((diff - 1) as nat),

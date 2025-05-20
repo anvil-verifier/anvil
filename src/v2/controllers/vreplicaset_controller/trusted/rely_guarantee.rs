@@ -90,6 +90,23 @@ pub open spec fn vrs_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
     }
 }
 
+// We don't need to talk about resource version anymore after we have the transactional API
+// and other controllers don't try to delete pods owned by a VReplicaSet.
+pub open spec fn vrs_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        req.key.kind == Kind::PodKind ==>
+            !{
+                let etcd_obj = s.resources()[req.key];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& s.resources().contains_key(req.key)
+                // other controller will not try to fake owner_ref to be a VRS
+                &&& etcd_obj.metadata.owner_references_contains(req.owner_ref)
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] etcd_obj.metadata.owner_references_contains(vrs.controller_owner_ref())
+            }
+    }
+}
+
 pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg| {
@@ -101,6 +118,7 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
             APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
             APIRequest::UpdateStatusRequest(req) => vrs_rely_update_status_req(req)(s),
             APIRequest::DeleteRequest(req) => vrs_rely_delete_req(req)(s),
+            APIRequest::GetThenDeleteRequest(req) => vrs_rely_get_then_delete_req(req)(s),
             _ => true,
         }
     }
@@ -119,28 +137,25 @@ pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<Clust
     }
 }
 
-// VRS only sends delete requests to pods that carry a resource version precondition,
-// and if the resource version carried matches the one in the corresponding etcd
-// object, then that object is owned by a VReplicaSet.
-pub open spec fn vrs_guarantee_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
+// With transactional API, we don't need to check resource version anymore.
+// VRS only send delete requests to pods owned by a VReplicaSet.
+pub open spec fn vrs_guarantee_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key];
         &&& req.key.kind == Kind::PodKind
-        &&& req.preconditions.is_Some()
-        &&& req.preconditions.get_Some_0().resource_version.is_Some()
         &&& {
-            &&& s.resources().contains_key(req.key)
-            &&& etcd_obj.metadata.resource_version 
-                == req.preconditions.get_Some_0().resource_version
-        } ==> {
-            let controller_owners = etcd_obj.metadata.owner_references
-                .get_Some_0()
-                .filter(|o: OwnerReferenceView| {
-                    o.controller.is_Some() && o.controller.get_Some_0()
-                });
-            &&& etcd_obj.metadata.owner_references.is_Some()
-            &&& exists |vrs: VReplicaSetView| 
-                controller_owners == seq![#[trigger] vrs.controller_owner_ref()]
+            s.resources().contains_key(req.key) ==>
+            {
+                let controller_owners = etcd_obj.metadata.owner_references
+                    .get_Some_0()
+                    .filter(|o: OwnerReferenceView| {
+                        o.controller.is_Some() && o.controller.get_Some_0()
+                    });
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& controller_owners == seq![#[trigger] req.owner_ref]
+                &&& exists |vrs: VReplicaSetView| 
+                    controller_owners == seq![#[trigger] vrs.controller_owner_ref()]
+            }
         }
     }
 }
@@ -154,7 +169,7 @@ pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s),
-            APIRequest::DeleteRequest(req) => vrs_guarantee_delete_req(req)(s),
+            APIRequest::GetThenDeleteRequest(req) => vrs_guarantee_get_then_delete_req(req)(s),
             _ => false, // vrs doesn't send other requests (yet).
         }
     }
