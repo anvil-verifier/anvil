@@ -69,6 +69,27 @@ pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
     }
 }
 
+// All delete requests to pods carry a precondition on the resource version,
+// and other controllers don't try to delete pods owned by a VReplicaSet.
+pub open spec fn vrs_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        req.key.kind == Kind::PodKind ==>
+            req.preconditions.is_Some()
+            && req.preconditions.get_Some_0().resource_version.is_Some()
+            && !{
+                let etcd_obj = s.resources()[req.key];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                &&& s.resources().contains_key(req.key)
+                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version
+                    == req.preconditions.get_Some_0().resource_version
+                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& exists |vrs: VReplicaSetView| 
+                    #[trigger] owner_references.contains(vrs.controller_owner_ref())
+            }
+    }
+}
+
 // We don't need to talk about resource version anymore after we have the transactional API
 // and other controllers don't try to delete pods owned by a VReplicaSet.
 pub open spec fn vrs_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
@@ -96,6 +117,7 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
             APIRequest::CreateRequest(req) => vrs_rely_create_req(req)(s),
             APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
             APIRequest::UpdateStatusRequest(req) => vrs_rely_update_status_req(req)(s),
+            APIRequest::DeleteRequest(req) => vrs_rely_delete_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => vrs_rely_get_then_delete_req(req)(s),
             _ => true,
         }
