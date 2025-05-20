@@ -60,8 +60,6 @@ pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> State
                 let etcd_obj = s.resources()[req.key()];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 &&& etcd_obj.metadata.owner_references.is_Some()
                 // Can pass the owner_references check
                 &&& owner_references.contains(req.owner_ref)
@@ -123,9 +121,6 @@ pub open spec fn vd_rely_get_then_delete_req(req: GetThenDeleteRequest) -> State
                 let etcd_obj = s.resources()[req.key];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 &&& s.resources().contains_key(req.key)
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                // &&& etcd_obj.metadata.resource_version
-                //     == req.preconditions.get_Some_0().resource_version
                 &&& etcd_obj.metadata.owner_references.is_Some()
                 // Can pass the owner_references check
                 &&& owner_references.contains(req.owner_ref)
@@ -170,7 +165,6 @@ pub open spec fn vd_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> 
     |s: ClusterState| {
         let etcd_obj = s.resources()[req.key()];
         &&& req.obj.kind == VReplicaSetView::kind()
-        &&& req.obj.metadata.resource_version.is_Some()
         &&& exists |vd: VDeploymentView|
             req.owner_ref == vd.controller_owner_ref()
             && req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
