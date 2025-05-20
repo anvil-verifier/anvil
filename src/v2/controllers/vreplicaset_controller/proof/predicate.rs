@@ -311,7 +311,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
 
 // The delete request must be on a matching pod.
 pub open spec fn delete_constraint(
-    vrs: VReplicaSetView, req: GetThenDeleteRequest
+    vrs: VReplicaSetView, req: DeleteRequest
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let obj = s.resources()[req.key];
@@ -327,7 +327,7 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
         let step = VReplicaSetRecStepView::AfterDeletePod(diff);
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
         let request = msg.content.get_APIRequest_0();
-        let key = request.get_GetThenDeleteRequest_0().key;
+        let key = request.get_DeleteRequest_0().key;
         let obj = s.resources()[key];
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
@@ -335,9 +335,18 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
         &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
-        &&& request.is_GetThenDeleteRequest()
-        &&& delete_constraint(vrs, request.get_GetThenDeleteRequest_0())(s)
-        &&& obj.metadata.owner_references_contains(request.get_GetThenDeleteRequest_0().owner_ref)
+        &&& request.is_DeleteRequest()
+        &&& delete_constraint(vrs, request.get_DeleteRequest_0())(s)
+        // NOTE: We require that the resource version in etcd is
+        // equal to the one carried by the delete request to
+        // exclude the case where another reconcile working on another
+        // vrs object tries to delete the same object.
+        &&& request.get_DeleteRequest_0().preconditions.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().resource_version.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().uid.is_None()
+        &&& obj.metadata.resource_version.is_Some()
+        &&& obj.metadata.resource_version.unwrap() == 
+                request.get_DeleteRequest_0().preconditions.unwrap().resource_version.unwrap()
     }
 }
 
@@ -347,7 +356,7 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterDeletePod(diff);
         let request = req_msg.content.get_APIRequest_0();
-        let key = request.get_GetThenDeleteRequest_0().key;
+        let key = request.get_DeleteRequest_0().key;
         let obj = s.resources()[key];
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
@@ -355,9 +364,18 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
         &&& req_msg.src.is_controller_id(controller_id)
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
-        &&& request.is_GetThenDeleteRequest()
-        &&& delete_constraint(vrs, request.get_GetThenDeleteRequest_0())(s)
-        &&& obj.metadata.owner_references_contains(request.get_GetThenDeleteRequest_0().owner_ref)
+        &&& request.is_DeleteRequest()
+        &&& delete_constraint(vrs, request.get_DeleteRequest_0())(s)
+        // NOTE: We require that the resource version in etcd is
+        // equal to the one carried by the delete request to
+        // exclude the case where another reconcile working on another
+        // vrs object tries to delete the same object.
+        &&& request.get_DeleteRequest_0().preconditions.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().resource_version.is_Some()
+        &&& request.get_DeleteRequest_0().preconditions.unwrap().uid.is_None()
+        &&& obj.metadata.resource_version.is_Some()
+        &&& obj.metadata.resource_version.unwrap() == 
+                request.get_DeleteRequest_0().preconditions.unwrap().resource_version.unwrap()
     }
 }
 
@@ -373,7 +391,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
         &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
-        &&& request.is_GetThenDeleteRequest()
+        &&& request.is_DeleteRequest()
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
@@ -394,7 +412,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
         &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
-        &&& request.is_GetThenDeleteRequest()
+        &&& request.is_DeleteRequest()
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_delete_response().res.is_Ok()
