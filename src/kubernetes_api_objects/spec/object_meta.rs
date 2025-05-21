@@ -165,7 +165,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn well_formed(self) -> bool {
+    pub open spec fn well_formed_for_namespaced(self) -> bool {
         &&& self.name.is_Some()
         &&& self.namespace.is_Some()
         &&& self.resource_version.is_Some()

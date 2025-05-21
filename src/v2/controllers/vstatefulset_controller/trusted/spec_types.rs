@@ -17,7 +17,7 @@ pub type VStatefulSetStatusView = EmptyStatusView;
 
 impl VStatefulSetView {
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.well_formed()
+        &&& self.metadata.well_formed_for_namespaced()
         &&& self.state_validation()
     }
 

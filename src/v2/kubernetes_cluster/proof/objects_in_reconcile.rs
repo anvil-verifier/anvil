@@ -12,7 +12,7 @@ pub open spec fn each_scheduled_object_has_consistent_key_and_valid_metadata(con
         forall |key: ObjectRef|
             #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
                 ==> s.scheduled_reconciles(controller_id)[key].object_ref() == key
-                    && s.scheduled_reconciles(controller_id)[key].metadata.well_formed()
+                    && s.scheduled_reconciles(controller_id)[key].metadata.well_formed_for_namespaced()
     }
 }
 
@@ -44,7 +44,7 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
         assert forall |key: ObjectRef| #[trigger] s_prime.scheduled_reconciles(controller_id).contains_key(key)
         implies
             s_prime.scheduled_reconciles(controller_id)[key].object_ref() == key
-            && s_prime.scheduled_reconciles(controller_id)[key].metadata.well_formed()
+            && s_prime.scheduled_reconciles(controller_id)[key].metadata.well_formed_for_namespaced()
         by {
             let step = choose |step| self.next_step(s, s_prime, step);
             match step {
@@ -64,7 +64,7 @@ pub open spec fn each_object_in_reconcile_has_consistent_key_and_valid_metadata(
         forall |key: ObjectRef|
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
                 ==> s.ongoing_reconciles(controller_id)[key].triggering_cr.object_ref() == key
-                    && s.ongoing_reconciles(controller_id)[key].triggering_cr.metadata.well_formed()
+                    && s.ongoing_reconciles(controller_id)[key].triggering_cr.metadata.well_formed_for_namespaced()
     }
 }
 
@@ -96,7 +96,7 @@ pub proof fn lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_
         assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(key)
         implies
             s_prime.ongoing_reconciles(controller_id)[key].triggering_cr.object_ref() == key
-            && s_prime.ongoing_reconciles(controller_id)[key].triggering_cr.metadata.well_formed()
+            && s_prime.ongoing_reconciles(controller_id)[key].triggering_cr.metadata.well_formed_for_namespaced()
         by {
             if s.ongoing_reconciles(controller_id).contains_key(key) {
             } else {

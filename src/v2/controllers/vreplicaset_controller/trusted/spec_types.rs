@@ -16,7 +16,7 @@ pub type VReplicaSetStatusView = EmptyStatusView;
 
 impl VReplicaSetView {
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.well_formed()
+        &&& self.metadata.well_formed_for_namespaced()
         &&& self.metadata.namespace.is_Some()
         &&& self.state_validation()
     }

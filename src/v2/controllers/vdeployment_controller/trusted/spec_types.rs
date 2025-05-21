@@ -27,8 +27,7 @@ impl VDeploymentView {
     }
 
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.well_formed()
-        &&& self.metadata.namespace.is_Some()
+        &&& self.metadata.well_formed_for_namespaced()
         &&& self.state_validation()
     }
 
