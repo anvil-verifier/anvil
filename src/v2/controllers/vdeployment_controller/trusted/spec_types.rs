@@ -18,6 +18,14 @@ pub struct VDeploymentView {
 pub type VDeploymentStatusView = EmptyStatusView;
 
 impl VDeploymentView {
+
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> VDeploymentView {
+        VDeploymentView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.well_formed()
         &&& self.metadata.namespace.is_Some()

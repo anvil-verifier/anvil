@@ -6,51 +6,29 @@ use crate::kubernetes_api_objects::exec::{
 };
 use crate::kubernetes_api_objects::spec::resource::*;
 use crate::vdeployment_controller::trusted::spec_types;
+use crate::vstd_ext::string_view::*;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
 verus! {
 
-// helper function to circumvent the lack of support for String in spec
-#[verifier(external_body)]
-pub fn string_equal(s1: &String, s2: &str) -> (res: bool)
-    ensures
-        s1@ == s2@ <==> res,
-{
-    s1 == s2
-}
+implement_custom_object_wrapper_type!(
+    VDeployment,
+    deps_hack::VDeployment,
+    spec_types::VDeploymentView
+);
 
-#[verifier(external_body)]
-pub struct VDeployment {
-    inner: deps_hack::VDeployment
-}
-
-impl View for VDeployment {
-    type V = spec_types::VDeploymentView;
-
-    spec fn view(&self) -> spec_types::VDeploymentView;
-}
+implement_resource_wrapper_trait!(
+    VDeployment,
+    deps_hack::VDeployment
+);
 
 impl VDeployment {
-    #[verifier(external_body)]
-    pub fn metadata(&self) -> (metadata: ObjectMeta)
-        ensures metadata@ == self@.metadata,
-    {
-        ObjectMeta::from_kube(self.inner.metadata.clone())
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: VDeploymentSpec)
         ensures spec@ == self@.spec,
     {
         VDeploymentSpec { inner: self.inner.spec.clone() }
-    }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures res@.kind == spec_types::VDeploymentView::kind(),
-    {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::VDeployment>(&()))
     }
 
     #[verifier(external_body)]
@@ -60,38 +38,6 @@ impl VDeployment {
         self.metadata().well_formed()
         && self.metadata().namespace().is_some()
         && self.state_validation()
-    }
-
-    #[verifier(external_body)]
-    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
-        ensures owner_reference@ == self@.controller_owner_ref(),
-    {
-        // We can safely unwrap here because the trait method implementation always returns a Some(...)
-        OwnerReference::from_kube(self.inner.controller_owner_ref(&()).unwrap())
-    }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn marshal(self) -> (obj: DynamicObject)
-        ensures obj@ == self@.marshal(),
-    {
-        // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
-    }
-
-    #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<VDeployment, UnmarshalError>)
-        ensures
-            res.is_Ok() == spec_types::VDeploymentView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == spec_types::VDeploymentView::unmarshal(obj@).get_Ok_0(),
-    {
-        let parse_result = obj.into_kube().try_parse::<deps_hack::VDeployment>();
-        if parse_result.is_ok() {
-            let res = VDeployment { inner: parse_result.unwrap() };
-            Ok(res)
-        } else {
-            Err(())
-        }
     }
 
     // similar to VReplicaSet::state_validation
@@ -195,6 +141,10 @@ impl VDeployment {
     }
 }
 
+implement_view_trait!(
+    VDeploymentSpec,
+    spec_types::VDeploymentSpecView
+);
 
 #[verifier(external_body)]
 pub struct VDeploymentSpec {
@@ -202,7 +152,6 @@ pub struct VDeploymentSpec {
 }
 
 impl VDeploymentSpec {
-    pub spec fn view(&self) -> spec_types::VDeploymentSpecView;
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
@@ -268,30 +217,19 @@ impl VDeploymentSpec {
     }
 }
 
-//DEPLOYMENT STRATEGY SPEC IMPLEMENTATION
-#[verifier(external_body)]
-pub struct DeploymentStrategy {
-    inner: deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy,
-}
+implement_field_wrapper_type!(
+    DeploymentStrategy,
+    deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy,
+    spec_types::DeploymentStrategyView
+);
+
+implement_resource_wrapper_trait!(
+    DeploymentStrategy,
+    deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy
+);
+
 
 impl DeploymentStrategy {
-    pub spec fn view(&self) -> spec_types::DeploymentStrategyView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (strategy: DeploymentStrategy)
-        ensures strategy@ == spec_types::DeploymentStrategyView::default(),
-    {
-        DeploymentStrategy {
-            inner: deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (strategy: DeploymentStrategy)
-        ensures strategy@ == self@,
-    {
-        DeploymentStrategy { inner: self.inner.clone() }
-    }
 
     #[verifier(external_body)]
     pub fn type_(&self) -> (type_: Option<String>)
@@ -327,42 +265,20 @@ impl DeploymentStrategy {
     {
         self.inner.rolling_update = Some(rolling_update.into_kube());
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy) -> DeploymentStrategy { 
-        DeploymentStrategy { inner: inner } 
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy { 
-        self.inner 
-    }
 }
 
-#[verifier(external_body)]
-pub struct RollingUpdateDeployment {
-    inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment,
-}
+implement_field_wrapper_type!(
+    RollingUpdateDeployment,
+    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment,
+    spec_types::RollingUpdateDeploymentView
+);
+
+implement_resource_wrapper_trait!(
+    RollingUpdateDeployment,
+    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment
+);
 
 impl RollingUpdateDeployment {
-    pub spec fn view(&self) -> spec_types::RollingUpdateDeploymentView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (rolling_update: RollingUpdateDeployment)
-        ensures rolling_update@ == spec_types::RollingUpdateDeploymentView::default(),
-    {
-        RollingUpdateDeployment {
-            inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (rolling_update: RollingUpdateDeployment)
-        ensures rolling_update@ == self@,
-    {
-        RollingUpdateDeployment { inner: self.inner.clone() }
-    }
-
     // Simplified implementation treating IntOrString values as integers only
     #[verifier(external_body)]
     pub fn max_surge(&self) -> (max_surge: Option<i32>)
@@ -413,18 +329,6 @@ impl RollingUpdateDeployment {
             deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
         );
     }
-
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment) -> RollingUpdateDeployment { 
-        RollingUpdateDeployment { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment { 
-        self.inner
-    }
 }
 // END DEPLOYMENT STRATEGY EXEC IMPLEMENTATION
 }
-
-implement_resource_wrapper_trait!(VDeployment, deps_hack::VDeployment);
