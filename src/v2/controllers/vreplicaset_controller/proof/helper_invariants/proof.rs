@@ -1629,8 +1629,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                     &&& req_msg.dst.is_APIServer()
                     &&& req_msg.content.is_delete_request()
                     &&& forall |i| #![auto] 0 <= i < diff ==> {
-                        &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
-                        &&& PodView::unmarshal(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                        &&& s.resources().contains_key(filtered_pod_keys[i])
+                        &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
+                        &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                         &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                     }
                 }
@@ -1656,7 +1657,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                     &&& msg.content.get_list_response().res.is_Ok()
                     &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                     &&& resp_obj_keys.no_duplicates()
-                    &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                    &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                 }
@@ -1729,8 +1730,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& req_msg.dst.is_APIServer()
                                 &&& req_msg.content.is_delete_request()
                                 &&& forall |i| #![auto] 0 <= i < diff ==> {
-                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                    &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                    &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                    &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                    &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                                 }
                             } by {
@@ -1853,8 +1855,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                         && pods.no_duplicates()
                                         && filtered_pod_keys.no_duplicates()
                                         implies {
-                                            &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                            &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                            &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                            &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                             &&& new_req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                                         } by {
                                         let obj_keys = objs.map_values(|o: DynamicObjectView| o.object_ref());
@@ -1885,16 +1888,17 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                         assert(owned_selector_match_is(vrs, objs[i1]));
                                         objs.filter_lemma(|obj| owned_selector_match_is(vrs, obj));
                                         assert(objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(objs[i1]));
-                                        assert(matching_pod_entries(vrs, s.resources()).values().contains(objs[i1]));
-                                        assert(matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i]));
+                                        assert(matching_pods(vrs, s.resources()).contains(objs[i1]));
+                                        assert(s.resources().contains_key(filtered_pod_keys[i]));
+                                        assert(objs[i1].object_ref() == filtered_pod_keys[i]);
+                                        assert(s.resources()[filtered_pod_keys[i]] == objs[i1]);
 
-                                        // second conjunct
-                                        assert(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]] == objs[i1]);
+                                        // second+third conjunct
+                                        assert(matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]]));
                                         assert(filtered_pods[i] == PodView::unmarshal(objs[i1]).get_Ok_0());
-                                        assert(PodView::unmarshal(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]]).is_Ok()
-                                                == PodView::unmarshal(objs[i1]).is_Ok());
+                                        assert(PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).is_Ok());
 
-                                        // third conjunct
+                                        // final conjunct
                                         assert(new_state.reconcile_step.is_AfterDeletePod());
                                         assert_by(
                                             filtered_pods[new_diff as int].metadata.namespace.is_Some()
@@ -1984,7 +1988,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                     &&& msg.content.get_list_response().res.is_Ok()
                                     &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                     &&& resp_obj_keys.no_duplicates()
-                                    &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                                    &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                                 } by {
@@ -2014,8 +2018,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& req_msg.dst.is_APIServer()
                                 &&& req_msg.content.is_delete_request()
                                 &&& forall |i| #![auto] 0 <= i < diff ==> {
-                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                    &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                    &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                    &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                    &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                                 }
                             } by {
@@ -2047,7 +2052,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& msg.content.get_list_response().res.is_Ok()
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& resp_obj_keys.no_duplicates()
-                                &&& matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                                &&& matching_pods(vrs, s_prime.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                             } by {
@@ -2107,7 +2112,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                             assert(resp_obj_keys =~= selected_element_keys);
                                         });
 
-                                        assert(matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
+                                        assert(matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
                                             // reveal API server spec
                                             let selector = |o: DynamicObjectView| {
                                                 &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
@@ -2119,24 +2124,24 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                             finite_set_to_finite_filtered_set(s.resources().values(), selector);
                                             finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
                                             assert(resp_objs.no_duplicates());
-                                            // reveal matching_pod_entries logic
-                                            let matched_entries = matching_pod_entries(vrs, s.resources());
-                                            assert(matched_entries.values() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
-                                                assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_entries.values().contains(obj) by {
+                        
+                                            // reveal matching_pods logic
+                                            let matched_pods = matching_pods(vrs, s.resources());
+                                            assert(matched_pods =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
+                                                assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_pods.contains(obj) by {
                                                     assert(owned_selector_match_is(vrs, obj));
                                                     assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
-                                                    assert(matched_entries.contains_key(obj.object_ref()) && matched_entries[obj.object_ref()] == obj);
+                                                    assert(matched_pods.contains(obj));                                                
                                                 }
-                                                assert forall |obj| matched_entries.values().contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
+                                                assert forall |obj| matched_pods.contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
                                                     assert(s.resources().contains_key(obj.object_ref()));
                                                     assert(owned_selector_match_is(vrs, obj));
                                                 }
                                                 // optional if antisymmetry_of_set_equality is imported
-                                                assert(forall |obj| matched_entries.values().contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
+                                                assert(forall |obj| matched_pods.contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
                                             }
-                                            assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj) && selector(obj)) == matching_pod_entries(vrs, s.resources()).values());
-                                            // merge 2 selectors
-                                            assert((|obj| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj| owned_selector_match_is(vrs, obj)));
+                                            assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)) == matching_pods(vrs, s.resources()));
+                                            
                                             // get rid of DS conversion, basically babysitting Verus
                                             assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
                                                 assert(resp_objs == s.resources().values().filter(selector).to_seq());
@@ -2179,7 +2184,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                             &&& msg.content.get_list_response().res.is_Ok()
                                             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                             &&& resp_obj_keys.no_duplicates()
-                                            &&& matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                                            &&& matching_pods(vrs, s_prime.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                                         });
@@ -2188,7 +2193,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                         assert(current_req_msg.rpc_id != req_msg.rpc_id);
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
                                         assert_by(
-                                            matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set(),
+                                            matching_pods(vrs, s_prime.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set(),
                                             {
                                                 assert({
                                                     &&& forall |diff: nat| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterCreatePod(diff))(s))
@@ -2197,7 +2202,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                 assert(forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                                                         ==> #[trigger] vrs_rely(other_id)(s));
                                                 lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
-                                                    s, s_prime, vrs, cluster, controller_id, 42, current_req_msg
+                                                    s, s_prime, vrs, cluster, controller_id, current_req_msg
                                                 );
                                             }
                                         );
@@ -2235,8 +2240,10 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                     };
 
                                     if inv_pre(current_req_msg) {
-                                        assert(forall |diff: nat| ! #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s));
-                                        assert(false);
+                                        if (exists |diff: nat| #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)) {
+                                            assert(forall |diff: nat| ! #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s));
+                                            assert(false);
+                                        }
                                     } else if (current_req_msg.content.is_delete_request()) {
                                         let current_req = current_req_msg.content.get_delete_request();
                                         if !(current_req_msg.src.is_Controller() || current_req_msg.src.is_BuiltinController()) {
@@ -2249,17 +2256,50 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                 &&& current_req_msg.content.is_create_request() ==> current_req_msg.content.get_create_request().key().kind != PodView::kind()
                                                 &&& current_req_msg.content.is_delete_request() ==> current_req_msg.content.get_delete_request().key.kind != PodView::kind()
                                             });
-                                        } else if current_req_msg.src.is_Controller() && current_req_msg.src.get_Controller_0() != controller_id {
+                                        } else if current_req_msg.src.is_Controller() && current_req_msg.src.get_Controller_0() != controller_id { 
+                                            let resp_objs = msg.content.get_list_response().res.unwrap();
                                             assert(vrs_rely(current_req_msg.src.get_Controller_0())(s));
+                                            if requirements(key, s) {
+                                                let msg_key = current_req_msg.content.get_delete_request().key;
+                                                if msg_key.kind != PodView::kind() {
+                                                    if s.resources().contains_key(msg_key) {
+                                                        let obj = s.resources()[msg_key];
+                                                        let owner_references = obj.metadata.owner_references.get_Some_0();
+
+                                                        if obj.metadata.owner_references.is_Some()
+                                                            && exists |vrs: VReplicaSetView| 
+                                                            #[trigger] owner_references.contains(vrs.controller_owner_ref()) {
+                                                        }
+                                                    }
+                                                } else {
+                                                    if s.resources().contains_key(msg_key) {
+                                                        let obj = s.resources()[msg_key];
+                                                        assert(obj.kind == PodView::kind());
+                                                    }
+                                                }
+                                            } else {
+                                                // why can't I deny the antecedent automatically?
+                                                assert(!requirements(key, s));
+                                                assert(!{
+                                                    let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                                                    &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                                    &&& msg.src.is_APIServer()
+                                                    &&& resp_msg_matches_req_msg(msg, req_msg)
+                                                    &&& requirements(key, s)
+                                                    &&& stronger_next(s, s_prime)
+                                                });
+                                            }
                                         }
                                     }
 
+                                    
                                     if msg_antecedent {
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
                                         let resp_obj_keys = resp_objs.map_values(|o: DynamicObjectView| o.object_ref());
 
                                         assert_by(
-                                            matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set(),
+                                            matching_pods(vrs, s_prime.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set(),
                                             {
                                                 assert({
                                                     &&& forall |diff: nat| !(#[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterCreatePod(diff))(s))
@@ -2268,7 +2308,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                                 assert(forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                                                         ==> #[trigger] vrs_rely(other_id)(s));
                                                 lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
-                                                    s, s_prime, vrs, cluster, controller_id, 42, current_req_msg
+                                                    s, s_prime, vrs, cluster, controller_id, current_req_msg
                                                 );
                                             }
                                         );
@@ -2279,9 +2319,20 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                             &&& msg.content.get_list_response().res.is_Ok()
                                             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                             &&& resp_obj_keys.no_duplicates()
-                                            //&&& matching_pod_entries(vrs, s_prime.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                                            //&&& matching_pods(vrs, s_prime.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+                                        });
+                                    } else {
+                                        // manually deny the antecedent elsewhere
+                                        assert(!{
+                                            let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                            &&& #[trigger] s_prime.in_flight().contains(msg)
+                                            &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                            &&& msg.src.is_APIServer()
+                                            &&& resp_msg_matches_req_msg(msg, req_msg)
+                                            &&& requirements(key, s)
+                                            &&& stronger_next(s, s_prime)
                                         });
                                     }
                                 }
@@ -2306,8 +2357,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& req_msg.dst.is_APIServer()
                                 &&& req_msg.content.is_delete_request()
                                 &&& forall |i| #![auto] 0 <= i < diff ==> {
-                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                    &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                    &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                    &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                    &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                                 }
                             } by {
@@ -2334,8 +2386,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& req_msg.dst.is_APIServer()
                                 &&& req_msg.content.is_delete_request()
                                 &&& forall |i| #![auto] 0 <= i < diff ==> {
-                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                    &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                    &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                    &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                    &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                                 }
                             } by {
@@ -2354,8 +2407,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                     let filtered_pods = state.filtered_pods.unwrap();
                                     let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
                                     let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
-                                    &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                    &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                    &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                    &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                    &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                                 } by {
                                     let state = VReplicaSetReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
@@ -2373,6 +2427,34 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                         }
                                     }
                                 }
+                            }
+                            if exists |diff: nat| 
+                                #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s) {
+                                let diff = choose |diff: nat| 
+                                    #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s);
+                                assert({
+                                    let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                                    let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                                    let filtered_pods = state.filtered_pods.unwrap();
+                                    let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+                                    let filtered_pods = state.filtered_pods.unwrap();
+                                    let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+                                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                                    &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
+                                    &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
+                                    &&& state.filtered_pods.is_Some()
+                                    &&& diff <= filtered_pod_keys.len()
+                                    &&& filtered_pod_keys.no_duplicates()
+                                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                    &&& req_msg.dst.is_APIServer()
+                                    &&& req_msg.content.is_delete_request()
+                                    &&& forall |i| #![auto] 0 <= i < diff ==> {
+                                        &&& s.resources().contains_key(filtered_pod_keys[i])
+                                        &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
+                                        &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                        &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
+                                    }
+                                });
                             }
                         }
                     },
@@ -2399,7 +2481,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                                 &&& msg.content.get_list_response().res.is_Ok()
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& resp_obj_keys.no_duplicates()
-                                &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                                &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                             } by {
@@ -2429,8 +2511,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                             &&& req_msg.dst.is_APIServer()
                             &&& req_msg.content.is_delete_request()
                             &&& forall |i| #![auto] 0 <= i < diff ==> {
-                                &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                 &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                             }
                         } by {
@@ -2458,8 +2541,9 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
                             &&& req_msg.dst.is_APIServer()
                             &&& req_msg.content.is_delete_request()
                             &&& forall |i| #![auto] 0 <= i < diff ==> {
-                                &&& matching_pod_entries(vrs, s_prime.resources()).contains_key(filtered_pod_keys[i])
-                                &&& PodView::unmarshal(matching_pod_entries(vrs, s_prime.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                                &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                                &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                                &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                                 &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                             }
                         } by {
