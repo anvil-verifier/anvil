@@ -829,6 +829,7 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
 
 // TODO: investigate flaky proof.
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -1086,7 +1087,9 @@ pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_a
     );
 }
 
+// TODO: investigate flaky proof.
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
