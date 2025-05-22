@@ -87,10 +87,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
     };
 }
 
-<<<<<<< HEAD
-=======
 // TODO: broken by changed ESR spec, needs new set-based (rather than map-based) argument.
->>>>>>> 74d2694b (fix almost all broken proofs)
 #[verifier(external_body)]
 pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
