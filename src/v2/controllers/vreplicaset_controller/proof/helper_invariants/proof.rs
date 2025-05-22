@@ -198,7 +198,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             match msg.content.get_APIRequest_0() {
                 APIRequest::UpdateRequest(req) =>
                     msg.src.is_Controller()
-                    && msg.src != HostId::Controller(controller_id)
+                    && !msg.src.is_controller_id(controller_id)
                     && vrs_rely_update_req(req)(s),
                 _ => true,
             }
@@ -318,7 +318,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_status_reques
             match msg.content.get_APIRequest_0() {
                 APIRequest::UpdateStatusRequest(req) =>
                     msg.src.is_Controller()
-                    && msg.src != HostId::Controller(controller_id)
+                    && !msg.src.is_controller_id(controller_id)
                     && vrs_rely_update_status_req(req)(s),
                 _ => true,
             }
@@ -2907,7 +2907,7 @@ ensures
         assert forall |msg: Message|
             inv(s)
             && s_prime.in_flight().contains(msg)
-            && #[trigger] msg.src == HostId::Controller(controller_id)
+            && #[trigger] msg.src.is_controller_id(controller_id)
             implies msg.dst != HostId::External(controller_id) by {
             if new_msgs.contains(msg) {
                 // Empty if statement required to trigger quantifiers.

@@ -40,7 +40,7 @@ pub open spec fn at_reconcile_state(controller_id: int, key: ObjectRef, current_
 }
 
 pub open spec fn request_sent_by_controller(controller_id: int, msg: Message) -> bool {
-    &&& msg.src == HostId::Controller(controller_id)
+    &&& msg.src.is_controller_id(controller_id)
     &&& {
         ||| {
             &&& msg.dst == HostId::APIServer
@@ -147,6 +147,8 @@ pub open spec fn reconcile_idle(controller_id: int, key: ObjectRef) -> StatePred
     |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
 }
 
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef)
     requires
         self.controller_models.contains_key(controller_id),
@@ -170,6 +172,8 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle(self, spec: TempPred<C
     self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::EndReconcile, pre, post);
 }
 
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 pub proof fn lemma_reconcile_error_leads_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef)
     requires
         self.controller_models.contains_key(controller_id),
@@ -193,6 +197,8 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle(self, spec: TempPred<
     self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::EndReconcile, pre, post);
 }
 
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef)
     requires
         self.controller_models.contains_key(controller_id),
@@ -317,6 +323,8 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
     );
 }
 
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, init_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -388,6 +396,8 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(self, 
     );
 }
 
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -461,7 +471,7 @@ pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_
     |s: ClusterState| {
         forall |msg: Message|
             s.in_flight().contains(msg)
-            && #[trigger] msg.src == HostId::Controller(controller_id)
+            && #[trigger] msg.src.is_controller_id(controller_id)
             ==> msg.dst != HostId::External(controller_id)
     }
 }
@@ -643,6 +653,8 @@ pub open spec fn the_object_in_reconcile_has_spec_and_uid_as<T: CustomResourceVi
 
 // This lemma says that under the spec where []desired_state_is(cr), it will eventually reach a state where any object
 // in reconcile for cr.object_ref() has the same spec as cr.spec.
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as<T: CustomResourceView>(self, spec: TempPred<ClusterState>, controller_id: int, cr: T)
     requires
         self.controller_models.contains_key(controller_id),

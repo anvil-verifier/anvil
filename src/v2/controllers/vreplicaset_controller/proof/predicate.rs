@@ -115,7 +115,7 @@ pub open spec fn pending_req_in_flight_at_after_list_pods_step(
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_ListRequest()
@@ -136,7 +136,7 @@ pub open spec fn req_msg_is_the_in_flight_list_req_at_after_list_pods_step(
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_ListRequest()
@@ -156,7 +156,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_ListRequest()
@@ -192,7 +192,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_ListRequest()
@@ -228,7 +228,7 @@ pub open spec fn pending_req_in_flight_at_after_create_pod_step(
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_CreateRequest()
@@ -248,7 +248,7 @@ pub open spec fn req_msg_is_the_in_flight_create_request_at_after_create_pod_ste
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg.src == HostId::Controller(controller_id)
+        &&& req_msg.src.is_controller_id(controller_id)
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& request.is_CreateRequest()
@@ -268,7 +268,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_create_pod_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_CreateRequest()
@@ -293,7 +293,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_CreateRequest()
@@ -332,7 +332,7 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
@@ -361,7 +361,7 @@ pub open spec fn req_msg_is_the_in_flight_delete_request_at_after_delete_pod_ste
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg.src == HostId::Controller(controller_id)
+        &&& req_msg.src.is_controller_id(controller_id)
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
@@ -388,7 +388,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()
@@ -409,7 +409,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& msg.src == HostId::Controller(controller_id)
+        &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& msg.content.is_APIRequest()
         &&& request.is_DeleteRequest()

@@ -76,10 +76,10 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
             let (pending_req_msg, send, rpc_id_allocator_prime) = if req_o.is_Some() {
                 let pending_req_msg = match req_o.get_Some_0() {
                     RequestContent::KubernetesRequest(req) => {
-                        Some(controller_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
+                        Some(controller_req_msg(controller_id, cr_key, input.rpc_id_allocator.allocate().1, req))
                     },
                     RequestContent::ExternalRequest(req) => {
-                        Some(controller_external_req_msg(controller_id, input.rpc_id_allocator.allocate().1, req))
+                        Some(controller_external_req_msg(controller_id, cr_key, input.rpc_id_allocator.allocate().1, req))
                     }
                 };
                 (pending_req_msg, Multiset::singleton(pending_req_msg.get_Some_0()), input.rpc_id_allocator.allocate().0)
