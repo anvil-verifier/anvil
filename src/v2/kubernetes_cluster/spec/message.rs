@@ -27,7 +27,7 @@ pub struct Message {
 pub enum HostId {
     APIServer,
     BuiltinController,
-    Controller(int),
+    Controller(int, ObjectRef),
     External(int),
     PodMonkey,
 }
@@ -80,12 +80,12 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     }
 }
 
-pub open spec fn controller_req_msg(controller_id: int, req_id: RPCId, req: APIRequest) -> Message {
-    form_msg(HostId::Controller(controller_id), HostId::APIServer, req_id, MessageContent::APIRequest(req))
+pub open spec fn controller_req_msg(controller_id: int, cr_key: ObjectRef, req_id: RPCId, req: APIRequest) -> Message {
+    form_msg(HostId::Controller(controller_id, cr_key), HostId::APIServer, req_id, MessageContent::APIRequest(req))
 }
 
-pub open spec fn controller_external_req_msg(controller_id: int, req_id: RPCId, req: ExternalRequest) -> Message {
-    form_msg(HostId::Controller(controller_id), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
+pub open spec fn controller_external_req_msg(controller_id: int, cr_key: ObjectRef, req_id: RPCId, req: ExternalRequest) -> Message {
+    form_msg(HostId::Controller(controller_id, cr_key), HostId::External(controller_id), req_id, MessageContent::ExternalRequest(req))
 }
 
 pub open spec fn built_in_controller_req_msg(rpc_id: RPCId, msg_content: MessageContent) -> Message {
@@ -225,6 +225,15 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
         recv.get_Some_0().dst == host_id
     } else {
         true
+    }
+}
+
+impl HostId {
+    pub open spec fn is_controller_id(self, controller_id: int) -> bool {
+        match self {
+            HostId::Controller(id, _) => id == controller_id,
+            _ => false,
+        }
     }
 }
 
