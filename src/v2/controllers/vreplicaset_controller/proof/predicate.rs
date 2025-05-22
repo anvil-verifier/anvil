@@ -73,7 +73,7 @@ pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, contr
 }
 
 // Predicates for reasoning about pods
-pub open spec fn matching_pods(vrs: VReplicaSetView, resources: StoredState) -> Set<ObjectRef> {
+pub open spec fn matching_pod_keys(vrs: VReplicaSetView, resources: StoredState) -> Set<ObjectRef> {
     Set::new(|key: ObjectRef| {
         let obj = resources[key];
         &&& resources.contains_key(key)
@@ -170,7 +170,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
             &&& resp_msg.content.get_list_response().res.is_Ok()
             &&& {
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                 //&&& resp_objs.no_duplicates()
                 &&& objects_to_pods(resp_objs).is_Some()
                 &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
@@ -205,7 +205,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
         &&& resp_msg.content.get_list_response().res.is_Ok()
         &&& {
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+            &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
             //&&& resp_objs.no_duplicates()
             &&& objects_to_pods(resp_objs).is_Some()
             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
@@ -314,7 +314,9 @@ pub open spec fn delete_constraint(
     vrs: VReplicaSetView, req: DeleteRequest
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        matching_pod_entries(vrs, s.resources()).contains_key(req.key)
+        let obj = s.resources()[req.key];
+        &&& s.resources().contains_key(req.key)
+        &&& matching_pods(vrs, s.resources()).contains(obj)
     }
 }
 

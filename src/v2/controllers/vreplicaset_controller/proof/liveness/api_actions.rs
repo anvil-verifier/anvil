@@ -18,11 +18,11 @@ use vstd::{map::*, map_lib::*, prelude::*};
 
 verus! {
 
-// TODO: get rid of diff parameter.
+// TODO: broken by changed ESR spec, needs new set-based (rather than map-based) argument.
 #[verifier(external_body)]
 pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
-    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
-    diff: int, msg: Message,
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
+    msg: Message,
 )
     requires
         cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
@@ -43,7 +43,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> #[trigger] vrs_rely(other_id)(s)
     ensures
-        matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()),
+        matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()),
 {
     if msg.src.is_Controller() {
         let id = msg.src.get_Controller_0();
@@ -87,6 +87,7 @@ pub proof fn lemma_api_request_outside_create_or_delete_loop_maintains_matching_
     };
 }
 
+// TODO: broken by changed ESR spec, needs new set-based (rather than map-based) argument.
 #[verifier(external_body)]
 pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
     s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
@@ -112,7 +113,7 @@ pub proof fn lemma_api_request_not_made_by_vrs_maintains_matching_pods(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> #[trigger] vrs_rely(other_id)(s)
     ensures
-        matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()),
+        matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()),
 {
     if msg.src.is_Controller() {
         let id = msg.src.get_Controller_0();

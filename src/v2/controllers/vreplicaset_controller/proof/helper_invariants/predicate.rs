@@ -108,7 +108,7 @@ pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView
             &&& req.preconditions.unwrap().uid.is_Some()
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key)
-                    ==> (!matching_pod_entries(vrs, s.resources()).contains_key(req.key)
+                    ==> (!matching_pods(vrs, s.resources()).contains(s.resources()[req.key])
                           || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
         }
     }
@@ -312,8 +312,9 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
                 &&& req_msg.dst.is_APIServer()
                 &&& req_msg.content.is_delete_request()
                 &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
-                    &&& matching_pod_entries(vrs, s.resources()).contains_key(filtered_pod_keys[i])
-                    &&& PodView::unmarshal(matching_pod_entries(vrs, s.resources())[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                    &&& s.resources().contains_key(filtered_pod_keys[i])
+                    &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
+                    &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
                     &&& req_msg.content.get_delete_request().key != filtered_pod_keys[i]
                 }
             }
@@ -340,7 +341,7 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
                     &&& msg.content.get_list_response().res.is_Ok()
                     &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0 
                     &&& resp_obj_keys.no_duplicates()
-                    &&& matching_pod_entries(vrs, s.resources()).values() == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+                    &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
                     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                 }
