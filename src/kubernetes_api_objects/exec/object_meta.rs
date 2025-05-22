@@ -50,6 +50,15 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn uid(&self) -> (uid: Option<String>)
+        ensures
+            self@.uid.is_Some() == uid.is_Some(),
+            uid.is_Some() ==> uid.get_Some_0()@ == int_to_string_view(self@.uid.get_Some_0()),
+    {
+        self.inner.uid.clone()
+    }
+
+    #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
         ensures
             self@.namespace.is_Some() == namespace.is_Some(),
@@ -186,14 +195,13 @@ impl ObjectMeta {
         self.inner.deletion_timestamp.is_some()
     }
 
-    #[verifier(external_body)]
     pub fn well_formed_for_namespaced(&self) -> (b: bool)
         ensures b == self@.well_formed_for_namespaced(),
     {
-        self.inner.name.is_some()
-        && self.inner.namespace.is_some()
-        && self.inner.resource_version.is_some()
-        && self.inner.uid.is_some()
+        self.name().is_some()
+        && self.namespace().is_some()
+        && self.resource_version().is_some()
+        && self.uid().is_some()
     }
 
     #[verifier(external_body)]
