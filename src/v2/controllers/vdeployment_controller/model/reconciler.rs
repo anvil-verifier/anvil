@@ -267,22 +267,6 @@ pub open spec fn match_replicas(vrs: VReplicaSetView, vd: VDeploymentView) -> bo
     vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
 }
 
-pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (Seq<VReplicaSetView>, Seq<VReplicaSetView>))
-// we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
-{
-    // even if we know vrs controlled by vd should have spec.template.metadata.is_Some() because we add the pot-template-hash label
-    // we still need to check it here and pretend we don't know it
-
-    let new_spec_filter = |vrs: VReplicaSetView|
-        match_template_without_hash(vd, vrs);
-    let old_spec_filter = |vrs: VReplicaSetView|
-        !new_spec_filter(vrs)
-        && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
-    let new_vrs_list = vrs_list.filter(new_spec_filter);
-    let old_vrs_list = vrs_list.filter(old_spec_filter);
-    (new_vrs_list, old_vrs_list)
-}
-
 // See https://github.com/kubernetes/kubernetes/blob/cdc807a9e849b651fb48c962cc18e25d39ec5edf/pkg/controller/deployment/sync.go#L196-L210
 // pod template hash is used to prevent old and new vrs from owning the same pod
 // here we use resource_version of vd as a hash
