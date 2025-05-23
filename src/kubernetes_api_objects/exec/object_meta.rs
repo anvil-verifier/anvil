@@ -50,15 +50,6 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn uid(&self) -> (uid: Option<String>)
-        ensures
-            self@.uid.is_Some() == uid.is_Some(),
-            uid.is_Some() ==> uid.get_Some_0()@ == int_to_string_view(self@.uid.get_Some_0()),
-    {
-        self.inner.uid.clone()
-    }
-
-    #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
         ensures
             self@.namespace.is_Some() == namespace.is_Some(),
@@ -201,7 +192,7 @@ impl ObjectMeta {
         self.name().is_some()
         && self.namespace().is_some()
         && self.resource_version().is_some()
-        && self.uid().is_some()
+        && self.has_some_uid()
     }
 
     #[verifier(external_body)]
