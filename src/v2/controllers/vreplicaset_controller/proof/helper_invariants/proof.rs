@@ -1106,7 +1106,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
         let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
         let filtered_pods = state.filtered_pods.unwrap();
         &&& triggering_cr.object_ref() == key
-        &&& triggering_cr.metadata().well_formed()
+        &&& triggering_cr.metadata().well_formed_for_namespaced()
         &&& state.filtered_pods.is_Some() ==>
             forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len() ==>
             (
@@ -1617,7 +1617,7 @@ pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_p
         let filtered_pods = state.filtered_pods.unwrap();
         key == vrs.object_ref() ==> {
             &&& triggering_cr.object_ref() == key
-            &&& triggering_cr.metadata().well_formed()
+            &&& triggering_cr.metadata().well_formed_for_namespaced()
             &&& forall |diff: nat| {
                     #[trigger] at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterDeletePod(diff))(s)
                 } ==> {

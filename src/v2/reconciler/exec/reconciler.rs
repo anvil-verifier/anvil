@@ -41,7 +41,7 @@ where
     // and outputs the next local state and the request to send to API server (if any).
     // It conforms to the model's reconcile_core.
     fn reconcile_core(cr: &Self::K, resp_o: Option<Response<Self::EResp>>, state: Self::S) -> (res: (Self::S, Option<Request<Self::EReq>>))
-        requires cr@.metadata().well_formed() && cr@.state_validation(),
+        requires cr@.metadata().well_formed_for_namespaced() && cr@.state_validation(),
         ensures (res.0@, res.1.deep_view()) == Self::M::reconcile_core(cr@, resp_o.deep_view(), state@);
 
     // reconcile_done is used to tell the controller_runtime whether this reconcile round is done.
