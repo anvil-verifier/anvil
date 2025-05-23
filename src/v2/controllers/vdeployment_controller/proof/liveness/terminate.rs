@@ -218,6 +218,7 @@ ensures
         lift_state(after_scale_down_old_vrs_rank(controller_id, vd, (n - 1) as nat))
     );
     // n ~> **(n-1)
+    let pred_n = |s: VDeploymentReconcileState| s.old_vrs_list.len() == n;
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
         spec, vd, controller_id, VDeploymentReconcileStepView::AfterScaleDownOldVRS,
         |s: VDeploymentReconcileState| s.old_vrs_list.len() == n
@@ -236,7 +237,7 @@ ensures
     or_leads_to_combine_and_equality!(
         spec, lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)),
         lift_state(at_step_state_pred(controller_id, vd, VDeploymentReconcileStepView::Error)),
-        lift_state(at_step_and_state_pred(controller_id, vd, VDeploymentReconcileStepView::AfterScaleDownOldVRS, |s: VDeploymentReconcileState| s.old_vrs_list.len() == n));
+        lift_state(at_step_and_state_pred(controller_id, vd, VDeploymentReconcileStepView::AfterScaleDownOldVRS, pred_n));
         lift_state(after_scale_down_old_vrs_rank(controller_id, vd, (n - 1) as nat))
     );
 }
