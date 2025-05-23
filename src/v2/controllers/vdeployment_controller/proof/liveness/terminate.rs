@@ -212,7 +212,7 @@ ensures
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
     VDeploymentView::marshal_preserves_integrity();
-    // Error ~> **(n-1)
+    // Error ~> **(n-1)`
     entails_implies_leads_to(spec,
         lift_state(at_step_state_pred(controller_id, vd, VDeploymentReconcileStepView::Error)),
         lift_state(after_scale_down_old_vrs_rank(controller_id, vd, (n - 1) as nat))
@@ -221,7 +221,7 @@ ensures
     let pred_n = |s: VDeploymentReconcileState| s.old_vrs_list.len() == n;
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
         spec, vd, controller_id, VDeploymentReconcileStepView::AfterScaleDownOldVRS,
-        |s: VDeploymentReconcileState| s.old_vrs_list.len() == n
+        pred_n
     );
     let state_at_n_minus_1 = |s: ReconcileLocalState| {
         let unmarshalled_s = VDeploymentReconcileState::unmarshal(s).unwrap();
@@ -231,9 +231,12 @@ ensures
     };
     cluster.lemma_from_some_state_to_arbitrary_next_state(
         spec, controller_id, vd.marshal(),
-        at_step_and_closure(VDeploymentReconcileStepView::AfterScaleDownOldVRS, |s: VDeploymentReconcileState| s.old_vrs_list.len() == n),
+        at_step_and_closure(VDeploymentReconcileStepView::AfterScaleDownOldVRS, pred_n),
         state_at_n_minus_1
     );
+    assume(spec.entails(lift_state(at_step_and_state_pred(controller_id, vd, VDeploymentReconcileStepView::AfterScaleDownOldVRS, pred_n)).leads_to(
+        lift_state(after_scale_down_old_vrs_rank(controller_id, vd, (n - 1) as nat))
+    )));
     or_leads_to_combine_and_equality!(
         spec, lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)),
         lift_state(at_step_state_pred(controller_id, vd, VDeploymentReconcileStepView::Error)),
