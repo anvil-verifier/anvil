@@ -105,15 +105,30 @@ ensures
         spec, vd, controller_id, VDeploymentReconcileStepView::AfterScaleDownOldVRS, empty_old_vrs_list_pred);
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vd.marshal(),
         at_step_and_closure(VDeploymentReconcileStepView::AfterScaleDownOldVRS, empty_old_vrs_list_pred), state_at_done_or_error_step);
-    // 2.2, AfterScaleDownOldVRS && state.old_vrs_list.len()==n ==> AfterScaleDownOldVRS && state.old_vrs_list.len()==0
+    // 2.2, AfterScaleDownOldVRS && state.old_vrs_list.len()==n ==> idle
     assert forall |n: nat| spec.entails(#[trigger] lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat))
         .leads_to(lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0 as nat)))) by {
+        // n | Error ~> n-1 | Error
         assert forall |n: nat| #![trigger after_scale_down_old_vrs_rank(controller_id, vd, n)]
             n > 0 implies spec.entails(lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat))
                 .leads_to(lift_state(after_scale_down_old_vrs_rank(controller_id, vd, (n - 1) as nat)))) by {
             lemma_from_old_vrs_of_n_to_old_vrs_of_n_minus_1(spec, vd, cluster, controller_id, n);
         }
+        // n ~> n-1 ~> 0
         leads_to_rank_step_one(spec, |n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)));
+        // n ~> n | Error
+        always_implies_to_leads_to(
+            spec, lift_state(at_step_and_state_pred(controller_id, vd, VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+                |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n as nat)),
+            lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)));
+        // n | Error ~> 0 | Error
+        assert(spec.entails((|n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat))
+            .leads_to(lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0 as nat))))));
+        // n | Error ~> 0 | Error ~> reconcile_idle
+        leads_to_trans_n!(
+            spec, lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)),
+            lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0 as nat)),
+            lift_state(reconcile_idle));
     }
     
 }
