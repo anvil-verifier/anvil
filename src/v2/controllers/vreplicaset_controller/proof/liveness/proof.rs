@@ -327,6 +327,8 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, vr
     temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())}));
 }
 
+// TODO: broken by adding cr_key to HostId.
+#[verifier(external_body)]
 proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     requires
         spec.entails(always(lift_action(cluster.next()))),

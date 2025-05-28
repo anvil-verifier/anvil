@@ -95,7 +95,7 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
-            &&& msg.src == HostId::Controller(other_id)
+            &&& msg.src.is_controller_id(other_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::CreateRequest(req) => vrs_rely_create_req(req)(s),
             APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
@@ -150,7 +150,7 @@ pub open spec fn vrs_guarantee(controller_id: int) -> StatePred<ClusterState> {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
-            &&& msg.src == HostId::Controller(controller_id)
+            &&& msg.src.is_controller_id(controller_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vrs_guarantee_create_req(req)(s),

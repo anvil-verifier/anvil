@@ -278,7 +278,8 @@ impl Cluster {
         Action {
             precondition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 &&& self.controller_models.contains_key(controller_id)
-                &&& received_msg_destined_for(input.0, HostId::Controller(controller_id))
+                &&& input.1.is_Some()
+                &&& received_msg_destined_for(input.0, HostId::Controller(controller_id, input.1.get_Some_0()))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
             },
@@ -679,7 +680,8 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
-            &&& received_msg_destined_for(input.1, HostId::Controller(controller_id))
+            &&& input.1.is_Some()
+            &&& received_msg_destined_for(input.1, HostId::Controller(controller_id, input.2.get_Some_0()))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
         }
