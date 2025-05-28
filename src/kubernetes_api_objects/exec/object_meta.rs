@@ -186,13 +186,13 @@ impl ObjectMeta {
         self.inner.deletion_timestamp.is_some()
     }
 
-    #[verifier(external_body)]
-    pub fn well_formed(&self) -> (b: bool)
-        ensures b == self@.well_formed(),
+    pub fn well_formed_for_namespaced(&self) -> (b: bool)
+        ensures b == self@.well_formed_for_namespaced(),
     {
-        self.inner.name.is_some()
-            && self.inner.resource_version.is_some()
-            && self.inner.uid.is_some()
+        self.name().is_some()
+        && self.namespace().is_some()
+        && self.resource_version().is_some()
+        && self.has_some_uid()
     }
 
     #[verifier(external_body)]

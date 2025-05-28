@@ -13,7 +13,7 @@ impl Cluster {
 pub open spec fn etcd_object_is_weakly_well_formed(key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let obj = s.resources()[key];
-        &&& obj.metadata.well_formed()
+        &&& obj.metadata.well_formed_for_namespaced()
         &&& obj.object_ref() == key
         &&& obj.metadata.resource_version.get_Some_0() < s.api_server.resource_version_counter
         &&& obj.metadata.uid.get_Some_0() < s.api_server.uid_counter

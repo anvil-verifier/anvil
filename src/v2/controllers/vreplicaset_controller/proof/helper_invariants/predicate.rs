@@ -216,7 +216,7 @@ pub open spec fn each_vrs_in_reconcile_implies_filtered_pods_owned_by_vrs(contro
                 let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                 let filtered_pods = state.filtered_pods.unwrap();
                 &&& triggering_cr.object_ref() == key
-                &&& triggering_cr.metadata().well_formed()
+                &&& triggering_cr.metadata().well_formed_for_namespaced()
                 &&& state.filtered_pods.is_Some() ==>
                 // Maintained across deletes, 
                 // maintained across creates since all new keys with generate_name
@@ -293,7 +293,7 @@ pub open spec fn at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_
             let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
             let filtered_pods = state.filtered_pods.unwrap();
             &&& triggering_cr.object_ref() == key
-            &&& triggering_cr.metadata().well_formed()
+            &&& triggering_cr.metadata().well_formed_for_namespaced()
             // This portion of the predicate is used elsewhere throughout the proof: maintains an invariant on
             // local state as well as any delete requests sent by that controller.
             &&& forall |diff: nat| {
