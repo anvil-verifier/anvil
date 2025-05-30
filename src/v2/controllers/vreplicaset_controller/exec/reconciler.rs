@@ -304,6 +304,8 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
                         pods@.map_values(|p: Pod| p@) == model_result.unwrap().take(idx as int))
                 &&& forall|i: int| 0 <= i < idx ==> PodView::unmarshal(#[trigger] objs@[i]@).is_ok()
             }),
+        decreases
+            objs.len() - idx,
     {
         let pod_or_error = Pod::unmarshal(objs[idx].clone());
         if pod_or_error.is_ok() {
@@ -381,6 +383,8 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
             idx <= pods.len(),
             filtered_pods@.map_values(|p: Pod| p@)
                 == model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@).take(idx as int), v_replica_set@),
+        decreases
+            pods.len() - idx,
     {
         let pod = &pods[idx];
 

@@ -23,6 +23,8 @@ fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_s
             i <= v.len(),
             r@.to_multiset() =~= v@.subrange(0, i as int).to_multiset().filter(f_spec),
             forall |v:V,r:bool| f.ensures((&v,), r) ==> f_spec(v) == r,
+        decreases
+            v.len() - i,
     {
         proof { lemma_seq_properties::<V>(); }
         let ghost pre_r = r@.to_multiset();
