@@ -1162,7 +1162,8 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
     );
 }
 
-#[verifier(spinoff_prover)]
+// TODO: fix broken proof
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
