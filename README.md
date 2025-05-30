@@ -7,7 +7,7 @@ Anvil is a framework for building and formally verifying Kubernetes controllers.
 
 So far, we have built and verified three Kubernetes controllers (for managing ZooKeeper, RabbitMQ and FluentBit) using Anvil. We used the [Pravega ZooKeeper operator](https://github.com/pravega/zookeeper-operator), [official RabbitMQ operator](https://github.com/rabbitmq/cluster-operator) and [official Fluent operator](https://github.com/fluent/fluent-operator) as references when building our controllers. We are now using Anvil to build (and verify) more controllers, including Kubernetes built-in controllers.
 
-For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/v2/controllers/). To use Anvil, you will need to install [Verus](https://github.com/verus-lang/verus) (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)). Currently Anvil uses Verus version `6b278074651d520825ea62fe2079ed1e3959cb69`.
+For now, the best way to use Anvil is to download the source code and import its components into your controller projects, like what we did for our controller [examples](src/v2/controllers/). To use Anvil, you will need to install [Verus](https://github.com/verus-lang/verus) (See the [installation instructions](https://github.com/verus-lang/verus/blob/main/INSTALL.md)). Currently Anvil uses Verus version `3b6b805ac`.
 
 If you want to reproduce the results in the OSDI'24 paper "Anvil: Verifying Liveness of Cluster Management Controllers", please refer to the [osdi24](https://github.com/anvil-verifier/anvil/tree/osdi24) branch.
 
