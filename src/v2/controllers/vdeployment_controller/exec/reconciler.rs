@@ -345,7 +345,7 @@ ensures
         }
     }
 
-    while idx < objs.len()
+    for idx in 0..objs.len()
     invariant
         idx <= objs.len(),
         ({
@@ -354,8 +354,6 @@ ensures
                 vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
             &&& forall|i: int| 0 <= i < idx ==> VReplicaSetView::unmarshal(#[trigger] objs@[i]@).is_ok()
         }),
-    decreases
-        objs.len() - idx,
     {
         match VReplicaSet::unmarshal(objs[idx].clone()) {
             Ok(vrs) => {
@@ -388,7 +386,6 @@ ensures
                 return None;
             }
         }
-        idx += 1;
     }
 
     proof {
@@ -429,14 +426,12 @@ ensures
         );
     }
 
-    while idx < vrs_list.len()
+    for idx in 0..vrs_list.len()
     invariant
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
             == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
         forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
-    decreases
-        vrs_list.len() - idx,
     {
         let vrs = &vrs_list[idx];
         if vrs.metadata().owner_references_contains(&vd.controller_owner_ref())
@@ -461,8 +456,6 @@ ensures
                    == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
             assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_filtered_vrs_list.push(vrs@));
         }
-
-        idx += 1;
     }
     assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int));
     filtered_vrs_list
@@ -497,7 +490,7 @@ ensures
         assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed());
     }
 
-    while idx < vrs_list.len()
+    for idx in 0..vrs_list.len()
     invariant
         vd@.well_formed(),
         // again here, we can't put idx in invariants as "not proven before loop starts"
@@ -510,8 +503,6 @@ ensures
         old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
         forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed(),
         forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed(),
-    decreases
-        vrs_list.len() - idx,
     {
         let vrs = &vrs_list[idx];
         assert(vrs@.well_formed());
@@ -549,8 +540,6 @@ ensures
             assert(new_spec_filter(vrs@) ==> new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_new_vrs_list.push(vrs@));
             assert(old_spec_filter(vrs@) ==> old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_old_vrs_list.push(vrs@));
         }
-
-        idx += 1;
     }
     assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int));
     (new_vrs_list, old_vrs_list)

@@ -294,8 +294,8 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             );
         }
     }
-
-    while idx < objs.len()
+    
+    for idx in 0..objs.len()
         invariant
             idx <= objs.len(),
             ({
@@ -304,8 +304,6 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
                         pods@.map_values(|p: Pod| p@) == model_result.unwrap().take(idx as int))
                 &&& forall|i: int| 0 <= i < idx ==> PodView::unmarshal(#[trigger] objs@[i]@).is_ok()
             }),
-        decreases
-            objs.len() - idx,
     {
         let pod_or_error = Pod::unmarshal(objs[idx].clone());
         if pod_or_error.is_ok() {
@@ -336,7 +334,6 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             }
             return None;
         }
-        idx = idx + 1;
     }
 
     proof {
@@ -378,13 +375,11 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
         );
     }
 
-    while idx < pods.len()
+    for idx in 0..pods.len()
         invariant
             idx <= pods.len(),
             filtered_pods@.map_values(|p: Pod| p@)
                 == model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@).take(idx as int), v_replica_set@),
-        decreases
-            pods.len() - idx,
     {
         let pod = &pods[idx];
 
@@ -414,8 +409,6 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
                    == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
             assert(spec_filter(pod@) ==> filtered_pods@.map_values(|p: Pod| p@) == old_filtered.push(pod@));
         }
-
-        idx = idx + 1;
     }
     assert(pods@.map_values(|p: Pod| p@) == pods@.map_values(|p: Pod| p@).take(pods.len() as int));
     filtered_pods

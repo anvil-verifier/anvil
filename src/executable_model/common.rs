@@ -369,11 +369,10 @@ impl Role {
             let policy_rules = self.rules().unwrap();
             let mut all_valid = true;
             let mut i = 0;
-            while i < policy_rules.len()
+            for i in 0..policy_rules.len()
                 invariant
                     all_valid == (forall |j| #![trigger policy_rules[j]] 0 <= j < i ==> policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)[j].state_validation()),
                     i <= policy_rules.len(),
-                decreases policy_rules.len() - i,
             {
                 all_valid = all_valid && policy_rules[i].state_validation();
                 i += 1;
@@ -473,7 +472,7 @@ impl StatefulSet {
                     proof { assert(!(self@.spec.get_Some_0().volume_claim_templates.get_Some_0() =~= old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0())) }
                     false
                 } else {
-                    while i < new_volume_claim_templates.len()
+                    for i in 0..new_volume_claim_templates.len()
                         invariant
                             all_equal == (forall |j| #![trigger new_volume_claim_templates[j]]
                                 0 <= j < i
@@ -481,10 +480,8 @@ impl StatefulSet {
                             ),
                             i <= new_volume_claim_templates.len(),
                             new_volume_claim_templates.len() == old_volume_claim_templates.len(),
-                        decreases new_volume_claim_templates.len() - i,
                     {
                         all_equal = all_equal && new_volume_claim_templates[i].eq(&old_volume_claim_templates[i]);
-                        i += 1;
                     }
                     proof { assert(all_equal == (self@.spec.get_Some_0().volume_claim_templates =~= old_obj@.spec.get_Some_0().volume_claim_templates)) }
                     all_equal
