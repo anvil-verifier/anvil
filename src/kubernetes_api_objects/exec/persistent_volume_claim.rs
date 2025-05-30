@@ -58,7 +58,7 @@ pub struct PersistentVolumeClaimSpec {
 }
 
 impl PersistentVolumeClaimSpec {
-    pub spec fn view(&self) -> PersistentVolumeClaimSpecView;
+    pub uninterp spec fn view(&self) -> PersistentVolumeClaimSpecView;
 
     #[verifier(external_body)]
     pub fn default() -> (pvc_spec: PersistentVolumeClaimSpec)

@@ -272,19 +272,19 @@ use super::*;
 
 // Here is an example on how to use HorizontalComposition and VerticalComposition to compose controllers.
 
-pub spec fn cook_controllers() -> Seq<ControllerModel>;
-pub spec fn cook_property(i: int) -> TempPred<ClusterState>;
-pub spec fn cook_cluster_condition(i: int) -> spec_fn(Cluster) -> bool;
-pub spec fn cook_fairness_condition(i: int) -> TempPred<ClusterState>;
-pub spec fn cook_non_interference_condition(i: int) -> spec_fn(good_citizen_id: int) -> StatePred<ClusterState>;
+pub uninterp spec fn cook_controllers() -> Seq<ControllerModel>;
+pub uninterp spec fn cook_property(i: int) -> TempPred<ClusterState>;
+pub uninterp spec fn cook_cluster_condition(i: int) -> spec_fn(Cluster) -> bool;
+pub uninterp spec fn cook_fairness_condition(i: int) -> TempPred<ClusterState>;
+pub uninterp spec fn cook_non_interference_condition(i: int) -> spec_fn(good_citizen_id: int) -> StatePred<ClusterState>;
 
-pub spec fn waiter_controller() -> ControllerModel;
-pub spec fn waiter_cluster_condition() -> spec_fn(Cluster) -> bool;
-pub spec fn waiter_fairness_condition() -> TempPred<ClusterState>;
-pub spec fn waiter_property() -> TempPred<ClusterState>;
-pub spec fn waiter_non_interference_condition() -> spec_fn(good_citizen_id: int) -> StatePred<ClusterState>;
+pub uninterp spec fn waiter_controller() -> ControllerModel;
+pub uninterp spec fn waiter_cluster_condition() -> spec_fn(Cluster) -> bool;
+pub uninterp spec fn waiter_fairness_condition() -> TempPred<ClusterState>;
+pub uninterp spec fn waiter_property() -> TempPred<ClusterState>;
+pub uninterp spec fn waiter_non_interference_condition() -> spec_fn(good_citizen_id: int) -> StatePred<ClusterState>;
 
-pub spec fn waiter_and_cooks_installed_types() -> InstalledTypes;
+pub uninterp spec fn waiter_and_cooks_installed_types() -> InstalledTypes;
 
 pub open spec fn waiter_and_cooks() -> Cluster {
     Cluster {

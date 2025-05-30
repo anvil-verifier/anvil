@@ -138,7 +138,7 @@ pub struct VoidEReq {}
 impl View for VoidEReq {
     type V = VoidEReqView;
 
-    spec fn view(&self) -> VoidEReqView;
+    uninterp spec fn view(&self) -> VoidEReqView;
 }
 
 pub struct VoidEResp {}
@@ -146,7 +146,7 @@ pub struct VoidEResp {}
 impl View for VoidEResp {
     type V = VoidERespView;
 
-    spec fn view(&self) -> VoidERespView;
+    uninterp spec fn view(&self) -> VoidERespView;
 }
 
 #[macro_export]

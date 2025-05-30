@@ -107,13 +107,13 @@ impl ResourceView for StatefulSetView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: Option<StatefulSetSpecView>) -> Value;
+    uninterp spec fn marshal_spec(s: Option<StatefulSetSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<StatefulSetStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<StatefulSetStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<StatefulSetStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<StatefulSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

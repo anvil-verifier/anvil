@@ -21,7 +21,7 @@ pub struct OwnerReference {
 }
 
 impl OwnerReference {
-    pub spec fn view(&self) -> OwnerReferenceView;
+    pub uninterp spec fn view(&self) -> OwnerReferenceView;
 
     #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)

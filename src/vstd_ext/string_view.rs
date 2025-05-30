@@ -23,7 +23,7 @@ pub fn i32_to_string(i: i32) -> (s: String)
     i.to_string()
 }
 
-pub spec fn int_to_string_view(i: int) -> StringView;
+pub uninterp spec fn int_to_string_view(i: int) -> StringView;
 
 #[verifier(external_body)]
 pub proof fn int_to_string_view_injectivity()
@@ -37,7 +37,7 @@ pub fn bool_to_string(b: bool) -> (s: String)
     b.to_string()
 }
 
-pub spec fn bool_to_string_view(b: bool) -> StringView;
+pub uninterp spec fn bool_to_string_view(b: bool) -> StringView;
 
 #[verifier(external_body)]
 pub proof fn bool_to_string_view_injectivity()

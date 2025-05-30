@@ -589,13 +589,13 @@ impl ResourceView for SimpleCRView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<SimpleCRStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<SimpleCRStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -626,7 +626,7 @@ pub struct SimpleCR {}
 impl View for SimpleCR {
     type V = SimpleCRView;
 
-    spec fn view(&self) -> SimpleCRView;
+    uninterp spec fn view(&self) -> SimpleCRView;
 }
 
 impl CustomResource for SimpleCR {

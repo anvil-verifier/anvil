@@ -105,13 +105,13 @@ impl ResourceView for DaemonSetView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
+    uninterp spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<DaemonSetStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<DaemonSetStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

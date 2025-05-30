@@ -10,17 +10,17 @@ use vstd::prelude::*;
 verus! {
 
 pub trait Maker {
-    spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef;
-    spec fn make_role_key(fb: FluentBitView) -> ObjectRef;
-    spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef;
-    spec fn make_service_key(fb: FluentBitView) -> ObjectRef;
-    spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef;
+    uninterp spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef;
+    uninterp spec fn make_role_key(fb: FluentBitView) -> ObjectRef;
+    uninterp spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef;
+    uninterp spec fn make_service_key(fb: FluentBitView) -> ObjectRef;
+    uninterp spec fn make_daemon_set_key(fb: FluentBitView) -> ObjectRef;
 
-    spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView;
-    spec fn make_role(fb: FluentBitView) -> RoleView;
-    spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView;
-    spec fn make_service(fb: FluentBitView) -> ServiceView;
-    spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView;
+    uninterp spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView;
+    uninterp spec fn make_role(fb: FluentBitView) -> RoleView;
+    uninterp spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView;
+    uninterp spec fn make_service(fb: FluentBitView) -> ServiceView;
+    uninterp spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView;
 }
 
 }

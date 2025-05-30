@@ -106,13 +106,13 @@ impl ResourceView for ServiceView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: Option<ServiceSpecView>) -> Value;
+    uninterp spec fn marshal_spec(s: Option<ServiceSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<ServiceStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<ServiceStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<ServiceStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<ServiceStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

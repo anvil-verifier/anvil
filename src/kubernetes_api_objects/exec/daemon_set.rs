@@ -52,7 +52,7 @@ pub struct DaemonSetSpec {
 }
 
 impl DaemonSetSpec {
-    pub spec fn view(&self) -> DaemonSetSpecView;
+    pub uninterp spec fn view(&self) -> DaemonSetSpecView;
 
     #[verifier(external_body)]
     pub fn default() -> (daemon_set_spec: DaemonSetSpec)
@@ -103,7 +103,7 @@ pub struct DaemonSetStatus {
 }
 
 impl DaemonSetStatus {
-    pub spec fn view(&self) -> DaemonSetStatusView;
+    pub uninterp spec fn view(&self) -> DaemonSetStatusView;
 
     #[verifier(external_body)]
     pub fn number_ready(&self) -> (number_ready: i32)

@@ -43,7 +43,7 @@ pub struct VStatefulSet {
 impl View for VStatefulSet {
     type V = spec_types::VStatefulSetView;
 
-    spec fn view(&self) -> spec_types::VStatefulSetView;
+    uninterp spec fn view(&self) -> spec_types::VStatefulSetView;
 }
 
 impl VStatefulSet {
@@ -235,7 +235,7 @@ pub struct VStatefulSetSpec {
 }
 
 impl VStatefulSetSpec {
-    pub spec fn view(&self) -> spec_types::VStatefulSetSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::VStatefulSetSpecView;
 
     #[verifier(external_body)]
     pub fn service_name(&self) -> (service_name: String)
@@ -343,7 +343,7 @@ pub struct StatefulSetUpdateStrategy {
 }
 
 impl StatefulSetUpdateStrategy {
-    pub spec fn view(&self) -> spec_types::StatefulSetUpdateStrategyView;
+    pub uninterp spec fn view(&self) -> spec_types::StatefulSetUpdateStrategyView;
 
     #[verifier(external_body)]
     pub fn default() -> (strategy: StatefulSetUpdateStrategy)
@@ -403,7 +403,7 @@ pub struct RollingUpdateStatefulSetStrategy {
 }
 
 impl RollingUpdateStatefulSetStrategy {
-    pub spec fn view(&self) -> spec_types::RollingUpdateStatefulSetStrategyView;
+    pub uninterp spec fn view(&self) -> spec_types::RollingUpdateStatefulSetStrategyView;
 
     #[verifier(external_body)]
     pub fn default() -> (rolling_update: RollingUpdateStatefulSetStrategy)
@@ -471,7 +471,7 @@ pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
 }
 
 impl StatefulSetPersistentVolumeClaimRetentionPolicy {
-    pub spec fn view(&self) -> spec_types::StatefulSetPersistentVolumeClaimRetentionPolicyView;
+    pub uninterp spec fn view(&self) -> spec_types::StatefulSetPersistentVolumeClaimRetentionPolicyView;
 
     #[verifier(external_body)]
     pub fn default() -> (policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
@@ -528,7 +528,7 @@ pub struct StatefulSetOrdinals {
 }
 
 impl StatefulSetOrdinals {
-    pub spec fn view(&self) -> spec_types::StatefulSetOrdinalsView;
+    pub uninterp spec fn view(&self) -> spec_types::StatefulSetOrdinalsView;
 
     #[verifier(external_body)]
     pub fn default() -> (ordinals: StatefulSetOrdinals)

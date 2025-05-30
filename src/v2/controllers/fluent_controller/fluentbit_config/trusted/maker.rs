@@ -10,9 +10,9 @@ use vstd::prelude::*;
 verus! {
 
 pub trait Maker {
-    spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef;
+    uninterp spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef;
 
-    spec fn make_secret(fbc: FluentBitConfigView) -> SecretView;
+    uninterp spec fn make_secret(fbc: FluentBitConfigView) -> SecretView;
 }
 
 }

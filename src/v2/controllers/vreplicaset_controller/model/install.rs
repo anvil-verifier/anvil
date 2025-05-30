@@ -10,9 +10,9 @@ use vstd::prelude::*;
 verus! {
 
 impl Marshallable for VReplicaSetReconcileState {
-    spec fn marshal(self) -> Value;
+    uninterp spec fn marshal(self) -> Value;
 
-    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
+    uninterp spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()

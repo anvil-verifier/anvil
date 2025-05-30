@@ -11,9 +11,9 @@ pub struct VoidEReqView {}
 pub struct VoidERespView {}
 
 impl Marshallable for VoidEReqView {
-    spec fn marshal(self) -> Value;
+    uninterp spec fn marshal(self) -> Value;
 
-    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
+    uninterp spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()
@@ -22,9 +22,9 @@ impl Marshallable for VoidEReqView {
 }
 
 impl Marshallable for VoidERespView {
-    spec fn marshal(self) -> Value;
+    uninterp spec fn marshal(self) -> Value;
 
-    spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
+    uninterp spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()

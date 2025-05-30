@@ -23,7 +23,7 @@ pub struct LabelSelector {
 
 impl LabelSelector {
 
-    pub spec fn view(&self) -> LabelSelectorView;
+    pub uninterp spec fn view(&self) -> LabelSelectorView;
 
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)

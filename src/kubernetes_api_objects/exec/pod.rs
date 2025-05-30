@@ -165,7 +165,7 @@ pub struct PodSecurityContext {
 impl View for PodSecurityContext {
     type V = PodSecurityContextView;
 
-    spec fn view(&self) -> PodSecurityContextView;
+    uninterp spec fn view(&self) -> PodSecurityContextView;
 }
 
 #[verifier(external_body)]
@@ -176,7 +176,7 @@ pub struct LocalObjectReference {
 impl View for LocalObjectReference {
     type V = LocalObjectReferenceView;
 
-    spec fn view(&self) -> LocalObjectReferenceView;
+    uninterp spec fn view(&self) -> LocalObjectReferenceView;
 }
 
 }

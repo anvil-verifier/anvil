@@ -60,7 +60,7 @@ pub struct ZookeeperCluster {
 impl View for ZookeeperCluster {
     type V = spec_types::ZookeeperClusterView;
 
-    spec fn view(&self) -> spec_types::ZookeeperClusterView;
+    uninterp spec fn view(&self) -> spec_types::ZookeeperClusterView;
 }
 
 impl ZookeeperCluster {
@@ -147,7 +147,7 @@ pub struct ZookeeperClusterSpec {
 }
 
 impl ZookeeperClusterSpec {
-    pub spec fn view(&self) -> spec_types::ZookeeperClusterSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::ZookeeperClusterSpecView;
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: i32)
@@ -248,7 +248,7 @@ pub struct ZookeeperPorts {
 }
 
 impl ZookeeperPorts {
-    pub spec fn view(&self) -> spec_types::ZookeeperPortsView;
+    pub uninterp spec fn view(&self) -> spec_types::ZookeeperPortsView;
 
     #[verifier(external_body)]
     pub fn client(&self) -> (client: i32)
@@ -292,7 +292,7 @@ pub struct ZookeeperConfig {
 }
 
 impl ZookeeperConfig {
-    pub spec fn view(&self) -> spec_types::ZookeeperConfigView;
+    pub uninterp spec fn view(&self) -> spec_types::ZookeeperConfigView;
 
     #[verifier(external_body)]
     pub fn init_limit(&self) -> (init_limit: i32)
@@ -406,7 +406,7 @@ pub struct ZookeeperPersistence {
 }
 
 impl ZookeeperPersistence {
-    pub spec fn view(&self) -> spec_types::ZookeeperPersistenceView;
+    pub uninterp spec fn view(&self) -> spec_types::ZookeeperPersistenceView;
 
     #[verifier(external_body)]
     pub fn enabled(&self) -> (enabled: bool)
@@ -436,7 +436,7 @@ pub struct ZookeeperClusterStatus {
 }
 
 impl ZookeeperClusterStatus {
-    pub spec fn view(&self) -> spec_types::ZookeeperClusterStatusView;
+    pub uninterp spec fn view(&self) -> spec_types::ZookeeperClusterStatusView;
 
     #[verifier(external_body)]
     pub fn default() -> (status: ZookeeperClusterStatus)

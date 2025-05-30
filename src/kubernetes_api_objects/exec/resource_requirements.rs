@@ -13,7 +13,7 @@ pub struct ResourceRequirements {
 }
 
 impl ResourceRequirements {
-    pub spec fn view(&self) -> ResourceRequirementsView;
+    pub uninterp spec fn view(&self) -> ResourceRequirementsView;
 
     #[verifier(external_body)]
     pub fn default() -> (resource_requirements: ResourceRequirements)

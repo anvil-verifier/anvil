@@ -17,7 +17,7 @@ pub struct ObjectMap {
 }
 
 impl ObjectMap {
-    pub spec fn view(&self) -> StoredState;
+    pub uninterp spec fn view(&self) -> StoredState;
 
     #[verifier(external_body)]
     pub fn new() -> (m: Self)

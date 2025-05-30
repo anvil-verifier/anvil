@@ -20,7 +20,7 @@ pub struct Affinity {
 }
 
 impl Affinity {
-    pub spec fn view(&self) -> AffinityView;
+    pub uninterp spec fn view(&self) -> AffinityView;
 }
 
 }

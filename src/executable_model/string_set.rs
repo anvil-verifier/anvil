@@ -13,7 +13,7 @@ pub struct StringSet {
 }
 
 impl StringSet {
-    pub spec fn view(&self) -> Set::<StringView>;
+    pub uninterp spec fn view(&self) -> Set::<StringView>;
 
     #[verifier(external_body)]
     pub fn new() -> (m: Self)

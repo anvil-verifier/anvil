@@ -110,13 +110,13 @@ impl ResourceView for VReplicaSetView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: VReplicaSetSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: VReplicaSetSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<VReplicaSetSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<VReplicaSetSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<VReplicaSetStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<VReplicaSetStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<VReplicaSetStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<VReplicaSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

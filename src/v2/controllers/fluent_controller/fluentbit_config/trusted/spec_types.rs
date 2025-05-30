@@ -115,13 +115,13 @@ impl ResourceView for FluentBitConfigView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: FluentBitConfigSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: FluentBitConfigSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitConfigSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<FluentBitConfigSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<FluentBitConfigStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<FluentBitConfigStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<FluentBitConfigStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<FluentBitConfigStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

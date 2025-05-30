@@ -46,7 +46,7 @@ pub struct PolicyRule {
 }
 
 impl PolicyRule {
-    pub spec fn view(&self) -> PolicyRuleView;
+    pub uninterp spec fn view(&self) -> PolicyRuleView;
 
     #[verifier(external_body)]
     pub fn default() -> (policy_rule: PolicyRule)

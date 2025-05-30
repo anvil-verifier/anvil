@@ -12,7 +12,7 @@ pub struct Volume {
 }
 
 impl Volume {
-    pub spec fn view(&self) -> VolumeView;
+    pub uninterp spec fn view(&self) -> VolumeView;
 
     #[verifier(external_body)]
     pub fn default() -> (volume: Volume)
@@ -88,7 +88,7 @@ pub struct EmptyDirVolumeSource {
 }
 
 impl EmptyDirVolumeSource {
-    pub spec fn view(&self) -> EmptyDirVolumeSourceView;
+    pub uninterp spec fn view(&self) -> EmptyDirVolumeSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (empty_dir_volum_source: EmptyDirVolumeSource)
@@ -113,7 +113,7 @@ pub struct HostPathVolumeSource {
 }
 
 impl HostPathVolumeSource {
-    pub spec fn view(&self) -> HostPathVolumeSourceView;
+    pub uninterp spec fn view(&self) -> HostPathVolumeSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (host_path_volume_source: HostPathVolumeSource)
@@ -143,7 +143,7 @@ pub struct ConfigMapVolumeSource {
 }
 
 impl ConfigMapVolumeSource {
-    pub spec fn view(&self) -> ConfigMapVolumeSourceView;
+    pub uninterp spec fn view(&self) -> ConfigMapVolumeSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (config_map_volume_source: ConfigMapVolumeSource)
@@ -173,7 +173,7 @@ pub struct SecretVolumeSource {
 }
 
 impl SecretVolumeSource {
-    pub spec fn view(&self) -> SecretVolumeSourceView;
+    pub uninterp spec fn view(&self) -> SecretVolumeSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (secret_volume_source: SecretVolumeSource)
@@ -205,7 +205,7 @@ pub struct ProjectedVolumeSource {
 }
 
 impl ProjectedVolumeSource {
-    pub spec fn view(&self) -> ProjectedVolumeSourceView;
+    pub uninterp spec fn view(&self) -> ProjectedVolumeSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (projected_volume_source: ProjectedVolumeSource)
@@ -235,7 +235,7 @@ pub struct VolumeProjection {
 }
 
 impl VolumeProjection {
-    pub spec fn view(&self) -> VolumeProjectionView;
+    pub uninterp spec fn view(&self) -> VolumeProjectionView;
 
     #[verifier(external_body)]
     pub fn default() -> (volume_projection: VolumeProjection)
@@ -265,7 +265,7 @@ pub struct ConfigMapProjection {
 }
 
 impl ConfigMapProjection {
-    pub spec fn view(&self) -> ConfigMapProjectionView;
+    pub uninterp spec fn view(&self) -> ConfigMapProjectionView;
 
     #[verifier(external_body)]
     pub fn default() -> (config_map_projection: ConfigMapProjection)
@@ -302,7 +302,7 @@ pub struct SecretProjection {
 }
 
 impl SecretProjection {
-    pub spec fn view(&self) -> SecretProjectionView;
+    pub uninterp spec fn view(&self) -> SecretProjectionView;
 
     #[verifier(external_body)]
     pub fn default() -> (secret_projection: SecretProjection)
@@ -339,7 +339,7 @@ pub struct KeyToPath {
 }
 
 impl KeyToPath {
-    pub spec fn view(&self) -> KeyToPathView;
+    pub uninterp spec fn view(&self) -> KeyToPathView;
 
     #[verifier(external_body)]
     pub fn default() -> (key_to_path: KeyToPath)
@@ -369,7 +369,7 @@ pub struct DownwardAPIVolumeSource {
 }
 
 impl DownwardAPIVolumeSource {
-    pub spec fn view(&self) -> DownwardAPIVolumeSourceView;
+    pub uninterp spec fn view(&self) -> DownwardAPIVolumeSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (downward_api_volume_source: DownwardAPIVolumeSource)
@@ -399,7 +399,7 @@ pub struct DownwardAPIVolumeFile {
 }
 
 impl DownwardAPIVolumeFile {
-    pub spec fn view(&self) -> DownwardAPIVolumeFileView;
+    pub uninterp spec fn view(&self) -> DownwardAPIVolumeFileView;
 
     #[verifier(external_body)]
     pub fn default() -> (downward_api_volume_file: DownwardAPIVolumeFile)
@@ -429,7 +429,7 @@ pub struct ObjectFieldSelector {
 }
 
 impl ObjectFieldSelector {
-    pub spec fn view(&self) -> ObjectFieldSelectorView;
+    pub uninterp spec fn view(&self) -> ObjectFieldSelectorView;
 
     #[verifier(external_body)]
     pub fn default() -> (object_field_selector: ObjectFieldSelector)

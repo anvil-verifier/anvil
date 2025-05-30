@@ -13,7 +13,7 @@ pub struct Container {
 }
 
 impl Container {
-    pub spec fn view(&self) -> ContainerView;
+    pub uninterp spec fn view(&self) -> ContainerView;
 
     #[verifier(external_body)]
     pub fn default() -> (container: Container)
@@ -131,7 +131,7 @@ pub struct ContainerPort {
 }
 
 impl ContainerPort {
-    pub spec fn view(&self) -> ContainerPortView;
+    pub uninterp spec fn view(&self) -> ContainerPortView;
 
     #[verifier(external_body)]
     pub fn default() -> (container_port: ContainerPort)
@@ -192,7 +192,7 @@ pub struct VolumeMount {
 }
 
 impl VolumeMount {
-    pub spec fn view(&self) -> VolumeMountView;
+    pub uninterp spec fn view(&self) -> VolumeMountView;
 
     #[verifier(external_body)]
     pub fn default() -> (volume_mount: VolumeMount)
@@ -253,7 +253,7 @@ pub struct Probe {
 }
 
 impl Probe {
-    pub spec fn view(&self) -> ProbeView;
+    pub uninterp spec fn view(&self) -> ProbeView;
 
     #[verifier(external_body)]
     pub fn default() -> (probe: Probe)
@@ -325,7 +325,7 @@ pub struct ExecAction {
 }
 
 impl ExecAction {
-    pub spec fn view(&self) -> ExecActionView;
+    pub uninterp spec fn view(&self) -> ExecActionView;
 
     #[verifier(external_body)]
     pub fn default() -> (exec_action: ExecAction)
@@ -355,7 +355,7 @@ pub struct TCPSocketAction {
 }
 
 impl TCPSocketAction {
-    pub spec fn view(&self) -> TCPSocketActionView;
+    pub uninterp spec fn view(&self) -> TCPSocketActionView;
 
     #[verifier(external_body)]
     pub fn default() -> (tcp_socket_action: TCPSocketAction)
@@ -392,7 +392,7 @@ pub struct Lifecycle {
 }
 
 impl Lifecycle {
-    pub spec fn view(&self) -> LifecycleView;
+    pub uninterp spec fn view(&self) -> LifecycleView;
 
     #[verifier(external_body)]
     pub fn default() -> (lifecycle: Lifecycle)
@@ -422,7 +422,7 @@ pub struct LifecycleHandler {
 }
 
 impl LifecycleHandler {
-    pub spec fn view(&self) -> LifecycleHandlerView;
+    pub uninterp spec fn view(&self) -> LifecycleHandlerView;
 
     #[verifier(external_body)]
     pub fn default() -> (lifecycle_handler: LifecycleHandler)
@@ -452,7 +452,7 @@ pub struct EnvVar {
 }
 
 impl EnvVar {
-    pub spec fn view(&self) -> EnvVarView;
+    pub uninterp spec fn view(&self) -> EnvVarView;
 
     #[verifier(external_body)]
     pub fn default() -> (env_var: EnvVar)
@@ -519,7 +519,7 @@ pub struct EnvVarSource {
 }
 
 impl EnvVarSource {
-    pub spec fn view(&self) -> EnvVarSourceView;
+    pub uninterp spec fn view(&self) -> EnvVarSourceView;
 
     #[verifier(external_body)]
     pub fn default() -> (env_var_source: EnvVarSource)
@@ -553,7 +553,7 @@ pub struct SecurityContext {
 }
 
 impl SecurityContext {
-    pub spec fn view(&self) -> SecurityContextView;
+    pub uninterp spec fn view(&self) -> SecurityContextView;
 }
 
 }

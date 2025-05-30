@@ -100,13 +100,13 @@ impl ResourceView for SecretView {
 
     proof fn marshal_preserves_kind() {}
 
-    open spec fn marshal_spec(s: SecretSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: SecretSpecView) -> Value;
 
-    open spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: EmptyStatusView) -> Value;
+    uninterp spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

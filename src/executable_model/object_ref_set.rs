@@ -14,7 +14,7 @@ pub struct ObjectRefSet {
 }
 
 impl ObjectRefSet {
-    pub spec fn view(&self) -> Set::<ObjectRef>;
+    pub uninterp spec fn view(&self) -> Set::<ObjectRef>;
 
     #[verifier(external_body)]
     pub fn new() -> (m: Self)
