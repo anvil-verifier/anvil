@@ -14,7 +14,7 @@ pub struct Preconditions {
 impl View for Preconditions {
     type V = PreconditionsView;
 
-    spec fn view(&self) -> PreconditionsView;
+    uninterp spec fn view(&self) -> PreconditionsView;
 }
 
 implement_deep_view_trait!(Preconditions, PreconditionsView);

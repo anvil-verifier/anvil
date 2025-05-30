@@ -20,7 +20,7 @@ pub struct Toleration {
 }
 
 impl Toleration {
-    pub spec fn view(&self) -> TolerationView;
+    pub uninterp spec fn view(&self) -> TolerationView;
 }
 
 }

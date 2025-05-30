@@ -61,7 +61,7 @@ pub struct RabbitmqCluster {
 impl View for RabbitmqCluster {
     type V = spec_types::RabbitmqClusterView;
 
-    spec fn view(&self) -> spec_types::RabbitmqClusterView;
+    uninterp spec fn view(&self) -> spec_types::RabbitmqClusterView;
 }
 
 impl RabbitmqCluster {
@@ -132,7 +132,7 @@ pub struct RabbitmqClusterSpec {
 }
 
 impl RabbitmqClusterSpec {
-    pub spec fn view(&self) -> spec_types::RabbitmqClusterSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::RabbitmqClusterSpecView;
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: i32)
@@ -243,7 +243,7 @@ pub struct RabbitmqConfig {
 }
 
 impl RabbitmqConfig {
-    pub spec fn view(&self) -> spec_types::RabbitmqConfigView;
+    pub uninterp spec fn view(&self) -> spec_types::RabbitmqConfigView;
 
     #[verifier(external_body)]
     pub fn additional_config(&self) -> (additional_config: Option<String>)
@@ -279,7 +279,7 @@ pub struct RabbitmqClusterPersistenceSpec {
 }
 
 impl RabbitmqClusterPersistenceSpec {
-    pub spec fn view(&self) -> spec_types::RabbitmqClusterPersistenceSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::RabbitmqClusterPersistenceSpecView;
 
     #[verifier(external_body)]
     pub fn storage(&self) -> (storage: String)

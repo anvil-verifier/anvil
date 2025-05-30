@@ -17,7 +17,7 @@ fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_s
     let mut r = Vec::new();
     let mut i = 0;
     proof { lemma_seq_properties::<V>(); }
-    while i < v.len()
+    for i in 0..v.len()
         invariant
             forall|v: V| #[trigger] f.requires((&v,)),
             i <= v.len(),
@@ -33,8 +33,6 @@ fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_s
         if f(&v[i]) {
             r.push(v[i].verus_clone());
         }
-
-        i += 1;
     }
     r
 }

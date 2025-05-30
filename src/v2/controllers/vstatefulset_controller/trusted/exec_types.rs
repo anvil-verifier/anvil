@@ -43,7 +43,7 @@ pub struct VStatefulSet {
 impl View for VStatefulSet {
     type V = spec_types::VStatefulSetView;
 
-    spec fn view(&self) -> spec_types::VStatefulSetView;
+    uninterp spec fn view(&self) -> spec_types::VStatefulSetView;
 }
 
 impl VStatefulSet {
@@ -157,7 +157,7 @@ impl VStatefulSet {
             let mut idx: usize = 0;
             let ghost mut vct_view: Seq<PersistentVolumeClaimView> = Seq::new(vct.len() as nat,|i: int| vct[i]@);
             assert(vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view);
-            while idx < vct.len()
+            for idx in 0..vct.len()
                 invariant
                     0 <= idx <= vct.len(),
                     forall |i: int| 0 <= i < idx ==> #[trigger] vct[i]@.state_validation(),
@@ -170,7 +170,6 @@ impl VStatefulSet {
                 if !pvc_sv {
                     return false;
                 }
-                idx += 1;
             }
         }
 
@@ -235,7 +234,7 @@ pub struct VStatefulSetSpec {
 }
 
 impl VStatefulSetSpec {
-    pub spec fn view(&self) -> spec_types::VStatefulSetSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::VStatefulSetSpecView;
 
     #[verifier(external_body)]
     pub fn service_name(&self) -> (service_name: String)
@@ -343,7 +342,7 @@ pub struct StatefulSetUpdateStrategy {
 }
 
 impl StatefulSetUpdateStrategy {
-    pub spec fn view(&self) -> spec_types::StatefulSetUpdateStrategyView;
+    pub uninterp spec fn view(&self) -> spec_types::StatefulSetUpdateStrategyView;
 
     #[verifier(external_body)]
     pub fn default() -> (strategy: StatefulSetUpdateStrategy)
@@ -403,7 +402,7 @@ pub struct RollingUpdateStatefulSetStrategy {
 }
 
 impl RollingUpdateStatefulSetStrategy {
-    pub spec fn view(&self) -> spec_types::RollingUpdateStatefulSetStrategyView;
+    pub uninterp spec fn view(&self) -> spec_types::RollingUpdateStatefulSetStrategyView;
 
     #[verifier(external_body)]
     pub fn default() -> (rolling_update: RollingUpdateStatefulSetStrategy)
@@ -471,7 +470,7 @@ pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
 }
 
 impl StatefulSetPersistentVolumeClaimRetentionPolicy {
-    pub spec fn view(&self) -> spec_types::StatefulSetPersistentVolumeClaimRetentionPolicyView;
+    pub uninterp spec fn view(&self) -> spec_types::StatefulSetPersistentVolumeClaimRetentionPolicyView;
 
     #[verifier(external_body)]
     pub fn default() -> (policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
@@ -528,7 +527,7 @@ pub struct StatefulSetOrdinals {
 }
 
 impl StatefulSetOrdinals {
-    pub spec fn view(&self) -> spec_types::StatefulSetOrdinalsView;
+    pub uninterp spec fn view(&self) -> spec_types::StatefulSetOrdinalsView;
 
     #[verifier(external_body)]
     pub fn default() -> (ordinals: StatefulSetOrdinals)

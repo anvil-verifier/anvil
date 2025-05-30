@@ -1025,6 +1025,6 @@ pub proof fn lemma_from_pending_req_in_flight_or_resp_in_flight_at_all_delete_to
 }
 
 // Havoc function for VReplicaSetView.
-spec fn make_vrs() -> VReplicaSetView;
+uninterp spec fn make_vrs() -> VReplicaSetView;
 
 }

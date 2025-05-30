@@ -294,8 +294,8 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             );
         }
     }
-
-    while idx < objs.len()
+    
+    for idx in 0..objs.len()
         invariant
             idx <= objs.len(),
             ({
@@ -334,7 +334,6 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             }
             return None;
         }
-        idx = idx + 1;
     }
 
     proof {
@@ -376,7 +375,7 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
         );
     }
 
-    while idx < pods.len()
+    for idx in 0..pods.len()
         invariant
             idx <= pods.len(),
             filtered_pods@.map_values(|p: Pod| p@)
@@ -410,8 +409,6 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
                    == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
             assert(spec_filter(pod@) ==> filtered_pods@.map_values(|p: Pod| p@) == old_filtered.push(pod@));
         }
-
-        idx = idx + 1;
     }
     assert(pods@.map_values(|p: Pod| p@) == pods@.map_values(|p: Pod| p@).take(pods.len() as int));
     filtered_pods

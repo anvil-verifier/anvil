@@ -23,7 +23,7 @@ pub struct LabelSelector {
 
 impl LabelSelector {
 
-    pub spec fn view(&self) -> LabelSelectorView;
+    pub uninterp spec fn view(&self) -> LabelSelectorView;
 
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
@@ -78,7 +78,7 @@ impl LabelSelector {
             let match_labels = self.match_labels().unwrap();
             let keys = match_labels.keys();
             let mut idx = 0;
-            while idx < match_labels.len()
+            for idx in 0..keys.len()
             {
                 let key = &keys[idx];
                 let val = match_labels.get(key).unwrap();
@@ -86,7 +86,6 @@ impl LabelSelector {
                 if !(val_or_not.is_some() && val_or_not.unwrap().eq(&val)) {
                     return false;
                 }
-                idx = idx + 1;
             }
             true
         }

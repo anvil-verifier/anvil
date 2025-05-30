@@ -47,7 +47,7 @@ pub struct FluentBitConfig {
 impl View for FluentBitConfig {
     type V = spec_types::FluentBitConfigView;
 
-    spec fn view(&self) -> spec_types::FluentBitConfigView;
+    uninterp spec fn view(&self) -> spec_types::FluentBitConfigView;
 }
 
 impl FluentBitConfig {
@@ -120,7 +120,7 @@ pub struct FluentBitConfigSpec {
 }
 
 impl FluentBitConfigSpec {
-    pub spec fn view(&self) -> spec_types::FluentBitConfigSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::FluentBitConfigSpecView;
 
     #[verifier(external_body)]
     pub fn fluentbit_config(&self) -> (fluentbit_config: String)

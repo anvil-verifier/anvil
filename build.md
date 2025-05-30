@@ -26,7 +26,7 @@ Controller source should be put in `src/`, with e2e test in `e2e/src` and test w
 ### Dependencies
 
 ```
-verus_commit: 6b278074651d520825ea62fe2079ed1e3959cb69
+verus_commit: 3b6b805ac86cd6640d59468341055c7fa14cff07
 kind_version: 0.23.0
 go_version: "^1.20"
 ```

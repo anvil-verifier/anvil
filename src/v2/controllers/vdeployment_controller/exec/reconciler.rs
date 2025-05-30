@@ -345,13 +345,13 @@ ensures
         }
     }
 
-    while idx < objs.len()
+    for idx in 0..objs.len()
     invariant
         idx <= objs.len(),
         ({
             let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
             &&& (model_result.is_some() ==>
-                    vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
+                vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
             &&& forall|i: int| 0 <= i < idx ==> VReplicaSetView::unmarshal(#[trigger] objs@[i]@).is_ok()
         }),
     {
@@ -386,7 +386,6 @@ ensures
                 return None;
             }
         }
-        idx += 1;
     }
 
     proof {
@@ -427,7 +426,7 @@ ensures
         );
     }
 
-    while idx < vrs_list.len()
+    for idx in 0..vrs_list.len()
     invariant
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
@@ -457,8 +456,6 @@ ensures
                    == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
             assert(spec_filter(vrs@) ==> filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_filtered_vrs_list.push(vrs@));
         }
-
-        idx += 1;
     }
     assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int));
     filtered_vrs_list
@@ -493,7 +490,7 @@ ensures
         assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed());
     }
 
-    while idx < vrs_list.len()
+    for idx in 0..vrs_list.len()
     invariant
         vd@.well_formed(),
         // again here, we can't put idx in invariants as "not proven before loop starts"
@@ -543,8 +540,6 @@ ensures
             assert(new_spec_filter(vrs@) ==> new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_new_vrs_list.push(vrs@));
             assert(old_spec_filter(vrs@) ==> old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_old_vrs_list.push(vrs@));
         }
-
-        idx += 1;
     }
     assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int));
     (new_vrs_list, old_vrs_list)

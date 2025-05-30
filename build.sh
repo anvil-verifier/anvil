@@ -14,7 +14,9 @@ rv=$VERUS_DIR/source/target-verus/release/verus
 cd deps_hack
 cargo build
 cd ..
+# TODO: after the lifetime check is fixed in verus, remove the --no-lifetime flag
 "$rv" -L dependency=deps_hack/target/debug/deps \
   --extern=deps_hack="deps_hack/target/debug/libdeps_hack.rlib" \
   --compile \
+  --no-lifetime \
   "$@"

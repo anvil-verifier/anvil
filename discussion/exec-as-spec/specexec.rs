@@ -33,7 +33,7 @@ impl Concrete {
         Self { a: self.a + 1 }
     }
 
-    spec fn spec_add1_b(self) -> Self; // {
+    uninterp spec fn spec_add1_b(self) -> Self; // {
     //     self@.add1_b()
     // }
     // Cannot write this body, because we need to return `Self` not `Self::V`

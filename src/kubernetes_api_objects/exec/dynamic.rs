@@ -18,7 +18,7 @@ pub struct DynamicObject {
 impl View for DynamicObject {
     type V = DynamicObjectView;
 
-    spec fn view(&self) -> DynamicObjectView;
+    uninterp spec fn view(&self) -> DynamicObjectView;
 }
 
 impl DynamicObject {

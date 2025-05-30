@@ -120,13 +120,13 @@ impl ResourceView for ZookeeperClusterView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<ZookeeperClusterStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<ZookeeperClusterStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<ZookeeperClusterStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<ZookeeperClusterStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

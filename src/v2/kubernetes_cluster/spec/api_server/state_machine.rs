@@ -244,7 +244,7 @@ pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, i
     }
 }
 
-pub closed spec fn generate_name(s: APIServerState) -> StringView;
+pub uninterp spec fn generate_name(s: APIServerState) -> StringView;
 
 // TODO: This should be a spec ensures of the generate_name above
 // NOTE: In the actual implementation, the API server might fail to generate a unique name
@@ -338,7 +338,7 @@ pub open spec fn delete_request_admission_check(req: DeleteRequest, s: APIServer
 // only cares whether the object has a deletion timestamp or not.
 // By using this closed deletion_timestamp() function, we make the
 // modeling and proof much easier compared to modelling the real clock.
-pub closed spec fn deletion_timestamp() -> StringView;
+pub uninterp spec fn deletion_timestamp() -> StringView;
 
 // NOTE: Deletion has three modes including background (default), foreground, orphan.
 // For now, we only model background deletion and only allow our controllers to perform background deletion

@@ -19,7 +19,7 @@ pub struct VReplicaSet {
 impl View for VReplicaSet {
     type V = spec_types::VReplicaSetView;
 
-    spec fn view(&self) -> spec_types::VReplicaSetView;
+    uninterp spec fn view(&self) -> spec_types::VReplicaSetView;
 }
 
 implement_deep_view_trait!(VReplicaSet, spec_types::VReplicaSetView);
@@ -169,7 +169,7 @@ pub struct VReplicaSetSpec {
 }
 
 impl VReplicaSetSpec {
-    pub spec fn view(&self) -> spec_types::VReplicaSetSpecView;
+    pub uninterp spec fn view(&self) -> spec_types::VReplicaSetSpecView;
 
     #[verifier(external_body)]
     pub fn default() -> (vreplicaset_spec: VReplicaSetSpec)

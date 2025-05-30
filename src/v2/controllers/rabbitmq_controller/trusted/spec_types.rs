@@ -116,13 +116,13 @@ impl ResourceView for RabbitmqClusterView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: RabbitmqClusterSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: RabbitmqClusterSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: Option<RabbitmqClusterStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<RabbitmqClusterStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<RabbitmqClusterStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<RabbitmqClusterStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -187,6 +187,6 @@ pub struct RabbitmqClusterPersistenceSpecView {
     pub storage: StringView,
 }
 
-pub closed spec fn random_encoded_string(length: usize) -> StringView;
+pub uninterp spec fn random_encoded_string(length: usize) -> StringView;
 
 }

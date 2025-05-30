@@ -12,7 +12,7 @@ pub struct PodTemplateSpec {
 }
 
 impl PodTemplateSpec {
-    pub spec fn view(&self) -> PodTemplateSpecView;
+    pub uninterp spec fn view(&self) -> PodTemplateSpecView;
 
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)

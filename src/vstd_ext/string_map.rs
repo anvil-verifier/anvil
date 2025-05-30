@@ -8,7 +8,7 @@ pub struct StringMap {
 }
 
 impl StringMap {
-    pub spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
+    pub uninterp spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
 
     #[verifier(external_body)]
     pub fn new() -> (m: Self)

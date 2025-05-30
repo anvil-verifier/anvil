@@ -13,7 +13,7 @@ pub struct VolumeResourceRequirements {
 }
 
 impl VolumeResourceRequirements {
-    pub spec fn view(&self) -> VolumeResourceRequirementsView;
+    pub uninterp spec fn view(&self) -> VolumeResourceRequirementsView;
 
     #[verifier(external_body)]
     pub fn default() -> (resource_requirements: VolumeResourceRequirements)

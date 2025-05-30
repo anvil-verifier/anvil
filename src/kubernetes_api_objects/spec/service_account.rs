@@ -95,13 +95,13 @@ impl ResourceView for ServiceAccountView {
 
     proof fn marshal_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: ServiceAccountSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: ServiceAccountSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, UnmarshalError>;
 
-    closed spec fn marshal_status(s: EmptyStatusView) -> Value;
+    uninterp spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

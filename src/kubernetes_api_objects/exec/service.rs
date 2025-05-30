@@ -53,7 +53,7 @@ pub struct ServiceSpec {
 }
 
 impl ServiceSpec {
-    pub spec fn view(&self) -> ServiceSpecView;
+    pub uninterp spec fn view(&self) -> ServiceSpecView;
 
     #[verifier(external_body)]
     pub fn default() -> (service_spec: ServiceSpec)
@@ -146,7 +146,7 @@ pub struct ServicePort {
 }
 
 impl ServicePort {
-    pub spec fn view(&self) -> ServicePortView;
+    pub uninterp spec fn view(&self) -> ServicePortView;
 
     #[verifier(external_body)]
     pub fn default() -> (service_port: ServicePort)

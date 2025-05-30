@@ -22,7 +22,7 @@ pub struct ObjectMeta {
 }
 
 impl ObjectMeta {
-    pub spec fn view(&self) -> ObjectMetaView;
+    pub uninterp spec fn view(&self) -> ObjectMetaView;
 
     #[verifier(external_body)]
     pub fn default() -> (object_meta: ObjectMeta)

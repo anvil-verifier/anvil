@@ -111,7 +111,7 @@ macro_rules! implement_view_trait {
         impl View for $t {
             type V = $vt;
 
-            spec fn view(&self) -> $vt;
+            uninterp spec fn view(&self) -> $vt;
         }
 
         }

@@ -6,7 +6,7 @@ verus! {
 
 pub trait ResourceBuilder<K: View, T: View, SpecBuilder: resource_builder::ResourceBuilder<K::V, T::V>>
 {
-    spec fn requirements(cr: K::V) -> bool;
+    uninterp spec fn requirements(cr: K::V) -> bool;
 
     fn get_request(cr: &K) -> (req: KubeGetRequest)
         requires Self::requirements(cr@),

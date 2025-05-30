@@ -187,7 +187,7 @@ fn make_new_ports(ports: Vec<ContainerPort>) -> (service_ports: Vec<ServicePort>
             Seq::new(i as nat, |k: int| model_resource::make_service_port(ports[k]@))
         );
     }
-    while i < ports.len()
+    for i in 0..ports.len()
         invariant
             i <= ports@.len(),
             service_ports@.map_values(|p: ServicePort| p@) == Seq::new(i as nat, |k: int| model_resource::make_service_port(ports[k]@)),
@@ -215,7 +215,6 @@ fn make_new_ports(ports: Vec<ContainerPort>) -> (service_ports: Vec<ServicePort>
                 Seq::new((i + 1) as nat, |k: int| model_resource::make_service_port(ports[k]@))
             );
         }
-        i = i + 1;
     }
     proof {
         assert_seqs_equal!(

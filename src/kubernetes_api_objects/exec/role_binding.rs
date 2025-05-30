@@ -52,7 +52,7 @@ pub struct RoleRef {
 }
 
 impl RoleRef {
-    pub spec fn view(&self) -> RoleRefView;
+    pub uninterp spec fn view(&self) -> RoleRefView;
 
     #[verifier(external_body)]
     pub fn default() -> (role_ref: RoleRef)
@@ -117,7 +117,7 @@ pub struct Subject {
 }
 
 impl Subject {
-    pub spec fn view(&self) -> SubjectView;
+    pub uninterp spec fn view(&self) -> SubjectView;
 
     #[verifier(external_body)]
     pub fn default() -> (subject: Subject)

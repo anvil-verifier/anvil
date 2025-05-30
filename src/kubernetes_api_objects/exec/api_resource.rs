@@ -18,7 +18,7 @@ pub struct ApiResource {
 }
 
 impl ApiResource {
-    pub spec fn view(&self) -> ApiResourceView;
+    pub uninterp spec fn view(&self) -> ApiResourceView;
 }
 
 }

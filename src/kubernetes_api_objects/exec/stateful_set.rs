@@ -69,7 +69,7 @@ pub struct StatefulSetSpec {
 }
 
 impl StatefulSetSpec {
-    pub spec fn view(&self) -> StatefulSetSpecView;
+    pub uninterp spec fn view(&self) -> StatefulSetSpecView;
 
     #[verifier(external_body)]
     pub fn default() -> (stateful_set_spec: StatefulSetSpec)
@@ -213,7 +213,7 @@ pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
 }
 
 impl StatefulSetPersistentVolumeClaimRetentionPolicy {
-    pub spec fn view(&self) -> StatefulSetPersistentVolumeClaimRetentionPolicyView;
+    pub uninterp spec fn view(&self) -> StatefulSetPersistentVolumeClaimRetentionPolicyView;
 
     #[verifier(external_body)]
     pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
@@ -250,7 +250,7 @@ pub struct StatefulSetStatus {
 }
 
 impl StatefulSetStatus {
-    pub spec fn view(&self) -> StatefulSetStatusView;
+    pub uninterp spec fn view(&self) -> StatefulSetStatusView;
 
     #[verifier(external_body)]
     pub fn ready_replicas(&self) -> (ready_replicas: Option<i32>)
