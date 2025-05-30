@@ -348,8 +348,6 @@ ensures
     while idx < objs.len()
     invariant
         idx <= objs.len(),
-    decreases
-        objs.len() - idx,
         ({
             let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
             &&& (model_result.is_some() ==>
