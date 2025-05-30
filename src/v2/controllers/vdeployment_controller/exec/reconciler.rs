@@ -353,7 +353,7 @@ ensures
         ({
             let model_result = model_util::objects_to_vrs_list(objs@.map_values(|obj: DynamicObject| obj@));
             &&& (model_result.is_some() ==>
-                    vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
+                vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_result.unwrap().take(idx as int))
             &&& forall|i: int| 0 <= i < idx ==> VReplicaSetView::unmarshal(#[trigger] objs@[i]@).is_ok()
         }),
     decreases
