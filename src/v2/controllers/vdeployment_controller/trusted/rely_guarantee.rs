@@ -58,14 +58,14 @@ pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> State
                 // req.owner_ref.controller.is_Some_and(true) && the same as vd.controller_owner_ref()
                 &&& exists |vd: VDeploymentView| req.owner_ref == vd.controller_owner_ref()
                 // is one of the owners of vrs
-                &&& s.resources().contains_key(req.key)
-                &&& #[trigger] s.resources()[req.key].metadata.owner_references_contains(req.owner_ref)
+                &&& s.resources().contains_key(req.key())
+                &&& #[trigger] s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref)
             }
             // Prevents 2): where other controllers update vrs so they become
             // owned by a VDeployment.
             && (req.obj.metadata.owner_references.is_Some() ==>
                 forall |vd: VDeploymentView| 
-                    ! #[trigger] req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
+                    ! req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
 
     }
 }
@@ -116,7 +116,7 @@ pub open spec fn vd_rely_get_then_delete_req(req: GetThenDeleteRequest) -> State
                 &&& exists |vd: VDeploymentView| req.owner_ref == vd.controller_owner_ref()
                 // is one of the owners of vrs
                 &&& s.resources().contains_key(req.key)
-                &&& #[trigger] s.resources()[req.key].metadata.owner_references_contains(req.owner_ref)
+                &&& s.resources()[req.key].metadata.owner_references_contains(req.owner_ref)
             }
     }
 }
@@ -126,7 +126,7 @@ pub open spec fn vd_rely(other_id: int) -> StatePred<ClusterState> {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
-            &&& msg.src == HostId::Controller(other_id)
+            &&& msg.src.is_controller_id(other_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::CreateRequest(req) => vd_rely_create_req(req)(s),
             APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
@@ -177,7 +177,7 @@ pub open spec fn vd_guarantee(controller_id: int) -> StatePred<ClusterState> {
         forall |msg| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.content.is_APIRequest()
-            &&& msg.src == HostId::Controller(controller_id)
+            &&& msg.src.is_controller_id(controller_id)
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s),
