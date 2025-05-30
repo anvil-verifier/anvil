@@ -373,6 +373,7 @@ impl Role {
                 invariant
                     all_valid == (forall |j| #![trigger policy_rules[j]] 0 <= j < i ==> policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)[j].state_validation()),
                     i <= policy_rules.len(),
+                decreases policy_rules.len() - i,
             {
                 all_valid = all_valid && policy_rules[i].state_validation();
                 i += 1;
@@ -480,6 +481,7 @@ impl StatefulSet {
                             ),
                             i <= new_volume_claim_templates.len(),
                             new_volume_claim_templates.len() == old_volume_claim_templates.len(),
+                        decreases new_volume_claim_templates.len() - i,
                     {
                         all_equal = all_equal && new_volume_claim_templates[i].eq(&old_volume_claim_templates[i]);
                         i += 1;

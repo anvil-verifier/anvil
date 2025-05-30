@@ -164,6 +164,8 @@ impl VStatefulSet {
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
                     self@.spec.volume_claim_templates.is_Some(),
                     vct_view == self@.spec.volume_claim_templates.get_Some_0(),
+                decreases
+                    vct.len() - idx,
             {
                 let pvc_sv = vct[idx].state_validation();
                 assert(pvc_sv == vct_view[idx as int].state_validation());

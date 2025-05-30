@@ -79,6 +79,7 @@ impl LabelSelector {
             let keys = match_labels.keys();
             let mut idx = 0;
             while idx < match_labels.len()
+                decreases match_labels.len() - idx,
             {
                 let key = &keys[idx];
                 let val = match_labels.get(key).unwrap();
