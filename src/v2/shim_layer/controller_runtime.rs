@@ -416,6 +416,12 @@ pub async fn transactional_get_then_delete_by_retry(
     req: KubeGetThenDeleteRequest,
     log_header: String,
 ) -> KubeGetThenDeleteResponse {
+    // sanity check, can be removed if type invariant is supported by Verus
+    if !req.well_formed() {
+        return KubeGetThenDeleteResponse {
+            res: Err(APIError::Invalid),
+        };
+    }
     let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
         client.clone(),
         &req.namespace,
@@ -490,6 +496,12 @@ pub async fn transactional_get_then_update_by_retry(
     req: KubeGetThenUpdateRequest,
     log_header: String,
 ) -> KubeGetThenUpdateResponse {
+    // sanity check, can be removed if type invariant is supported by Verus
+    if !req.well_formed() {
+        return KubeGetThenUpdateResponse {
+            res: Err(APIError::Invalid),
+        };
+    }
     let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
         client.clone(),
         &req.namespace,

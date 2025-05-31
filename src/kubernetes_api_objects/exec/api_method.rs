@@ -211,6 +211,13 @@ impl KubeGetThenDeleteRequest {
     pub fn key(&self) -> std::string::String {
         format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
     }
+
+    pub fn well_formed(&self) -> (res: bool)
+        ensures
+            res == self@.well_formed(),
+    {
+        self.owner_ref.controller().is_some() && self.owner_ref.controller().unwrap()
+    }
 }
 
 impl View for KubeGetThenDeleteRequest {
@@ -243,6 +250,13 @@ impl KubeGetThenUpdateRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
         format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.name)
+    }
+
+    pub fn well_formed(&self) -> (res: bool)
+        ensures
+            res == self@.well_formed(),
+    {
+        self.owner_ref.controller().is_some() && self.owner_ref.controller().unwrap()
     }
 }
 

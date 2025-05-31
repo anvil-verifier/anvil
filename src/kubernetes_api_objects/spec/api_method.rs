@@ -130,6 +130,11 @@ impl GetThenDeleteRequest {
     pub open spec fn key(self) -> ObjectRef {
         self.key
     }
+
+    pub open spec fn well_formed(self) -> bool {
+        self.owner_ref.controller.is_Some()
+        && self.owner_ref.controller.get_Some_0()
+    }
 }
 
 // GetThenUpdateRequest replaces the existing obj with a new one only when it's owned by owner_ref and avoids
@@ -151,6 +156,11 @@ impl GetThenUpdateRequest {
             namespace: self.namespace,
             name: self.name,
         }
+    }
+
+    pub open spec fn well_formed(self) -> bool {
+        self.owner_ref.controller.is_Some()
+        && self.owner_ref.controller.get_Some_0()
     }
 }
 
