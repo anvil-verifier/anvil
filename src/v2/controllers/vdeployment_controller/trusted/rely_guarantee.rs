@@ -52,28 +52,27 @@ pub open spec fn vd_rely_update_req(req: UpdateRequest) -> StatePred<ClusterStat
 // by a VDeployment.
 pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == VReplicaSetView::kind() ==>
-            // Prevents 1): where other controllers update vrs already owned by a VDeployment.
-            !{
-                // req.owner_ref.controller.is_Some_and(true) && the same as vd.controller_owner_ref()
-                &&& exists |vd: VDeploymentView| req.owner_ref == vd.controller_owner_ref()
-                // is one of the owners of vrs
-                &&& s.resources().contains_key(req.key())
-                &&& #[trigger] s.resources()[req.key()].metadata.owner_references_contains(req.owner_ref)
-            }
+        req.obj.kind == VReplicaSetView::kind() ==> {
+            // Prevents 1): where other controllers update vrs owned by a VDeployment.
+            // an object can has multiple owners, but only one controller owner
+            // We force requests from other controllers to carry the controller owner reference
+            // to achieve exclusive ownerships
+            // TODO: add type invariant
+            &&& req.owner_ref.controller.is_Some()
+            &&& req.owner_ref.controller.get_Some_0()
+            &&& req.owner_ref.kind != VDeploymentView::kind()
             // Prevents 2): where other controllers update vrs so they become
             // owned by a VDeployment.
-            && (req.obj.metadata.owner_references.is_Some() ==>
+            &&& (req.obj.metadata.owner_references.is_Some() ==>
                 forall |vd: VDeploymentView| 
                     ! req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
-
+        }
     }
 }
 
 // TODO: double check if only vrs can send update status req to itself
 //       the update to VRS's guarantee to support this should also be updated
 // similar to update requests, minus the condition on owner_references.
-// Q: how to get controller type in ClusterState?
 pub open spec fn vd_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.obj.kind == VDeploymentView::kind() ==> 
@@ -109,15 +108,11 @@ pub open spec fn vd_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterStat
 // Other controllers don't try to delete vrs owned by a VDeployment.
 pub open spec fn vd_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.key.kind == VReplicaSetView::kind() ==>
-            // preconditions not supported yet in GetThenDeleteRequest
-            !{
-                // req.owner_ref.controller.is_Some_and(true) && the same as vd.controller_owner_ref()
-                &&& exists |vd: VDeploymentView| req.owner_ref == vd.controller_owner_ref()
-                // is one of the owners of vrs
-                &&& s.resources().contains_key(req.key)
-                &&& s.resources()[req.key].metadata.owner_references_contains(req.owner_ref)
-            }
+        req.key.kind == VReplicaSetView::kind() ==> {
+            &&& req.owner_ref.controller.is_Some()
+            &&& req.owner_ref.controller.get_Some_0()
+            &&& req.owner_ref.kind != VDeploymentView::kind()
+        }
     }
 }
 
