@@ -85,8 +85,8 @@ ensures
         lift_state(cluster.reconciler_reconcile_error(controller_id, vd.object_ref()))
     );
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
-
-    // 2.1, AfterScaleDownOldVRS && state.old_vrs_list.len()==0 ~> to reconcile_idle.
+    // 2, AfterScaleDownOldVRS ~> reconcile_idle.
+    // 2.1, AfterScaleDownOldVRS && state.old_vrs_list.len() == 0 ~> reconcile_idle.
     let state_at_done_or_error_step = |s: ReconcileLocalState| {
         let unmarshalled_s = VDeploymentReconcileState::unmarshal(s).unwrap();
         unmarshalled_s.reconcile_step == VDeploymentReconcileStepView::Done
@@ -99,13 +99,20 @@ ensures
         lift_state(cluster.reconciler_reconcile_error(controller_id, vd.object_ref()));
         lift_state(reconcile_idle)
     );
-    // AfterScaleDownOldVRS && state.old_vrs_list.len()==0 ~> Done \/ Error ~> idle
+    // AfterScaleDownOldVRS && state.old_vrs_list.len() == 0 ~> Done \/ Error ~> idle
     let empty_old_vrs_list_pred = |s: VDeploymentReconcileState| s.old_vrs_list.len() == 0;
+    let current_state = at_step_and_closure(VDeploymentReconcileStepView::AfterScaleDownOldVRS, empty_old_vrs_list_pred);
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
         spec, vd, controller_id, VDeploymentReconcileStepView::AfterScaleDownOldVRS, empty_old_vrs_list_pred);
-    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vd.marshal(),
-        at_step_and_closure(VDeploymentReconcileStepView::AfterScaleDownOldVRS, empty_old_vrs_list_pred), state_at_done_or_error_step);
-    // 2.2, AfterScaleDownOldVRS && state.old_vrs_list.len()==n ==> idle
+    assume(forall |input_cr, resp_o, s| current_state(s) ==> #[trigger] state_at_done_or_error_step((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+    // TODO: broadcast some of TLA lemmas
+    temp_pred_equality(
+        lift_state(at_step_and_state_pred(controller_id, vd, VDeploymentReconcileStepView::AfterScaleDownOldVRS, empty_old_vrs_list_pred)),
+        lift_state(Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), current_state))
+    );
+    // Next state leads to idle.)
+    cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vd.marshal(), current_state, state_at_done_or_error_step);
+    // 2.2, AfterScaleDownOldVRS && state.old_vrs_list.len() == n ~> idle
     assert forall |n: nat| spec.entails(#[trigger] lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat))
         .leads_to(lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0 as nat)))) by {
         // n | Error ~> n-1 | Error
@@ -122,15 +129,53 @@ ensures
                 |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n as nat)),
             lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)));
         // n | Error ~> 0 | Error
-        assert(spec.entails((|n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat))
-            .leads_to(lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0 as nat))))));
-        // n | Error ~> 0 | Error ~> reconcile_idle
+        // TODO: investigate why we need |n|f(n) instead of f, could be a bug in verus
+        assert(spec.entails((|n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n)))(n)
+                                .leads_to((|n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n)))(0))));
+        // (n | Error() ~> (0 | Error) ~> reconcile_idle
         leads_to_trans_n!(
             spec, lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n as nat)),
-            lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0 as nat)),
+            lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0)),
             lift_state(reconcile_idle));
     }
-    
+    // (AfterScaleDownOldVRS(n) | Error) == (AfterScaleDownOldVRS | Error)
+    let after_old_vrs_or_error = |s: ClusterState| {
+        ||| at_step_state_pred(controller_id, vd, VDeploymentReconcileStepView::AfterScaleDownOldVRS)(s)
+        ||| at_step_state_pred(controller_id, vd, VDeploymentReconcileStepView::Error)(s)
+    };
+    assert(lift_state((after_old_vrs_or_error)).entails(
+           tla_exists(|n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n))))) by {
+        assert forall |ex: Execution<ClusterState>| #![auto] lift_state(after_old_vrs_or_error).satisfied_by(ex) implies
+            exists |n: nat| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n)).satisfied_by(ex) by {
+            let n = choose |n: nat| #![auto] lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n)).satisfied_by(ex);
+        }
+    }
+    temp_pred_equality(
+        tla_exists(|n| lift_state(after_scale_down_old_vrs_rank(controller_id, vd, n))),
+        lift_state(after_old_vrs_or_error)
+    );
+    // (AfterScaleDownOldVRS | Error) ~> reconcile_idle
+    leads_to_trans_n!(
+        spec,
+        lift_state(after_old_vrs_or_error),
+        lift_state(after_scale_down_old_vrs_rank(controller_id, vd, 0)),
+        lift_state(reconcile_idle)
+    );
+    // 2.3, AfterScaleNewVRS ~> reconcile_idle.
+    // AfterScaleNewVRS ~> AfterScaleDownOldVRS | Done | Error
+    let state_at_after_old_vrs_or_done_or_error = |s: ReconcileLocalState| {
+        let unmarshalled_s = VDeploymentReconcileState::unmarshal(s).unwrap();
+        unmarshalled_s.reconcile_step == VDeploymentReconcileStepView::AfterScaleDownOldVRS
+        || unmarshalled_s.reconcile_step == VDeploymentReconcileStepView::Done
+        || unmarshalled_s.reconcile_step == VDeploymentReconcileStepView::Error
+    };
+    //or_leads_to_combine_and_equality!(
+    //    spec, lift_state(Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), state_at_after_old_vrs_or_done_or_error)),
+    //    lift_state()
+    //    lift_state(cluster.reconciler_reconcile_done(controller_id, vd.object_ref())),
+    //    lift_state(cluster.reconciler_reconcile_error(controller_id, vd.object_ref()));
+    //    lift_state(reconcile_idle)
+    //);
 }
 
 pub open spec fn at_step_state_pred(controller_id: int, vd: VDeploymentView, step: VDeploymentReconcileStepView) -> StatePred<ClusterState> {
