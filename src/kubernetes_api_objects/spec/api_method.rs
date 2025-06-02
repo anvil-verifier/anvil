@@ -120,6 +120,8 @@ impl UpdateStatusRequest {
 // version race.
 //
 // TODO: GetThenUpdateRequest should carry a spec_fn(DynamicObjectView) -> bool
+// TODO: Add a type invariant by #[verifier::type_invariant].
+//       Skipped because it requires fields to be private, and Deref is not supported so we have to add getter/setter
 
 pub struct GetThenDeleteRequest {
     pub key: ObjectRef,
@@ -129,6 +131,11 @@ pub struct GetThenDeleteRequest {
 impl GetThenDeleteRequest {
     pub open spec fn key(self) -> ObjectRef {
         self.key
+    }
+
+    pub open spec fn well_formed(self) -> bool {
+        self.owner_ref.controller.is_Some()
+        && self.owner_ref.controller.get_Some_0()
     }
 }
 
@@ -151,6 +158,11 @@ impl GetThenUpdateRequest {
             namespace: self.namespace,
             name: self.name,
         }
+    }
+
+    pub open spec fn well_formed(self) -> bool {
+        self.owner_ref.controller.is_Some()
+        && self.owner_ref.controller.get_Some_0()
     }
 }
 
