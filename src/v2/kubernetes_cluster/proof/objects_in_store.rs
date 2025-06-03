@@ -28,6 +28,8 @@ pub open spec fn each_object_in_etcd_is_weakly_well_formed() -> StatePred<Cluste
     }
 }
 
+// TODO: investigate flaky proof
+#[verifier(rlimit(200))]
 pub proof fn lemma_always_each_object_in_etcd_is_weakly_well_formed(self, spec: TempPred<ClusterState>)
     requires
         spec.entails(lift_state(self.init())),
