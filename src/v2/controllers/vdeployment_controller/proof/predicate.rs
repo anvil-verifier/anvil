@@ -12,16 +12,12 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn at_step_closure(step: VDeploymentReconcileStepView) -> spec_fn(ReconcileLocalState) -> bool {
+pub open spec fn at_step(step: VDeploymentReconcileStepView) -> spec_fn(ReconcileLocalState) -> bool {
     |s: ReconcileLocalState| VDeploymentReconcileState::unmarshal(s).unwrap().reconcile_step == step
 }
 
-pub open spec fn at_step_and_closure(step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool)
+pub open spec fn at_step_and_pred(step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool)
     -> spec_fn(ReconcileLocalState) -> bool {
-    |s: ReconcileLocalState| {
-        let unmarshalled_s = VDeploymentReconcileState::unmarshal(s).unwrap();
-        unmarshalled_s.reconcile_step == step && pred(unmarshalled_s)
-    }
+    |s: ReconcileLocalState| at_step(step)(s) && pred(VDeploymentReconcileState::unmarshal(s).unwrap())
 }
-
 }
