@@ -680,7 +680,7 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
-            &&& input.1.is_Some()
+            &&& input.2.is_Some()
             &&& received_msg_destined_for(input.1, HostId::Controller(controller_id, input.2.get_Some_0()))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
