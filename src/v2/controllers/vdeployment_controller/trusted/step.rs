@@ -46,6 +46,7 @@ impl View for VDeploymentReconcileStep {
 }
 
 #[is_variant]
+#[derive(PartialEq)]
 pub enum VDeploymentReconcileStepView {
     Init,
     AfterListVRS,
