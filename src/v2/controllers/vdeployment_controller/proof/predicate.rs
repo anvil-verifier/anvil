@@ -13,12 +13,12 @@ use vstd::prelude::*;
 verus! {
 #[macro_export]
 macro_rules! at_step_internal {
-    ($vds:expr, $step:expr) => {
-        $vds.reconcile_step == $step
-    };
-
     ($vds:expr, ($step:expr, $pred:expr)) => {
         $vds.reconcile_step == $step && $pred($vds)
+    };
+
+    ($vds:expr, $step:expr) => {
+        $vds.reconcile_step == $step
     };
 
     ($vds:expr, $head:tt, $($tail:tt)+) => {
@@ -31,10 +31,10 @@ macro_rules! at_step_internal {
 #[macro_export]
 macro_rules! at_step {
     ( $($tokens:tt)+ ) => {
-        |s: ReconcileLocalState| {
+        closure_to_fn_spec(|s: ReconcileLocalState| {
             let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
             at_step_internal!(vds, $($tokens)+)
-        }
+        })
     };
 }
 
