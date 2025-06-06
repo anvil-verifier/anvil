@@ -11,6 +11,7 @@ use crate::kubernetes_cluster::spec::{
 use vstd::prelude::*;
 
 verus! {
+// eq_step is the tricky workaround for error, see src/v2/controllers/vdeployment_controller/trusted/step.rs
 #[macro_export]
 macro_rules! at_step_internal {
     ($vds:expr, ($step:expr, $pred:expr)) => {
@@ -67,6 +68,17 @@ macro_rules! nat1 {
     () => {
         spec_literal_nat("1")
     };
+}
+
+pub open spec fn at_step_spec(step: VDeploymentReconcileStepView) -> spec_fn(ReconcileLocalState) -> bool {
+    |s: ReconcileLocalState| VDeploymentReconcileState::unmarshal(s).unwrap().reconcile_step == step
+}
+
+pub open spec fn at_step_pred_spec(step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool) -> spec_fn(ReconcileLocalState) -> bool {
+    |s: ReconcileLocalState| {
+        let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
+        vds.reconcile_step == step && pred(vds)
+    }
 }
 
 pub use nat0;
