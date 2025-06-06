@@ -14,11 +14,11 @@ verus! {
 #[macro_export]
 macro_rules! at_step_internal {
     ($vds:expr, ($step:expr, $pred:expr)) => {
-        $vds.reconcile_step == $step && $pred($vds)
+        $vds.reconcile_step.eq_step($step) && $pred($vds)
     };
 
     ($vds:expr, $step:expr) => {
-        $vds.reconcile_step == $step
+        $vds.reconcile_step.eq_step($step)
     };
 
     ($vds:expr, $head:tt, $($tail:tt)+) => {
@@ -54,6 +54,23 @@ macro_rules! temp_at_step {
     }
 }
 
+// hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
+#[macro_export]
+macro_rules! nat0 {
+    () => {
+        spec_literal_nat("0")
+    };
+}
+
+#[macro_export]
+macro_rules! nat1 {
+    () => {
+        spec_literal_nat("1")
+    };
+}
+
+pub use nat0;
+pub use nat1;
 pub use at_step_internal;
 pub use at_step;
 pub use cluster_at_step;
