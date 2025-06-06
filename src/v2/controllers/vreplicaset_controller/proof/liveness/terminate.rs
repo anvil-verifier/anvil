@@ -316,7 +316,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
     assert forall |n: nat| #![auto]
         spec.entails(lift_state(at_step_state_pred(controller_id, vrs, VReplicaSetRecStepView::AfterCreatePod(n)))
                     .leads_to(lift_state(reconcile_idle))) by {
-        assert forall |n: nat| #![trigger after_create_pod_rank(controller_id, vrs, n)]
+        assert forall |n: nat| #![trigger lift_state(after_create_pod_rank(controller_id, vrs, n))]
                     n > 0 implies spec.entails(lift_state(after_create_pod_rank(controller_id, vrs, n))
                                     .leads_to(lift_state(after_create_pod_rank(controller_id, vrs, (n - 1) as nat)))) by {
             lemma_from_after_create_pod_rank_n_to_create_pod_rank_n_minus_1(spec, vrs, cluster, controller_id, n);
