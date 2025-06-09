@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     trusted::{liveness_theorem::*, spec_types::*, step::*},
-    proof::predicate::{StepCase::*, IntoSpec},
+    proof::predicate::{StepCase::*, IntoSpec, into_spec_all},
 };
 // make encoding steps easier
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
@@ -240,6 +240,7 @@ ensures
     spec.entails((WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)
         .leads_to((WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd))),
 {
+    broadcast use into_spec_all;
     VDeploymentReconcileState::marshal_preserves_integrity();
     VDeploymentView::marshal_preserves_integrity();
     // Error ~> n - 1
@@ -251,18 +252,11 @@ ensures
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
         spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(n)
     );
-    assert(spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id, vd.object_ref(), WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_local_state_pred()
-    )))));
     cluster.lemma_from_some_state_to_arbitrary_next_state(
         spec, controller_id, vd.marshal(),
         WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_local_state_pred(),
         (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_local_state_pred()
     );
-    assert(spec.entails(
-        WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_temporal_pred(controller_id, vd).leads_to(
-        (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd)
-    )));
     or_leads_to_combine_and_equality!(
         spec,
         (WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd),
