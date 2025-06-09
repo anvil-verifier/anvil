@@ -9,6 +9,8 @@ use vstd::prelude::*;
 
 verus! {
 
+// some util spec functions are moved here from model::reconciler
+// so we can share them with high-level specs and proofs for VD
 pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list: Option<Seq<VReplicaSetView>>) {
     if objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() != 0 {
         None
