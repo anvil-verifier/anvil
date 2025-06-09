@@ -84,7 +84,10 @@ requires
         spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(0)
     );
     // 0 ~> Done | Error ~> idle
-    assume(forall |input_cr, resp_o, s| WithPred(AfterScaleDownOldVRS, old_vrs_list_len(0)).into_local_state_pred()(s) ==> #[trigger] (Plain(Done), Plain(Error)).into_local_state_pred()((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+    VDeploymentReconcileState::marshal_preserves_integrity();
+    assert(forall |input_cr, resp_o, s| WithPred(AfterScaleDownOldVRS, old_vrs_list_len(0)).into_local_state_pred()(s)
+        ==> #[trigger] (Plain(Done), Plain(Error)).into_local_state_pred()((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+    
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
         WithPred(AfterScaleDownOldVRS, old_vrs_list_len(0)).into_local_state_pred(),
