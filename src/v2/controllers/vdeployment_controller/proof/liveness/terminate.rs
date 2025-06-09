@@ -173,20 +173,25 @@ pub proof fn lemma_all_step_from_pending_req_in_flight_or_resp_in_flight_at_step
 )
 // tricky workaround for error: triggers cannot contain let/forall/exists/lambda/choose
 ensures forall |step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool| #![trigger WithPred(step, pred).into_temporal_pred(controller_id, vd)]
-    spec.entails(always(
-        lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
-    ))))
+    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
+        ))))
     ==>
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-        controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
-    )))),
+            controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
+        )))),
 {
-    assert forall |step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool| #![trigger WithPred(step, pred).into_temporal_pred(controller_id, vd)]
+    assert forall |step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool|
+        #![trigger lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
+            )),
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
+            ))]
         spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
         ))))
-        implies
+        ==>
         spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
         )))) by {
@@ -202,7 +207,6 @@ ensures forall |step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentRec
             assert(always(pre).satisfied_by(ex));
             assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {}
         }
-
     }
 }
 
