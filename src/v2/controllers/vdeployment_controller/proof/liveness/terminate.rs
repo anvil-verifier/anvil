@@ -167,49 +167,6 @@ ensures
     }
 }
 
-// what is satisfied at step should also be satisfied at step and pred
-pub proof fn lemma_all_step_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-    spec: TempPred<ClusterState>, vd: VDeploymentView, controller_id: int
-)
-// tricky workaround for error: triggers cannot contain let/forall/exists/lambda/choose
-ensures forall |step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool| #![trigger WithPred(step, pred).into_temporal_pred(controller_id, vd)]
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
-        ))))
-    ==>
-    spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
-        )))),
-{
-    assert forall |step: VDeploymentReconcileStepView, pred: spec_fn(VDeploymentReconcileState) -> bool|
-        #![trigger lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
-            )),
-            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-                controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
-            ))]
-        spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
-        ))))
-        ==>
-        spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
-        )))) by {
-        let pre = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), Plain(step).into_local_state_pred()
-        ));
-        let post = lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id, vd.object_ref(), WithPred(step, pred).into_local_state_pred()
-        ));
-        assert forall |ex| #![auto] spec.satisfied_by(ex) && spec.entails(always(pre)) implies always(post).satisfied_by(ex) by {
-            assert(forall |ex| #[trigger] spec.implies(always(pre)).satisfied_by(ex));
-            assert(forall |ex| spec.implies(always(pre)).satisfied_by(ex) <==> (spec.satisfied_by(ex) ==> #[trigger] always(pre).satisfied_by(ex)));
-            assert(always(pre).satisfied_by(ex));
-            assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {}
-        }
-    }
-}
-
 pub proof fn lemma_from_old_vrs_of_n_to_old_vrs_of_n_minus_1(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int, n: nat
 )
