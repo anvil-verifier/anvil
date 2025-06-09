@@ -74,6 +74,7 @@ impl IntoSpec for (StepCase, StepCase) {
         let f2 = s2.into_local_state_pred();
         |s| f1(s) || f2(s)
     }
+    // compose s1 and s1 at ReconcileLocalState level
     open spec fn into_cluster_state_pred(self, controller_id: int, vd: VDeploymentView) -> spec_fn(ClusterState) -> bool {
         let (s1, s2) = self;
         let f1 = s1.into_local_state_pred();
