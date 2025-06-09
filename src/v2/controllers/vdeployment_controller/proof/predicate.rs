@@ -154,7 +154,7 @@ impl IntoSpec for (StepCase, StepCase, StepCase) {
     }
 }
 
-// these macros are abandoned due to the bug in verus
+// These macros are abandoned due to the bug in verus, see verus/discussions/1726
 // eq_step is the tricky workaround for error, see src/v2/controllers/vdeployment_controller/trusted/step.rs
 //#[macro_export]
 //macro_rules! at_step_internal {
