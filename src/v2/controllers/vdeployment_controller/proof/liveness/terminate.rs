@@ -79,10 +79,9 @@ requires
         lift_state(reconcile_idle)
     );
     // AfterScaleDownOldVRS && state.old_vrs_list.len() == 0 ~> Done \/ Error ~> idle
-    let empty_old_vrs_list_pred = |s: VDeploymentReconcileState| s.old_vrs_list.len() == 0;
-    let current_state = WithPred(AfterScaleDownOldVRS, empty_old_vrs_list_pred).into_local_state_pred();
+    let current_state = WithPred(AfterScaleDownOldVRS, old_vrs_list_len(0)).into_local_state_pred();
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-        spec, vd, controller_id, AfterScaleDownOldVRS, empty_old_vrs_list_pred);
+        spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(0));
     // Next state leads to idle.
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(spec, controller_id, vd.marshal(), current_state, (Plain(Done), Plain(Error)).into_local_state_pred());
     // 2.2, AfterScaleDownOldVRS && state.old_vrs_list.len() == n ~> idle
