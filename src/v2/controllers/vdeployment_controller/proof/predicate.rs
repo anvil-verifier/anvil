@@ -61,6 +61,7 @@ pub broadcast group into_spec_all {
 impl IntoSpec for StepCase {
     open spec fn into_local_state_pred(self) -> spec_fn(ReconcileLocalState) -> bool {
         |s: ReconcileLocalState| {
+            // VDeploymentReconcileState::marshal_preserves_integrity() may be called to prove
             let st = VDeploymentReconcileState::unmarshal(s).unwrap();
             match self {
                 StepCase::Plain(step) => st.reconcile_step == step,
@@ -80,18 +81,23 @@ impl IntoSpec for StepCase {
     open spec fn into_temporal_pred(self, controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState> {
         lift_state(self.into_cluster_state_pred(controller_id, vd))
     }
-    #[verifier(external_body)]
     broadcast proof fn lemma_cluster_equiv(self, controller_id: int, vd: VDeploymentView)
         ensures
             #[trigger] self.into_cluster_state_pred(controller_id, vd) == 
-            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred()) {}
-    #[verifier(external_body)]
+            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred())
+    {
+        assert(self.into_cluster_state_pred(controller_id, vd) == 
+            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred()));
+    }
     broadcast proof fn lemma_temporal_equiv(self, controller_id: int, vd: VDeploymentView)
         ensures
             #[trigger] self.into_temporal_pred(controller_id, vd) == lift_state(self.into_cluster_state_pred(controller_id, vd)),
             #[trigger] self.into_temporal_pred(controller_id, vd) == lift_state(
                 Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred())
-            ) {}
+            )
+    {
+        self.lemma_cluster_equiv(controller_id, vd);
+    }
 }
 
 impl IntoSpec for (StepCase, StepCase) {
@@ -117,18 +123,23 @@ impl IntoSpec for (StepCase, StepCase) {
     open spec fn into_temporal_pred(self, controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState> {
         lift_state(self.into_cluster_state_pred(controller_id, vd))
     }
-    #[verifier(external_body)]
     broadcast proof fn lemma_cluster_equiv(self, controller_id: int, vd: VDeploymentView)
         ensures
             #[trigger] self.into_cluster_state_pred(controller_id, vd) == 
-            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred()) {}
-    #[verifier(external_body)]
+            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred())
+    {
+        assert(self.into_cluster_state_pred(controller_id, vd) == 
+            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred()));
+    }
     broadcast proof fn lemma_temporal_equiv(self, controller_id: int, vd: VDeploymentView)
         ensures
             #[trigger] self.into_temporal_pred(controller_id, vd) == lift_state(self.into_cluster_state_pred(controller_id, vd)),
             #[trigger] self.into_temporal_pred(controller_id, vd) == lift_state(
                 Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred())
-            ) {}
+            )
+    {
+        self.lemma_cluster_equiv(controller_id, vd);
+    }
 }
 
 impl IntoSpec for (StepCase, StepCase, StepCase) {
@@ -155,18 +166,23 @@ impl IntoSpec for (StepCase, StepCase, StepCase) {
     open spec fn into_temporal_pred(self, controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState> {
         lift_state(self.into_cluster_state_pred(controller_id, vd))
     }
-    #[verifier(external_body)]
     broadcast proof fn lemma_cluster_equiv(self, controller_id: int, vd: VDeploymentView)
         ensures
             #[trigger] self.into_cluster_state_pred(controller_id, vd) == 
-            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred()) {}
-    #[verifier(external_body)]
+            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred())
+    {
+        assert(self.into_cluster_state_pred(controller_id, vd) == 
+            Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred()));
+    }
     broadcast proof fn lemma_temporal_equiv(self, controller_id: int, vd: VDeploymentView)
         ensures
             #[trigger] self.into_temporal_pred(controller_id, vd) == lift_state(self.into_cluster_state_pred(controller_id, vd)),
             #[trigger] self.into_temporal_pred(controller_id, vd) == lift_state(
                 Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), self.into_local_state_pred())
-            ) {}
+            )
+    {
+        self.lemma_cluster_equiv(controller_id, vd);
+    }
 }
 
 // These macros are abandoned due to the bug in verus, see verus/discussions/1726
