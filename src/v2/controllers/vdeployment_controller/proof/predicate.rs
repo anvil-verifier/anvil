@@ -100,6 +100,7 @@ impl IntoSpec for StepCase {
     }
 }
 
+// TODO: add transitivity lemma
 impl IntoSpec for (StepCase, StepCase) {
     open spec fn into_local_state_pred(self) -> spec_fn(ReconcileLocalState) -> bool {
         let (s1, s2) = self;
@@ -186,6 +187,7 @@ impl IntoSpec for (StepCase, StepCase, StepCase) {
 }
 
 // These macros are abandoned due to the bug in verus, see verus/discussions/1726
+// If macros work better, we can switch back
 // eq_step is the tricky workaround for error, see src/v2/controllers/vdeployment_controller/trusted/step.rs
 //#[macro_export]
 //macro_rules! at_step_internal {
