@@ -46,6 +46,7 @@ impl View for VDeploymentReconcileStep {
 }
 
 #[is_variant]
+#[derive(PartialEq)]
 pub enum VDeploymentReconcileStepView {
     Init,
     AfterListVRS,
@@ -54,6 +55,12 @@ pub enum VDeploymentReconcileStepView {
     AfterScaleDownOldVRS,
     Done,
     Error,
+}
+
+impl VDeploymentReconcileStep {
+    open spec fn eq_step(self, other: VDeploymentReconcileStep) -> bool {
+        self == other
+    }
 }
 
 }
