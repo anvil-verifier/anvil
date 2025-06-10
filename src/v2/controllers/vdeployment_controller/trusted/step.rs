@@ -57,8 +57,8 @@ pub enum VDeploymentReconcileStepView {
     Error,
 }
 
-impl VDeploymentReconcileStep {
-    open spec fn eq_step(self, other: VDeploymentReconcileStep) -> bool {
+impl VDeploymentReconcileStepView {
+    pub open spec fn eq_step(self, other: VDeploymentReconcileStepView) -> bool {
         self == other
     }
 }
