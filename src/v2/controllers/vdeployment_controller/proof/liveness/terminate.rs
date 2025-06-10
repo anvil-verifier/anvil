@@ -30,6 +30,11 @@ pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) 
     |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n
 }
 
+// serve as trigger to make Verus happy
+pub open spec fn scale_down_old_vrs_rank_n(n: nat) -> spec_fn(ReconcileLocalState) -> bool {
+    at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]
+}
+
 pub open spec fn new_vrs_some_and_replicas(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
     // vrs.spec.replicas.is_None => 1 replica
     |vds: VDeploymentReconcileState| vds.new_vrs.is_Some() && vds.new_vrs.unwrap().spec.replicas.unwrap_or(1) == n
@@ -109,17 +114,19 @@ ensures
         lift_state(reconcile_idle)
     );
     // 2.2 AfterScaleDownOldVRS && n ~> 0 | Error ~> idle
-    assert forall |n: nat| #![trigger dummy_trigger_n(n)]
-        spec.entails(lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]))
+    // hack to make Verus happy with trigger on macro
+    let scale_down_old_vrs_rank_n = |n: nat| at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error];
+    assert forall |n: nat|
+        spec.entails(lift_state(#[trigger] lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n)))
                      .leads_to(lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero)), Error])))) by {
         // n | Error ~> n - 1 | Error
-        assert forall |n: nat| #![trigger dummy_trigger_n(n)]
-            n > 0 implies spec.entails(lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]))
-                                       .leads_to(lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!())), Error])))) by {
+        assert forall |n: nat|
+            n > 0 implies spec.entails(lift_state(lift_local(controller_id, vd, #[trigger] scale_down_old_vrs_rank_n(n)))
+                                       .leads_to(lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n((n - 1) as nat))))) by {
             // Error ~> n - 1
             entails_implies_leads_to(spec,
                 lift_state(lift_local(controller_id, vd, at_step_or![Error])),
-                lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!())), Error]))
+                lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n((n - 1) as nat)))
             );
             // n ~> n - 1
             lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
@@ -128,60 +135,62 @@ ensures
             cluster.lemma_from_some_state_to_arbitrary_next_state(
                 spec, controller_id, vd.marshal(),
                 at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))],
-                at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!())), Error]
+                scale_down_old_vrs_rank_n((n - 1) as nat)
             );
             or_leads_to_combine_and_equality!(spec,
-                lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])),
+                lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
                 lift_state(lift_local(controller_id, vd, at_step_or![Error])),
                 lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))]));
-                lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!())), Error]))
+                lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n((n - 1) as nat)))
             );
         }
         // n | Error ~> n - 1 | Error ~> 0 | Error
-        leads_to_rank_step_one(spec, |n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])));
+        leads_to_rank_step_one(spec, |n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))));
         // n | Error ~> 0 | Error
         // TODO: investigate why we need |n|f(n) instead of f, could be a bug in verus
-        assert(spec.entails((|n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])))(n)
-                            .leads_to((|n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])))(0))));
+        assert(spec.entails((|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))(n)
+                            .leads_to((|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))(0))));
         // (n | Error() ~> (0 | Error) ~> reconcile_idle
         leads_to_trans_n!(spec,
-            lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])),
+            lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
             lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero)), Error])),
             lift_state(reconcile_idle)
         );
     }
     // \A n | Error |= \E n | Error
     leads_to_exists_intro(spec,
-        |n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])),
+        |n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
         lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero)), Error]))
     );
     // \E n | Error ~> idle
     leads_to_trans_n!(spec,
-        tla_exists(|n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]))),
+        tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n)))),
         lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero)), Error])),
         lift_state(reconcile_idle)
     );
     // 2.3 AfterScaleDownOldVRS ~> AfterScaleDownOldVRS && \E n | Error ~> idle
     assert(spec.entails(lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])).leads_to(lift_state(reconcile_idle)))) by {
         // p |= p(n)
-        assert forall |ex| #![trigger dummy_trigger_ex(ex)] lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])).satisfied_by(ex)
-            implies tla_exists(|n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])))
+        // hack to make Verus happy with trigger on macro
+        let p = lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS]));
+        assert forall |ex| #[trigger] p.satisfied_by(ex)
+            implies tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))
                     .satisfied_by(ex) by {
                 let s_marshalled = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].local_state;
                 let witness_n = VDeploymentReconcileState::unmarshal(s_marshalled).unwrap().old_vrs_list.len();
                 tla_exists_proved_by_witness(
-                    ex, |n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error])),
+                    ex, |n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
                     witness_n
                 );
             }
-        assert(spec.entails(lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])).leads_to(lift_state(reconcile_idle)))) by {
+        assert(spec.entails(p.leads_to(lift_state(reconcile_idle)))) by {
             // p ~> p(n)
-            entails_implies_leads_to(spec, lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])),
-                tla_exists(|n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]))));
+            entails_implies_leads_to(spec, p,
+                tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n)))));
             // p ~> p(n) ~> idle
             leads_to_trans_n!(spec,
-                lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])),
-                tla_exists(|n| lift_state(lift_local(controller_id, vd, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]))),
+                p,
+                tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n)))),
                 lift_state(reconcile_idle)
             );
         }
