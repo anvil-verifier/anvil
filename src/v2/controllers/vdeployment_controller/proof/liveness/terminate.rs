@@ -231,6 +231,7 @@ ensures
         Plain(Init).into_local_state_pred(),
         Plain(AfterListVRS).into_local_state_pred()
     );
+    // Finally, True ~> idle
     let bundle = Plain(Init).into_temporal_pred(controller_id, vd)
         .or(Plain(AfterListVRS).into_temporal_pred(controller_id, vd))
         .or(Plain(AfterCreateNewVRS).into_temporal_pred(controller_id, vd))
