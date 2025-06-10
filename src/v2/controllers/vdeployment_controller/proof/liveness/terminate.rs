@@ -11,6 +11,7 @@ use crate::vdeployment_controller::{
     trusted::{liveness_theorem::*, spec_types::*, step::*, util::*},
     proof::predicate::{StepCase::*, IntoSpec, into_spec_all},
 };
+use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
 // make encoding steps easier
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use vstd::prelude::*;
@@ -58,6 +59,7 @@ requires
     spec.entails(true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())))),
 {
     broadcast use into_spec_all;
+    VDeploymentReconcileState::marshal_preserves_integrity();
     let reconcile_idle = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref());
     let reconcile_done = cluster.reconciler_reconcile_done(controller_id, vd.object_ref());
     let reconcile_error = cluster.reconciler_reconcile_error(controller_id, vd.object_ref());
@@ -89,7 +91,6 @@ requires
         spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(0)
     );
     // 0 ~> Done | Error ~> idle
-    VDeploymentReconcileState::marshal_preserves_integrity();
     assert(forall |input_cr, resp_o, s| WithPred(AfterScaleDownOldVRS, old_vrs_list_len(0)).into_local_state_pred()(s)
         ==> #[trigger] (Plain(Done), Plain(Error)).into_local_state_pred()((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
@@ -111,10 +112,30 @@ requires
         spec.entails((WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)
         .leads_to((WithPred(AfterScaleDownOldVRS, old_vrs_list_len(0)), Plain(Error)).into_temporal_pred(controller_id, vd))) by {
         // n | Error ~> n - 1 | Error
-            assert forall |n: nat| #![trigger (WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)]
-                n > 0 implies spec.entails((WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)
-                    .leads_to((WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd))) by {
-                        lemma_from_old_vrs_of_n_to_old_vrs_of_n_minus_1(spec, vd, cluster, controller_id, n);
+        assert forall |n: nat| #![trigger (WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)]
+            n > 0 implies spec.entails((WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)
+            .leads_to((WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd))) by {
+            // Error ~> n - 1
+            entails_implies_leads_to(spec,
+                Plain(Error).into_temporal_pred(controller_id, vd),
+                (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd)
+            );
+            // n ~> n - 1
+            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+                spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(n)
+            );
+            cluster.lemma_from_some_state_to_arbitrary_next_state(
+                spec, controller_id, vd.marshal(),
+                WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_local_state_pred(),
+                (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_local_state_pred()
+            );
+            or_leads_to_combine_and_equality!(
+                spec,
+                (WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd),
+                Plain(Error).into_temporal_pred(controller_id, vd),
+                WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_temporal_pred(controller_id, vd);
+                (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd)
+            );
         }
         // n | Error ~> n - 1 | Error ~> 0
         leads_to_rank_step_one(spec, |n| (WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd));
@@ -179,9 +200,41 @@ requires
         WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)).into_local_state_pred(),
         (Plain(AfterScaleDownOldVRS), Plain(Error), Plain(Done)).into_local_state_pred()
     );
-    // AfterScaleNewVRS && n ~> AfterScaleNewVRS && ndesired_replicas ~> idle
+    // AfterScaleNewVRS && n | Error ~> AfterScaleNewVRS && desired_replicas | Error ~> idle
     // similar to 2.2.1. While after maxSurge and maxUnavailable are supported, it can't be completed in one step
     // Then we should use a new rank function to prove this. leads_to_rank_step_one only supports n ~> 0
+    assert forall |n: nat| spec.entails(#[trigger](WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(n)), Plain(Error)).into_temporal_pred(controller_id, vd).leads_to(
+        (WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)), Plain(Error)).into_temporal_pred(controller_id, vd))) by {
+        if (n != desired_replicas) {
+            VReplicaSetView::marshal_preserves_integrity();
+            // Error ~> AfterScaleNewVRS && ndesired_replicas | Error
+            entails_implies_leads_to(
+                spec,
+                Plain(Error).into_temporal_pred(controller_id, vd),
+                (WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)), Plain(Error)).into_temporal_pred(controller_id, vd)
+            );
+            // n ~> desired_replicas
+            lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
+                spec, vd, controller_id, AfterScaleNewVRS, new_vrs_some_and_replicas(n)
+            );
+            assume(forall |input_cr, resp_o, s| WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(n)).into_local_state_pred()(s)
+                ==> #[trigger] (WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)), Plain(Error)).into_local_state_pred()((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+            cluster.lemma_from_some_state_to_arbitrary_next_state(
+                spec, controller_id, vd.marshal(),
+                WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(n)).into_local_state_pred(),
+                (WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)), Plain(Error)).into_local_state_pred()
+            );
+            or_leads_to_combine_and_equality!(
+                spec,
+                (WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(n)), Plain(Error)).into_temporal_pred(controller_id, vd),
+                Plain(Error).into_temporal_pred(controller_id, vd),
+                WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(n)).into_temporal_pred(controller_id, vd);
+                (WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)), Plain(Error)).into_temporal_pred(controller_id, vd)
+            );
+        } else {
+            leads_to_self_temp((WithPred(AfterScaleNewVRS, new_vrs_some_and_replicas(desired_replicas)), Plain(Error)).into_temporal_pred(controller_id, vd));
+        }
+    }
 }
 
 // what is satisfied at step should also be satisfied at step and pred
@@ -222,65 +275,5 @@ ensures
         assert forall |i: nat| #![auto] pre.satisfied_by(ex.suffix(i)) implies post.satisfied_by(ex.suffix(i)) by {
         }
     }
-}
-
-pub proof fn lemma_from_old_vrs_of_n_to_old_vrs_of_n_minus_1(
-    spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int, n: nat
-)
-requires
-    n > 0,
-    spec.entails(always(lift_action(cluster.next()))),
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
-    spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
-    spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
-    spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
-    spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
-    spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
-    spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
-    spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
-    spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
-    spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
-    spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
-    spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)))),
-    spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))),
-    spec.entails(always(
-        lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
-            controller_id,
-            vd.object_ref(),
-            Plain(AfterScaleDownOldVRS).into_local_state_pred()
-        )))),
-ensures
-    spec.entails((WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd)
-        .leads_to((WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd))),
-{
-    broadcast use into_spec_all;
-    VDeploymentReconcileState::marshal_preserves_integrity();
-    VDeploymentView::marshal_preserves_integrity();
-    // Error ~> n - 1
-    entails_implies_leads_to(spec,
-        Plain(Error).into_temporal_pred(controller_id, vd),
-        (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd)
-    );
-    // n ~> n - 1
-    lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
-        spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(n)
-    );
-    cluster.lemma_from_some_state_to_arbitrary_next_state(
-        spec, controller_id, vd.marshal(),
-        WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_local_state_pred(),
-        (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_local_state_pred()
-    );
-    or_leads_to_combine_and_equality!(
-        spec,
-        (WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)), Plain(Error)).into_temporal_pred(controller_id, vd),
-        Plain(Error).into_temporal_pred(controller_id, vd),
-        WithPred(AfterScaleDownOldVRS, old_vrs_list_len(n)).into_temporal_pred(controller_id, vd);
-        (WithPred(AfterScaleDownOldVRS, old_vrs_list_len((n - 1) as nat)), Plain(Error)).into_temporal_pred(controller_id, vd)
-    );
 }
 }
