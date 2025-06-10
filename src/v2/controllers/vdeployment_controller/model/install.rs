@@ -20,7 +20,7 @@ impl Marshallable for VDeploymentReconcileState {
     {}
 }
 
-pub open spec fn vrs_controller_model() -> ControllerModel {
+pub open spec fn vd_controller_model() -> ControllerModel {
     ControllerModel {
         reconcile_model: Cluster::installed_reconcile_model::<VDeploymentReconciler, VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidERespView>(),
         external_model: None,

@@ -70,7 +70,8 @@ proof fn tla_exists_unfold<T, A>(ex: Execution<T>, a_to_p: spec_fn(A) -> TempPre
     ensures exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
 {}
 
-proof fn tla_exists_proved_by_witness<T, A>(ex: Execution<T>, a_to_p: spec_fn(A) -> TempPred<T>, witness_a: A)
+// TODO: add a lemma to prove by witness and elimiate the reasoning over execution
+pub proof fn tla_exists_proved_by_witness<T, A>(ex: Execution<T>, a_to_p: spec_fn(A) -> TempPred<T>, witness_a: A)
     requires a_to_p(witness_a).satisfied_by(ex),
     ensures tla_exists(a_to_p).satisfied_by(ex)
 {}

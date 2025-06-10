@@ -468,8 +468,8 @@ requires
     // and new/old vrs has replicas -> vrs.state_validation()
     forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed()
 ensures
-    res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
-    res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
+    res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
+    res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
     forall |i: int| 0 <= i < res.0.len() ==> (#[trigger] res.0[i])@.well_formed(),
     forall |i: int| 0 <= i < res.1.len() ==> (#[trigger] res.1[i])@.well_formed(),
 {
@@ -480,11 +480,11 @@ ensures
     proof {
         assert(
             new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).0
+            model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).0
         );
         assert(
             old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
+            model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
         );
         assert(forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed());
         assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed());
@@ -499,8 +499,8 @@ ensures
             forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list_view[i].well_formed()
         }),
         idx <= vrs_list.len(),
-        new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
-        old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_reconciler::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
+        new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
+        old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
         forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed(),
         forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed(),
     {
@@ -546,7 +546,7 @@ ensures
 }
 
 // TODO
-// proof lemma_filter_old_and_new_vrs_match_model();
+// proof lemma_model_util::filter_old_and_new_vrs_match_model();
 fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
 requires
     vd@.well_formed(),
