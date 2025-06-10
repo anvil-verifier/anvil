@@ -46,7 +46,6 @@ impl View for VDeploymentReconcileStep {
 }
 
 #[is_variant]
-#[derive(PartialEq)]
 pub enum VDeploymentReconcileStepView {
     Init,
     AfterListVRS,
@@ -55,16 +54,6 @@ pub enum VDeploymentReconcileStepView {
     AfterScaleDownOldVRS,
     Done,
     Error,
-}
-
-// hacky workaround for
-// The verifier does not yet support the following Rust feature: ==/!= for non smt equality types:
-// (The type is not available in log, I hacked verus)
-// Datatype(Path(Path(Some("v2_vdeployment_controller"), ["vdeployment_controller" :: "trusted" :: "step" :: "VDeploymentReconcileStepView"])), [], [])
-impl VDeploymentReconcileStepView {
-    pub open spec fn eq_step(self, other: VDeploymentReconcileStepView) -> bool {
-        self == other
-    }
 }
 
 }
