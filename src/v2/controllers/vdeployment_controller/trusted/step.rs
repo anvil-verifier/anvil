@@ -56,4 +56,14 @@ pub enum VDeploymentReconcileStepView {
     Error,
 }
 
+// eq_step is the tricky workaround for error:
+// The verifier does not yet support the following Rust feature: ==/!= for non smt equality types:
+// (The type is not available in log, I hacked verus)
+// Datatype(Path(Path(Some("v2_vdeployment_controller"), ["vdeployment_controller" :: "trusted" :: "step" :: "VDeploymentReconcileStepView"])), [], [])
+impl VDeploymentReconcileStepView {
+    pub open spec fn eq_step(self, other: VDeploymentReconcileStepView) -> bool {
+        self == other
+    }
+}
+
 }
