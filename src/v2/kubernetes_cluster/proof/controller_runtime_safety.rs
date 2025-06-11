@@ -616,6 +616,19 @@ pub proof fn lemma_always_every_ongoing_reconcile_has_unique_id(
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
+// TODO: prove this.
+pub open spec fn every_msg_from_key_is_pending_req_msg_of(
+    controller_id: int, key: ObjectRef
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src == HostId::Controller(controller_id, key)
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
+        } ==> Cluster::pending_req_msg_is(controller_id, s, key, msg)
+    }
 }
 
+}
 }

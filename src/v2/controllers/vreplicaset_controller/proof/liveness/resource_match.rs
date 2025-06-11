@@ -1031,7 +1031,7 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
 // List lemmas
 
 // TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
+//#[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_pods_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, diff: int
 )
@@ -1040,27 +1040,23 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
         spec.entails(
             lift_state(
@@ -1089,26 +1085,22 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
     let input = (None::<Message>, Some(vrs.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
         &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -1117,25 +1109,21 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)),
-        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1143,17 +1131,14 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
                     s, s_prime, vrs, cluster, controller_id, msg
                 );
-                // Prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-                assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
             },
-            Step::ControllerStep(..) => {
+            Step::ControllerStep(input) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();
             },
-            _ => {
-            }
+            _ => {}
         }
     }
 
@@ -1162,8 +1147,6 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
     );
 }
 
-// TODO: fix broken proof
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -1180,21 +1163,16 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
         spec.entails(
             lift_state(
@@ -1230,20 +1208,15 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -1259,19 +1232,14 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1279,170 +1247,21 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
-                    s, s_prime, vrs, cluster, controller_id, msg
-                );
-                // Prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-                assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
-                // Prod for the theorem prover to realize there is a response message.
+
                 if msg == req_msg {
-                    let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
-                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                    assert forall |o: DynamicObjectView| #![auto]
-                    pre(s) && matching_pods(vrs, s_prime.resources()).contains(o)
-                    implies resp_objs.to_set().contains(o) by {
-                        // Tricky reasoning about .to_seq
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                            &&& o.object_ref().kind == PodView::kind()
-                        };
-                        let selected_elements = s.resources().values().filter(selector);
-                        assert(selected_elements.contains(o));
-                        lemma_values_finite(s.resources());
-                        finite_set_to_seq_contains_all_set_elements(selected_elements);
-                    }
-
-                    assert forall |o: DynamicObjectView| #![auto]
-                    pre(s) && resp_objs.contains(o)
-                    implies !PodView::unmarshal(o).is_err()
-                            && o.metadata.namespace == vrs.metadata.namespace by {
-                        // Tricky reasoning about .to_seq
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                            &&& o.object_ref().kind == PodView::kind()
-                        };
-                        let selected_elements = s.resources().values().filter(selector);
-                        lemma_values_finite(s.resources());
-                        finite_set_to_seq_contains_all_set_elements(selected_elements);
-                        assert(resp_objs == selected_elements.to_seq());
-                        assert(selected_elements.contains(o));
-                    }
-                    seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
-
-                    // TODO: Shorten up this proof.
-                    assert_by(objects_to_pods(resp_objs).unwrap().no_duplicates(), {
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                            &&& o.object_ref().kind == PodView::kind()
-                        };
-                        let selected_elements = s.resources().values().filter(selector);
-                        lemma_values_finite(s.resources());
-                        finite_set_to_seq_has_no_duplicates(selected_elements);
-                        let selected_elements_seq = selected_elements.to_seq();
-                        let pods_seq = objects_to_pods(selected_elements_seq).unwrap();
-                        assert(selected_elements_seq.no_duplicates());
-
-                        assert forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                            x != y
-                            && selected_elements_seq.contains(x)
-                            && selected_elements_seq.contains(y) implies x.object_ref() != y.object_ref() by {
-                            finite_set_to_seq_contains_all_set_elements(selected_elements);
-                            assert(selected_elements.contains(x));
-                            assert(selected_elements.contains(y));
-                        }
-
-                        let lem = forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                            x != y
-                            && selected_elements_seq.contains(x)
-                            && selected_elements_seq.contains(y) ==> x.object_ref() != y.object_ref();
-
-                        assert forall |i: int, j: int| #![auto]
-                            0 <= i && i < pods_seq.len() && (0 <= j && j < pods_seq.len()) && !(i == j)
-                            && objects_to_pods(selected_elements_seq).is_Some()
-                            && lem
-                            implies pods_seq[i] != pods_seq[j] by {
-                            let o1 = selected_elements_seq[i];
-                            let o2 = selected_elements_seq[j];
-                            assert(o1.object_ref() != o2.object_ref());
-                            PodView::marshal_preserves_integrity();
-                            seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(selected_elements_seq, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
-                            assert(selected_elements_seq.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0);
-                            assert(selected_elements_seq.contains(o1));
-                            assert(selected_elements_seq.contains(o2));
-                        }
-
-                        assert(pods_seq.no_duplicates());
-                    });
-                    assert(matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
-                        // reveal API server spec
-                        let selector = |o: DynamicObjectView| {
-                            &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                            &&& o.object_ref().kind == PodView::kind()
-                        };
-                        assert(resp_objs == s.resources().values().filter(selector).to_seq());
-                        // consistency of no_duplicates
-                        lemma_values_finite(s.resources());
-                        finite_set_to_finite_filtered_set(s.resources().values(), selector);
-                        finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
-                        assert(resp_objs.no_duplicates());
-    
-                        // reveal matching_pods logic
-                        let matched_pods = matching_pods(vrs, s.resources());
-                        assert(matched_pods =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
-                            assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_pods.contains(obj) by {
-                                assert(owned_selector_match_is(vrs, obj));
-                                assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
-                                assert(matched_pods.contains(obj));                                                
-                            }
-                            assert forall |obj| matched_pods.contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
-                                assert(s.resources().contains_key(obj.object_ref()));
-                                assert(owned_selector_match_is(vrs, obj));
-                            }
-                            // optional if antisymmetry_of_set_equality is imported
-                            assert(forall |obj| matched_pods.contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
-                        }
-                        assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)) == matching_pods(vrs, s.resources()));
-                        
-                        // get rid of DS conversion, basically babysitting Verus
-                        assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
-                            assert(resp_objs == s.resources().values().filter(selector).to_seq());
-                            assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
-                            seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                            seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
-                            finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
-                            // Fix to get rid of flaky proof.
-                            assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
-                                resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
-                                implies
-                                s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
-                                assert(resp_objs.contains(obj));
-                                assert(s.resources().values().filter(selector).to_seq().contains(obj));
-                                assert(s.resources().values().filter(selector).contains(obj));
-                                assert(s.resources().values().contains(obj));
-                                assert(owned_selector_match_is(vrs, obj));
-                                assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
-                            }
-                            assert forall |obj| #![trigger owned_selector_match_is(vrs, obj)]
-                                s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                                implies
-                                resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) by {
-                                assert(s.resources().values().contains(obj));
-                                assert(selector(obj));
-                                assert(s.resources().values().filter(selector).contains(obj));
-                                assert(s.resources().values().filter(selector).to_seq().contains(obj));
-                                assert(resp_objs.contains(obj));
-                                assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
-                                assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj));
-                            }
-                        }
-                    }
+                    let resp_msg = lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
+                        s, s_prime, vrs, cluster, controller_id, msg,
+                    );
+                    // instantiate existential quantifier.
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_list_response().res.is_Ok()
-                        &&& {
-                            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                            //&&& resp_objs.no_duplicates()
-                            &&& objects_to_pods(resp_objs).is_Some()
-                            &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                            &&& resp_objs.no_duplicates()
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
-                        }
+                        &&& resp_msg_matches_req_msg(resp_msg, msg)
+                        &&& resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, resp_msg)
                     });
-                    assert(post(s_prime));
+                } else {
+                    lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                        s, s_prime, vrs, cluster, controller_id, msg
+                    );
                 }
             },
             _ => {}
@@ -1450,158 +1269,16 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     }
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
-        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-        assert forall |o: DynamicObjectView| #![auto]
-        pre(s) && matching_pods(vrs, s_prime.resources()).contains(o)
-        implies resp_objs.to_set().contains(o) by {
-            // Tricky reasoning about .to_seq
-            let selector = |o: DynamicObjectView| {
-                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                &&& o.object_ref().kind == PodView::kind()
-            };
-            let selected_elements = s.resources().values().filter(selector);
-            assert(selected_elements.contains(o));
-            lemma_values_finite(s.resources());
-            finite_set_to_seq_contains_all_set_elements(selected_elements);
-        }
-
-        assert forall |o: DynamicObjectView| #![auto]
-        pre(s) && resp_objs.contains(o)
-        implies !PodView::unmarshal(o).is_err()
-                && o.metadata.namespace == vrs.metadata.namespace by {
-            // Tricky reasoning about .to_seq
-            let selector = |o: DynamicObjectView| {
-                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                &&& o.object_ref().kind == PodView::kind()
-            };
-            let selected_elements = s.resources().values().filter(selector);
-            lemma_values_finite(s.resources());
-            finite_set_to_seq_contains_all_set_elements(selected_elements);
-            assert(resp_objs == selected_elements.to_seq());
-            assert(selected_elements.contains(o));
-        }
-        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
-
-        // TODO: Shorten up this proof.
-        assert_by(objects_to_pods(resp_objs).unwrap().no_duplicates(), {
-            let selector = |o: DynamicObjectView| {
-                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                &&& o.object_ref().kind == PodView::kind()
-            };
-            let selected_elements = s.resources().values().filter(selector);
-            lemma_values_finite(s.resources());
-            finite_set_to_seq_has_no_duplicates(selected_elements);
-            let selected_elements_seq = selected_elements.to_seq();
-            let pods_seq = objects_to_pods(selected_elements_seq).unwrap();
-            assert(selected_elements_seq.no_duplicates());
-
-            assert forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                x != y
-                && selected_elements_seq.contains(x)
-                && selected_elements_seq.contains(y) implies x.object_ref() != y.object_ref() by {
-                finite_set_to_seq_contains_all_set_elements(selected_elements);
-                assert(selected_elements.contains(x));
-                assert(selected_elements.contains(y));
-            }
-
-            let lem = forall |x: DynamicObjectView, y: DynamicObjectView| #![auto]
-                x != y
-                && selected_elements_seq.contains(x)
-                && selected_elements_seq.contains(y) ==> x.object_ref() != y.object_ref();
-
-            assert forall |i: int, j: int| #![auto]
-                0 <= i && i < pods_seq.len() && (0 <= j && j < pods_seq.len()) && !(i == j)
-                && objects_to_pods(selected_elements_seq).is_Some()
-                && lem
-                implies pods_seq[i] != pods_seq[j] by {
-                let o1 = selected_elements_seq[i];
-                let o2 = selected_elements_seq[j];
-                assert(o1.object_ref() != o2.object_ref());
-                PodView::marshal_preserves_integrity();
-                seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(selected_elements_seq, |o: DynamicObjectView| PodView::unmarshal(o).is_err());
-                assert(selected_elements_seq.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0);
-                assert(selected_elements_seq.contains(o1));
-                assert(selected_elements_seq.contains(o2));
-            }
-
-            assert(pods_seq.no_duplicates());
-        });
-        assert(matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() && resp_objs.no_duplicates()) by {
-            // reveal API server spec
-            let selector = |o: DynamicObjectView| {
-                &&& o.object_ref().namespace == vrs.metadata.namespace.unwrap()
-                &&& o.object_ref().kind == PodView::kind()
-            };
-            assert(resp_objs == s.resources().values().filter(selector).to_seq());
-            // consistency of no_duplicates
-            lemma_values_finite(s.resources());
-            finite_set_to_finite_filtered_set(s.resources().values(), selector);
-            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(selector));
-            assert(resp_objs.no_duplicates());
-
-            // reveal matching_pods logic
-            let matched_pods = matching_pods(vrs, s.resources());
-            assert(matched_pods =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
-                assert forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) implies matched_pods.contains(obj) by {
-                    assert(owned_selector_match_is(vrs, obj));
-                    assert(s.resources().contains_key(obj.object_ref()) && s.resources()[obj.object_ref()] == obj);
-                    assert(matched_pods.contains(obj));                                                
-                }
-                assert forall |obj| matched_pods.contains(obj) implies s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) by {
-                    assert(s.resources().contains_key(obj.object_ref()));
-                    assert(owned_selector_match_is(vrs, obj));
-                }
-                // optional if antisymmetry_of_set_equality is imported
-                assert(forall |obj| matched_pods.contains(obj) == s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj));
-            }
-            assert(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)) == matching_pods(vrs, s.resources()));
-            
-            // get rid of DS conversion, basically babysitting Verus
-            assert(resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set() =~= s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj))) by {
-                assert(resp_objs == s.resources().values().filter(selector).to_seq());
-                assert((|obj : DynamicObjectView| owned_selector_match_is(vrs, obj) && selector(obj)) =~= (|obj : DynamicObjectView| owned_selector_match_is(vrs, obj)));
-                seq_filter_preserves_no_duplicates(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                seq_filter_is_a_subset_of_original_seq(resp_objs, |obj| owned_selector_match_is(vrs, obj));
-                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(selector));
-                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)));
-                assert(forall |obj| resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj) ==> {
-                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                    &&& #[trigger] resp_objs.contains(obj)
-                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
-                    &&& s.resources().values().filter(selector).contains(obj)
-                    &&& s.resources().values().contains(obj)
-                    &&& #[trigger] owned_selector_match_is(vrs, obj)
-                    &&& s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                });
-                assert(forall |obj| s.resources().values().filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj) ==> {
-                    &&& s.resources().values().contains(obj)
-                    &&& owned_selector_match_is(vrs, obj)
-                    &&& #[trigger] selector(obj)
-                    &&& s.resources().values().filter(selector).contains(obj)
-                    &&& s.resources().values().filter(selector).to_seq().contains(obj)
-                    &&& resp_objs.contains(obj)
-                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).contains(obj)
-                    &&& resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set().contains(obj)
-                });
-            }
-        }
+        let msg = input.get_Some_0();
+        let resp_msg = lemma_list_pods_request_returns_ok_list_resp_containing_matching_pods(
+            s, s_prime, vrs, cluster, controller_id, msg,
+        );
+        // instantiate existential quantifier.
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_list_response().res.is_Ok()
-            &&& {
-                let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                //&&& resp_objs.no_duplicates()
-                &&& objects_to_pods(resp_objs).is_Some()
-                &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                &&& resp_objs.no_duplicates()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
-            }
+            &&& resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp_msg_is_ok_list_resp_containing_matching_pods(s_prime, vrs, resp_msg)
         });
-        assert(post(s_prime));
     }
 
     cluster.lemma_pre_leads_to_post_by_api_server(
@@ -1609,8 +1286,6 @@ pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
     );
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message
@@ -1626,6 +1301,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
+        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -1634,15 +1311,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
-        spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
         spec.entails(
             lift_state(
@@ -1677,6 +1347,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
@@ -1685,14 +1356,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -1707,6 +1372,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
@@ -1714,14 +1380,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1729,11 +1389,9 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
                     s, s_prime, vrs, cluster, controller_id, msg
                 );
-                // Prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-                assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id
@@ -1744,20 +1402,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
                         s, vrs, cluster, controller_id, resp_msg
                     );
                     let resources = s_prime.resources();
-
-                    // current_state_matches and num_diff_pods are defined subtly differently,
-                    // needs equality asserted explicitly.
-                    let f1 = |key: ObjectRef| {
-                        let obj = resources[key];
-                        &&& resources.contains_key(key)
-                        &&& owned_selector_match_is(vrs, obj)
-                    };
-                    let f2 = |key: ObjectRef| {
-                        &&& s_prime.resources().contains_key(key)
-                        &&& owned_selector_match_is(vrs, s_prime.resources()[key])
-                    };
-
-                    assert(f1 == f2);
                 }
             },
             _ => {}
@@ -1771,8 +1415,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_done(
 
 // Create lemmas
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int
@@ -1788,6 +1430,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -1797,14 +1440,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
         diff < 0,
     ensures
         spec.entails(
@@ -1840,6 +1477,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
@@ -1848,14 +1486,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -1870,6 +1502,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
@@ -1877,14 +1510,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1892,11 +1519,9 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                lemma_api_request_outside_create_or_delete_loop_maintains_matching_pods(
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
                     s, s_prime, vrs, cluster, controller_id, msg
                 );
-                // Prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-                assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id
@@ -1917,11 +1542,6 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_create_pod_req(
     );
 }
 
-// // TODO: Investigate flaky proof.
-// #[verifier(spinoff_prover)]
-// #[verifier(rlimit(4000))]
-// TODO: broken by changed ESR spec, needs new set-based (rather than map-based) argument.
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -1938,6 +1558,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
@@ -1945,14 +1566,8 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
 
         diff < 0,
     ensures
@@ -1990,20 +1605,15 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -2019,21 +1629,15 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
-
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
@@ -2042,56 +1646,18 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                 let msg = input.get_Some_0();
                 // Case 1: We're processing the create request
                 if msg == req_msg {
-                    let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
-                    let req = req_msg.content.get_create_request();
-                    assert(req.obj.metadata.name.is_None());
-                    let created_obj = DynamicObjectView {
-                        kind: req.obj.kind,
-                        metadata: ObjectMetaView {
-                            // Set name for new object if name is not provided, here we generate
-                            // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
-                            name: if req.obj.metadata.name.is_Some() {
-                                req.obj.metadata.name
-                            } else {
-                                Some(generate_name(s.api_server))
-                            },
-                            namespace: Some(req.namespace), // Set namespace for new object
-                            resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
-                            uid: Some(s.api_server.uid_counter), // Set uid for new object
-                            deletion_timestamp: None, // Unset deletion timestamp for new object
-                            ..req.obj.metadata
-                        },
-                        spec: req.obj.spec,
-                        status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
-                    };
-                    let key = created_obj.object_ref();
-
-                    // Asserts properties about the response message
-                    generated_name_is_unique(s.api_server);
-                    // weird flakiness here
-                    assert(!s.resources().contains_key(created_obj.object_ref()));
+                    let resp_msg = lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
+                        s, s_prime, vrs, cluster, controller_id, msg,
+                    );
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
                         &&& resp_msg.content.get_create_response().res.is_Ok()
                     });
-
-                    // Asserts properties about the newly inserted object.
-                    assert_maps_equal!(s.resources().insert(key, created_obj) == s_prime.resources());
-                    assert(s.resources().len() + 1 == s_prime.resources().len());
-                    assert(created_obj.metadata.owner_references.unwrap()[0] == vrs.controller_owner_ref());
-                    assert(owned_selector_match_is(vrs, created_obj));
-
-                    // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is increased.
-                    a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
-                    assert(matching_pod_entries(vrs, s.resources()).insert(key, created_obj) == matching_pod_entries(vrs, s_prime.resources()));
                 } else {
-                    assert_by(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()), {
-                        a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
-                        lemma_api_request_not_made_by_vrs_maintains_matching_pods(
-                            s, s_prime, vrs, cluster, controller_id, diff, msg, Some(req_msg),
-                        );
-                    });
+                    lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                        s, s_prime, vrs, cluster, controller_id, msg
+                    );
                 }
             },
             _ => {}
@@ -2099,48 +1665,15 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     }
 
     assert forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
-        let req = req_msg.content.get_create_request();
-        let created_obj = DynamicObjectView {
-            kind: req.obj.kind,
-            metadata: ObjectMetaView {
-                // Set name for new object if name is not provided, here we generate
-                // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
-                name: if req.obj.metadata.name.is_Some() {
-                    req.obj.metadata.name
-                } else {
-                    Some(generate_name(s.api_server))
-                },
-                namespace: Some(req.namespace), // Set namespace for new object
-                resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
-                uid: Some(s.api_server.uid_counter), // Set uid for new object
-                deletion_timestamp: None, // Unset deletion timestamp for new object
-                ..req.obj.metadata
-            },
-            spec: req.obj.spec,
-            status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
-        };
-        let key = created_obj.object_ref();
-
-        // Asserts properties about the response message
-        generated_name_is_unique(s.api_server);
-        // weird flakiness here
-        assert(!s.resources().contains_key(created_obj.object_ref()));
+        let msg = input.get_Some_0();
+        let resp_msg = lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
+            s, s_prime, vrs, cluster, controller_id, msg,
+        );
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, msg)
             &&& resp_msg.content.get_create_response().res.is_Ok()
         });
-
-        // Asserts properties about the newly inserted object.
-        assert_maps_equal!(s.resources().insert(key, created_obj) == s_prime.resources());
-        assert(s.resources().len() + 1 == s_prime.resources().len());
-        assert(created_obj.metadata.owner_references.unwrap()[0] == vrs.controller_owner_ref());
-        assert(owned_selector_match_is(vrs, created_obj));
-
-        // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is increased.
-        a_submap_of_a_finite_map_is_finite(matching_pod_entries(vrs, s.resources()), s.resources());
-        assert(matching_pod_entries(vrs, s.resources()).insert(key, created_obj) == matching_pod_entries(vrs, s_prime.resources()));
     }
 
     cluster.lemma_pre_leads_to_post_by_api_server(
@@ -2148,8 +1681,6 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     );
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message, diff: int
@@ -2159,29 +1690,23 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
-        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
 
         diff < 0,
     ensures
@@ -2213,28 +1738,22 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
 
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
-        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
-        &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -2243,27 +1762,21 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2271,12 +1784,9 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                let pending_req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg;
-                lemma_api_request_not_made_by_vrs_maintains_matching_pods(
-                    s, s_prime, vrs, cluster, controller_id, diff, msg, pending_req_msg
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                    s, s_prime, vrs, cluster, controller_id, msg
                 );
-                // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-                assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
             },
             Step::ControllerStep(..) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();
@@ -2295,8 +1805,6 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_create_pod_req(
     );
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
@@ -2306,29 +1814,23 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vrs_controller_model()),
         spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(always(lift_state(Cluster::desired_state_is(vrs)))),
         spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
         spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
         spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
         spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
         spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())))),
         spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()))),
         spec.entails(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()))),
-        spec.entails(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)))),
-        spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())))),
         forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
-        spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))),
     ensures
         spec.entails(
             lift_state(
@@ -2358,28 +1860,22 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
 
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
+        &&& Cluster::desired_state_is(vrs)(s)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& Cluster::crash_disabled(controller_id)(s)
         &&& Cluster::req_drop_disabled()(s)
         &&& Cluster::pod_monkey_disabled()(s)
         &&& Cluster::every_in_flight_msg_has_unique_id()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s)
         &&& cluster.each_builtin_object_in_etcd_is_well_formed()(s)
         &&& cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s)
         &&& cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s)
-        &&& Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)(s)
-        &&& Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s)
         &&& Cluster::etcd_is_finite()(s)
-        &&& helper_invariants::every_create_request_is_well_formed(cluster, controller_id)(s)
-        &&& helper_invariants::no_pending_interfering_update_request()(s)
-        &&& helper_invariants::no_pending_interfering_update_status_request()(s)
-        &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
-        &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
-        &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
-        &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
+        &&& helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)(s)
+        &&& helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s)
     };
     helper_lemmas::vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition(
         spec, cluster, controller_id
@@ -2388,27 +1884,21 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(cluster.next()),
+        lift_state(Cluster::desired_state_is(vrs)),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::crash_disabled(controller_id)),
         lift_state(Cluster::req_drop_disabled()),
         lift_state(Cluster::pod_monkey_disabled()),
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())),
         lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()),
         lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()),
         lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()),
-        lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id)),
-        lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())),
         lifted_vrs_rely_condition(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(helper_invariants::every_create_request_is_well_formed(cluster, controller_id)),
-        lift_state(helper_invariants::no_pending_interfering_update_request()),
-        lift_state(helper_invariants::no_pending_interfering_update_status_request()),
-        lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
-        lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
-        lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
+        lift_state(helper_invariants::vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2416,12 +1906,9 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                let pending_req_msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg;
-                lemma_api_request_not_made_by_vrs_maintains_matching_pods(
-                    s, s_prime, vrs, cluster, controller_id, 0, msg, pending_req_msg
+                lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
+                    s, s_prime, vrs, cluster, controller_id, msg
                 );
-                // Small prod for the theorem prover to realize num_diff_pods_is(vrs, diff) is maintained.
-                assert(matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()));
             },
             Step::ControllerStep(..) => {
                 VReplicaSetReconcileState::marshal_preserves_integrity();

@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
+    api_server::state_machine::*,
     controller::types::*,
     cluster::*, 
     message::*
@@ -103,26 +104,17 @@ pub open spec fn num_diff_pods_is(vrs: VReplicaSetView, diff: int) -> StatePred<
 
 // Predicates to specify leads-to boundary lemmas.
 
-// TODO: CONSIDER REFACTORING COMMON PARTS WITH INLINE SPEC FN.
-
 pub open spec fn pending_req_in_flight_at_after_list_pods_step(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterListPods;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
-        let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_ListRequest()
-        &&& request.get_ListRequest_0() == ListRequest {
-            kind: PodView::kind(),
-            namespace: vrs.metadata.namespace.unwrap(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_list_pods_req(vrs, msg)
     }
 }
 
@@ -136,14 +128,8 @@ pub open spec fn req_msg_is_the_in_flight_list_req_at_after_list_pods_step(
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_ListRequest()
-        &&& request.get_ListRequest_0() == ListRequest {
-            kind: PodView::kind(),
-            namespace: vrs.metadata.namespace.unwrap(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_list_pods_req(vrs, msg)
     }
 }
 
@@ -153,32 +139,14 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterListPods;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
-        let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_ListRequest()
-        &&& request.get_ListRequest_0() == ListRequest {
-            kind: PodView::kind(),
-            namespace: vrs.metadata.namespace.unwrap(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_list_pods_req(vrs, msg)
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_list_response().res.is_Ok()
-            &&& {
-                let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-                //&&& resp_objs.no_duplicates()
-                &&& objects_to_pods(resp_objs).is_Some()
-                &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-                &&& resp_objs.no_duplicates()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
-            }
+            &&& resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, resp_msg)
         }
     }
 }
@@ -189,35 +157,46 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterListPods;
         let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
-        let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_ListRequest()
-        &&& request.get_ListRequest_0() == ListRequest {
-            kind: PodView::kind(),
-            namespace: vrs.metadata.namespace.unwrap(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_list_pods_req(vrs, msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_list_response().res.is_Ok()
-        &&& {
-            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-            //&&& resp_objs.no_duplicates()
-            &&& objects_to_pods(resp_objs).is_Some()
-            &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
-            &&& resp_objs.no_duplicates()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
-        }
+        &&& resp_msg_is_ok_list_resp_containing_matching_pods(s, vrs, resp_msg)
     }
 }
 
-// Pod creation predicates
+pub open spec fn req_msg_is_list_pods_req(
+    vrs: VReplicaSetView, req_msg: Message,
+) -> bool {
+    let request = req_msg.content.get_APIRequest_0();
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content.is_APIRequest()
+    &&& request.is_ListRequest()
+    &&& request.get_ListRequest_0() == ListRequest {
+        kind: PodView::kind(),
+        namespace: vrs.metadata.namespace.unwrap(),
+    }
+}
+
+pub open spec fn resp_msg_is_ok_list_resp_containing_matching_pods(
+    s: ClusterState, vrs: VReplicaSetView, resp_msg: Message
+) -> bool {
+    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    &&& resp_msg.content.is_list_response()
+    &&& resp_msg.content.get_list_response().res.is_Ok()
+    &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
+    &&& objects_to_pods(resp_objs).is_Some()
+    &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
+    &&& resp_objs.no_duplicates()
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
+}
+
+// Pod creation predicates (and function)
+
 pub open spec fn pending_req_in_flight_at_after_create_pod_step(
     vrs: VReplicaSetView, controller_id: int, diff: nat
 ) -> StatePred<ClusterState> {
@@ -228,14 +207,8 @@ pub open spec fn pending_req_in_flight_at_after_create_pod_step(
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_CreateRequest()
-        &&& request.get_CreateRequest_0() == CreateRequest {
-            namespace: vrs.metadata.namespace.unwrap(),
-            obj: make_pod(vrs).marshal(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_create_matching_pod_req(vrs, msg)
     }
 }
 
@@ -248,14 +221,8 @@ pub open spec fn req_msg_is_the_in_flight_create_request_at_after_create_pod_ste
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg.src.is_controller_id(controller_id)
-        &&& req_msg.dst == HostId::APIServer
-        &&& req_msg.content.is_APIRequest()
-        &&& request.is_CreateRequest()
-        &&& request.get_CreateRequest_0() == CreateRequest {
-            namespace: vrs.metadata.namespace.unwrap(),
-            obj: make_pod(vrs).marshal(),
-        }
+        &&& req_msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_create_matching_pod_req(vrs, req_msg)
     }
 }
 
@@ -268,14 +235,8 @@ pub open spec fn exists_ok_resp_in_flight_at_after_create_pod_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_CreateRequest()
-        &&& request.get_CreateRequest_0() == CreateRequest {
-            namespace: vrs.metadata.namespace.unwrap(),
-            obj: make_pod(vrs).marshal(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_create_matching_pod_req(vrs, msg)
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
@@ -293,17 +254,48 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
-        &&& msg.src.is_controller_id(controller_id)
-        &&& msg.dst == HostId::APIServer
-        &&& msg.content.is_APIRequest()
-        &&& request.is_CreateRequest()
-        &&& request.get_CreateRequest_0() == CreateRequest {
-            namespace: vrs.metadata.namespace.unwrap(),
-            obj: make_pod(vrs).marshal(),
-        }
+        &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        &&& req_msg_is_create_matching_pod_req(vrs, msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
         &&& resp_msg.content.get_create_response().res.is_Ok()
+    }
+}
+
+pub open spec fn req_msg_is_create_matching_pod_req(
+    vrs: VReplicaSetView, req_msg: Message,
+) -> bool {
+    let request = req_msg.content.get_APIRequest_0();
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content.is_APIRequest()
+    &&& request.is_CreateRequest()
+    &&& request.get_CreateRequest_0() == CreateRequest {
+        namespace: vrs.metadata.namespace.unwrap(),
+        obj: make_pod(vrs).marshal(),
+    }
+}
+
+pub open spec fn new_obj_in_etcd(
+    s: ClusterState, cluster: Cluster, obj_temp: DynamicObjectView,
+) -> DynamicObjectView {
+    let meta = ObjectMetaView {
+        // Set name for new object if name is not provided, here we generate
+        // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
+        name: if obj_temp.metadata.name.is_Some() {
+            obj_temp.metadata.name
+        } else {
+            Some(generate_name(s.api_server))
+        },
+        namespace: Some(obj_temp.metadata.namespace.unwrap()), // Set namespace for new object
+        resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
+        uid: Some(s.api_server.uid_counter), // Set uid for new object
+        deletion_timestamp: None, // Unset deletion timestamp for new object
+        ..obj_temp.metadata
+    };
+    DynamicObjectView {
+        metadata: meta,
+        status: marshalled_default_status(obj_temp.kind, cluster.installed_types), // Overwrite the status with the default one
+        ..obj_temp
     }
 }
 
