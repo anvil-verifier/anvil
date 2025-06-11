@@ -14,6 +14,11 @@ use vstd::prelude::*;
 
 verus! {
 
+// just to make Verus happy
+pub uninterp spec fn dummy_trigger_n(n: nat) -> bool;
+pub uninterp spec fn dummy_trigger_ex(ex: Execution<ClusterState>) -> bool;
+pub uninterp spec fn dummy_trigger_transition(input: DynamicObjectView, resp_o: Option<ResponseContent>, s: ReconcileLocalState) -> bool;
+
 #[macro_export]
 macro_rules! at_step_internal_or {
     ($vds:expr, ($step:expr, $pred:expr)) => {

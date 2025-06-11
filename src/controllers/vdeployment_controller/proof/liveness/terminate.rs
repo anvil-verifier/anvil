@@ -19,13 +19,6 @@ use vstd::prelude::*;
 
 verus! {
 
-// just to make Verus happy
-uninterp spec fn dummy_trigger_n(n: nat) -> bool;
-
-uninterp spec fn dummy_trigger_ex(ex: Execution<ClusterState>) -> bool;
-
-uninterp spec fn dummy_trigger_transition(input: DynamicObjectView, resp_o: Option<ResponseContent>, s: ReconcileLocalState) -> bool;
-
 pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
     |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n
 }
