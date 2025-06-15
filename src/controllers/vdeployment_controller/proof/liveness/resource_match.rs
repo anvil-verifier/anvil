@@ -51,10 +51,16 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         if step.is_ControllerStep() {
             VDeploymentReconcileState::marshal_preserves_integrity();
+            // Q: What's the technique of debugging the proof for this branch?
+            assume(false);
         }
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
     );
 }
+
+pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
+){}
 }
