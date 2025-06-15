@@ -49,6 +49,12 @@ pub open spec fn is_list_req() -> spec_fn(vd: VDeploymentView, req: APIRequest) 
     }
 }
 
+pub open spec fn no_pending_message_in_cluster(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        Cluster::no_pending_req_msg(controller_id, s, vd.object_ref())
+    }
+}
+
 pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                       ==> #[trigger] vd_rely(other_id)(s)
@@ -87,11 +93,11 @@ pub open spec fn cluster_invariants(vd: VDeploymentView, cluster: Cluster, contr
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init])))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS])))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS])))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS])))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS])))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(Init))))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterListVRS))))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterCreateNewVRS))))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterScaleNewVRS))))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterScaleDownOldVRS))))))
 }
 
 pub open spec fn invariants_since_phase_n(cluster: Cluster, controller_id: int, vd: VDeploymentView, n: nat) -> TempPred<ClusterState>
@@ -119,8 +125,20 @@ pub uninterp spec fn dummy_trigger_n(n: nat) -> bool;
 pub uninterp spec fn dummy_trigger_ex(ex: Execution<ClusterState>) -> bool;
 pub uninterp spec fn dummy_trigger_transition(input: DynamicObjectView, resp_o: Option<ResponseContent>, s: ReconcileLocalState) -> bool;
 
+// usage: at_step![step,*]
+// step_or_pred = step | (step, pred)
 #[macro_export]
-macro_rules! at_step_internal_or {
+macro_rules! at_step_or {
+    ( $($tokens:tt)+ ) => {
+        closure_to_fn_spec(|s: ReconcileLocalState| {
+            let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
+            at_step_or_internal!(vds, $($tokens)+)
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! at_step_or_internal {
     ($vds:expr, ($step:expr, $pred:expr)) => {
         $vds.reconcile_step.eq_step($step) && $pred($vds)
     };
@@ -131,23 +149,11 @@ macro_rules! at_step_internal_or {
     };
 
     ($vds:expr, $head:tt, $($tail:tt)+) => {
-        at_step_internal_or!($vds, $head) || at_step_internal_or!($vds, $($tail)+)
+        at_step_or_internal!($vds, $head) || at_step_or_internal!($vds, $($tail)+)
     };
 }
 
-// usage: at_step![step,*]
-// step_or_pred = step | (step, pred)
-#[macro_export]
-macro_rules! at_step_or {
-    [ $($tokens:tt)+ ] => {
-        closure_to_fn_spec(|s: ReconcileLocalState| {
-            let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
-            at_step_internal_or!(vds, $($tokens)+)
-        })
-    };
-}
-
-// usage: lift_local(controller_id, vd, at_step_or![step_or_pred+])
+// usage: lift_local(controller_id, vd, at_step_or!(step_or_pred+])
 pub open spec fn lift_local(controller_id: int, vd: VDeploymentView, step_pred: spec_fn(ReconcileLocalState) -> bool) -> StatePred<ClusterState> {
     Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), step_pred)
 }
@@ -169,6 +175,8 @@ macro_rules! nat1 {
 
 pub use nat0;
 pub use nat1;
-pub use at_step_internal_or;
+pub use at_step_or_internal;
 pub use at_step_or;
+pub use spec_and;
+pub use spec_and_internal;
 }
