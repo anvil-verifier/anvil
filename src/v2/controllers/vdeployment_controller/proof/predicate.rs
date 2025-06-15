@@ -29,27 +29,19 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
     }
 }
 
-pub open spec fn pending_req_in_flight_and(vd: VDeploymentView, controller_id: int, req_pred: spec_fn(VDeploymentView, APIRequest) -> bool) -> StatePred<ClusterState> {
+pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         let req = msg.content.get_APIRequest_0();
-        // TODO: do we need this line?
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
-        &&& req_pred(vd, req)
-    }
-}
-
-pub open spec fn is_list_req() -> spec_fn(vd: VDeploymentView, req: APIRequest) -> bool {
-    |vd: VDeploymentView, req: APIRequest| {
         &&& req.is_ListRequest()
         &&& req.get_ListRequest_0().kind == VDeploymentView::kind()
         &&& req.get_ListRequest_0().namespace == vd.metadata.namespace.unwrap()
     }
 }
 
-pub open spec fn no_pending_message_in_cluster(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         Cluster::no_pending_req_msg(controller_id, s, vd.object_ref())
     }
@@ -72,52 +64,30 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
 
-pub open spec fn cluster_invariants(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
-    always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))
-    .and(always(lift_state(Cluster::every_in_flight_msg_has_lower_id_than_allocator())))
-    .and(always(lift_state(Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id))))
-    .and(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())))
-    .and(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed())))
-    .and(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>())))
-    .and(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id))))
-    .and(always(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())))
-    .and(always(lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner())))
-    .and(always(lift_state(Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id))))
-    .and(always(lift_state(Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id))))
-    .and(always(lift_state(Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id))))
-    .and(always(lift_state(Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id))))
-    .and(always(lift_state(Cluster::ongoing_reconciles_is_finite(controller_id))))
-    .and(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id))))
-    .and(always(lift_state(Cluster::etcd_is_finite())))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))))
-    .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
-    .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
-    .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(Init))))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterListVRS))))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterCreateNewVRS))))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterScaleNewVRS))))))
-    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or!(AfterScaleDownOldVRS))))))
-}
-
-pub open spec fn invariants_since_phase_n(cluster: Cluster, controller_id: int, vd: VDeploymentView, n: nat) -> TempPred<ClusterState>
-    decreases n
-{
-    // match n { 0 => {...}}:
-    // expected `nat`, found integer
-    if n ==0 {
-        cluster_invariants(vd, cluster, controller_id)
-        .and(next_with_wf(cluster, controller_id))
-        .and(always(lift_state(vd_rely_condition(cluster, controller_id))))
-    } else if n == 1 {
-        invariants_since_phase_n(cluster, controller_id, vd, 0)
-        .and(always(lift_state(Cluster::crash_disabled(controller_id))))
-        .and(always(lift_state(Cluster::req_drop_disabled())))
-        .and(always(lift_state(Cluster::pod_monkey_disabled())))
-        .and(always(lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd))))
-    } else {
-        true_pred()
-    }
+pub open spec fn cluster_invariants(cluster: Cluster, vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    and!(
+        Cluster::every_in_flight_msg_has_unique_id(),
+        Cluster::every_in_flight_msg_has_lower_id_than_allocator(),
+        Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id),
+        Cluster::each_object_in_etcd_is_weakly_well_formed(),
+        cluster.each_builtin_object_in_etcd_is_well_formed(),
+        cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(),
+        Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
+        Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
+        Cluster::cr_objects_in_schedule_satisfy_state_validation::<VDeploymentView>(controller_id),
+        Cluster::each_scheduled_object_has_consistent_key_and_valid_metadata(controller_id),
+        Cluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata(controller_id),
+        Cluster::every_ongoing_reconcile_has_lower_id_than_allocator(controller_id),
+        Cluster::ongoing_reconciles_is_finite(controller_id),
+        Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id),
+        Cluster::etcd_is_finite(),
+        Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()),
+        Cluster::there_is_the_controller_state(controller_id),
+        Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
+        Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
+        vd_rely_condition(cluster, controller_id)
+    )
 }
 
 // just to make Verus happy
@@ -125,11 +95,31 @@ pub uninterp spec fn dummy_trigger_n(n: nat) -> bool;
 pub uninterp spec fn dummy_trigger_ex(ex: Execution<ClusterState>) -> bool;
 pub uninterp spec fn dummy_trigger_transition(input: DynamicObjectView, resp_o: Option<ResponseContent>, s: ReconcileLocalState) -> bool;
 
+#[macro_export]
+macro_rules! and {
+    ($($tokens:tt)+) => {
+        closure_to_fn_spec(|s| {
+            and_internal!(s, $($tokens)+)
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! and_internal {
+    ($s:expr, $head:expr) => {
+        $head($s)
+    };
+
+    ($s:expr, $head:expr, $($tail:tt)+) => {
+        and_internal!($s, $head) && and_internal!($s, $($tail)+)
+    };
+}
+
 // usage: at_step![step,*]
 // step_or_pred = step | (step, pred)
 #[macro_export]
 macro_rules! at_step_or {
-    ( $($tokens:tt)+ ) => {
+    ($($tokens:tt)+) => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
             let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
             at_step_or_internal!(vds, $($tokens)+)
@@ -177,6 +167,6 @@ pub use nat0;
 pub use nat1;
 pub use at_step_or_internal;
 pub use at_step_or;
-pub use spec_and;
-pub use spec_and_internal;
+pub use and;
+pub use and_internal;
 }
