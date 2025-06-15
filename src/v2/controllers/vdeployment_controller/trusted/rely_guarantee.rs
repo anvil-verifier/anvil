@@ -65,7 +65,7 @@ pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> State
             // owned by a VDeployment.
             &&& (req.obj.metadata.owner_references.is_Some() ==>
                 forall |vd: VDeploymentView| 
-                    ! req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
+                    !req.obj.metadata.owner_references.get_Some_0().contains(#[trigger] vd.controller_owner_ref()))
         }
     }
 }
