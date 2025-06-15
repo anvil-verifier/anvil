@@ -50,6 +50,30 @@ pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: i
 pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                       ==> #[trigger] vd_rely(other_id)(s)
+} 
+
+// same as vrs, similar to rely condition. Yet we talk about owner_ref here
+pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.src.is_BuiltinController()
+            &&& msg.dst.is_APIServer()
+            &&& msg.content.is_APIRequest()
+        } ==> {
+            let req = msg.content.get_delete_request(); 
+            &&& msg.content.is_delete_request()
+            &&& req.preconditions.is_Some()
+            &&& req.preconditions.unwrap().uid.is_Some()
+            &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req.key) ==> {
+                let etcd_obj = s.resources()[req.key];
+                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                ||| (!etcd_obj.metadata.owner_references.is_Some() && owner_references.contains(vd.controller_owner_ref()))
+                ||| etcd_obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+            }
+        }
+    }
 }
 
 pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
@@ -64,8 +88,11 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
 
-pub open spec fn cluster_invariants(cluster: Cluster, vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     and!(
+        Cluster::crash_disabled(controller_id),
+        Cluster::req_drop_disabled(),
+        Cluster::pod_monkey_disabled(),
         Cluster::every_in_flight_msg_has_unique_id(),
         Cluster::every_in_flight_msg_has_lower_id_than_allocator(),
         Cluster::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id),
@@ -86,7 +113,8 @@ pub open spec fn cluster_invariants(cluster: Cluster, vd: VDeploymentView, contr
         Cluster::there_is_the_controller_state(controller_id),
         Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
-        vd_rely_condition(cluster, controller_id)
+        vd_rely_condition(cluster, controller_id),
+        garbage_collector_does_not_delete_vd_pods(vd)
     )
 }
 
