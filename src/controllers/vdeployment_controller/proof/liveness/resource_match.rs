@@ -22,7 +22,7 @@ pub proof fn lemma_from_init_step_to_send_list_pods_req(
 requires
     spec.entails(invariants_since_phase_n(cluster, controller_id, vd, 0)),
 ensures
-    spec.entails(lift_state(at_vd_step_with_vd(vd, controller_id, at_step_or![Init])).and(lift_state(|s| Cluster::no_pending_req_msg(controller_id, s, vd.object_ref())))
+    spec.entails(lift_state(at_vd_step_with_vd(vd, controller_id, at_step_or!(Init))).and(lift_state(|s| Cluster::no_pending_req_msg(controller_id, s, vd.object_ref())))
        .leads_to(lift_state(pending_req_in_flight_and(vd, controller_id, is_list_req())))),
 {
     assume(false);
