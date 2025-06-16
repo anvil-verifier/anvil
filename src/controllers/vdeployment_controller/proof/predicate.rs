@@ -6,9 +6,11 @@ use crate::kubernetes_cluster::spec::{
     message::*
 };
 use crate::vdeployment_controller::{
-    trusted::{step::*, spec_types::*, rely_guarantee::vd_rely},
+    trusted::{step::*, spec_types::*, util::*,
+        rely_guarantee::vd_rely, liveness_theorem::current_state_matches},
     model::{install::*, reconciler::*},
 };
+use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use vstd::prelude::*;
 
@@ -42,21 +44,23 @@ pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: 
         &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
         &&& req.is_ListRequest()
-        &&& req.get_ListRequest_0().kind == VDeploymentView::kind()
-        &&& req.get_ListRequest_0().namespace == vd.metadata.namespace.unwrap()
+        &&& req.get_ListRequest_0() == ListRequest{
+            kind: VReplicaSetView::kind(),
+            namespace: vd.metadata.namespace.unwrap()
+        }
     }
 }
 
 pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let req = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& pending_list_req_in_flight(vd, controller_id)(s)
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& exists |resp: Message| {
-            &&& s.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_list_response().res.is_Ok()
+            &&& s.in_flight().contains(resp)
+            &&& #[trigger] resp_msg_matches_req_msg(resp, req)
+            &&& resp.content.get_list_response().res.is_Ok()
             &&& {
-                let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                let resp_objs = resp.content.get_list_response().res.unwrap();
                 &&& objects_to_vrs_list(resp_objs).is_Some()
                 &&& resp_objs.no_duplicates()
                 &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] obj.metadata.namespace == vd.metadata.namespace
@@ -131,6 +135,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::there_is_the_controller_state(controller_id),
         Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
+        Cluster::desired_state_is(vd),
         vd_rely_condition(cluster, controller_id),
         garbage_collector_does_not_delete_vd_pods(vd)
     )
