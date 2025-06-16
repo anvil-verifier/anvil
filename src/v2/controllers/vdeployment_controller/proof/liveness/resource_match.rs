@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::{
-    trusted::{spec_types::*, step::*, util::*},
+    trusted::{spec_types::*, step::*, util::*, liveness_theorem::current_state_matches},
     model::{install::*, reconciler::*},
     proof::predicate::*,
 };
@@ -48,16 +48,31 @@ ensures
             lift_action(cluster.next()),
             lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
         );
-        assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        assert forall |s, s_prime| no_pending_req_at_init(s) && #[trigger] stronger_next(s, s_prime)
+            implies no_pending_req_at_init(s_prime) || pending_list_req_after_list_vrs(s_prime) by {
             let step = choose |step| cluster.next_step(s, s_prime, step);
-            if step.is_ControllerStep() {
-                VDeploymentReconcileState::marshal_preserves_integrity();
-                // Q: What's the technique of debugging the proof for this branch?
-                assume(false);
+            match step {
+                Step::ControllerStep(input) => {
+                    if input.0 == controller_id && input.2 == Some(vd.object_ref()) {
+                        let msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                        let req = msg.content.get_APIRequest_0();
+                        assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.is_Some());
+                        assert(msg.src.is_controller_id(controller_id));
+                        assert(msg.dst == HostId::APIServer);
+                        assert(req.is_ListRequest());
+                        assert(req.get_ListRequest_0() == ListRequest{
+                            kind: VReplicaSetView::kind(),
+                            namespace: vd.metadata.namespace.unwrap()
+                        });
+                        assert(pending_list_req_after_list_vrs(s_prime));
+                    } else {
+                    }
+                },
+                _ => {},
             }
         }
         cluster.lemma_pre_leads_to_post_by_controller(
-            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, no_pending_req_at_init, pending_list_req_after_list_vrs
         );
     }
     let exist_list_resp_after_list_vrs = and!(
@@ -65,5 +80,7 @@ ensures
         exists_list_resp_in_flight(vd, controller_id)
     );
     // Q: what's the better choice? exists or instantiated msg?
+    // Q: Is it possible to simplify the liveness proof with quantifiers w/wo ranking function?
+    assume(false);
 }
 }
