@@ -157,6 +157,7 @@ pub open spec fn invariants_since_phase_ii(controller_id: int, vrs: VReplicaSetV
 {
     always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)))
     .and(always(lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))))
+    .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))))
 }
 
 pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vrs: VReplicaSetView)
@@ -164,7 +165,8 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vrs: VRepli
 {
     stable_and_always_n!(
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
-        lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))
+        lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)),
+        lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))
     );
 }
 
@@ -308,11 +310,13 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, vrs);
             lemma_eventually_always_vrs_in_schedule_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
+            cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vrs.object_ref());
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vrs)),
-                lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id))
+                lift_state(vrs_in_schedule_does_not_have_deletion_timestamp(vrs, controller_id)),
+                lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))
             );
         } else if i == 3 {
             lemma_eventually_always_no_pending_interfering_update_request(spec, cluster, controller_id);
