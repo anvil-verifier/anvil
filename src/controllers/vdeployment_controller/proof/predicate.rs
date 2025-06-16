@@ -29,6 +29,12 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
     }
 }
 
+pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        Cluster::no_pending_req_msg(controller_id, s, vd.object_ref())
+    }
+}
+
 pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
@@ -41,16 +47,28 @@ pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: 
     }
 }
 
-pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        Cluster::no_pending_req_msg(controller_id, s, vd.object_ref())
+        &&& pending_list_req_in_flight(vd, controller_id)(s)
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& exists |resp: Message| {
+            &&& s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.get_list_response().res.is_Ok()
+            &&& {
+                let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                &&& objects_to_vrs_list(resp_objs).is_Some()
+                &&& resp_objs.no_duplicates()
+                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] obj.metadata.namespace == vd.metadata.namespace
+            }
+        }
     }
 }
 
 pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                       ==> #[trigger] vd_rely(other_id)(s)
-} 
+}
 
 // same as vrs, similar to rely condition. Yet we talk about owner_ref here
 pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) -> StatePred<ClusterState> {

@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus !{
 
-pub proof fn lemma_from_init_step_to_send_list_pods_req(
+pub proof fn lemma_from_init_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
@@ -27,40 +27,43 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(Init)), no_pending_req_in_cluster(vd, controller_id)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)), pending_list_req_in_flight(vd, controller_id))))),
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(Done)), current_state_matches(vd))))),
 {
-    let pre = and!(
+    let no_pending_req_at_init = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or!(Init)),
         no_pending_req_in_cluster(vd, controller_id)
     );
-    let post = and!(
+    let pending_list_req_after_list_vrs = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
         pending_list_req_in_flight(vd, controller_id)
     );
-    let input = (None::<Message>, Some(vd.object_ref()));
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
-    );
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        if step.is_ControllerStep() {
-            VDeploymentReconcileState::marshal_preserves_integrity();
-            // Q: What's the technique of debugging the proof for this branch?
-            assume(false);
+    assert(spec.entails(lift_state(no_pending_req_at_init).leads_to(lift_state(pending_list_req_after_list_vrs)))) by {
+        let input = (None::<Message>, Some(vd.object_ref()));
+        let stronger_next = |s, s_prime: ClusterState| {
+            &&& cluster.next()(s, s_prime)
+            &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        };
+        combine_spec_entails_always_n!(spec,
+            lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+        );
+        assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+            let step = choose |step| cluster.next_step(s, s_prime, step);
+            if step.is_ControllerStep() {
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                // Q: What's the technique of debugging the proof for this branch?
+                assume(false);
+            }
         }
+        cluster.lemma_pre_leads_to_post_by_controller(
+            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+        );
     }
-    cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    let exist_list_resp_after_list_vrs = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
+        exists_list_resp_in_flight(vd, controller_id)
     );
+    // Q: what's the better choice? exists or instantiated msg?
 }
-
-pub proof fn lemma_from_after_send_list_pods_req_to_receive_list_pods_resp(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
-){}
 }
