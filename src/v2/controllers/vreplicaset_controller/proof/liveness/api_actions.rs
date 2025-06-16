@@ -244,6 +244,43 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
 
+// TODO: Prove this (I imagine we'll need a subtly different precondition and postcondition).
+#[verifier(external_body)]
+pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and_returns_ok(
+    s: ClusterState, s_prime: ClusterState, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, 
+    msg: Message,
+) -> (resp_msg: Message)
+    requires
+        cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+        req_msg_is_get_then_delete_matching_pod_req(vrs, controller_id, msg)(s),
+        Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
+        cluster.each_builtin_object_in_etcd_is_well_formed()(s),
+        cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>()(s),
+        cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id()(s),
+        Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
+        helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vrs_rely(other_id)(s),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    ensures
+        resp_msg == handle_get_then_delete_request_msg(msg, s.api_server).1,
+        resp_msg.content.get_create_response().res.is_Ok(),
+        // identifies specific pod deleted.
+        ({
+            let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
+            let filtered_pods = state.filtered_pods.unwrap();
+            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+            let diff = state.reconcile_step.get_AfterDeletePod_0();
+            matching_pods(vrs, s_prime.resources()) == matching_pods(vrs, s.resources()).remove(
+                s.resources()[filtered_pod_keys[diff as int]]
+            )
+        }),
+        // should be an obvious corollary of `generated_name_is_unique`.
+        matching_pods(vrs, s.resources()).len() == matching_pods(vrs, s_prime.resources()).len() + 1,
+{
+    return handle_get_then_delete_request_msg(msg, s.api_server).1;
+}
+
 // OBSOLETE FUNCTIONS ------ Remove as others get used.
 
 // TODO: broken by changed ESR spec, needs new set-based (rather than map-based) argument.
