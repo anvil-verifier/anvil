@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus !{
 
-pub proof fn lemma_from_init_to_current_state_matches(
+pub proof fn lemma_from_init_step_to_send_list_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
@@ -27,20 +27,18 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(Init)), no_pending_req_in_cluster(vd, controller_id)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(Done)), current_state_matches(vd))))),
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)), pending_list_req_in_flight(vd, controller_id))))),
 {
-    VDeploymentView::marshal_preserves_integrity();
     VDeploymentReconcileState::marshal_preserves_integrity();
-    // lemma_from_init_step_to_send_list_pods_req
-    let no_pending_req_at_init = and!(
+    let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or!(Init)),
         no_pending_req_in_cluster(vd, controller_id)
     );
-    let pending_list_req_after_list_vrs = and!(
+    let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
         pending_list_req_in_flight(vd, controller_id)
     );
-    assert(spec.entails(lift_state(no_pending_req_at_init).leads_to(lift_state(pending_list_req_after_list_vrs)))) by {
+    assert(spec.entails(lift_state(pre).leads_to(lift_state(post)))) by {
         let input = (None::<Message>, Some(vd.object_ref()));
         let stronger_next = |s, s_prime: ClusterState| {
             &&& cluster.next()(s, s_prime)
@@ -51,21 +49,12 @@ ensures
             lift_action(cluster.next()),
             lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
         );
-        assert(forall |s, s_prime| no_pending_req_at_init(s) && #[trigger] stronger_next(s, s_prime) ==> no_pending_req_at_init(s_prime) || pending_list_req_after_list_vrs(s_prime));
+        // this assertion makes proof 86% faster
+        assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
         cluster.lemma_pre_leads_to_post_by_controller(
-            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, no_pending_req_at_init, pending_list_req_after_list_vrs
+            spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
         );
     }
-    let exists_resp_msg_in_flight = |s: ClusterState| {
-        exists |resp_msg: Message| list_resp_in_flight(vd, controller_id, resp_msg)(s)
-    };
-    let exist_list_resp_after_list_vrs = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
-        exists_resp_msg_in_flight
-    );
-    // Q: what's the better choice? exists or instantiated msg?
-    // Q: Is it possible to simplify the liveness proof with quantifiers w/wo ranking function?
-    assume(false);
 }
 
 //pub open spec fn old_vrs_rank_n_in_etcd(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
