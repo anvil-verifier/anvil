@@ -132,8 +132,6 @@ pub proof fn vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
     );
 }
 
-// TODO: Prove this lemma.
-// More comments sketching an informal proof in the body.
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
@@ -147,12 +145,15 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         ({
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
+            let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
             &&& filtered_pods.no_duplicates()
             &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
             &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).values()
+            &&& filtered_pod_keys.no_duplicates()
         }),
 {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
     let resp_pods = objects_to_pods(resp_objs).unwrap();
     let filtered_objs = resp_objs.filter(|obj| owned_selector_match_is(vrs, obj));
     let filtered_pods = filter_pods(objects_to_pods(resp_objs).unwrap(), vrs);
@@ -224,6 +225,65 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) == filtered_pods);
         assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).len() == filtered_pods.len());
         assert(filtered_pods.len() == filtered_pods.len());
+    }
+    let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
+    assert forall |i: int, j: int| #![auto]
+        0 <= i < filtered_pod_keys.len()
+        && 0 <= j < filtered_pod_keys.len()
+        && i != j
+        && filtered_pods.no_duplicates()
+        implies filtered_pod_keys[i] != filtered_pod_keys[j] by {
+
+        seq_filter_contains_implies_seq_contains(
+            resp_pods,
+            |pod: PodView|
+                pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                && pod.metadata.deletion_timestamp.is_None(),
+            filtered_pods[i]
+        );
+        seq_filter_contains_implies_seq_contains(
+            resp_pods,
+            |pod: PodView|
+                pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+                && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                && pod.metadata.deletion_timestamp.is_None(),
+            filtered_pods[j]
+        );
+
+        let idxi = choose |idx| 0 <= idx < resp_pods.len() && resp_pods[idx] == filtered_pods[i];
+        let idxj = choose |idx| 0 <= idx < resp_pods.len() && resp_pods[idx] == filtered_pods[j];
+
+        assert(resp_pods == resp_objs.map_values(|o: DynamicObjectView| PodView::unmarshal(o).unwrap()));
+        assert(resp_pods.len() == resp_objs.len());
+        seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(
+            resp_objs,
+            |obj: DynamicObjectView| PodView::unmarshal(obj).is_err()
+        );
+        assert(resp_objs.contains(resp_objs[idxi]));
+        assert(resp_objs.contains(resp_objs[idxj]));
+        assert(PodView::unmarshal(resp_objs[idxi]).is_Ok());
+        assert(PodView::unmarshal(resp_objs[idxj]).is_Ok());
+
+        assert(resp_pods[idxi] == PodView::unmarshal(resp_objs[idxi]).get_Ok_0());
+        assert(resp_pods[idxj] == PodView::unmarshal(resp_objs[idxj]).get_Ok_0());
+
+        assert(resp_pods[idxi].object_ref() == resp_objs[idxi].object_ref());
+        assert(resp_pods[idxj].object_ref() == resp_objs[idxj].object_ref());
+
+        if idxi == idxj {
+            seq_filter_preserves_no_duplicates(
+                resp_pods,
+                |pod: PodView|
+                    pod.metadata.owner_references_contains(vrs.controller_owner_ref())
+                    && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
+                    && pod.metadata.deletion_timestamp.is_None(),
+            );
+        } else {
+            assert(resp_obj_keys[idxi] == resp_objs[idxi].object_ref());
+            assert(resp_obj_keys[idxj] == resp_objs[idxj].object_ref());
+            assert(resp_objs[idxi].object_ref() != resp_objs[idxj].object_ref());
+        }
     }
 }
 

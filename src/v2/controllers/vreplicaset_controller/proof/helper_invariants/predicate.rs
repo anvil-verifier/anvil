@@ -91,7 +91,7 @@ pub open spec fn no_other_pending_get_then_update_request_interferes_with_vrs_re
             // a vrs-owned pod.
             &&& req.owner_ref.controller.is_Some()
             &&& req.owner_ref.controller.get_Some_0()
-            &&& req.owner_ref.kind != VReplicaSetView::kind()
+            &&& req.owner_ref != vrs.controller_owner_ref()
             // Prevents 2): where any message not from our specific vrs updates 
             // pods so they become owned by another VReplicaSet.
             &&& (req.obj.metadata.owner_references.is_Some() ==>
@@ -129,7 +129,7 @@ pub open spec fn no_other_pending_get_then_delete_request_interferes_with_vrs_re
         req.key.kind == Kind::PodKind ==> {
             &&& req.owner_ref.controller.is_Some()
             &&& req.owner_ref.controller.get_Some_0()
-            &&& req.owner_ref.kind != VReplicaSetView::kind()
+            &&& req.owner_ref != vrs.controller_owner_ref()
         }
     }
 }
