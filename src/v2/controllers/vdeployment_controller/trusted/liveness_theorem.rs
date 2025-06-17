@@ -16,12 +16,11 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
         let vrs_list = objects_to_vrs_list(dyn_vrs_list);
         let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
         let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filtered_vrs_list, vd);
+        let new_vrs = new_vrs_list[0];
         &&& vrs_list.is_Some()
         &&& new_vrs_list.len() == 1
         &&& old_vrs_list.len() == 0
-        &&& new_vrs_list[0].spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
-        &&& match_template_without_hash(vd, new_vrs_list[0])
-        //&&& current_state_matches(new_vrs_list[0])
+        &&& new_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
     }
 }
 
