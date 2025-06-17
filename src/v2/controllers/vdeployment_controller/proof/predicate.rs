@@ -67,6 +67,14 @@ pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, re
     }
 }
 
+pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        exists |resp_msg: Message| {
+            &&& list_resp_in_flight(vd, controller_id, resp_msg)(s)
+        }
+    }
+}
+
 pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                       ==> #[trigger] vd_rely(other_id)(s)
