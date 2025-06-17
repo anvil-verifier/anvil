@@ -40,31 +40,29 @@ pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: i
 pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-        let req = msg.content.get_APIRequest_0();
+        let req_msg = msg.content.get_APIRequest_0();
         &&& msg.src.is_controller_id(controller_id)
         &&& msg.dst == HostId::APIServer
-        &&& req.is_ListRequest()
-        &&& req.get_ListRequest_0() == ListRequest{
+        &&& req_msg.is_ListRequest()
+        &&& req_msg.get_ListRequest_0() == ListRequest{
             kind: VReplicaSetView::kind(),
             namespace: vd.metadata.namespace.unwrap()
         }
     }
 }
 
-pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let req = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& pending_list_req_in_flight(vd, controller_id)(s)
-        &&& exists |resp: Message| {
-            &&& s.in_flight().contains(resp)
-            &&& #[trigger] resp_msg_matches_req_msg(resp, req)
-            &&& resp.content.get_list_response().res.is_Ok()
-            &&& {
-                let resp_objs = resp.content.get_list_response().res.unwrap();
-                &&& objects_to_vrs_list(resp_objs).is_Some()
-                &&& resp_objs.no_duplicates()
-                &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] obj.metadata.namespace == vd.metadata.namespace
-            }
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.get_list_response().res.is_Ok()
+        &&& {
+            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+            &&& objects_to_vrs_list(resp_objs).is_Some()
+            &&& resp_objs.no_duplicates()
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] obj.metadata.namespace == vd.metadata.namespace
         }
     }
 }
@@ -83,16 +81,16 @@ pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) 
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
         } ==> {
-            let req = msg.content.get_delete_request(); 
+            let req_msg = msg.content.get_delete_request(); 
             &&& msg.content.is_delete_request()
-            &&& req.preconditions.is_Some()
-            &&& req.preconditions.unwrap().uid.is_Some()
-            &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
-            &&& s.resources().contains_key(req.key) ==> {
-                let etcd_obj = s.resources()[req.key];
+            &&& req_msg.preconditions.is_Some()
+            &&& req_msg.preconditions.unwrap().uid.is_Some()
+            &&& req_msg.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+            &&& s.resources().contains_key(req_msg.key) ==> {
+                let etcd_obj = s.resources()[req_msg.key];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 ||| (!etcd_obj.metadata.owner_references.is_Some() && owner_references.contains(vd.controller_owner_ref()))
-                ||| etcd_obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+                ||| etcd_obj.metadata.uid.unwrap() > req_msg.preconditions.unwrap().uid.unwrap()
             }
         }
     }
