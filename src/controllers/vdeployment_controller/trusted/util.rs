@@ -5,6 +5,7 @@ use crate::kubernetes_api_objects::spec::{
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::trusted::spec_types::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -52,4 +53,52 @@ pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaS
     }
 }
 
+// See https://github.com/kubernetes/kubernetes/blob/cdc807a9e849b651fb48c962cc18e25d39ec5edf/pkg/controller/deployment/sync.go#L196-L210
+// pod template hash is used to prevent old and new vrs from owning the same pod
+// here we use resource_version of vd as a hash
+//
+// TODO: now we scale up the new vrs' replicas at once,
+// we may consider existing pods in old vrs later to satisfy maxSurge
+pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
+{
+    let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
+    let match_labels = vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash);
+    VReplicaSetView {
+        metadata: ObjectMetaView {
+            name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
+            namespace: vd.metadata.namespace,
+            labels: vd.metadata.labels,
+            owner_references: Some(make_owner_references(vd)),
+            ..ObjectMetaView::default()
+        }.add_label("pod-template-hash"@, pod_template_hash),
+        spec: VReplicaSetSpecView {
+            replicas: vd.spec.replicas,
+            selector: LabelSelectorView {
+                match_labels: Some(match_labels),
+            },
+            template: Some(template_with_hash(vd, pod_template_hash))
+        },
+        ..VReplicaSetView::default()
+    }
+}
+
+pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> PodTemplateSpecView
+{
+    PodTemplateSpecView {
+        metadata: Some(ObjectMetaView {
+            labels: Some(vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, hash)),
+            ..ObjectMetaView::default()
+        }),
+        spec: Some(vd.spec.template.spec.unwrap()),
+        ..PodTemplateSpecView::default()
+    }
+}
+
+pub open spec fn match_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+    vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
+}
+
+pub open spec fn make_owner_references(vd: VDeploymentView) -> Seq<OwnerReferenceView> {
+    seq![vd.controller_owner_ref()]
+}
 }
