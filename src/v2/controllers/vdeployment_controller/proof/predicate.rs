@@ -140,9 +140,9 @@ pub open spec fn etcd_old_vrs_list_has_len_of(vd: VDeploymentView, n: nat) -> St
     }
 }
 
-pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-                      ==> #[trigger] vd_rely(other_id)(s)
+pub open spec fn vd_rely_condition(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| forall |other_id| other_id != controller_id && cluster.controller_models.contains_key(other_id)
+                                        ==> #[trigger] vd_rely(vd, other_id)(s)
 }
 
 // same as vrs, similar to rely condition. Yet we talk about owner_ref here
@@ -207,7 +207,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
         Cluster::desired_state_is(vd),
-        vd_rely_condition(cluster, controller_id),
+        vd_rely_condition(vd, cluster, controller_id),
         garbage_collector_does_not_delete_vd_pods(vd)
     )
 }
