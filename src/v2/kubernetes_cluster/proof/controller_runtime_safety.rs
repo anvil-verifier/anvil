@@ -189,6 +189,102 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
+pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
+    requires
+        self.controller_models.contains_key(controller_id),
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
+    ensures spec.entails(always(lift_state(Self::pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(controller_id, key)))),
+{
+    let invariant = Self::pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(controller_id, key);
+    let stronger_next = |s, s_prime| {
+        &&& self.next()(s, s_prime)
+        &&& Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)(s)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+    };
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        if s_prime.ongoing_reconciles(controller_id).contains_key(key)
+            && Self::has_pending_req_msg(controller_id, s_prime, key) {
+            let next_step = choose |step| self.next_step(s, s_prime, step);
+            let pending_req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+            let resp = choose |msg| {
+                #[trigger] s.in_flight().contains(msg)
+                && resp_msg_matches_req_msg(msg, pending_req_msg)
+            };
+            match next_step {
+                Step::APIServerStep(input) => {
+                    if input == Some(pending_req_msg) {
+                        let resp_msg = transition_by_etcd(self.installed_types, pending_req_msg, s.api_server).1;
+                        assert(s_prime.in_flight().contains(resp_msg));
+                    } else {
+                        if !s.in_flight().contains(pending_req_msg) {
+                            assert(s_prime.in_flight().contains(resp));
+                        }
+                    }
+                }
+                Step::BuiltinControllersStep(input) => {
+                    if s.in_flight().contains(pending_req_msg) {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+                    } else {
+                        assert(s_prime.in_flight().contains(resp));
+                    }
+                }
+                Step::DropReqStep(input) => {
+                    if input.0 == pending_req_msg {
+                        let resp_msg = form_matched_err_resp_msg(pending_req_msg, input.1);
+                        assert(s_prime.in_flight().contains(resp_msg));
+                    } else {
+                        if !s.in_flight().contains(pending_req_msg) {
+                            assert(s_prime.in_flight().contains(resp));
+                        }
+                    }
+                }
+                Step::ControllerStep(input) => {
+                    let input_controller_id = input.0;
+                    let input_cr_key = input.2.get_Some_0();
+                    if input_controller_id != controller_id || input_cr_key != key {
+                        if s.in_flight().contains(pending_req_msg) {
+                            assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+                        } else {
+                            assert(s_prime.in_flight().contains(resp));
+                        }
+                    } else {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+                    }
+                }
+                Step::PodMonkeyStep(input) => {
+                    if s.in_flight().contains(pending_req_msg) {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+                    } else {
+                        assert(s_prime.in_flight().contains(resp));
+                    }
+                }
+                Step::ExternalStep(input) => {
+                    if input.0 == controller_id && input.1 == Some(pending_req_msg) {
+                        let resp_msg = transition_by_external(self.controller_models[controller_id].external_model.get_Some_0(), pending_req_msg, s.api_server.resources, s.controller_and_externals[controller_id].external.get_Some_0()).1;
+                        assert(s_prime.in_flight().contains(resp_msg));
+                    } else {
+                        if !s.in_flight().contains(pending_req_msg) {
+                            assert(s_prime.in_flight().contains(resp));
+                        }
+                    }
+                }
+                _ => {
+                    assert(invariant(s_prime));
+                }
+            }
+        }
+    }
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(self.next()),
+        lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)),
+        lift_state(Self::there_is_the_controller_state(controller_id))
+    );
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
+}
+
 pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef, state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -620,12 +716,17 @@ pub open spec fn every_msg_from_key_is_pending_req_msg_of(
     controller_id: int, key: ObjectRef
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        //true
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
+            &&& s.ongoing_reconciles(controller_id).contains_key(key)
             &&& msg.src == HostId::Controller(controller_id, key)
-            &&& msg.dst.is_APIServer()
-            &&& msg.content.is_APIRequest()
-        } ==> Cluster::pending_req_msg_is(controller_id, s, key, msg)
+            &&& (msg.content.is_APIRequest()
+                || msg.content.is_ExternalRequest())
+        } ==> {
+            // &&& Cluster::has_pending_req_msg(controller_id, s, key)
+            &&& Cluster::pending_req_msg_is(controller_id, s, key, msg)
+        }
     }
 }
 
@@ -635,8 +736,203 @@ pub open spec fn every_msg_from_key_is_pending_req_msg_of(
 pub proof fn lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(
     self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef
 )
+    requires
+        spec.entails(always(lift_action(self.next()))),
+        self.controller_models.contains_key(controller_id),
+        spec.entails(tla_forall(|i| self.api_server_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Self::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Self::req_drop_disabled()))),
+        spec.entails(always(lift_state(Self::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
     ensures spec.entails(true_pred().leads_to(always(lift_state(Self::every_msg_from_key_is_pending_req_msg_of(controller_id, key))))),
-{}
+{
+    
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_every_msg_from_key_is_pending_req_msg_of(self, spec: TempPred<ClusterState>, controller_id: int, key: ObjectRef)
+    requires
+        self.controller_models.contains_key(controller_id),
+        spec.entails(lift_state(self.init())),
+        spec.entails(always(lift_action(self.next()))),
+        spec.entails(always(lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)))),
+    ensures spec.entails(always(lift_state(Self::every_msg_from_key_is_pending_req_msg_of(controller_id, key)))),
+{
+    let invariant = Self::every_msg_from_key_is_pending_req_msg_of(controller_id, key);
+    let invariant_antecedent = |msg: Message, s: ClusterState| {
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::Controller(controller_id, key)
+        &&& msg.dst.is_APIServer()
+        &&& msg.content.is_APIRequest()
+    };
+    let stronger_next = |s, s_prime| {
+        &&& self.next()(s, s_prime)
+        &&& Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)(s)
+        &&& Self::there_is_the_controller_state(controller_id)(s)
+        &&& Self::pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(controller_id, key)(s)
+    };
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg| {
+            &&& invariant(s)
+            &&& stronger_next(s, s_prime)
+            &&& #[trigger] s_prime.in_flight().contains(msg)
+            &&& s_prime.ongoing_reconciles(controller_id).contains_key(key)
+            &&& msg.src == HostId::Controller(controller_id, key)
+            &&& (msg.content.is_APIRequest()
+                || msg.content.is_ExternalRequest())
+        } implies {
+            &&& Cluster::pending_req_msg_is(controller_id, s_prime, key, msg)
+        }  by {
+            if s.in_flight().contains(msg) {}
+            let next_step = choose |step| self.next_step(s, s_prime, step);
+             match next_step {
+                Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+                    let resp_msg = resp_msg_opt.unwrap();
+                    let cr_key = cr_key_opt.unwrap();
+                    assume(Self::crash_disabled(controller_id)(s));
+
+                    if cr_key_opt.is_Some() && cr_key == key {
+                        if resp_msg_opt.is_None() {
+                            //assume(cr_key_opt.is_Some());
+                            //assert(continue_reconcile(self.reconcile_model(controller_id), 
+                            assert(s_prime.ongoing_reconciles(controller_id).contains_key(key));
+                            if s.ongoing_reconciles(controller_id).contains_key(key) {
+                                if s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
+                                    assert(resp_msg_opt.is_Some());
+                                }
+                            }
+                                
+                            assume(false);
+                            //assume(!Cluster::pending_req_msg_is(controller_id, s, key, msg));
+                            // if s.ongoing_reconciles(controller_id).contains_key(key) {
+                                
+                            // }
+                            //assume(false);
+                            // // here, there was no pending request message
+                            // assume(s.ongoing_reconciles(controller_id).contains_key(key));
+                            // assert(s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
+                            // //assert(!Cluster::pending_req_msg_is(controller_id, s, key, msg));
+                            // //assert(resp_msg_opt.is_Some());
+                            // if !s.in_flight().contains(msg) {
+                            // assume(false);
+                            // }
+                        } else {
+                            assume(false);
+                        }
+                    }
+                },
+                _ => {},
+            }
+            //assume(false);
+        }
+        // if s_prime.ongoing_reconciles(controller_id).contains_key(key)
+        //     && Self::has_pending_req_msg(controller_id, s_prime, key) {
+        //     let next_step = choose |step| self.next_step(s, s_prime, step);
+        //     let pending_req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+        //     let resp = choose |msg| {
+        //         #[trigger] s.in_flight().contains(msg)
+        //         && resp_msg_matches_req_msg(msg, pending_req_msg)
+        //     };
+        //     match next_step {
+        //         Step::APIServerStep(input) => {
+        //             if input == Some(pending_req_msg) {
+        //                 let resp_msg = transition_by_etcd(self.installed_types, pending_req_msg, s.api_server).1;
+        //                 assert(s_prime.in_flight().contains(resp_msg));
+        //             } else {
+        //                 if !s.in_flight().contains(pending_req_msg) {
+        //                     assert(s_prime.in_flight().contains(resp));
+        //                 }
+        //             }
+        //         }
+        //         Step::BuiltinControllersStep(input) => {
+        //             if s.in_flight().contains(pending_req_msg) {
+        //                 assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+        //             } else {
+        //                 assert(s_prime.in_flight().contains(resp));
+        //             }
+        //         }
+        //         Step::DropReqStep(input) => {
+        //             if input.0 == pending_req_msg {
+        //                 let resp_msg = form_matched_err_resp_msg(pending_req_msg, input.1);
+        //                 assert(s_prime.in_flight().contains(resp_msg));
+        //             } else {
+        //                 if !s.in_flight().contains(pending_req_msg) {
+        //                     assert(s_prime.in_flight().contains(resp));
+        //                 }
+        //             }
+        //         }
+        //         Step::ControllerStep(input) => {
+        //             let input_controller_id = input.0;
+        //             let input_cr_key = input.2.get_Some_0();
+        //             if input_controller_id != controller_id || input_cr_key != key {
+        //                 if s.in_flight().contains(pending_req_msg) {
+        //                     assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+        //                 } else {
+        //                     assert(s_prime.in_flight().contains(resp));
+        //                 }
+        //             } else {
+        //                 assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+        //             }
+        //         }
+        //         Step::PodMonkeyStep(input) => {
+        //             if s.in_flight().contains(pending_req_msg) {
+        //                 assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0()));
+        //             } else {
+        //                 assert(s_prime.in_flight().contains(resp));
+        //             }
+        //         }
+        //         Step::ExternalStep(input) => {
+        //             if input.0 == controller_id && input.1 == Some(pending_req_msg) {
+        //                 let resp_msg = transition_by_external(self.controller_models[controller_id].external_model.get_Some_0(), pending_req_msg, s.api_server.resources, s.controller_and_externals[controller_id].external.get_Some_0()).1;
+        //                 assert(s_prime.in_flight().contains(resp_msg));
+        //             } else {
+        //                 if !s.in_flight().contains(pending_req_msg) {
+        //                     assert(s_prime.in_flight().contains(resp));
+        //                 }
+        //             }
+        //         }
+        //         _ => {
+        //             assert(invariant(s_prime));
+        //         }
+        //     }
+        // }
+    }
+    self.lemma_always_there_is_the_controller_state(spec, controller_id);
+    self.lemma_always_pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(spec, controller_id, key);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(self.next()),
+        lift_state(Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)),
+        lift_state(Self::there_is_the_controller_state(controller_id)),
+        lift_state(Self::pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(controller_id, key))
+    );
+    init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
+}
+
+pub proof fn test_lemma(self, s: ClusterState, s_prime: ClusterState, controller_id: int, key: ObjectRef) 
+    requires
+        self.controller_models.contains_key(controller_id),
+        self.next()(s, s_prime),
+        Self::pending_req_of_key_is_unique_with_unique_id(controller_id, key)(s),
+        Self::there_is_the_controller_state(controller_id)(s),
+        Self::pending_req_in_flight_or_resp_in_flight_if_has_pending_req_msg(controller_id, key)(s),
+        s.ongoing_reconciles(controller_id).contains_key(key),
+        s_prime.ongoing_reconciles(controller_id).contains_key(key),
+{
+    let next_step = choose |step| self.next_step(s, s_prime, step);
+    match next_step {
+        Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+            if cr_key_opt.is_Some() && cr_key_opt.get_Some_0() == key {
+                if s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
+                    assert(resp_msg_opt.is_Some());
+                }
+            }
+        },
+        _ => {},
+    }
+}
 
 }
 }

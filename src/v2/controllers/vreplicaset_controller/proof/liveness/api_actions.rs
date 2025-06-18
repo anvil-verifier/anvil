@@ -37,7 +37,50 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
         !Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg),
     ensures
         matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()),
-{}
+{
+    if msg.src.is_Controller() {
+        let id = msg.src.get_Controller_0();
+        assert(
+            (id != controller_id ==> cluster.controller_models.remove(controller_id).contains_key(id)));
+        // Invoke non-interference lemma by trigger.
+        assert(id != controller_id ==> vrs_rely(id)(s));
+
+        assume(id == controller_id ==> false);
+    }
+
+    // Dispatch through all the requests which may mutate the k-v store.
+    let mutates_key = if msg.content.is_create_request() {
+        let req = msg.content.get_create_request();
+        Some(ObjectRef{
+            kind: req.obj.kind,
+            name: if req.obj.metadata.name.is_Some() {
+                req.obj.metadata.name.unwrap()
+            } else {
+                generate_name(s.api_server)
+            },
+            namespace: req.namespace,
+        })
+    } else if msg.content.is_delete_request() {
+        let req = msg.content.get_delete_request();
+        Some(req.key)
+    } else if msg.content.is_update_request() {
+        let req = msg.content.get_update_request();
+        Some(req.key())
+    } else if msg.content.is_update_status_request() {
+        let req = msg.content.get_update_status_request();
+        Some(req.key())
+    } else {
+        None
+    };
+
+    match mutates_key {
+        Some(key) => {
+            assert_maps_equal!(s.resources().remove(key) == s_prime.resources().remove(key));
+            assert_maps_equal!(matching_pod_entries(vrs, s.resources()) == matching_pod_entries(vrs, s_prime.resources()));
+        },
+        _ => {}
+    };
+}
 
 // TODO: Prove this
 #[verifier(external_body)]
