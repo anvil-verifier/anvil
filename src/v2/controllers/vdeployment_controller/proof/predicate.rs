@@ -75,6 +75,42 @@ pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: 
     }
 }
 
+// keep consistent with current_state_matches
+pub open spec fn etcd_only_one_vrs_has_replicas_of(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
+        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
+        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
+        let (new_vrs_list, _) = filter_old_and_new_vrs(filtered_vrs_list, vd);
+        let new_vrs = new_vrs_list[0];
+        // not needed
+        // &&& vrs_list.is_Some()
+        &&& new_vrs_list.len() == 1
+        &&& new_vrs.spec.replicas.unwrap_or(1) == n
+    }
+}
+
+pub open spec fn etcd_new_vrs_does_not_exist(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
+        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
+        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
+        // &&& vrs_list.is_Some()
+        filter_old_and_new_vrs(filtered_vrs_list, vd).0.len() == 0
+    }
+}
+
+pub open spec fn etcd_old_vrs_list_has_len_of(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
+        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
+        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
+        let (_, old_vrs_list) = filter_old_and_new_vrs(filtered_vrs_list, vd);
+        // &&& vrs_list.is_Some()
+        filter_old_and_new_vrs(filtered_vrs_list, vd).1.len() == n
+    }
+}
+
 pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                       ==> #[trigger] vd_rely(other_id)(s)
