@@ -5,7 +5,6 @@ use crate::kubernetes_api_objects::spec::{
     pod_template_spec::PodTemplateSpecView,
     label_selector::LabelSelectorView,
 };
-use crate::vstd_ext::string_view::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::trusted::{spec_types::*, step::*, util::*};
@@ -100,7 +99,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                             new_vrs: Some(new_vrs),
                             ..state
                         };
-                        if !match_replicas(new_vrs, vd) {
+                        if !match_replicas(vd, new_vrs) {
                             // scale new vrs to desired replicas
                             scale_new_vrs(state, vd)
                         } else {
@@ -131,7 +130,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     if !new_vrs.well_formed() {
                         (error_state(state), None)
                     } else {
-                        if !match_replicas(new_vrs, vd) {
+                        if !match_replicas(vd, new_vrs) {
                             scale_new_vrs(state, vd)
                         } else {
                             if state.old_vrs_list.len() > 0 {
@@ -261,55 +260,6 @@ pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeplo
         ..state
     };
     (state_prime, Some(RequestView::KRequest(req)))
-}
-
-pub open spec fn match_replicas(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
-    vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
-}
-
-// See https://github.com/kubernetes/kubernetes/blob/cdc807a9e849b651fb48c962cc18e25d39ec5edf/pkg/controller/deployment/sync.go#L196-L210
-// pod template hash is used to prevent old and new vrs from owning the same pod
-// here we use resource_version of vd as a hash
-//
-// TODO: now we scale up the new vrs' replicas at once,
-// we may consider existing pods in old vrs later to satisfy maxSurge
-pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
-{
-    let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
-    let match_labels = vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash);
-    VReplicaSetView {
-        metadata: ObjectMetaView {
-            name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
-            namespace: vd.metadata.namespace,
-            labels: vd.metadata.labels,
-            owner_references: Some(make_owner_references(vd)),
-            ..ObjectMetaView::default()
-        }.add_label("pod-template-hash"@, pod_template_hash),
-        spec: VReplicaSetSpecView {
-            replicas: vd.spec.replicas,
-            selector: LabelSelectorView {
-                match_labels: Some(match_labels),
-            },
-            template: Some(template_with_hash(vd, pod_template_hash))
-        },
-        ..VReplicaSetView::default()
-    }
-}
-
-pub open spec fn template_with_hash(vd: VDeploymentView, hash: StringView) -> PodTemplateSpecView
-{
-    PodTemplateSpecView {
-        metadata: Some(ObjectMetaView {
-            labels: Some(vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, hash)),
-            ..ObjectMetaView::default()
-        }),
-        spec: Some(vd.spec.template.spec.unwrap()),
-        ..PodTemplateSpecView::default()
-    }
-}
-
-pub open spec fn make_owner_references(vd: VDeploymentView) -> Seq<OwnerReferenceView> {
-    seq![vd.controller_owner_ref()]
 }
 
 }

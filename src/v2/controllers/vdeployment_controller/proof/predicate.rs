@@ -51,6 +51,20 @@ pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: 
     }
 }
 
+pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        let req_msg = msg.content.get_APIRequest_0();
+        &&& msg.src.is_controller_id(controller_id)
+        &&& msg.dst == HostId::APIServer
+        &&& req_msg.is_CreateRequest()
+        &&& req_msg.get_CreateRequest_0() == CreateRequest {
+            namespace: vd.metadata.namespace.unwrap(),
+            obj: make_replica_set(vd).marshal(),
+        }
+    }
+}
+
 pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
@@ -76,7 +90,7 @@ pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: 
 }
 
 // keep consistent with current_state_matches
-pub open spec fn etcd_only_one_vrs_has_replicas_of(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
+pub open spec fn etcd_only_one_new_vrs_has_replicas_of(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
         let vrs_list = objects_to_vrs_list(dyn_vrs_list);
@@ -87,6 +101,20 @@ pub open spec fn etcd_only_one_vrs_has_replicas_of(vd: VDeploymentView, n: nat) 
         // &&& vrs_list.is_Some()
         &&& new_vrs_list.len() == 1
         &&& new_vrs.spec.replicas.unwrap_or(1) == n
+    }
+}
+
+pub open spec fn etcd_only_one_new_vrs_and_has_replicas_matching_vd(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
+        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
+        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
+        let (new_vrs_list, _) = filter_old_and_new_vrs(filtered_vrs_list, vd);
+        let new_vrs = new_vrs_list[0];
+        // not needed
+        // &&& vrs_list.is_Some()
+        &&& new_vrs_list.len() == 1
+        &&& match_replicas(vd, new_vrs)
     }
 }
 

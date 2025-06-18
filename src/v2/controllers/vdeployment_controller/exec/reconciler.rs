@@ -145,7 +145,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 new_vrs: Some(new_vrs.clone()),
                 ..state
             };
-            if !match_replicas(&new_vrs, &vd) {
+            if !match_replicas(&vd, &new_vrs) {
                 // scale new vrs to desired replicas
                 return scale_new_vrs(state, &vd);
             }
@@ -170,7 +170,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !new_vrs.well_formed() {
                 return (error_state(state), None);
             }
-            if !match_replicas(&new_vrs, &vd) {
+            if !match_replicas(&vd, &new_vrs) {
                 return scale_new_vrs(state, &vd);
             }
             if state.old_vrs_list.len() > 0 {
@@ -319,11 +319,11 @@ ensures
     return (state_prime, Some(Request::KRequest(req)))
 }
 
-fn match_replicas(vrs: &VReplicaSet, vd: &VDeployment) -> (res: bool)
+fn match_replicas(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
 requires
     vd@.well_formed(),
     vrs@.well_formed(),
-ensures res == model_reconciler::match_replicas(vrs@, vd@),
+ensures res == model_util::match_replicas(vd@, vrs@),
 {
     vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)
 }
@@ -551,7 +551,7 @@ fn make_replica_set(vd: &VDeployment) -> (vrs: VReplicaSet)
 requires
     vd@.well_formed(),
 ensures
-    vrs@ == model_reconciler::make_replica_set(vd@),
+    vrs@ == model_util::make_replica_set(vd@),
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut vrs = VReplicaSet::default();
@@ -580,14 +580,14 @@ ensures
     spec.set_template(template);
     vrs.set_spec(spec);
     proof {
-        assert(template@ == model_reconciler::template_with_hash(vd@, pod_template_hash@));
-        let model_labels = model_reconciler::make_replica_set(vd@).spec.selector.match_labels.unwrap();
+        assert(template@ == model_util::template_with_hash(vd@, pod_template_hash@));
+        let model_labels = model_util::make_replica_set(vd@).spec.selector.match_labels.unwrap();
         assert(labels@ == model_labels) by {
             assert(labels@ == vd@.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash@));
             assert(pod_template_hash@ == int_to_string_view(vd@.metadata.resource_version.unwrap()));
             assert(model_labels == labels@);
         }
-        assert(vrs@.spec.selector.match_labels == model_reconciler::make_replica_set(vd@).spec.selector.match_labels);
+        assert(vrs@.spec.selector.match_labels == model_util::make_replica_set(vd@).spec.selector.match_labels);
     }
     vrs
 }
@@ -596,7 +596,7 @@ pub fn template_with_hash(vd: &VDeployment, hash: String) -> (pod_template_spec:
 requires
     vd@.well_formed(),
 ensures
-    pod_template_spec@ == #[trigger] model_reconciler::template_with_hash(vd@, hash@),
+    pod_template_spec@ == #[trigger] model_util::template_with_hash(vd@, hash@),
 {
     let mut labels = vd.spec().template().metadata().unwrap().labels().unwrap().clone();
     let mut template_meta = ObjectMeta::default();
@@ -605,7 +605,7 @@ ensures
     let mut pod_template_spec = PodTemplateSpec::default();
     pod_template_spec.set_metadata(template_meta);
     pod_template_spec.set_spec(vd.spec().template().spec().unwrap().clone());
-    assert(pod_template_spec@.metadata.unwrap().labels == model_reconciler::template_with_hash(vd@, hash@).metadata.unwrap().labels);
+    assert(pod_template_spec@.metadata.unwrap().labels == model_util::template_with_hash(vd@, hash@).metadata.unwrap().labels);
     pod_template_spec
 }
 
@@ -628,12 +628,12 @@ pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerRe
 requires
     vd@.well_formed(),
 ensures
-    owner_references@.map_values(|or: OwnerReference| or@) ==  model_reconciler::make_owner_references(vd@),
+    owner_references@.map_values(|or: OwnerReference| or@) ==  model_util::make_owner_references(vd@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(vd.controller_owner_ref());
     proof {
-        assert(owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@) =~= model_reconciler::make_owner_references(vd@));
+        assert(owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@) =~= model_util::make_owner_references(vd@));
     }
     owner_references
 }
