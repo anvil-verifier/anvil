@@ -105,6 +105,19 @@ ensures
                         let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.unwrap(), vd), vd);
                         assert(new_vrs_list.len() == 0) by {
                             // need additional reliance lemma on other controller will not create vrs that matches these filters
+                            assume(false);
+                        }
+                        assert(pending_create_req_in_flight(vd, controller_id)(s_prime)) by {
+
+                            let msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                            let req_msg = msg.content.get_APIRequest_0();
+                            assert(msg.src == HostId::Controller(controller_id, vd.object_ref()));
+                            assert(msg.dst == HostId::APIServer);
+                            assert(req_msg.is_CreateRequest());
+                            assert(req_msg.get_CreateRequest_0() == CreateRequest {
+                                namespace: vd.metadata.namespace.unwrap(),
+                                obj: make_replica_set(vd).marshal(),
+                            });
                         }
                     }
                 },
