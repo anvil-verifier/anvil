@@ -41,7 +41,9 @@ pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: 
     |s: ClusterState| {
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         let req_msg = msg.content.get_APIRequest_0();
-        &&& msg.src.is_controller_id(controller_id)
+        // Q: why this line is required
+        &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.is_Some()
+        &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& msg.dst == HostId::APIServer
         &&& req_msg.is_ListRequest()
         &&& req_msg.get_ListRequest_0() == ListRequest{
@@ -55,7 +57,7 @@ pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id
     |s: ClusterState| {
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         let req_msg = msg.content.get_APIRequest_0();
-        &&& msg.src.is_controller_id(controller_id)
+        &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& msg.dst == HostId::APIServer
         &&& req_msg.is_CreateRequest()
         &&& req_msg.get_CreateRequest_0() == CreateRequest {
@@ -65,6 +67,7 @@ pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id
     }
 }
 
+// should be used with VReplicaSetView::marshal_preserves_integrity()
 pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
@@ -76,15 +79,13 @@ pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, re
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
             &&& objects_to_vrs_list(resp_objs).is_Some()
             &&& resp_objs.no_duplicates()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] obj.metadata.namespace == vd.metadata.namespace
-        }
-    }
-}
-
-pub open spec fn exists_list_resp_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        exists |resp_msg: Message| {
-            &&& list_resp_in_flight(vd, controller_id, resp_msg)(s)
+            &&& resp_objs == s.resources().values().filter(|o: DynamicObjectView| {
+                &&& o.object_ref().namespace == vd.metadata.namespace.unwrap()
+                &&& o.object_ref().kind == VReplicaSetView::kind()
+            }).to_seq()
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
         }
     }
 }

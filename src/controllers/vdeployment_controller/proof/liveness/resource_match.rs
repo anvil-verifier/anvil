@@ -67,7 +67,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)), exists_list_resp_in_flight(vd, controller_id), etcd_new_vrs_does_not_exist(vd)))
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)), list_resp_in_flight(vd, controller_id, resp_msg), etcd_new_vrs_does_not_exist(vd)))
        .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterCreateNewVRS)), pending_create_req_in_flight(vd, controller_id))))),
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
@@ -98,12 +98,19 @@ ensures
                     assume(false);
                 },
                 Step::ControllerStep(input) => {
-                    assume(false);
+                    assert(post(s_prime)) by {
+                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                        let vrs_list_or_none = objects_to_vrs_list(resp_objs);
+                        assert(vrs_list_or_none.is_Some());
+                        let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.unwrap(), vd), vd);
+                        assert(new_vrs_list.len() == 0) by {
+                            // need additional reliance lemma on other controller will not create vrs that matches these filters
+                        }
+                    }
                 },
                 _ => {}
             }
         }
-        assume(forall |s| #[trigger] pre(s) ==> cluster.controller_action_pre(ControllerStep::ContinueReconcile, (controller_id, input.0, input.1))(s));
         cluster.lemma_pre_leads_to_post_by_controller(
             spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
         );
