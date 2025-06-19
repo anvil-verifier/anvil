@@ -100,7 +100,7 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 //    We may not need to support this if we can prove this doesn't happen for our controller.
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
-    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
+    ensures (res.0@, res.1.deep_view()) =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
 {
     let namespace = vd.metadata().namespace().unwrap();
     match state.reconcile_step {
