@@ -74,14 +74,6 @@ pub open spec fn no_pending_req_at_vrs_step_with_vrs(vrs: VReplicaSetView, contr
 }
 
 // Predicates for reasoning about pods
-pub open spec fn matching_pod_keys(vrs: VReplicaSetView, resources: StoredState) -> Set<ObjectRef> {
-    Set::new(|key: ObjectRef| {
-        let obj = resources[key];
-        &&& resources.contains_key(key)
-        &&& owned_selector_match_is(vrs, obj)
-    })
-}
-
 pub open spec fn matching_pod_entries(vrs: VReplicaSetView, resources: StoredState) -> Map<ObjectRef, DynamicObjectView> {
     Map::new(
         |key: ObjectRef| {
@@ -278,8 +270,9 @@ pub open spec fn req_msg_is_create_matching_pod_req(
 }
 
 pub open spec fn new_obj_in_etcd(
-    s: ClusterState, cluster: Cluster, obj_temp: DynamicObjectView,
+    s: ClusterState, cluster: Cluster, req: CreateRequest,
 ) -> DynamicObjectView {
+    let obj_temp = req.obj;
     let meta = ObjectMetaView {
         // Set name for new object if name is not provided, here we generate
         // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
@@ -288,7 +281,7 @@ pub open spec fn new_obj_in_etcd(
         } else {
             Some(generate_name(s.api_server))
         },
-        namespace: Some(obj_temp.metadata.namespace.unwrap()), // Set namespace for new object
+        namespace: Some(req.namespace), // Set namespace for new object
         resource_version: Some(s.api_server.resource_version_counter), // Set rv for new object
         uid: Some(s.api_server.uid_counter), // Set uid for new object
         deletion_timestamp: None, // Unset deletion timestamp for new object

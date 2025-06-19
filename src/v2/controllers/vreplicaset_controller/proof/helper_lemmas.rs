@@ -132,6 +132,18 @@ pub proof fn vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
     );
 }
 
+pub proof fn matching_pods_equal_to_matching_pod_entries_values(vrs: VReplicaSetView, s: StoredState)
+    ensures
+        matching_pods(vrs, s) =~= matching_pod_entries(vrs, s).values()
+{
+    assert forall |o: DynamicObjectView| #[trigger] matching_pods(vrs, s).contains(o)
+        implies matching_pod_entries(vrs, s).values().contains(o) by {
+        assert(s.values().contains(o));
+        let key = choose |key: ObjectRef| s.contains_key(key) && #[trigger] s[key] == o;
+        assert(matching_pod_entries(vrs, s).contains_key(key) && matching_pod_entries(vrs, s)[key] == o);
+    }
+}
+
 pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     s: ClusterState, vrs: VReplicaSetView, cluster: Cluster, 
     controller_id: int, resp_msg: Message
