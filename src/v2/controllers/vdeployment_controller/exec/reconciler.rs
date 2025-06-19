@@ -100,7 +100,14 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 //    We may not need to support this if we can prove this doesn't happen for our controller.
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
-    ensures (res.0@, res.1.deep_view()) =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
+    ensures
+        ({
+            // hotfix for flaky proof
+            &&& res.0@.reconcile_step =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.reconcile_step
+            &&& res.0@.new_vrs =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.new_vrs
+            &&& res.0@.old_vrs_list =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.old_vrs_list
+        }),
+        res.1.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).1,
 {
     let namespace = vd.metadata().namespace().unwrap();
     match state.reconcile_step {
@@ -110,8 +117,6 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 namespace: namespace,
             });
             let old_vrs_list = Vec::<VReplicaSet>::new();
-            // why this assertion is required
-            assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == Seq::<VReplicaSetView>::empty());
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStep::AfterListVRS,
                 new_vrs: None,
