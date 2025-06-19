@@ -128,24 +128,18 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);
             }
-            let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd), vd);
+            let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd));
             // no .last().cloned() in verus because "The verifier does not yet support the following Rust feature: overloaded deref"
             let state = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::Error,
-                new_vrs: None,
+                new_vrs: new_vrs,
                 old_vrs_list: old_vrs_list.clone(),
+                ..state
             };
-            if new_vrs_list.len() == 0 {
+            if new_vrs.is_none() {
                 // no new vrs, create one
                 return create_new_vrs(state, vd);
             }
-            // verus doesn't have .pop() equivalent, and .last().cloned() is not supported either
-            let new_vrs = new_vrs_list[new_vrs_list.len() - 1].clone();
-            let state = VDeploymentReconcileState {
-                new_vrs: Some(new_vrs.clone()),
-                ..state
-            };
-            if !match_replicas(&new_vrs, &vd) {
+            if !match_replicas(&new_vrs.as_ref().unwrap(), &vd) {
                 // scale new vrs to desired replicas
                 return scale_new_vrs(state, &vd);
             }
@@ -461,88 +455,101 @@ ensures
     filtered_vrs_list
 }
 
-fn filter_old_and_new_vrs(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (Vec<VReplicaSet>, Vec<VReplicaSet>))
+fn filter_old_and_new_vrs(vd: &VDeployment, vrs_list: Vec<VReplicaSet>) -> (res: (Option<VReplicaSet>, Vec<VReplicaSet>))
 requires
     vd@.well_formed(),
     // vrs.well_formed() is required because we need to update the old vrs -> old_vrs.metadata.well_formed_for_namespaced()
     // and new/old vrs has replicas -> vrs.state_validation()
     forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed()
 ensures
-    res.0@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).0,
-    res.1@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@).1,
-    forall |i: int| 0 <= i < res.0.len() ==> (#[trigger] res.0[i])@.well_formed(),
-    forall |i: int| 0 <= i < res.1.len() ==> (#[trigger] res.1[i])@.well_formed(),
+    ({
+        &&& (res.0.deep_view(), res.1.deep_view()) == model_util::filter_old_and_new_vrs(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@))
+        &&& res.0.is_some() ==> res.0.unwrap()@.well_formed()
+        &&& forall |i: int| 0 <= i < res.1.len() ==> #[trigger] res.1.deep_view()[i].well_formed()
+    })
 {
-    let mut new_vrs_list = Vec::new();
-    let mut old_vrs_list = Vec::new();
+    let mut new_vrs_list = Vec::<VReplicaSet>::new();
+    let mut old_vrs_list = Vec::<VReplicaSet>::new();
     let mut idx = 0;
-
-    proof {
-        assert(
-            new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).0
-        );
-        assert(
-            old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@).1
-        );
-        assert(forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed());
-        assert(forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed());
-    }
-
+    assert(new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs)));
     for idx in 0..vrs_list.len()
     invariant
+        new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs)),
+        forall |i: int| 0 <= i < new_vrs_list.len() ==> #[trigger] new_vrs_list[i]@.well_formed(),
+        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed(),
         vd@.well_formed(),
-        // again here, we can't put idx in invariants as "not proven before loop starts"
-        ({
-            let vrs_list_view = vrs_list@.map_values(|vrs: VReplicaSet| vrs@);
-            forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list_view[i].well_formed()
-        }),
         idx <= vrs_list.len(),
-        new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).0,
-        old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@).1,
-        forall |i: int| 0 <= i < new_vrs_list.len() ==> (#[trigger] new_vrs_list[i])@.well_formed(),
-        forall |i: int| 0 <= i < old_vrs_list.len() ==> (#[trigger] old_vrs_list[i])@.well_formed(),
     {
-        let vrs = &vrs_list[idx];
-        assert(vrs@.well_formed());
-
-        // when comparing template, we should remove the pod_template_hash label from vrs
-        if match_template_without_hash(vd, vrs) {
-            new_vrs_list.push(vrs.clone());
-        } else if vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0 {
-            old_vrs_list.push(vrs.clone());
+        assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
+        if match_template_without_hash(vd, &vrs_list[idx]) {
+            new_vrs_list.push(vrs_list[idx].clone());
         }
-
-        proof { // so we have it again, any ways to avoid this?
-            assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
-            let new_spec_filter = |vrs: VReplicaSetView|
-                model_util::match_template_without_hash(vd@, vrs);
-            let old_spec_filter = |vrs: VReplicaSetView|
-                !new_spec_filter(vrs)
-                && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
-            let pre_new_vrs_list = if new_spec_filter(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int]) {
+        proof {
+            let spec_filter = |vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs);
+            let pre_filtered_vrs_list = if spec_filter(vrs_list[idx as int]@) {
                 new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).drop_last()
             } else {
                 new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
             };
-            let pre_old_vrs_list = if old_spec_filter(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int]) {
+            assert(pre_filtered_vrs_list == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(spec_filter));
+            push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), spec_filter, vrs_list[idx as int]@);
+            assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).push(vrs_list[idx as int]@)
+                   == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
+            assert(spec_filter(vrs_list[idx as int]@ ) ==> new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
+        }
+    }
+    assert(new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs))) by {
+        // this is stupid
+        assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@));
+    }
+    let new_vrs = if new_vrs_list.len() == 0 {
+        None
+    } else {
+        assert(new_vrs_list[0]@.well_formed());
+        Some(new_vrs_list[0].clone())
+    };
+    assert(new_vrs.deep_view() == model_util::filter_old_and_new_vrs(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@)).0);
+    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(|vrs: VReplicaSetView| {
+                &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
+                &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
+            }));
+    for idx in 0..vrs_list.len()
+    invariant
+        old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
+            .take(idx as int).filter(|vrs: VReplicaSetView| {
+                &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
+                &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
+            }),
+        forall |i: int| 0 <= i < old_vrs_list.len() ==> #[trigger] old_vrs_list[i]@.well_formed(),
+        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed(),
+        vd@.well_formed(),
+        idx <= vrs_list.len(),
+    {
+        assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int].well_formed());
+        let vrs = &vrs_list[idx];
+        if (new_vrs.is_none() || !vrs.metadata().uid_eq(&new_vrs.as_ref().unwrap().metadata()))
+            && (vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0) {
+            old_vrs_list.push(vrs.clone());
+        }
+        proof {
+            let spec_filter = |vrs: VReplicaSetView| {
+                &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
+                &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
+            };
+            let pre_filtered_vrs_list = if spec_filter(vrs@) {
                 old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@).drop_last()
             } else {
                 old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
             };
-            assert(pre_new_vrs_list == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(new_spec_filter));
-            assert(pre_old_vrs_list == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(old_spec_filter));
-            push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), new_spec_filter, vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int]);
-            push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), old_spec_filter, vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int]);
-            assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@)[idx as int])
+            assert(pre_filtered_vrs_list == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).filter(spec_filter));
+            push_filter_and_filter_push(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), spec_filter, vrs@);
+            assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int).push(vrs@)
                    == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx + 1 as int));
-            assert(new_spec_filter(vrs@) ==> new_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_new_vrs_list.push(vrs@));
-            assert(old_spec_filter(vrs@) ==> old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_old_vrs_list.push(vrs@));
+            assert(spec_filter(vrs@) ==> old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == pre_filtered_vrs_list.push(vrs@));
         }
     }
-    assert(vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(vrs_list.len() as int));
-    (new_vrs_list, old_vrs_list)
+    assert(old_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_old_and_new_vrs(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@)).1);
+    return (new_vrs, old_vrs_list);
 }
 
 // TODO
