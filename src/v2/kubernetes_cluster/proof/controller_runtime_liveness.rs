@@ -130,6 +130,29 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cont
     }
 }
 
+pub open spec fn pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(
+    controller_id: int, key: ObjectRef
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        (s.ongoing_reconciles(controller_id).contains_key(key)
+        && Self::has_pending_req_msg(controller_id, s, key))
+        ==> {
+            let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+            &&& Self::request_sent_by_controller(controller_id, msg)
+            &&& (s.in_flight().contains(msg)
+                || exists |resp_msg: Message| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                })
+            &&& !(s.in_flight().contains(msg)
+                && exists |resp_msg: Message| {
+                    &&& #[trigger] s.in_flight().contains(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                })
+        }
+    }
+}
+
 pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(controller_id: int, key: ObjectRef, current_state: spec_fn(ReconcileLocalState) -> bool) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
