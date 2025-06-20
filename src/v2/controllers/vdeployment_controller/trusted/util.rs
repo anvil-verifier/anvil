@@ -26,20 +26,19 @@ pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeployment
         && vrs.well_formed())
 }
 
-pub open spec fn filter_old_and_new_vrs(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (Seq<VReplicaSetView>, Seq<VReplicaSetView>))
-// we don't consider there is more than one new vrs controlled by vd, check discussion/kubernetes-model/deployment_controller.md for details
+pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
 {
-    // even if we know vrs controlled by vd should have spec.template.metadata.is_Some() because we add the pot-template-hash label
-    // we still need to check it here and pretend we don't know it
-
-    let new_spec_filter = |vrs: VReplicaSetView|
-        match_template_without_hash(vd, vrs);
-    let old_spec_filter = |vrs: VReplicaSetView|
-        !new_spec_filter(vrs)
-        && (vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0);
-    let new_vrs_list = vrs_list.filter(new_spec_filter);
-    let old_vrs_list = vrs_list.filter(old_spec_filter);
-    (new_vrs_list, old_vrs_list)
+    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd, vrs));
+    let new_vrs = if new_vrs_list.len() == 0 {
+        None
+    } else {
+        Some(new_vrs_list.first())
+    };
+    let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
+        &&& new_vrs.is_None() || vrs.metadata.uid != new_vrs.get_Some_0().metadata.uid
+        &&& vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0
+    });
+    (new_vrs, old_vrs_list)
 }
 
 pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
