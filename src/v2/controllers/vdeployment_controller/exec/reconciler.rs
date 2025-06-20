@@ -100,7 +100,6 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 //    We may not need to support this if we can prove this doesn't happen for our controller.
  // mask this proof before there's a solution to flakiness
  // see https://github.com/verus-lang/verus/issues/1756
-#[verifier(external_body)]
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures
@@ -470,11 +469,9 @@ requires
     // and new/old vrs has replicas -> vrs.state_validation()
     forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] vrs_list[i]@.well_formed()
 ensures
-    ({
-        &&& (res.0.deep_view(), res.1.deep_view()) == model_util::filter_old_and_new_vrs(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@))
-        &&& res.0.is_some() ==> res.0.unwrap()@.well_formed()
-        &&& forall |i: int| 0 <= i < res.1.len() ==> #[trigger] res.1.deep_view()[i].well_formed()
-    })
+    (res.0.deep_view(), res.1@.map_values(|vrs: VReplicaSet| vrs@)) == model_util::filter_old_and_new_vrs(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@)),
+    res.0.is_some() ==> res.0.unwrap()@.well_formed(),
+    forall |i: int| 0 <= i < res.1.len() ==> #[trigger] res.1[i]@.well_formed(),
 {
     let mut new_vrs_list = Vec::<VReplicaSet>::new();
     let mut old_vrs_list = Vec::<VReplicaSet>::new();
