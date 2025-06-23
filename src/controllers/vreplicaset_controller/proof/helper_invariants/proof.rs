@@ -2954,8 +2954,8 @@ ensures
 
         assert forall |msg: Message|
             inv(s)
-            && s_prime.in_flight().contains(msg)
-            && #[trigger] msg.src.is_controller_id(controller_id)
+            && #[trigger] s_prime.in_flight().contains(msg)
+            && msg.src.is_controller_id(controller_id)
             implies msg.dst != HostId::External(controller_id) by {
             if new_msgs.contains(msg) {
                 // Empty if statement required to trigger quantifiers.
