@@ -47,14 +47,14 @@ if [ "$app" == "vdeployment" ]; then
     case "$build_controller" in
         local)
             echo "Building vreplicaset controller binary"
-            ./build.sh "plicaset_controller.rs" "--no-verify" $@
+            ./build.sh "vreplicaset_controller.rs" "--no-verify" $@
             echo "Building vreplicaset controller image"
-            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vrecaset .
+            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
             ;;
         remote)
             echo "Building vreplicaset controller image using builder"
             dockerfile_path="docker/controller/Dockerfile.remote"
-            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vrecaset .
+            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
             ;;
         no)
             echo "Use existing vreplicaset controller image"

@@ -13,5 +13,5 @@ src/.verus-solver-log/
 src/*.d
 src/*.rlib
 tools/*.json
-plicaset_controller.*.txt
+vreplicaset_controller.*.txt
 certs
