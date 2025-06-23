@@ -14,8 +14,6 @@ use common::Error;
 use std::str::FromStr;
 use std::{env, sync::Arc};
 use tracing::*;
-use fluent_e2e::fluent_e2e_test;
-use rabbitmq_e2e::{rabbitmq_e2e_test, rabbitmq_ephemeral_e2e_test, rabbitmq_scaling_e2e_test};
 use vreplicaset_e2e::vreplicaset_e2e_test;
 use vreplicaset_admission_e2e::vreplicaset_admission_e2e_test;
 use vstatefulset_admission_e2e::vstatefulset_admission_e2e_test;
