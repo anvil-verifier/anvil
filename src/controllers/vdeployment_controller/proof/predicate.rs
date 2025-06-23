@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::vdeployment_controller::{
     trusted::{step::*, spec_types::*, util::*,
-        rely_guarantee::vd_rely, liveness_theorem::current_state_matches},
+        rely_guarantee::vd_rely, liveness_theorem::*},
     model::{install::*, reconciler::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::VReplicaSetView;
@@ -68,6 +68,7 @@ pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id
 }
 
 // should be used with VReplicaSetView::marshal_preserves_integrity()
+// resp is list resp matching req && resp content match etcd
 pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
@@ -77,64 +78,41 @@ pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, re
         &&& resp_msg.content.get_list_response().res.is_Ok()
         &&& {
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+            let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
             &&& objects_to_vrs_list(resp_objs).is_Some()
             &&& resp_objs.no_duplicates()
             &&& resp_objs == s.resources().values().filter(|o: DynamicObjectView| {
                 &&& o.object_ref().namespace == vd.metadata.namespace.unwrap()
                 &&& o.object_ref().kind == VReplicaSetView::kind()
             }).to_seq()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
+            &&& filter_old_and_new_vrs(vd, filter_vrs_list(vd, objects_to_vrs_list(resp_objs).unwrap())) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
+            // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
+            // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+            // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
         }
     }
 }
 
-// keep consistent with current_state_matches
-pub open spec fn etcd_only_one_new_vrs_has_replicas_of(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
+pub open spec fn new_vrs_does_not_exists_in_etcd(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
-        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
-        let (new_vrs, _) = filter_old_and_new_vrs(vd, filtered_vrs_list);
-        // not needed
-        // &&& vrs_list.is_Some()
+        let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
+        &&& new_vrs.is_None()
+    }
+}
+
+pub open spec fn new_vrs_matching_vd_replicas_exists_in_etcd(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
         &&& new_vrs.is_Some()
-        &&& new_vrs.unwrap().spec.replicas.unwrap_or(1) == n
+        &&& match_replicas(vd, new_vrs.get_Some_0())
     }
 }
 
-pub open spec fn etcd_only_one_new_vrs_and_has_replicas_matching_vd(vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn new_vrs_not_matching_vd_replicas_exists_in_etcd(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
-        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
-        let (new_vrs, _) = filter_old_and_new_vrs(vd, filtered_vrs_list);
-        // not needed
-        // &&& vrs_list.is_Some()
+        let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
         &&& new_vrs.is_Some()
-        &&& match_replicas(vd, new_vrs.unwrap())
-    }
-}
-
-pub open spec fn etcd_new_vrs_does_not_exist(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
-        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
-        // &&& vrs_list.is_Some()
-        filter_old_and_new_vrs(vd, filtered_vrs_list).0.is_None()
-    }
-}
-
-pub open spec fn etcd_old_vrs_list_has_len_of(vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
-        let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
-        let (_, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
-        // &&& vrs_list.is_Some()
-        filter_old_and_new_vrs(vd, filtered_vrs_list).1.len() == n
+        &&& !match_replicas(vd, new_vrs.get_Some_0())
     }
 }
 

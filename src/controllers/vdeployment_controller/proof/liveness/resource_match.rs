@@ -7,11 +7,12 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::{
-    trusted::{spec_types::*, step::*, util::*, liveness_theorem::current_state_matches},
+    trusted::{spec_types::*, step::*, util::*, liveness_theorem::*},
     model::{install::*, reconciler::*},
-    proof::predicate::*,
+    proof::{predicate::*, helper_lemmas::*},
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
+use crate::reconciler::spec::io::*;
 use vstd::prelude::*;
 
 verus !{
@@ -67,18 +68,19 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)), list_resp_in_flight(vd, controller_id, resp_msg), etcd_new_vrs_does_not_exist(vd)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterCreateNewVRS)), pending_create_req_in_flight(vd, controller_id))))),
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)), list_resp_in_flight(vd, controller_id, resp_msg), new_vrs_does_not_exists_in_etcd(vd)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterCreateNewVRS)), pending_create_req_in_flight(vd, controller_id), new_vrs_does_not_exists_in_etcd(vd))))),
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
         list_resp_in_flight(vd, controller_id, resp_msg),
-        etcd_new_vrs_does_not_exist(vd)
+        new_vrs_does_not_exists_in_etcd(vd)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterCreateNewVRS)),
-        pending_create_req_in_flight(vd, controller_id)
+        pending_create_req_in_flight(vd, controller_id),
+        new_vrs_does_not_exists_in_etcd(vd)
     );
     assert(spec.entails(lift_state(pre).leads_to(lift_state(post)))) by {
         let input = (Some(resp_msg), Some(vd.object_ref()));
@@ -95,30 +97,27 @@ ensures
             let step = choose |step| cluster.next_step(s, s_prime, step);
             match step {
                 Step::APIServerStep(input) => {
+                    let msg = input.get_Some_0();
+                    lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
                     assume(false);
                 },
                 Step::ControllerStep(input) => {
-                    assert(post(s_prime)) by {
+                    if input.0 == controller_id
+                        && input.1 == Some(resp_msg)
+                        && input.2 == Some(vd.object_ref()) {
+                        VDeploymentReconcileState::marshal_preserves_integrity();
+                        VReplicaSetView::marshal_preserves_integrity();
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                        assert(vrs_list_or_none.is_Some());
-                        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.unwrap()));
-                        assert(new_vrs.is_None()) by {
-                            // need additional reliance lemma on other controller will not create vrs that matches these filters
-                            assume(false);
-                        }
-                        assert(pending_create_req_in_flight(vd, controller_id)(s_prime)) by {
-
-                            let msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-                            let req_msg = msg.content.get_APIRequest_0();
-                            assert(msg.src == HostId::Controller(controller_id, vd.object_ref()));
-                            assert(msg.dst == HostId::APIServer);
-                            assert(req_msg.is_CreateRequest());
-                            assert(req_msg.get_CreateRequest_0() == CreateRequest {
-                                namespace: vd.metadata.namespace.unwrap(),
-                                obj: make_replica_set(vd).marshal(),
-                            });
-                        }
+                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, objects_to_vrs_list(resp_objs).unwrap()))
+                            == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                        assert(objects_to_vrs_list(resp_objs).is_Some());
+                        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, objects_to_vrs_list(resp_objs).unwrap()));
+                        assert((new_vrs, old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                        assert(new_vrs.is_None());
+                        assert(resp_msg.content.get_list_response().res.is_Ok());
+                        assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.is_Some());
                     }
                 },
                 _ => {}

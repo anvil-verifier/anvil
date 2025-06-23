@@ -16,16 +16,24 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& obj.kind == VReplicaSetView::kind()
             &&& obj.metadata.namespace == vd.metadata.namespace
         }).to_seq();
-        let vrs_list = objects_to_vrs_list(objs);
-        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
-        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
-        &&& vrs_list.is_Some()
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& objects_to_vrs_list(objs).is_Some()
         &&& old_vrs_list.len() == 0
         &&& new_vrs.is_Some()
         &&& new_vrs.unwrap().spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
         &&& match_template_without_hash(vd, new_vrs.get_Some_0())
         //&&& current_state_matches(new_vrs_list[0])
     }
+}
+
+pub open spec fn filter_old_and_new_vrs_on_etcd(vd: VDeploymentView, resources: StoredState) -> (Option<VReplicaSetView>, Seq<VReplicaSetView>) {
+    let objs = resources.values().filter(|obj: DynamicObjectView| {
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& obj.metadata.namespace == vd.metadata.namespace
+    }).to_seq();
+    let vrs_list = objects_to_vrs_list(objs);
+    let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
+    filter_old_and_new_vrs(vd, filtered_vrs_list)
 }
 
 }
