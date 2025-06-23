@@ -95,13 +95,12 @@ pub open spec fn etcd_only_one_new_vrs_has_replicas_of(vd: VDeploymentView, n: n
     |s: ClusterState| {
         let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
         let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
-        let (new_vrs_list, _) = filter_old_and_new_vrs(filtered_vrs_list, vd);
-        let new_vrs = new_vrs_list[0];
+        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
+        let (new_vrs, _) = filter_old_and_new_vrs(vd, filtered_vrs_list);
         // not needed
         // &&& vrs_list.is_Some()
-        &&& new_vrs_list.len() == 1
-        &&& new_vrs.spec.replicas.unwrap_or(1) == n
+        &&& new_vrs.is_Some()
+        &&& new_vrs.unwrap().spec.replicas.unwrap_or(1) == n
     }
 }
 
@@ -109,13 +108,12 @@ pub open spec fn etcd_only_one_new_vrs_and_has_replicas_matching_vd(vd: VDeploym
     |s: ClusterState| {
         let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
         let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
-        let (new_vrs_list, _) = filter_old_and_new_vrs(filtered_vrs_list, vd);
-        let new_vrs = new_vrs_list[0];
+        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
+        let (new_vrs, _) = filter_old_and_new_vrs(vd, filtered_vrs_list);
         // not needed
         // &&& vrs_list.is_Some()
-        &&& new_vrs_list.len() == 1
-        &&& match_replicas(vd, new_vrs)
+        &&& new_vrs.is_Some()
+        &&& match_replicas(vd, new_vrs.unwrap())
     }
 }
 
@@ -123,9 +121,9 @@ pub open spec fn etcd_new_vrs_does_not_exist(vd: VDeploymentView) -> StatePred<C
     |s: ClusterState| {
         let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
         let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
+        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
         // &&& vrs_list.is_Some()
-        filter_old_and_new_vrs(filtered_vrs_list, vd).0.len() == 0
+        filter_old_and_new_vrs(vd, filtered_vrs_list).0.is_None()
     }
 }
 
@@ -133,10 +131,10 @@ pub open spec fn etcd_old_vrs_list_has_len_of(vd: VDeploymentView, n: nat) -> St
     |s: ClusterState| {
         let dyn_vrs_list = s.resources().values().to_seq().filter(|obj: DynamicObjectView| obj.kind == VReplicaSetView::kind());
         let vrs_list = objects_to_vrs_list(dyn_vrs_list);
-        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
-        let (_, old_vrs_list) = filter_old_and_new_vrs(filtered_vrs_list, vd);
+        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
+        let (_, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
         // &&& vrs_list.is_Some()
-        filter_old_and_new_vrs(filtered_vrs_list, vd).1.len() == n
+        filter_old_and_new_vrs(vd, filtered_vrs_list).1.len() == n
     }
 }
 

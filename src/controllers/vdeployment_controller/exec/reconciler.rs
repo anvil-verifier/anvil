@@ -135,7 +135,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);
             }
-            let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd));
+            let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.clone().unwrap()));
             // no .last().cloned() in verus because "The verifier does not yet support the following Rust feature: overloaded deref"
             let state = VDeploymentReconcileState {
                 new_vrs: new_vrs.clone(),
@@ -146,7 +146,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 // no new vrs, create one
                 return create_new_vrs(state, vd);
             }
-            if !match_replicas(&new_vrs.as_ref().unwrap(), &vd) {
+            if !match_replicas(&vd, &new_vrs.as_ref().unwrap()) {
                 // scale new vrs to desired replicas
                 return scale_new_vrs(state, &vd);
             }
@@ -410,11 +410,11 @@ ensures
     Some(vrs_list)
 }
 
-fn filter_vrs_list(vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (filtered_vrs_list: Vec<VReplicaSet>)
+fn filter_vrs_list(vd: &VDeployment, vrs_list: Vec<VReplicaSet>) -> (filtered_vrs_list: Vec<VReplicaSet>)
 requires
     vd@.well_formed(),
 ensures
-    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@), vd@),
+    filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) == model_util::filter_vrs_list(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@)),
     forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
@@ -423,7 +423,7 @@ ensures
     proof {
         assert(
             filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@) ==
-            model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0), vd@)
+            model_util::filter_vrs_list(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(0))
         );
     }
 
@@ -431,7 +431,7 @@ ensures
     invariant
         idx <= vrs_list.len(),
         filtered_vrs_list@.map_values(|vrs: VReplicaSet| vrs@)
-            == model_util::filter_vrs_list(vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int), vd@),
+            == model_util::filter_vrs_list(vd@, vrs_list@.map_values(|vrs: VReplicaSet| vrs@).take(idx as int)),
         forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] filtered_vrs_list[i]@.well_formed(),
     {
         let vrs = &vrs_list[idx];

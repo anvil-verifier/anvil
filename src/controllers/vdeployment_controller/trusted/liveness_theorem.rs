@@ -17,7 +17,7 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& obj.metadata.namespace == vd.metadata.namespace
         }).to_seq();
         let vrs_list = objects_to_vrs_list(objs);
-        let filtered_vrs_list = filter_vrs_list(vrs_list.unwrap(), vd);
+        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
         &&& vrs_list.is_Some()
         &&& old_vrs_list.len() == 0

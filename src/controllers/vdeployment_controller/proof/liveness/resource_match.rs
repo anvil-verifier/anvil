@@ -102,8 +102,8 @@ ensures
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         let vrs_list_or_none = objects_to_vrs_list(resp_objs);
                         assert(vrs_list_or_none.is_Some());
-                        let (new_vrs_list, old_vrs_list) = filter_old_and_new_vrs(filter_vrs_list(vrs_list_or_none.unwrap(), vd), vd);
-                        assert(new_vrs_list.len() == 0) by {
+                        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.unwrap()));
+                        assert(new_vrs.is_None()) by {
                             // need additional reliance lemma on other controller will not create vrs that matches these filters
                             assume(false);
                         }

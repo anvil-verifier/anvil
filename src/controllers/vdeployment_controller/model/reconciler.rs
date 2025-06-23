@@ -84,7 +84,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none.is_None() {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.get_Some_0(), vd));
+                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
                     let state = VDeploymentReconcileState {
                         new_vrs: new_vrs,
                         old_vrs_list: old_vrs_list,
@@ -94,7 +94,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         // create the new vrs
                         create_new_vrs(state, vd)
                     } else {
-                        if !match_replicas(new_vrs.get_Some_0(), vd) {
+                        if !match_replicas(vd, new_vrs.get_Some_0()) {
                             // scale new vrs to desired replicas
                             scale_new_vrs(state, vd)
                         } else {
