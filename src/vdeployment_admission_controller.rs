@@ -13,10 +13,12 @@ pub mod state_machine;
 pub mod temporal_logic;
 #[path = "controllers/vreplicaset_controller/mod.rs"]
 pub mod vreplicaset_controller;
+#[path = "controllers/vdeployment_controller/mod.rs"]
+pub mod vdeployment_controller;
 pub mod vstd_ext;
 
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
-use crate::vreplicaset_controller::trusted::exec_types::{VReplicaSet, VReplicaSetSpec};
+use crate::vdeployment_controller::trusted::exec_types::{VDeployment, VDeploymentSpec};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -36,15 +38,14 @@ use std::env;
 use std::convert::Infallible;
 use std::error::Error;
 
-pub fn validate_state(vrs: &VReplicaSet) -> Result<(), String> {
+pub fn validate_state(vdep: &VDeployment) -> Result<(), String> {
     // Call executable state validation
-    if vrs.state_validation() {
+    if vdep.state_validation() {
         Ok(())
     } else {
-        Err("Invalid VReplicaset".to_string())
+        Err("Invalid VDeployment".to_string())
     }
 }
-
 
 pub async fn validate_handler(
     body: AdmissionReview<KubeDynamicObject>,
@@ -64,10 +65,10 @@ pub async fn validate_handler(
         let name = obj.name_any();
         let local_obj = DynamicObject::from_kube(obj.clone());
 
-        // Use unmarshal function to convert DynamicObject to VReplicaSet
-        let vrs_result = VReplicaSet::unmarshal(local_obj);
-        if let Ok(vrs) = vrs_result {
-            res = match validate_state(&vrs) {
+        // Use unmarshal function to convert DynamicObject to VDeployment
+        let vdeploy_result = VDeployment::unmarshal(local_obj);
+        if let Ok(vdeploy) = vdeploy_result {
+            res = match validate_state(&vdeploy) {
                 Ok(()) => {
                     info!("accepted: {:?} on resource {}", req.operation, name);
                     res
@@ -78,8 +79,8 @@ pub async fn validate_handler(
                 }
             };
         } else {
-            warn!("Failed to unmarshal VReplicaSet");
-            res = res.deny("Failed to unmarshal VReplicaSet".to_string());
+            warn!("Failed to unmarshal VDeployment");
+            res = res.deny("Failed to unmarshal VDeployment".to_string());
         }
         // if vrs_result.is_err() {
         //     res.deny("Failed to unmarshal VReplicaSet".to_string())

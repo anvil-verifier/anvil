@@ -11,18 +11,17 @@ pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
-#[path = "controllers/vreplicaset_controller/mod.rs"]
-pub mod vreplicaset_controller;
+#[path = "controllers/vstatefulset_controller/mod.rs"]
+pub mod vstatefulset_controller;
 pub mod vstd_ext;
 
-use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
-use crate::vreplicaset_controller::trusted::exec_types::{VReplicaSet, VReplicaSetSpec};
+use crate::kubernetes_api_objects::exec::{dynamic::DynamicObject, resource::ResourceWrapper};
+use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, VStatefulSetSpec};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
 // use deps_hack::tracing::{error, info};
-use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use deps_hack::kube::core::{
     admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},
     DynamicObject as KubeDynamicObject, ResourceExt,
@@ -36,15 +35,14 @@ use std::env;
 use std::convert::Infallible;
 use std::error::Error;
 
-pub fn validate_state(vrs: &VReplicaSet) -> Result<(), String> {
+pub fn validate_state(vss: &VStatefulSet) -> Result<(), String> {
     // Call executable state validation
-    if vrs.state_validation() {
+    if vss.state_validation() {
         Ok(())
     } else {
-        Err("Invalid VReplicaset".to_string())
+        Err("Invalid VStatefulSet".to_string())
     }
 }
-
 
 pub async fn validate_handler(
     body: AdmissionReview<KubeDynamicObject>,
@@ -64,10 +62,10 @@ pub async fn validate_handler(
         let name = obj.name_any();
         let local_obj = DynamicObject::from_kube(obj.clone());
 
-        // Use unmarshal function to convert DynamicObject to VReplicaSet
-        let vrs_result = VReplicaSet::unmarshal(local_obj);
-        if let Ok(vrs) = vrs_result {
-            res = match validate_state(&vrs) {
+        // Use unmarshal function to convert DynamicObject to VStatefulSet
+        let vsts_result = VStatefulSet::unmarshal(local_obj);
+        if let Ok(vsts) = vsts_result {
+            res = match validate_state(&vsts) {
                 Ok(()) => {
                     info!("accepted: {:?} on resource {}", req.operation, name);
                     res
@@ -78,15 +76,9 @@ pub async fn validate_handler(
                 }
             };
         } else {
-            warn!("Failed to unmarshal VReplicaSet");
-            res = res.deny("Failed to unmarshal VReplicaSet".to_string());
+            warn!("Failed to unmarshal VStatefulSet");
+            res = res.deny("Failed to unmarshal VStatefulSet".to_string());
         }
-        // if vrs_result.is_err() {
-        //     res.deny("Failed to unmarshal VReplicaSet".to_string())
-        // }
-
-        // // Get the VReplicaSet instance and its spec
-        // let vrs = vrs_result.unwrap();
     };
     Ok(reply::json(&res.into_review()))
 }

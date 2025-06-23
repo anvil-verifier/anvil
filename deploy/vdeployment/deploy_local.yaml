@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vdeployment-controller
+  namespace: vdeployment
+  labels:
+    app.kubernetes.io/name: vdeployment-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vdeployment-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vdeployment-controller
+    spec:
+      containers:
+        - image: local/vdeployment-controller:v0.1.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+      serviceAccountName: vdeployment-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vreplicaset-controller
+  namespace: vdeployment
+  labels:
+    app.kubernetes.io/name: vreplicaset-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vreplicaset-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vreplicaset-controller
+    spec:
+      containers:
+        - image: local/vreplicaset-controller:v0.1.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+      serviceAccountName: vdeployment-controller

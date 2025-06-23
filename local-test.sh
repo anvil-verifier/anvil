@@ -43,21 +43,21 @@ case "$build_controller" in
 esac
 
 # for VDeployment, need to deploy VReplicaSet as a dependency
-if [ "$app" == "v2-vdeployment" ]; then
+if [ "$app" == "vdeployment" ]; then
     case "$build_controller" in
         local)
-            echo "Building v2-vreplicaset controller binary"
-            ./build.sh "v2_vreplicaset_controller.rs" "--no-verify" $@
-            echo "Building v2-vreplicaset controller image"
-            docker build -f $dockerfile_path -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
+            echo "Building vreplicaset controller binary"
+            ./build.sh "vreplicaset_controller.rs" "--no-verify" $@
+            echo "Building vreplicaset controller image"
+            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
             ;;
         remote)
-            echo "Building v2-vreplicaset controller image using builder"
+            echo "Building vreplicaset controller image using builder"
             dockerfile_path="docker/controller/Dockerfile.remote"
-            docker build -f $dockerfile_path -t local/v2-vreplicaset-controller:v0.1.0 --build-arg APP=v2_vreplicaset .
+            docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
             ;;
         no)
-            echo "Use existing v2-vreplicaset controller image"
+            echo "Use existing vreplicaset controller image"
             ;;
     esac
 fi
