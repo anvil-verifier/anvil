@@ -20,7 +20,7 @@ macro_rules! at_step_internal_or {
         $vds.reconcile_step.eq_step($step) && $pred($vds)
     };
 
-    // eq_step is the tricky workaround for error, see src/v2/controllers/vdeployment_controller/trusted/step.rs
+    // eq_step is the tricky workaround for error, see src/controllers/vdeployment_controller/trusted/step.rs
     ($vds:expr, $step:expr) => {
         $vds.reconcile_step.eq_step($step)
     };

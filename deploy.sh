@@ -28,8 +28,8 @@ kind create cluster --config deploy/kind.yaml --name $cluster_name
 kind load docker-image local/$app-controller:v0.1.0 --name $cluster_name
 
 # for VDeployment, need to deploy VReplicaSet as a dependency
-if [ "$app" == "v2-vdeployment" ]; then
-    kind load docker-image local/v2-vreplicaset-controller:v0.1.0 --name $cluster_name
+if [ "$app" == "vdeployment" ]; then
+    kind load docker-image local/vreplicaset-controller:v0.1.0 --name $cluster_name
 fi
 
 # admission controller has a different deployment process
@@ -52,7 +52,7 @@ if [ $(echo $app | awk -F'-' '{print $NF}') == "admission" ]; then
     sed -e 's@${APP}@'"${app}-admission-controller"'@g' <"e2e/manifests/admission_server.yaml" | kubectl create -f -
     CA_PEM64="$(openssl base64 -A < certs/tls.crt)"
     echo "Creating K8s Webhooks"
-    sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"${app#v2-}"s'@g' <"e2e/manifests/admission_webhooks.yaml" | kubectl create -f -
+    sed -e 's@${CA_PEM_B64}@'"$CA_PEM64"'@g' -e 's@${RESOURCE}@'"${app#}"s'@g' <"e2e/manifests/admission_webhooks.yaml" | kubectl create -f -
     exit 0
 fi
 

@@ -8,12 +8,13 @@ use kube::{
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use tracing::*;
 use std::fs;
+
 use crate::common::*;
 
-pub async fn v2_vstatefulset_admission_e2e_test()-> Result<(), Error>{
+pub async fn vreplicaset_admission_e2e_test()-> Result<(), Error>{
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
-    let vrs_crd = crd_api.get("vstatefulsets.anvil.dev").await;
+    let vrs_crd = crd_api.get("vreplicasets.anvil.dev").await;
     match vrs_crd {
         Err(e) => {
             error!("No CRD found, create one before run the e2e test.");
@@ -26,20 +27,20 @@ pub async fn v2_vstatefulset_admission_e2e_test()-> Result<(), Error>{
 
     let discovery = Discovery::new(client.clone()).run().await?;
 
-    let statefulsets = crd_api.list(&Default::default()).await;
+    let replicasets = crd_api.list(&Default::default()).await;
 
-    match statefulsets {
+    match replicasets {
         Ok(list) => {
-            info!("Successfully retrieved VStatefulSets");
+            info!("Successfully retrieved VReplicaSets");
         }
         Err(e) => {
-            error!("Failed to list VStatefulSets");
-            return Err(Error::VStatefulSetListFailed);
+            error!("Failed to list VReplicaSets");
+            return Err(Error::VReplicaSetListFailed);
         }
     }
 
     // contains test cases
-    let manifest_dir = "./manifests/statefulset";
+    let manifest_dir = "./manifests/replicaset";
     let paths = fs::read_dir(manifest_dir).unwrap();
 
     for path in paths {
@@ -60,17 +61,17 @@ pub async fn v2_vstatefulset_admission_e2e_test()-> Result<(), Error>{
                         info!("Manifest from {} successfully created", path.display());
                     }
                     else {
-                        error!("Manifest from {} created StatefulSet when it should not have", path.display());
-                        return Err(Error::VStatefulSetInvalidAdmissionPassed);
+                        error!("Manifest from {} created ReplicaSet when it should not have", path.display());
+                        return Err(Error::VReplicaSetInvalidAdmissionPassed);
                     }
                 }
                 Err(e) => {
                     if valid_manifest {
-                        error!("Manifest from {} failed to create StatefulSet when it should have been successful. {}", path.display(), e);
-                        return Err(Error::VStatefulSetValidAdmissionFailed);
+                        error!("Manifest from {} failed to create ReplicaSet when it should have been successful. {}", path.display(), e);
+                        return Err(Error::VReplicaSetValidAdmissionFailed);
                     }
                     else {
-                        info!("Manifest from {} correctly failed to create StatefulSet", path.display());
+                        info!("Manifest from {} correctly failed to create ReplicaSet", path.display());
                     }
                 }
             }

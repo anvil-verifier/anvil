@@ -2,21 +2,21 @@ apiVersion: v1
 kind: Namespace
 metadata:
   labels:
-    app.kubernetes.io/name: v2-vdeployment
-  name: v2-vdeployment
+    app.kubernetes.io/name: vreplicaset
+  name: vreplicaset
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: v2-vdeployment-controller
-  namespace: v2-vdeployment
+  name: vreplicaset-controller
+  namespace: vreplicaset
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/name: v2-vdeployment-controller
-  name: v2-vdeployment-controller-role
+    app.kubernetes.io/name: vreplicaset-controller
+  name: vreplicaset-controller-role
 rules:
   - apiGroups:
       - anvil.dev
@@ -28,7 +28,6 @@ rules:
       - ""
     resources:
       - pods
-      - replicasets
       - services
       - endpoints
       - persistentvolumeclaims
@@ -43,13 +42,13 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: v2-vdeployment-controller
-  name: v2-vdeployment-controller-rolebinding
+    app.kubernetes.io/name: vreplicaset-controller
+  name: vreplicaset-controller-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: v2-vdeployment-controller-role
+  name: vreplicaset-controller-role
 subjects:
   - kind: ServiceAccount
-    name: v2-vdeployment-controller
-    namespace: v2-vdeployment
+    name: vreplicaset-controller
+    namespace: vreplicaset

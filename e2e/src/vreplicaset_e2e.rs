@@ -245,7 +245,7 @@ pub async fn scaling_test(client: Client, vrs_name: String) -> Result<(), Error>
     Ok(())
 }
 
-pub async fn v2_vreplicaset_e2e_test() -> Result<(), Error> {
+pub async fn vreplicaset_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());

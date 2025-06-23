@@ -562,7 +562,7 @@ pub async fn template_patch_test(client: Client, vd_name: String) -> Result<(), 
     Ok(())
 }
 
-pub async fn v2_vdeployment_e2e_test() -> Result<(), Error> {
+pub async fn vdeployment_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
