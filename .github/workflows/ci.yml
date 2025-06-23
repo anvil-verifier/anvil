@@ -237,7 +237,7 @@ jobs:
       - name: Verify conformance of the executable model
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh anvil.rs --crate-type lib --rlimit 50 --time
   # fluent-e2e-test:
   #   needs:
   #     - build-and-cache-verus

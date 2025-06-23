@@ -384,7 +384,7 @@ pub proof fn reconcile_eventually_terminates_on_vrs_object(
         |rs: ReconcileLocalState| (at_step_closure(VReplicaSetRecStepView::AfterListPods)(rs) || at_step_closure(VReplicaSetRecStepView::Done)(rs))))
         .leads_to(lift_state(reconcile_idle))));
 
-    // Need some extra statements in V2 to prove the lemma.
+    // Need some extra statements to prove the lemma.
     VReplicaSetReconcileState::marshal_preserves_integrity();
 
     // Fifth, prove that reconcile init state can reach AfterListPods.
