@@ -85,25 +85,21 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     (error_state(state), None)
                 } else {
                     let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
-                    let state = VDeploymentReconcileState {
-                        new_vrs: new_vrs,
-                        old_vrs_list: old_vrs_list,
-                        ..state
-                    };
                     if new_vrs.is_None() {
                         // create the new vrs
-                        create_new_vrs(state, vd)
+                        create_new_vrs(old_vrs_list, vd)
                     } else {
-                        if !match_replicas(vd, new_vrs.get_Some_0()) {
+                        let new_vrs = new_vrs.get_Some_0();
+                        if !match_replicas(vd, new_vrs) {
                             // scale new vrs to desired replicas
-                            scale_new_vrs(state, vd)
+                            scale_new_vrs(new_vrs, old_vrs_list, vd)
                         } else {
                             if old_vrs_list.len() > 0 {
                                 if !state.old_vrs_list.last().well_formed() {
                                     (error_state(state), None)
                                 } else {
                                     // scale down old vrs to 0 replicas
-                                    scale_down_old_vrs(state, vd)
+                                    scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
                                 }
                             } else {
                                 // all good
@@ -126,13 +122,13 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         (error_state(state), None)
                     } else {
                         if !match_replicas(vd, new_vrs) {
-                            scale_new_vrs(state, vd)
+                            scale_new_vrs(new_vrs, state.old_vrs_list, vd)
                         } else {
                             if state.old_vrs_list.len() > 0 {
                                 if !state.old_vrs_list.last().well_formed() {
                                     (error_state(state), None)
                                 } else {
-                                    scale_down_old_vrs(state, vd)
+                                    scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
                                 }
                             } else {
                                 (done_state(state), None)
@@ -150,7 +146,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     if !state.old_vrs_list.last().well_formed() {
                         (error_state(state), None)
                     } else {
-                        scale_down_old_vrs(state, vd)
+                        scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
                     }
                 } else {
                     (done_state(state), None)
@@ -165,7 +161,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     if !state.old_vrs_list.last().well_formed() {
                         (error_state(state), None)
                     } else {
-                        scale_down_old_vrs(state, vd)
+                        scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
                     }
                 } else {
                     (done_state(state), None)
@@ -195,7 +191,7 @@ pub open spec fn done_state(state: VDeploymentReconcileState) -> (state_prime: V
 // wrapper functions to avoid duplication
 
 // create new vrs
-pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
+pub open spec fn create_new_vrs(old_vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = make_replica_set(vd);
     let req = APIRequest::CreateRequest(CreateRequest {
         namespace: vd.metadata.namespace.unwrap(),
@@ -204,14 +200,13 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::AfterCreateNewVRS,
         new_vrs: Some(new_vrs),
-        ..state
+        old_vrs_list: old_vrs_list,
     };
     (state_prime, Some(RequestView::KRequest(req)))
 }
 
 //  scale new vrs to desired replicas
-pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
-    let new_vrs = state.new_vrs.unwrap();
+pub open spec fn scale_new_vrs(new_vrs: VReplicaSetView, old_vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let new_vrs = VReplicaSetView {
         spec: VReplicaSetSpecView {
             replicas: Some(vd.spec.replicas.unwrap_or(1)),
@@ -228,14 +223,13 @@ pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeployment
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::AfterScaleNewVRS,
         new_vrs: Some(new_vrs),
-        ..state
+        old_vrs_list: old_vrs_list,
     };
     (state_prime, Some(RequestView::KRequest(req)))
 }
 
 // scale down old vrs to 0 replicas
-pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
-    let old_vrs_list = state.old_vrs_list;
+pub open spec fn scale_down_old_vrs(new_vrs: Option<VReplicaSetView>, old_vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let old_vrs = old_vrs_list.last();
     let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
         name: old_vrs.metadata.name.unwrap(),
@@ -252,7 +246,7 @@ pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeplo
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
         old_vrs_list: old_vrs_list.drop_last(),
-        ..state
+        new_vrs: new_vrs,
     };
     (state_prime, Some(RequestView::KRequest(req)))
 }

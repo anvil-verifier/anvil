@@ -15,6 +15,8 @@ pub struct DynamicObject {
     inner: deps_hack::kube::api::DynamicObject,
 }
 
+implement_deep_view_trait!(DynamicObject, DynamicObjectView);
+
 impl View for DynamicObject {
     type V = DynamicObjectView;
 
