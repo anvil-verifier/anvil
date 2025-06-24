@@ -9,6 +9,11 @@ use vstd::prelude::*;
 
 verus! {
 
+enum Tid {
+    A,
+    B
+}
+
 enum ThreadState {
     Waiting,
     Holding,
@@ -16,64 +21,53 @@ enum ThreadState {
 }
 
 struct ProgramState {
-    pub lock: bool,
-    pub threads: Map<int, ThreadState>,
-}
-
-enum Step {
-    ThreadAcquiresLock(int),
-    ThreadReleasesLock(int),
-    Stutter,
+    lock: bool,
+    threads: Map<Tid, ThreadState>,
 }
 
 spec fn init() -> StatePred<ProgramState> {
     |s: ProgramState| {
         &&& !s.lock
-        &&& s.threads.contains_key(0)
-        &&& s.threads[0] is Waiting
-        &&& s.threads.contains_key(1)
-        &&& s.threads[1] is Waiting
+        &&& s.threads.contains_key(Tid::A)
+        &&& s.threads[Tid::A] is Waiting
+        &&& s.threads.contains_key(Tid::B)
+        &&& s.threads[Tid::B] is Waiting
     }
 }
 
 spec fn next() -> ActionPred<ProgramState> {
-    |s, s_prime: ProgramState| exists |step: Step| next_step(s, s_prime, step)
-}
-
-spec fn next_step(s: ProgramState, s_prime: ProgramState, step: Step) -> bool {
-    match step {
-        Step::ThreadAcquiresLock(input) => thread_acquires_lock().forward(input)(s, s_prime),
-        Step::ThreadReleasesLock(input) => thread_releases_lock().forward(input)(s, s_prime),
-        Step::Stutter => stutter().forward(())(s, s_prime),
+    |s, s_prime: ProgramState| {
+        ||| thread_acquires_lock().forward(Tid::A)(s, s_prime)
+        ||| thread_releases_lock().forward(Tid::A)(s, s_prime)
+        ||| thread_acquires_lock().forward(Tid::B)(s, s_prime)
+        ||| thread_releases_lock().forward(Tid::B)(s, s_prime)
+        ||| stutter().forward(())(s, s_prime)
     }
 }
 
-spec fn thread_acquires_lock() -> Action<ProgramState, int, ()> {
+spec fn thread_acquires_lock() -> Action<ProgramState, Tid, ()> {
     Action {
-        precondition: |thread_id: int, s: ProgramState| {
-            &&& !s.lock
-            &&& thread_id == 0 || thread_id == 1
-            &&& s.threads[thread_id] is Waiting
+        precondition: |tid: Tid, s: ProgramState| {
+            !s.lock && s.threads[tid] is Waiting
         },
-        transition: |thread_id: int, s: ProgramState| {
+        transition: |tid: Tid, s: ProgramState| {
             (ProgramState {
                 lock: true,
-                threads: s.threads.insert(thread_id, ThreadState::Holding)
+                threads: s.threads.insert(tid, ThreadState::Holding)
             }, ())
         },
     }
 }
 
-spec fn thread_releases_lock() -> Action<ProgramState, int, ()> {
+spec fn thread_releases_lock() -> Action<ProgramState, Tid, ()> {
     Action {
-        precondition: |thread_id: int, s: ProgramState| {
-            &&& thread_id == 0 || thread_id == 1
-            &&& s.threads[thread_id] is Holding
+        precondition: |tid: Tid, s: ProgramState| {
+            s.threads[tid] is Holding
         },
-        transition: |thread_id: int, s: ProgramState| {
+        transition: |tid: Tid, s: ProgramState| {
             (ProgramState {
                 lock: false,
-                threads: s.threads.insert(thread_id, ThreadState::Terminated)
+                threads: s.threads.insert(tid, ThreadState::Terminated)
             }, ())
         },
     }
@@ -87,86 +81,86 @@ spec fn stutter() -> Action<ProgramState, (), ()> {
 }
 
 spec fn both_threads_are_terminated() -> StatePred<ProgramState> {
-    |s: ProgramState| s.threads[0] is Terminated && s.threads[1] is Terminated
+    |s: ProgramState| s.threads[Tid::A] is Terminated && s.threads[Tid::B] is Terminated
 }
 
 proof fn both_threads_eventually_terminate(model: TempPred<ProgramState>)
     requires
         model.entails(lift_state(init())),
         model.entails(always(lift_action(next()))),
-        model.entails(tla_forall(|thread_id| thread_acquires_lock().weak_fairness(thread_id))),
-        model.entails(tla_forall(|thread_id| thread_releases_lock().weak_fairness(thread_id))),
+        model.entails(tla_forall(|tid| thread_acquires_lock().weak_fairness(tid))),
+        model.entails(tla_forall(|tid| thread_releases_lock().weak_fairness(tid))),
     ensures
         model.entails(eventually(lift_state(both_threads_are_terminated())))
 {
     let one_of_the_threads_is_holding = |s: ProgramState| {
-        ||| s.threads[0] is Holding && s.threads[1] is Waiting && s.lock
-        ||| s.threads[0] is Waiting && s.threads[1] is Holding && s.lock
+        ||| s.threads[Tid::A] is Holding && s.threads[Tid::B] is Waiting && s.lock
+        ||| s.threads[Tid::A] is Waiting && s.threads[Tid::B] is Holding && s.lock
     };
     assert(model.entails(lift_state(init()).leads_to(lift_state(one_of_the_threads_is_holding)))) by {
-        use_tla_forall(model, |thread_id: int| thread_acquires_lock().weak_fairness(thread_id), 0);
-        thread_acquires_lock().wf1(0, model, next(), init(), one_of_the_threads_is_holding);
+        use_tla_forall(model, |tid| thread_acquires_lock().weak_fairness(tid), Tid::A);
+        thread_acquires_lock().wf1(Tid::A, model, next(), init(), one_of_the_threads_is_holding);
     };
 
-    let t0_holding_t1_waiting = |s: ProgramState| s.threads[0] is Holding && s.threads[1] is Waiting && s.lock;
-    assert(model.entails(lift_state(t0_holding_t1_waiting).leads_to(lift_state(both_threads_are_terminated())))) by {
-        let t0_terminated_t1_waiting = |s: ProgramState| s.threads[0] is Terminated && s.threads[1] is Waiting && !s.lock;
-        assert(model.entails(lift_state(t0_holding_t1_waiting).leads_to(lift_state(t0_terminated_t1_waiting)))) by {
-            use_tla_forall(model, |thread_id: int| thread_releases_lock().weak_fairness(thread_id), 0);
-            thread_releases_lock().wf1(0, model, next(), t0_holding_t1_waiting, t0_terminated_t1_waiting);
+    let ta_holding_tb_waiting = |s: ProgramState| s.threads[Tid::A] is Holding && s.threads[Tid::B] is Waiting && s.lock;
+    assert(model.entails(lift_state(ta_holding_tb_waiting).leads_to(lift_state(both_threads_are_terminated())))) by {
+        let ta_terminated_tb_waiting = |s: ProgramState| s.threads[Tid::A] is Terminated && s.threads[Tid::B] is Waiting && !s.lock;
+        assert(model.entails(lift_state(ta_holding_tb_waiting).leads_to(lift_state(ta_terminated_tb_waiting)))) by {
+            use_tla_forall(model, |tid| thread_releases_lock().weak_fairness(tid), Tid::A);
+            thread_releases_lock().wf1(Tid::A, model, next(), ta_holding_tb_waiting, ta_terminated_tb_waiting);
         };
 
-        let t0_terminated_t1_holding = |s: ProgramState| s.threads[0] is Terminated && s.threads[1] is Holding && s.lock;
-        assert(model.entails(lift_state(t0_terminated_t1_waiting).leads_to(lift_state(t0_terminated_t1_holding)))) by {
-            use_tla_forall(model, |thread_id: int| thread_acquires_lock().weak_fairness(thread_id), 1);
-            thread_acquires_lock().wf1(1, model, next(), t0_terminated_t1_waiting, t0_terminated_t1_holding);
+        let ta_terminated_tb_holding = |s: ProgramState| s.threads[Tid::A] is Terminated && s.threads[Tid::B] is Holding && s.lock;
+        assert(model.entails(lift_state(ta_terminated_tb_waiting).leads_to(lift_state(ta_terminated_tb_holding)))) by {
+            use_tla_forall(model, |tid| thread_acquires_lock().weak_fairness(tid), Tid::B);
+            thread_acquires_lock().wf1(Tid::B, model, next(), ta_terminated_tb_waiting, ta_terminated_tb_holding);
         };
 
-        assert(model.entails(lift_state(t0_terminated_t1_holding).leads_to(lift_state(both_threads_are_terminated())))) by {
-            use_tla_forall(model, |thread_id: int| thread_releases_lock().weak_fairness(thread_id), 1);
-            thread_releases_lock().wf1(1, model, next(), t0_terminated_t1_holding, both_threads_are_terminated());
-        };
-
-        leads_to_trans_n!(
-            model,
-            lift_state(t0_holding_t1_waiting),
-            lift_state(t0_terminated_t1_waiting),
-            lift_state(t0_terminated_t1_holding),
-            lift_state(both_threads_are_terminated())
-        );
-    }
-
-    let t1_holding_t0_waiting = |s: ProgramState| s.threads[0] is Waiting && s.threads[1] is Holding && s.lock;
-    assert(model.entails(lift_state(t1_holding_t0_waiting).leads_to(lift_state(both_threads_are_terminated())))) by {
-        let t1_terminated_t0_waiting = |s: ProgramState| s.threads[0] is Waiting && s.threads[1] is Terminated && !s.lock;
-        assert(model.entails(lift_state(t1_holding_t0_waiting).leads_to(lift_state(t1_terminated_t0_waiting)))) by {
-            use_tla_forall(model, |thread_id: int| thread_releases_lock().weak_fairness(thread_id), 1);
-            thread_releases_lock().wf1(1, model, next(), t1_holding_t0_waiting, t1_terminated_t0_waiting);
-        };
-
-        let t1_terminated_t0_holding = |s: ProgramState| s.threads[0] is Holding && s.threads[1] is Terminated && s.lock;
-        assert(model.entails(lift_state(t1_terminated_t0_waiting).leads_to(lift_state(t1_terminated_t0_holding)))) by {
-            use_tla_forall(model, |thread_id: int| thread_acquires_lock().weak_fairness(thread_id), 0);
-            thread_acquires_lock().wf1(0, model, next(), t1_terminated_t0_waiting, t1_terminated_t0_holding);
-        };
-
-        assert(model.entails(lift_state(t1_terminated_t0_holding).leads_to(lift_state(both_threads_are_terminated())))) by {
-            use_tla_forall(model, |thread_id: int| thread_releases_lock().weak_fairness(thread_id), 0);
-            thread_releases_lock().wf1(0, model, next(), t1_terminated_t0_holding, both_threads_are_terminated());
+        assert(model.entails(lift_state(ta_terminated_tb_holding).leads_to(lift_state(both_threads_are_terminated())))) by {
+            use_tla_forall(model, |tid| thread_releases_lock().weak_fairness(tid), Tid::B);
+            thread_releases_lock().wf1(Tid::B, model, next(), ta_terminated_tb_holding, both_threads_are_terminated());
         };
 
         leads_to_trans_n!(
             model,
-            lift_state(t1_holding_t0_waiting),
-            lift_state(t1_terminated_t0_waiting),
-            lift_state(t1_terminated_t0_holding),
+            lift_state(ta_holding_tb_waiting),
+            lift_state(ta_terminated_tb_waiting),
+            lift_state(ta_terminated_tb_holding),
             lift_state(both_threads_are_terminated())
         );
     }
 
-    or_leads_to_combine(model, lift_state(t0_holding_t1_waiting), lift_state(t1_holding_t0_waiting), lift_state(both_threads_are_terminated()));
+    let tb_holding_ta_waiting = |s: ProgramState| s.threads[Tid::A] is Waiting && s.threads[Tid::B] is Holding && s.lock;
+    assert(model.entails(lift_state(tb_holding_ta_waiting).leads_to(lift_state(both_threads_are_terminated())))) by {
+        let tb_terminated_ta_waiting = |s: ProgramState| s.threads[Tid::A] is Waiting && s.threads[Tid::B] is Terminated && !s.lock;
+        assert(model.entails(lift_state(tb_holding_ta_waiting).leads_to(lift_state(tb_terminated_ta_waiting)))) by {
+            use_tla_forall(model, |tid| thread_releases_lock().weak_fairness(tid), Tid::B);
+            thread_releases_lock().wf1(Tid::B, model, next(), tb_holding_ta_waiting, tb_terminated_ta_waiting);
+        };
 
-    temp_pred_equality(lift_state(t0_holding_t1_waiting).or(lift_state(t1_holding_t0_waiting)), lift_state(one_of_the_threads_is_holding));
+        let tb_terminated_ta_holding = |s: ProgramState| s.threads[Tid::A] is Holding && s.threads[Tid::B] is Terminated && s.lock;
+        assert(model.entails(lift_state(tb_terminated_ta_waiting).leads_to(lift_state(tb_terminated_ta_holding)))) by {
+            use_tla_forall(model, |tid| thread_acquires_lock().weak_fairness(tid), Tid::A);
+            thread_acquires_lock().wf1(Tid::A, model, next(), tb_terminated_ta_waiting, tb_terminated_ta_holding);
+        };
+
+        assert(model.entails(lift_state(tb_terminated_ta_holding).leads_to(lift_state(both_threads_are_terminated())))) by {
+            use_tla_forall(model, |tid| thread_releases_lock().weak_fairness(tid), Tid::A);
+            thread_releases_lock().wf1(Tid::A, model, next(), tb_terminated_ta_holding, both_threads_are_terminated());
+        };
+
+        leads_to_trans_n!(
+            model,
+            lift_state(tb_holding_ta_waiting),
+            lift_state(tb_terminated_ta_waiting),
+            lift_state(tb_terminated_ta_holding),
+            lift_state(both_threads_are_terminated())
+        );
+    }
+
+    or_leads_to_combine(model, lift_state(ta_holding_tb_waiting), lift_state(tb_holding_ta_waiting), lift_state(both_threads_are_terminated()));
+
+    temp_pred_equality(lift_state(ta_holding_tb_waiting).or(lift_state(tb_holding_ta_waiting)), lift_state(one_of_the_threads_is_holding));
 
     leads_to_trans(model, lift_state(init()), lift_state(one_of_the_threads_is_holding), lift_state(both_threads_are_terminated()));
 
