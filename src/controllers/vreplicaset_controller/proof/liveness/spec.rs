@@ -174,7 +174,7 @@ pub open spec fn invariants_since_phase_iii(vrs: VReplicaSetView, cluster: Clust
 {
     always(lift_state(no_pending_interfering_update_request()))
     .and(always(lift_state(no_pending_interfering_update_status_request())))
-    .and(always(lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods())))
+    .and(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods())))
     .and(always(lift_state(every_create_request_is_well_formed(cluster, controller_id))))
     .and(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))
     .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))))
@@ -186,7 +186,7 @@ pub proof fn invariants_since_phase_iii_is_stable(vrs: VReplicaSetView, cluster:
     stable_and_always_n!(
         lift_state(no_pending_interfering_update_request()),
         lift_state(no_pending_interfering_update_status_request()),
-        lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
         lift_state(every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))
@@ -325,7 +325,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
             lemma_eventually_always_no_pending_interfering_update_request(spec, cluster, controller_id);
             lemma_eventually_always_no_pending_interfering_update_status_request(spec, cluster, controller_id);
-            lemma_eventually_always_no_pending_create_or_delete_request_not_from_controller_on_pods(spec, cluster, controller_id);
+            lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_pods(spec, cluster, controller_id);
             lemma_eventually_always_every_create_request_is_well_formed(spec, cluster, controller_id);
             lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vrs.object_ref());
@@ -334,7 +334,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
                 true_pred(),
                 lift_state(no_pending_interfering_update_request()),
                 lift_state(no_pending_interfering_update_status_request()),
-                lift_state(no_pending_create_or_delete_request_not_from_controller_on_pods()),
+                lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
                 lift_state(every_create_request_is_well_formed(cluster, controller_id)),
                 lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
                 lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))

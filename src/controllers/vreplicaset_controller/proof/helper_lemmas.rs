@@ -132,6 +132,70 @@ pub proof fn vrs_rely_condition_equivalent_to_lifted_vrs_rely_condition_action(
     );
 }
 
+pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
+)
+    ensures
+        spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
+            lift_state(helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)))))
+        <==>
+            spec.entails(always(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id)))
+{
+    let lhs = 
+        spec.entails(always(tla_forall(|vrs: VReplicaSetView| 
+            lift_state(helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)))));
+    let rhs = spec.entails(always(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id)));
+
+    assert_by(
+        lhs ==> rhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, vrs: VReplicaSetView| #![auto]
+                lhs
+                && spec.satisfied_by(ex)
+                implies 
+                helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(ex.suffix(n).head())
+                && helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(ex.suffix(n).head_next()) by {
+                // Gradually unwrap the semantics of lhs
+                // until Verus can show the consequent.
+                let tla_forall_body = |vrs: VReplicaSetView| 
+                    lift_state(helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs));
+
+                assert(valid(spec.implies(always(tla_forall(tla_forall_body)))));
+                assert(spec.implies(always(tla_forall(tla_forall_body))).satisfied_by(ex));
+                assert(always(tla_forall(tla_forall_body)).satisfied_by(ex));
+
+                assert(tla_forall(tla_forall_body).satisfied_by(ex.suffix(n)));
+                assert(tla_forall(tla_forall_body).satisfied_by(ex.suffix(n + 1)));
+
+                assert(tla_forall_body(vrs).satisfied_by(ex.suffix(n)));
+                assert(tla_forall_body(vrs).satisfied_by(ex.suffix(n + 1)));
+            }
+        }
+    );
+    
+    assert_by(
+        rhs ==> lhs,
+        {
+            assert forall |ex: Execution<ClusterState>, n: nat, vrs: VReplicaSetView| #![auto]
+                rhs
+                && spec.satisfied_by(ex)
+                implies 
+                helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(ex.suffix(n).head())
+                && helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(ex.suffix(n).head_next()) by {
+                // Gradually unwrap the semantics of rhs
+                // until Verus can show the consequent.
+                assert(valid(spec.implies(always(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id)))));
+                assert(spec.implies(always(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id))).satisfied_by(ex));
+                assert(always(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id)).satisfied_by(ex));
+                
+                assert(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id).satisfied_by(ex.suffix(n)));
+                assert(lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id).satisfied_by(ex.suffix(n + 1)));
+
+            }
+        }
+    );
+}
+
 pub proof fn matching_pods_equal_to_matching_pod_entries_values(vrs: VReplicaSetView, s: StoredState)
     ensures
         matching_pods(vrs, s) =~= matching_pod_entries(vrs, s).values()

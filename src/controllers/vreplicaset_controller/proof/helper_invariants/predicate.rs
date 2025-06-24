@@ -107,16 +107,27 @@ pub open spec fn no_other_pending_delete_request_interferes_with_vrs_reconcile(
     |s: ClusterState| {
         req.key.kind == Kind::PodKind ==>
             req.preconditions.is_Some()
-            && req.preconditions.get_Some_0().resource_version.is_Some()
-            && !{
-                let etcd_obj = s.resources()[req.key];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-                &&& s.resources().contains_key(req.key)
-                &&& etcd_obj.metadata.resource_version.is_Some()
-                &&& etcd_obj.metadata.resource_version
-                    == req.preconditions.get_Some_0().resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
-                &&& owner_references.contains(vrs.controller_owner_ref())
+            && {
+                ||| {
+                    req.preconditions.get_Some_0().resource_version.is_Some()
+                    && !{
+                        let etcd_obj = s.resources()[req.key];
+                        let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                        &&& s.resources().contains_key(req.key)
+                        &&& etcd_obj.metadata.resource_version.is_Some()
+                        &&& etcd_obj.metadata.resource_version
+                            == req.preconditions.get_Some_0().resource_version
+                        &&& etcd_obj.metadata.owner_references.is_Some()
+                        &&& owner_references.contains(vrs.controller_owner_ref())
+                    }
+                }
+                ||| { // required to handle garbage collector's messages.
+                    &&& req.preconditions.unwrap().uid.is_Some()
+                    &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
+                    &&& s.resources().contains_key(req.key)
+                            ==> (!matching_pods(vrs, s.resources()).contains(s.resources()[req.key])
+                                || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
+                }
             }
     }
 }
@@ -157,6 +168,56 @@ pub open spec fn no_other_pending_request_interferes_with_vrs_reconcile(
                 APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
                 _ => true,
             }
+        }
+    }
+}
+
+pub open spec fn vrs_reconcile_create_request_only_interferes_with_itself(
+    req: CreateRequest,
+    vrs: VReplicaSetView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let owner_references = req.obj.metadata.owner_references.get_Some_0();
+        &&& req.obj.kind == Kind::PodKind
+        &&& req.obj.metadata.owner_references.is_Some()
+        &&& exists |owner_ref: OwnerReferenceView| {
+            // using the macro messes up the trigger.
+            &&& owner_references == #[trigger] Seq::empty().push(owner_ref)
+            &&& owner_ref.controller.is_Some()
+            &&& owner_ref.controller.get_Some_0()
+            &&& owner_ref.kind == VReplicaSetView::kind()
+            &&& owner_ref.name == vrs.object_ref().name
+        }
+    }
+}
+
+pub open spec fn vrs_reconcile_get_then_delete_request_only_interferes_with_itself(
+    req: GetThenDeleteRequest,
+    vrs: VReplicaSetView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& req.key.kind == Kind::PodKind
+        &&& req.owner_ref.controller.is_Some()
+        &&& req.owner_ref.controller.get_Some_0()
+        &&& req.owner_ref.kind == VReplicaSetView::kind()
+        &&& req.owner_ref.name == vrs.object_ref().name
+    }
+}
+
+pub open spec fn vrs_reconcile_request_only_interferes_with_itself(
+    controller_id: int,
+    vrs: VReplicaSetView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg| {
+            &&& #[trigger] s.in_flight().contains(msg)
+            &&& msg.content.is_APIRequest()
+            &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
+        } ==> match msg.content.get_APIRequest_0() {
+            APIRequest::ListRequest(_) => true,
+            APIRequest::CreateRequest(req) => vrs_reconcile_create_request_only_interferes_with_itself(req, vrs)(s),
+            APIRequest::GetThenDeleteRequest(req) => vrs_reconcile_get_then_delete_request_only_interferes_with_itself(req, vrs)(s),
+            _ => false, // vrs doesn't send other requests (yet).
         }
     }
 }
@@ -253,7 +314,7 @@ pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView
     }
 }
 
-pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods() -> StatePred<ClusterState> {
+pub open spec fn no_pending_mutation_request_not_from_controller_on_pods() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
@@ -262,7 +323,12 @@ pub open spec fn no_pending_create_or_delete_request_not_from_controller_on_pods
             &&& msg.content.is_APIRequest()
         } ==> {
             &&& msg.content.is_create_request() ==> msg.content.get_create_request().key().kind != PodView::kind()
+            &&& msg.content.is_update_request() ==> msg.content.get_update_request().key().kind != PodView::kind()
+            // too radical, loosen it later to allow updates on pod status.
+            &&& msg.content.is_update_status_request() ==> msg.content.get_update_status_request().key().kind != PodView::kind()
             &&& msg.content.is_delete_request() ==> msg.content.get_delete_request().key.kind != PodView::kind()
+            &&& msg.content.is_get_then_delete_request() ==> msg.content.get_get_then_delete_request().key.kind != PodView::kind()
+            &&& msg.content.is_get_then_update_request() ==> msg.content.get_get_then_update_request().key().kind != PodView::kind()
         }
     }
 }
@@ -513,6 +579,21 @@ pub open spec fn every_delete_request_from_vrs_has_rv_precondition_that_is_less_
             &&& req.preconditions.unwrap().resource_version.is_Some()
             &&& req.preconditions.unwrap().uid.is_None()
             &&& req.preconditions.unwrap().resource_version.unwrap() < s.api_server.resource_version_counter
+        }
+    }
+}
+
+pub open spec fn every_msg_from_vrs_controller_carries_vrs_key(
+    controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |msg: Message| #![trigger s.in_flight().contains(msg)] {
+            let content = msg.content;
+            &&& s.in_flight().contains(msg)
+            &&& msg.src.is_Controller()
+            &&& msg.src.get_Controller_0() == controller_id
+        } ==> {
+            msg.src.get_Controller_1().kind == VReplicaSetView::kind()
         }
     }
 }

@@ -2644,7 +2644,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_request()))),
         spec.entails(always(lift_state(helper_invariants::no_pending_interfering_update_status_request()))),
         spec.entails(always(lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)))),
-        spec.entails(always(lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()))),
+        spec.entails(always(lift_state(helper_invariants::no_pending_mutation_request_not_from_controller_on_pods()))),
         spec.entails(always(lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
         spec.entails(always(lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
@@ -2729,7 +2729,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         &&& helper_invariants::no_pending_interfering_update_request()(s)
         &&& helper_invariants::no_pending_interfering_update_status_request()(s)
         &&& helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)(s)
-        &&& helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()(s)
+        &&& helper_invariants::no_pending_mutation_request_not_from_controller_on_pods()(s)
         &&& helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)(s)
         &&& helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)(s)
         &&& helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)(s)
@@ -2764,7 +2764,7 @@ pub proof fn lemma_current_state_matches_is_stable(
         lift_state(helper_invariants::no_pending_interfering_update_request()),
         lift_state(helper_invariants::no_pending_interfering_update_status_request()),
         lift_state(helper_invariants::garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(helper_invariants::no_pending_create_or_delete_request_not_from_controller_on_pods()),
+        lift_state(helper_invariants::no_pending_mutation_request_not_from_controller_on_pods()),
         lift_state(helper_invariants::every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
         lift_state(helper_invariants::every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)),
         lift_state(helper_invariants::every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)),
