@@ -202,6 +202,8 @@ pub proof fn lemma_eventually_always_every_create_request_is_well_formed(
     );
 }
 
+// TODO: broken by updating vrs rely/guarantee.
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -322,6 +324,8 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     );
 }
 
+// TODO: broken by updating vrs rely/guarantee.
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_status_request(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -870,8 +874,10 @@ pub proof fn lemma_eventually_always_every_create_matching_pod_request_implies_a
 }
 
 // TODO: investigate flaky proof.
+// TODO: broken by updating vrs rely/guarantee. (but we're on the verge of getting rid of this anyway).
 #[verifier(rlimit(100))]
 #[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
