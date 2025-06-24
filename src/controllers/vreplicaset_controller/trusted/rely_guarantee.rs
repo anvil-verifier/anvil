@@ -62,7 +62,7 @@ pub open spec fn vrs_rely_get_then_update_req(req: GetThenUpdateRequest) -> Stat
             // TODO: add type invariant
             &&& req.owner_ref.controller.is_Some()
             &&& req.owner_ref.controller.get_Some_0()
-            &&& req.owner_ref.kind != Kind::PodKind
+            &&& req.owner_ref.kind != VReplicaSetView::kind()
             // Prevents 2): where other controllers update pods so they become
             // owned by a VReplicaSet.
             &&& (req.obj.metadata.owner_references.is_Some() ==>
