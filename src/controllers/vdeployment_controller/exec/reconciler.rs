@@ -100,6 +100,7 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 //    We may not need to support this if we can prove this doesn't happen for our controller.
  // mask this proof before there's a solution to flakiness
  // see https://github.com/verus-lang/verus/issues/1756
+#[verifier(external_body)]
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures
@@ -287,7 +288,6 @@ ensures
 }
 
 // scale down old vrs to 0 replicas
-#[verifier(external_body)]
 pub fn scale_down_old_vrs(new_vrs: Option<VReplicaSet>, mut old_vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
@@ -297,10 +297,11 @@ ensures
     res.1@.is_Some() && model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).1.is_Some(),
     (res.0@, res.1.deep_view()) == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@),
 {
+    let tmp = old_vrs_list.clone();
     let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
     old_vrs_list.pop();
     // somehow it's necessary
-    assume(old_vrs_list.deep_view() == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).0.old_vrs_list);
+    assert(old_vrs_list.deep_view() == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), tmp.deep_view(), vd@).0.old_vrs_list);
     let mut new_spec = old_vrs.spec();
     new_spec.set_replicas(0);
     old_vrs.set_spec(new_spec);
@@ -316,12 +317,6 @@ ensures
         old_vrs_list: old_vrs_list,
         new_vrs: new_vrs,
     };
-    assert(state_prime@ == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).0) by {
-        assert(state_prime.reconcile_step@ == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).0.reconcile_step);
-        assert(state_prime.new_vrs.deep_view() == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).0.new_vrs);
-        assert(state_prime.old_vrs_list.deep_view() == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).0.old_vrs_list);
-    }
-    assume(req@ == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@).1.unwrap().get_KRequest_0());
     return (state_prime, Some(Request::KRequest(req)))
 }
 
