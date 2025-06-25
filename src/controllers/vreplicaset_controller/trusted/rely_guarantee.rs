@@ -28,6 +28,10 @@ pub open spec fn vrs_rely_update_req(req: UpdateRequest) -> StatePred<ClusterSta
     |s: ClusterState| {
         req.obj.kind == Kind::PodKind ==>
             req.obj.metadata.resource_version.is_Some()
+            // Prevents another controller's requests from interfering with newly-created
+            // or newly-updated objects in store.
+            && req.obj.metadata.resource_version.get_Some_0()
+                < s.api_server.resource_version_counter
             // Prevents 1): where other controllers update pods already owned
             // by a VReplicaSet.
             && !{
@@ -80,6 +84,8 @@ pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
     |s: ClusterState| {
         req.obj.kind == Kind::PodKind ==> 
             req.obj.metadata.resource_version.is_Some()
+            && req.obj.metadata.resource_version.get_Some_0()
+                < s.api_server.resource_version_counter
             && !{
                 let etcd_obj = s.resources()[req.key()];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
@@ -100,6 +106,8 @@ pub open spec fn vrs_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
         req.key.kind == Kind::PodKind ==>
             req.preconditions.is_Some()
             && req.preconditions.get_Some_0().resource_version.is_Some()
+            && req.preconditions.get_Some_0().resource_version.get_Some_0()
+                < s.api_server.resource_version_counter
             && !{
                 let etcd_obj = s.resources()[req.key];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
