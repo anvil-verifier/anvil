@@ -212,7 +212,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
         && ky == key)
         ==> {
             let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
-            &&& Self::request_sent_by_controller(controller_id, msg)
+            &&& Self::request_sent_by_controller_with_key(controller_id, key, msg)
             &&& (s.in_flight().contains(msg)
                 || exists |resp_msg: Message| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)

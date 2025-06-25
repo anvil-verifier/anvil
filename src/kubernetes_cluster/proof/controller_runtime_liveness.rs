@@ -53,6 +53,20 @@ pub open spec fn request_sent_by_controller(controller_id: int, msg: Message) ->
     }
 }
 
+pub open spec fn request_sent_by_controller_with_key(controller_id: int, key: ObjectRef, msg: Message) -> bool {
+    &&& msg.src == HostId::Controller(controller_id, key)
+    &&& {
+        ||| {
+            &&& msg.dst == HostId::APIServer
+            &&& msg.content.is_APIRequest()
+        }
+        ||| {
+            &&& msg.dst == HostId::External(controller_id)
+            &&& msg.content.is_ExternalRequest()
+        }
+    }
+}
+
 pub open spec fn reconciler_init_and_no_pending_req(self, controller_id: int, cr_key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Self::at_reconcile_state(controller_id, cr_key, (self.reconcile_model(controller_id).init)())(s)
@@ -100,7 +114,7 @@ pub open spec fn pending_req_in_flight_at_reconcile_state(controller_id: int, ke
         let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
         &&& Self::at_expected_reconcile_states(controller_id, key, current_state)(s)
         &&& Self::has_pending_req_msg(controller_id, s, key)
-        &&& Self::request_sent_by_controller(controller_id, msg)
+        &&& Self::request_sent_by_controller_with_key(controller_id, key, msg)
         &&& s.in_flight().contains(msg)
     }
 }
@@ -109,7 +123,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(control
     |s: ClusterState| {
         &&& Self::at_expected_reconcile_states(controller_id, key, current_state)(s)
         &&& Self::pending_req_msg_is(controller_id, s, key, req_msg)
-        &&& Self::request_sent_by_controller(controller_id, req_msg)
+        &&& Self::request_sent_by_controller_with_key(controller_id, key, req_msg)
         &&& s.in_flight().contains(req_msg)
     }
 }
@@ -120,7 +134,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cont
         ==> {
             let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
             &&& Self::has_pending_req_msg(controller_id, s, key)
-            &&& Self::request_sent_by_controller(controller_id, msg)
+            &&& Self::request_sent_by_controller_with_key(controller_id, key, msg)
             &&& (s.in_flight().contains(msg)
                 || exists |resp_msg: Message| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -138,7 +152,7 @@ pub open spec fn pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg
         && Self::has_pending_req_msg(controller_id, s, key))
         ==> {
             let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
-            &&& Self::request_sent_by_controller(controller_id, msg)
+            &&& Self::request_sent_by_controller_with_key(controller_id, key, msg)
             &&& (s.in_flight().contains(msg)
                 || exists |resp_msg: Message| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -158,7 +172,7 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(controlle
         let msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
         &&& Self::at_expected_reconcile_states(controller_id, key, current_state)(s)
         &&& Self::has_pending_req_msg(controller_id, s, key)
-        &&& Self::request_sent_by_controller(controller_id, msg)
+        &&& Self::request_sent_by_controller_with_key(controller_id, key, msg)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
@@ -170,8 +184,6 @@ pub open spec fn reconcile_idle(controller_id: int, key: ObjectRef) -> StatePred
     |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef)
     requires
         self.controller_models.contains_key(controller_id),
@@ -195,8 +207,6 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle(self, spec: TempPred<C
     self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::EndReconcile, pre, post);
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_reconcile_error_leads_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef)
     requires
         self.controller_models.contains_key(controller_id),
@@ -220,8 +230,6 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle(self, spec: TempPred<
     self.lemma_pre_leads_to_post_by_controller(spec, controller_id, input, stronger_next, ControllerStep::EndReconcile, pre, post);
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init(self, spec: TempPred<ClusterState>, controller_id: int, cr_key: ObjectRef)
     requires
         self.controller_models.contains_key(controller_id),
@@ -320,7 +328,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
         &&& Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)(s)
         &&& Self::has_pending_req_msg(controller_id, s, cr.object_ref())
-        &&& Self::request_sent_by_controller(controller_id, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
+        &&& Self::request_sent_by_controller_with_key(controller_id, cr.object_ref(), s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
         &&& (s.in_flight().contains(s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
             || exists |resp_msg: Message| {
                 #[trigger] s.in_flight().contains(resp_msg)
@@ -346,8 +354,6 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state(self, spec: TempPred<
     );
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, init_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -419,8 +425,6 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(self, 
     );
 }
 
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state(self, spec: TempPred<ClusterState>, controller_id: int, cr: DynamicObjectView, current_state: spec_fn(ReconcileLocalState) -> bool, next_state: spec_fn(ReconcileLocalState) -> bool)
     requires
         self.controller_models.contains_key(controller_id),
@@ -441,7 +445,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         |s| {
             Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)(s)
             && Self::has_pending_req_msg(controller_id, s, cr.object_ref())
-            && Self::request_sent_by_controller(controller_id, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
+            && Self::request_sent_by_controller_with_key(controller_id, cr.object_ref(), s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
             && s.in_flight().contains(resp)
             && resp_msg_matches_req_msg(resp, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
         }
@@ -465,7 +469,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         let resp_in_flight_state = |s: ClusterState| {
             Self::at_expected_reconcile_states(controller_id, cr.object_ref(), current_state)(s)
             && Self::has_pending_req_msg(controller_id, s, cr.object_ref())
-            && Self::request_sent_by_controller(controller_id, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
+            && Self::request_sent_by_controller_with_key(controller_id, cr.object_ref(), s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
             && s.in_flight().contains(msg)
             && resp_msg_matches_req_msg(msg, s.ongoing_reconciles(controller_id)[cr.object_ref()].pending_req_msg.get_Some_0())
         };
@@ -493,8 +497,8 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
 pub open spec fn there_is_no_request_msg_to_external_from_controller(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message|
-            s.in_flight().contains(msg)
-            && #[trigger] msg.src.is_controller_id(controller_id)
+            #[trigger] s.in_flight().contains(msg) // not the ideal trigger choice, but no matches for the second conjunct anymore.
+            && msg.src.is_controller_id(controller_id)
             ==> msg.dst != HostId::External(controller_id)
     }
 }
@@ -676,8 +680,6 @@ pub open spec fn the_object_in_reconcile_has_spec_and_uid_as<T: CustomResourceVi
 
 // This lemma says that under the spec where []desired_state_is(cr), it will eventually reach a state where any object
 // in reconcile for cr.object_ref() has the same spec as cr.spec.
-// TODO: broken by adding cr_key to HostId.
-#[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as<T: CustomResourceView>(self, spec: TempPred<ClusterState>, controller_id: int, cr: T)
     requires
         self.controller_models.contains_key(controller_id),

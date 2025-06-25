@@ -144,7 +144,6 @@ pub open spec fn vd_guarantee_create_req(req: CreateRequest) -> StatePred<Cluste
 // VD only updates VRS owned by itself.
 pub open spec fn vd_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let etcd_obj = s.resources()[req.key()];
         &&& req.obj.kind == VReplicaSetView::kind()
         &&& exists |vd: VDeploymentView|
             req.owner_ref == vd.controller_owner_ref()

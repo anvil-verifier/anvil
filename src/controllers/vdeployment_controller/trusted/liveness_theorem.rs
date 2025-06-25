@@ -16,8 +16,10 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
             &&& obj.kind == VReplicaSetView::kind()
             &&& obj.metadata.namespace == vd.metadata.namespace
         }).to_seq();
-        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& objects_to_vrs_list(objs).is_Some()
+        let vrs_list = objects_to_vrs_list(objs);
+        let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
+        &&& vrs_list.is_Some()
         &&& old_vrs_list.len() == 0
         &&& new_vrs.is_Some()
         &&& new_vrs.unwrap().spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
