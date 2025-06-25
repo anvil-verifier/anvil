@@ -2890,6 +2890,8 @@ ensures
     simplify_predicate(spec, always(lift_state(p_prime)));
 }
 
+// TODO: investigate flaky proof.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int
 )
@@ -2925,6 +2927,8 @@ ensures
     leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(q));
 }
 
+// TODO: investigate flaky proof.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_always_there_is_no_request_msg_to_external_from_controller(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -2954,8 +2958,8 @@ ensures
 
         assert forall |msg: Message|
             inv(s)
-            && s_prime.in_flight().contains(msg)
-            && #[trigger] msg.src.is_controller_id(controller_id)
+            && #[trigger] s_prime.in_flight().contains(msg)
+            && msg.src.is_controller_id(controller_id)
             implies msg.dst != HostId::External(controller_id) by {
             if new_msgs.contains(msg) {
                 // Empty if statement required to trigger quantifiers.
