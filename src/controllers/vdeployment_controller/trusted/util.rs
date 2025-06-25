@@ -19,7 +19,7 @@ pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list:
     }
 }
 
-pub open spec fn filter_vrs_list(vrs_list: Seq<VReplicaSetView>, vd: VDeploymentView) -> (filtered_vrs_list: Seq<VReplicaSetView>) {
+pub open spec fn filter_vrs_list(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (filtered_vrs_list: Seq<VReplicaSetView>) {
     vrs_list.filter(|vrs: VReplicaSetView|
         vrs.metadata.owner_references_contains(vd.controller_owner_ref())
         && vrs.metadata.deletion_timestamp.is_None()

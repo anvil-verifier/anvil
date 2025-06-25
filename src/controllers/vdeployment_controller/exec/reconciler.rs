@@ -320,11 +320,11 @@ ensures
     return (state_prime, Some(Request::KRequest(req)))
 }
 
-fn match_replicas(vrs: &VReplicaSet, vd: &VDeployment) -> (res: bool)
+fn match_replicas(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
 requires
     vd@.well_formed(),
     vrs@.well_formed(),
-ensures res == model_reconciler::match_replicas(vrs@, vd@),
+ensures res == model_reconciler::match_replicas(vd@, vrs@),
 {
     vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)
 }

@@ -252,7 +252,7 @@ pub open spec fn scale_down_old_vrs(new_vrs: Option<VReplicaSetView>, old_vrs_li
     (state_prime, Some(RequestView::KRequest(req)))
 }
 
-pub open spec fn match_replicas(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
+pub open spec fn match_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
     vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
 }
 
