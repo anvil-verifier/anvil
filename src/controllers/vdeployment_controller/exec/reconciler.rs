@@ -217,7 +217,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (
                     VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStep::AfterScaleNewVRS,
-                        new_vrs: Some(new_vrs),
+                        new_vrs: Some(new_vrs.clone()),
                         old_vrs_list: state.old_vrs_list,
                     },
                     Some(Request::KRequest(KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
@@ -225,7 +225,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                         namespace: vd.metadata().namespace().unwrap(),
                         name: new_vrs.metadata().name().unwrap(),
                         owner_ref: vd.controller_owner_ref(),
-                        obj: new_vrs.clone().marshal()
+                        obj: new_vrs.marshal()
                     }
                 ))))
             }
