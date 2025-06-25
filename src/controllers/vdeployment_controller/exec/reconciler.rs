@@ -133,7 +133,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if vrs_list_or_none.is_none() {
                 return (error_state(state), None);
             }
-            let (new_vrs, mut old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd));
+            let (new_vrs, mut old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.clone().unwrap()));
             // no .last().cloned() in verus because "The verifier does not yet support the following Rust feature: overloaded deref"
             if new_vrs.is_none() {
                 // no new vrs, create one

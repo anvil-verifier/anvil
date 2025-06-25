@@ -117,23 +117,6 @@ ensures
                         assert((new_vrs, old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
                         assert(new_vrs.is_None());
                         assert(resp_msg.content.get_list_response().res.is_Ok());
-                        let (state_prime, req) = create_new_vrs(old_vrs_list, vd);
-                        assert(state_prime == VDeploymentReconcileState {
-                            reconcile_step: VDeploymentReconcileStepView::AfterCreateNewVRS,
-                            new_vrs: Some(make_replica_set(vd)),
-                            old_vrs_list: old_vrs_list,
-                        });
-                        assert(req == Some(RequestView::<VoidEReqView>::KRequest(APIRequest::CreateRequest(CreateRequest {
-                            namespace: vd.metadata.namespace.unwrap(),
-                            obj: make_replica_set(vd).marshal(),
-                        }))));
-                        assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.is_Some()) by {
-                            assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0().content.get_APIRequest_0()
-                                == APIRequest::CreateRequest(CreateRequest {
-                                    namespace: vd.metadata.namespace.unwrap(),
-                                    obj: make_replica_set(vd).marshal(),
-                                }));
-                        }
                     }
                 },
                 _ => {}
