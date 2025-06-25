@@ -123,17 +123,14 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             return (state_prime, Some(Request::KRequest(req)))
         },
         VDeploymentReconcileStep::AfterListVRS => {
-            proof {
-                assume(false);
-            }
             if !(is_some_k_list_resp!(resp_o) && extract_some_k_list_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
+            use crate::reconciler::spec::io::*;
+            assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
             let vrs_list_or_none = objects_to_vrs_list(objs);
             if vrs_list_or_none.is_none() {
-                let err = error_state(state);
-                assert(err@ =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0);
                 return (error_state(state), None);
             }
             let (new_vrs, mut old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd));
@@ -154,7 +151,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (state_prime, Some(Request::KRequest(req)))
             }
             let mut new_vrs = new_vrs.unwrap();
-            if !new_vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1) {
+            if new_vrs.spec().replicas().unwrap_or(1) != vd.spec().replicas().unwrap_or(1) {
                 // scale new vrs to desired replicas
                 let mut new_spec = new_vrs.spec();
                 new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
@@ -213,7 +210,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !new_vrs.well_formed() {
                 return (error_state(state), None);
             }
-            if !(new_vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)) {
+            if new_vrs.spec().replicas().unwrap_or(1) != vd.spec().replicas().unwrap_or(1) {
                 let mut new_spec = new_vrs.spec();
                 new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
                 new_vrs.set_spec(new_spec);

@@ -102,7 +102,14 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                         ))))
                     } else {
                         let new_vrs = new_vrs.get_Some_0();
-                        if !(vd.spec.replicas.unwrap_or(1) == new_vrs.spec.replicas.unwrap_or(1 as int)) {
+                        if new_vrs.spec.replicas.unwrap_or(1 as int) != vd.spec.replicas.unwrap_or(1) {
+                            let new_vrs = VReplicaSetView {
+                                spec: VReplicaSetSpecView {
+                                    replicas: Some(vd.spec.replicas.unwrap_or(1)),
+                                    ..new_vrs.spec
+                                },
+                                ..new_vrs
+                            };
                             // scale new vrs to desired replicas
                             (
                                 VDeploymentReconcileState {
@@ -114,13 +121,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                                     name: new_vrs.metadata.name.unwrap(),
                                     namespace: vd.metadata.namespace.unwrap(),  
                                     owner_ref: vd.controller_owner_ref(),
-                                    obj: VReplicaSetView {
-                                        spec: VReplicaSetSpecView {
-                                            replicas: Some(vd.spec.replicas.unwrap_or(1)),
-                                            ..new_vrs.spec
-                                        },
-                                        ..new_vrs
-                                    }.marshal(),
+                                    obj: new_vrs.marshal(),
                                 }
                             ))))
                         } else {
@@ -171,7 +172,14 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     if !new_vrs.well_formed() {
                         (error_state(state), None)
                     } else {
-                        if !(vd.spec.replicas.unwrap_or(1) == new_vrs.spec.replicas.unwrap_or(1 as int)) {
+                        if new_vrs.spec.replicas.unwrap_or(1 as int) != vd.spec.replicas.unwrap_or(1) {
+                            let new_vrs = VReplicaSetView {
+                                spec: VReplicaSetSpecView {
+                                    replicas: Some(vd.spec.replicas.unwrap_or(1)),
+                                    ..new_vrs.spec
+                                },
+                                ..new_vrs
+                            };
                             // scale new vrs to desired replicas
                             (
                                 VDeploymentReconcileState {
@@ -183,13 +191,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                                     name: new_vrs.metadata.name.unwrap(),
                                     namespace: vd.metadata.namespace.unwrap(),  
                                     owner_ref: vd.controller_owner_ref(),
-                                    obj: VReplicaSetView {
-                                        spec: VReplicaSetSpecView {
-                                            replicas: Some(vd.spec.replicas.unwrap_or(1)),
-                                            ..new_vrs.spec
-                                        },
-                                        ..new_vrs
-                                    }.marshal(),
+                                    obj: new_vrs.marshal(),
                                 }
                             ))))
                         } else {
