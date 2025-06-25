@@ -100,16 +100,10 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
 //    We may not need to support this if we can prove this doesn't happen for our controller.
  // mask this proof before there's a solution to flakiness
  // see https://github.com/verus-lang/verus/issues/1756
-#[verifier(external_body)]
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
     requires vd@.well_formed(),
     ensures
-        ({
-            // hotfix for flaky proof
-            &&& res.0@.reconcile_step =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.reconcile_step
-            &&& res.0@.new_vrs =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.new_vrs
-            &&& res.0@.old_vrs_list =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.old_vrs_list
-        }),
+        res.0@ == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0,
         res.1.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).1,
 {
     let namespace = vd.metadata().namespace().unwrap();
@@ -120,6 +114,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 namespace: namespace,
             });
             let old_vrs_list = Vec::<VReplicaSet>::new();
+            assert(old_vrs_list.deep_view() == Seq::<VReplicaSetView>::empty());
             let state_prime = VDeploymentReconcileState {
                 reconcile_step: VDeploymentReconcileStep::AfterListVRS,
                 new_vrs: None,
@@ -128,37 +123,81 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             return (state_prime, Some(Request::KRequest(req)))
         },
         VDeploymentReconcileStep::AfterListVRS => {
+            proof {
+                assume(false);
+            }
             if !(is_some_k_list_resp!(resp_o) && extract_some_k_list_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
             let vrs_list_or_none = objects_to_vrs_list(objs);
             if vrs_list_or_none.is_none() {
+                let err = error_state(state);
+                assert(err@ =~= model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0);
                 return (error_state(state), None);
             }
-            let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd));
+            let (new_vrs, mut old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vrs_list_or_none.clone().unwrap(), vd));
             // no .last().cloned() in verus because "The verifier does not yet support the following Rust feature: overloaded deref"
-
             if new_vrs.is_none() {
                 // no new vrs, create one
-                return create_new_vrs(old_vrs_list.clone(), vd);
+                let new_vrs = make_replica_set(vd);
+                let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                    api_resource: VReplicaSet::api_resource(),
+                    namespace: vd.metadata().namespace().unwrap(),
+                    obj: new_vrs.clone().marshal(),
+                });
+                let state_prime = VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::AfterCreateNewVRS,
+                    new_vrs: Some(new_vrs),
+                    old_vrs_list: old_vrs_list,
+                };
+                return (state_prime, Some(Request::KRequest(req)))
             }
-            let new_vrs = new_vrs.unwrap();
-            if !match_replicas(&vd, &new_vrs) {
+            let mut new_vrs = new_vrs.unwrap();
+            if !new_vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1) {
                 // scale new vrs to desired replicas
-                return scale_new_vrs(new_vrs, old_vrs_list, &vd);
+                let mut new_spec = new_vrs.spec();
+                new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
+                new_vrs.set_spec(new_spec);
+                let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+                    api_resource: VReplicaSet::api_resource(),
+                    namespace: vd.metadata().namespace().unwrap(),
+                    name: new_vrs.metadata().name().unwrap(),
+                    owner_ref: vd.controller_owner_ref(),
+                    obj: new_vrs.clone().marshal()
+                });
+                let state_prime = VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::AfterScaleNewVRS,
+                    new_vrs: Some(new_vrs),
+                    old_vrs_list: old_vrs_list,
+                };
+                return (state_prime, Some(Request::KRequest(req)))
             }
             if old_vrs_list.len() > 0 {
                 if !old_vrs_list[old_vrs_list.len() - 1].well_formed() {
                     return (error_state(state), None);
                 }
-                let state = VDeploymentReconcileState {
-                    new_vrs: Some(new_vrs),
-                    old_vrs_list: old_vrs_list.clone(),
-                    ..state
-                };
                 // scale old vrs to zero
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
+                let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
+                old_vrs_list.pop();
+                // somehow it's necessary
+                assert(old_vrs_list.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.old_vrs_list);
+                let mut new_spec = old_vrs.spec();
+                new_spec.set_replicas(0);
+                old_vrs.set_spec(new_spec);
+                let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+                    api_resource: VReplicaSet::api_resource(),
+                    namespace: vd.metadata().namespace().unwrap(),
+                    name: old_vrs.metadata().name().unwrap(),
+                    owner_ref: vd.controller_owner_ref(),
+                    obj: old_vrs.clone().marshal()
+                });
+                let state_prime = VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::AfterScaleDownOldVRS,
+                    old_vrs_list: old_vrs_list,
+                    new_vrs: Some(new_vrs),
+                };
+                return (state_prime, Some(Request::KRequest(req)))
             }
             // all good
             return (done_state(state), None);
@@ -170,18 +209,54 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if state.new_vrs.is_none() {
                 return (error_state(state), None);
             }
-            let new_vrs = state.new_vrs.clone().unwrap();
+            let mut new_vrs = state.new_vrs.clone().unwrap();
             if !new_vrs.well_formed() {
                 return (error_state(state), None);
             }
-            if !match_replicas(&vd, &new_vrs) {
-                return scale_new_vrs(new_vrs, state.old_vrs_list, &vd);
+            if !(new_vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)) {
+                let mut new_spec = new_vrs.spec();
+                new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
+                new_vrs.set_spec(new_spec);
+                return (
+                    VDeploymentReconcileState {
+                        reconcile_step: VDeploymentReconcileStep::AfterScaleNewVRS,
+                        new_vrs: Some(new_vrs),
+                        old_vrs_list: state.old_vrs_list,
+                    },
+                    Some(Request::KRequest(KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+                        api_resource: VReplicaSet::api_resource(),
+                        namespace: vd.metadata().namespace().unwrap(),
+                        name: new_vrs.metadata().name().unwrap(),
+                        owner_ref: vd.controller_owner_ref(),
+                        obj: new_vrs.clone().marshal()
+                    }
+                ))))
             }
-            if state.old_vrs_list.len() > 0 {
-                if !state.old_vrs_list[state.old_vrs_list.len() - 1].well_formed() {
+            let mut old_vrs_list = state.old_vrs_list.clone();
+            if old_vrs_list.len() > 0 {
+                if !old_vrs_list[old_vrs_list.len() - 1].well_formed() {
                     return (error_state(state), None);
                 }
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
+                let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
+                old_vrs_list.pop();
+                // somehow it's necessary
+                assert(old_vrs_list.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.old_vrs_list);
+                let mut new_spec = old_vrs.spec();
+                new_spec.set_replicas(0);
+                old_vrs.set_spec(new_spec);
+                let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+                    api_resource: VReplicaSet::api_resource(),
+                    namespace: vd.metadata().namespace().unwrap(),
+                    name: old_vrs.metadata().name().unwrap(),
+                    owner_ref: vd.controller_owner_ref(),
+                    obj: old_vrs.clone().marshal()
+                });
+                let state_prime = VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::AfterScaleDownOldVRS,
+                    old_vrs_list: old_vrs_list,
+                    new_vrs: Some(new_vrs),
+                };
+                return (state_prime, Some(Request::KRequest(req)))
             } else {
                 return (done_state(state), None)
             }
@@ -190,11 +265,31 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            if state.old_vrs_list.len() > 0 {
-                if !state.old_vrs_list[state.old_vrs_list.len() - 1].well_formed() {
+            let mut old_vrs_list = state.old_vrs_list.clone();
+            if old_vrs_list.len() > 0 {
+                if !(old_vrs_list[old_vrs_list.len() - 1].well_formed()) {
                     return (error_state(state), None);
                 }
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
+                let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
+                old_vrs_list.pop();
+                // somehow it's necessary
+                assert(old_vrs_list.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.old_vrs_list);
+                let mut new_spec = old_vrs.spec();
+                new_spec.set_replicas(0);
+                old_vrs.set_spec(new_spec);
+                let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+                    api_resource: VReplicaSet::api_resource(),
+                    namespace: vd.metadata().namespace().unwrap(),
+                    name: old_vrs.metadata().name().unwrap(),
+                    owner_ref: vd.controller_owner_ref(),
+                    obj: old_vrs.clone().marshal()
+                });
+                let state_prime = VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::AfterScaleDownOldVRS,
+                    old_vrs_list: old_vrs_list,
+                    new_vrs: state.new_vrs,
+                };
+                return (state_prime, Some(Request::KRequest(req)))
             } else {
                 return (done_state(state), None)
             }
@@ -203,11 +298,31 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            if state.old_vrs_list.len() > 0 {
-                if !state.old_vrs_list[state.old_vrs_list.len() - 1].well_formed() {
+            let mut old_vrs_list = state.old_vrs_list.clone();
+            if old_vrs_list.len() > 0 {
+                if !old_vrs_list[old_vrs_list.len() - 1].well_formed() {
                     return (error_state(state), None);
                 }
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
+                let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
+                old_vrs_list.pop();
+                // somehow it's necessary
+                assert(old_vrs_list.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0.old_vrs_list);
+                let mut new_spec = old_vrs.spec();
+                new_spec.set_replicas(0);
+                old_vrs.set_spec(new_spec);
+                let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
+                    api_resource: VReplicaSet::api_resource(),
+                    namespace: vd.metadata().namespace().unwrap(),
+                    name: old_vrs.metadata().name().unwrap(),
+                    owner_ref: vd.controller_owner_ref(),
+                    obj: old_vrs.clone().marshal()
+                });
+                let state_prime = VDeploymentReconcileState {
+                    reconcile_step: VDeploymentReconcileStep::AfterScaleDownOldVRS,
+                    old_vrs_list: old_vrs_list,
+                    new_vrs: state.new_vrs,
+                };
+                return (state_prime, Some(Request::KRequest(req)))
             } else {
                 return (done_state(state), None)
             }

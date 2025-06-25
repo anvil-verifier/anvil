@@ -88,19 +88,67 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
                     if new_vrs.is_None() {
                         // create the new vrs
-                        create_new_vrs(old_vrs_list, vd)
+                        let new_vrs = make_replica_set(vd);
+                        (
+                            VDeploymentReconcileState {
+                                reconcile_step: VDeploymentReconcileStepView::AfterCreateNewVRS,
+                                new_vrs: Some(new_vrs),
+                                old_vrs_list: old_vrs_list,
+                            },
+                            Some(RequestView::KRequest(APIRequest::CreateRequest(CreateRequest {
+                                namespace: vd.metadata.namespace.unwrap(),
+                                obj: new_vrs.marshal(),
+                            }
+                        ))))
                     } else {
                         let new_vrs = new_vrs.get_Some_0();
-                        if !match_replicas(vd, new_vrs) {
+                        if !(vd.spec.replicas.unwrap_or(1) == new_vrs.spec.replicas.unwrap_or(1 as int)) {
                             // scale new vrs to desired replicas
-                            scale_new_vrs(new_vrs, old_vrs_list, vd)
+                            (
+                                VDeploymentReconcileState {
+                                    reconcile_step: VDeploymentReconcileStepView::AfterScaleNewVRS,
+                                    new_vrs: Some(new_vrs),
+                                    old_vrs_list: old_vrs_list,
+                                },
+                                Some(RequestView::KRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                                    name: new_vrs.metadata.name.unwrap(),
+                                    namespace: vd.metadata.namespace.unwrap(),  
+                                    owner_ref: vd.controller_owner_ref(),
+                                    obj: VReplicaSetView {
+                                        spec: VReplicaSetSpecView {
+                                            replicas: Some(vd.spec.replicas.unwrap_or(1)),
+                                            ..new_vrs.spec
+                                        },
+                                        ..new_vrs
+                                    }.marshal(),
+                                }
+                            ))))
                         } else {
                             if old_vrs_list.len() > 0 {
-                                if !state.old_vrs_list.last().well_formed() {
+                                if !old_vrs_list.last().well_formed() {
                                     (error_state(state), None)
                                 } else {
                                     // scale down old vrs to 0 replicas
-                                    scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
+                                    let old_vrs = old_vrs_list.last();
+                                    (
+                                        VDeploymentReconcileState {
+                                            reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+                                            old_vrs_list: old_vrs_list.drop_last(),
+                                            new_vrs: Some(new_vrs),
+                                        },
+                                        Some(RequestView::KRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                                            name: old_vrs.metadata.name.unwrap(),
+                                            namespace: vd.metadata.namespace.unwrap(),
+                                            owner_ref: vd.controller_owner_ref(),
+                                            obj: VReplicaSetView {
+                                                spec: VReplicaSetSpecView {
+                                                    replicas: Some(0 as int),
+                                                    ..old_vrs.spec
+                                                },
+                                                ..old_vrs
+                                            }.marshal(),
+                                        }
+                                    ))))
                                 }
                             } else {
                                 // all good
@@ -119,17 +167,55 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     (error_state(state), None)
                 } else {
                     let new_vrs = state.new_vrs.unwrap();
+                    let old_vrs_list = state.old_vrs_list;
                     if !new_vrs.well_formed() {
                         (error_state(state), None)
                     } else {
-                        if !match_replicas(vd, new_vrs) {
-                            scale_new_vrs(new_vrs, state.old_vrs_list, vd)
+                        if !(vd.spec.replicas.unwrap_or(1) == new_vrs.spec.replicas.unwrap_or(1 as int)) {
+                            // scale new vrs to desired replicas
+                            (
+                                VDeploymentReconcileState {
+                                    reconcile_step: VDeploymentReconcileStepView::AfterScaleNewVRS,
+                                    new_vrs: Some(new_vrs),
+                                    old_vrs_list: old_vrs_list,
+                                },
+                                Some(RequestView::KRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                                    name: new_vrs.metadata.name.unwrap(),
+                                    namespace: vd.metadata.namespace.unwrap(),  
+                                    owner_ref: vd.controller_owner_ref(),
+                                    obj: VReplicaSetView {
+                                        spec: VReplicaSetSpecView {
+                                            replicas: Some(vd.spec.replicas.unwrap_or(1)),
+                                            ..new_vrs.spec
+                                        },
+                                        ..new_vrs
+                                    }.marshal(),
+                                }
+                            ))))
                         } else {
-                            if state.old_vrs_list.len() > 0 {
-                                if !state.old_vrs_list.last().well_formed() {
+                            if old_vrs_list.len() > 0 {
+                                if !old_vrs_list.last().well_formed() {
                                     (error_state(state), None)
                                 } else {
-                                    scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
+                                    let old_vrs = old_vrs_list.last();
+                                    let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                                        name: old_vrs.metadata.name.unwrap(),
+                                        namespace: vd.metadata.namespace.unwrap(),
+                                        owner_ref: vd.controller_owner_ref(),
+                                        obj: VReplicaSetView {
+                                            spec: VReplicaSetSpecView {
+                                                replicas: Some(0 as int),
+                                                ..old_vrs.spec
+                                            },
+                                            ..old_vrs
+                                        }.marshal(),
+                                    });
+                                    let state_prime = VDeploymentReconcileState {
+                                        reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+                                        old_vrs_list: old_vrs_list.drop_last(),
+                                        new_vrs: state.new_vrs,
+                                    };
+                                    (state_prime, Some(RequestView::KRequest(req)))
                                 }
                             } else {
                                 (done_state(state), None)
@@ -147,7 +233,28 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     if !state.old_vrs_list.last().well_formed() {
                         (error_state(state), None)
                     } else {
-                        scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
+                        let old_vrs_list = state.old_vrs_list;
+                        // scale down old vrs to 0 replicas
+                        let old_vrs = old_vrs_list.last();
+                        (
+                            VDeploymentReconcileState {
+                                reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+                                old_vrs_list: old_vrs_list.drop_last(),
+                                new_vrs: state.new_vrs,
+                            },
+                            Some(RequestView::KRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                                name: old_vrs.metadata.name.unwrap(),
+                                namespace: vd.metadata.namespace.unwrap(),
+                                owner_ref: vd.controller_owner_ref(),
+                                obj: VReplicaSetView {
+                                    spec: VReplicaSetSpecView {
+                                        replicas: Some(0 as int),
+                                        ..old_vrs.spec
+                                    },
+                                    ..old_vrs
+                                }.marshal(),
+                            }
+                        ))))
                     }
                 } else {
                     (done_state(state), None)
@@ -162,7 +269,28 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                     if !state.old_vrs_list.last().well_formed() {
                         (error_state(state), None)
                     } else {
-                        scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
+                        let old_vrs_list = state.old_vrs_list;
+                        // scale down old vrs to 0 replicas
+                        let old_vrs = old_vrs_list.last();
+                        (
+                            VDeploymentReconcileState {
+                                reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+                                old_vrs_list: old_vrs_list.drop_last(),
+                                new_vrs: state.new_vrs,
+                            },
+                            Some(RequestView::KRequest(APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+                                name: old_vrs.metadata.name.unwrap(),
+                                namespace: vd.metadata.namespace.unwrap(),
+                                owner_ref: vd.controller_owner_ref(),
+                                obj: VReplicaSetView {
+                                    spec: VReplicaSetSpecView {
+                                        replicas: Some(0 as int),
+                                        ..old_vrs.spec
+                                    },
+                                    ..old_vrs
+                                }.marshal(),
+                            }
+                        ))))
                     }
                 } else {
                     (done_state(state), None)
