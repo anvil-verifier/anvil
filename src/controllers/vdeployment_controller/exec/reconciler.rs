@@ -154,7 +154,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (state_prime, Some(Request::KRequest(req)))
             }
             let mut new_vrs = new_vrs.unwrap();
-            if !new_vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1) {
+            if new_vrs.spec().replicas().unwrap_or(1) != vd.spec().replicas().unwrap_or(1) {
                 // scale new vrs to desired replicas
                 let mut new_spec = new_vrs.spec();
                 new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
@@ -213,7 +213,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !new_vrs.well_formed() {
                 return (error_state(state), None);
             }
-            if !(new_vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)) {
+            if new_vrs.spec().replicas().unwrap_or(1) != vd.spec().replicas().unwrap_or(1) {
                 let mut new_spec = new_vrs.spec();
                 new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
                 new_vrs.set_spec(new_spec);
