@@ -37,19 +37,35 @@ pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: i
     }
 }
 
+pub open spec fn req_msg_is_list_vrs_req(vd: VDeploymentView, req_msg: Message) -> bool {
+    let request = req_msg.content.get_APIRequest_0();
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content.is_APIRequest()
+    &&& request.is_ListRequest()
+    &&& request.get_ListRequest_0() == ListRequest {
+        kind: VReplicaSetView::kind(),
+        namespace: vd.metadata.namespace.unwrap(),
+    }
+}
+
 pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let step = VDeploymentReconcileStepView::AfterListVRS;
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-        let req_msg = msg.content.get_APIRequest_0();
-        // Q: why this line is required
-        &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.is_Some()
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+        &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& msg.dst == HostId::APIServer
-        &&& req_msg.is_ListRequest()
-        &&& req_msg.get_ListRequest_0() == ListRequest{
-            kind: VReplicaSetView::kind(),
-            namespace: vd.metadata.namespace.unwrap()
-        }
+        &&& req_msg_is_list_vrs_req(vd, msg)
+    }
+}
+
+pub open spec fn req_msg_is_the_pending_list_req_in_flight(vd: VDeploymentView, controller_id: int, msg: Message,) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let step = VDeploymentReconcileStepView::AfterListVRS;
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_list_vrs_req(vd, msg)
     }
 }
 
@@ -213,7 +229,18 @@ macro_rules! and_internal {
     };
 }
 
-// usage: at_step![step,*]
+// usage: at_step!(step_or_pred)
+// step_or_pred = step | (step, pred)
+macro_rules! at_step {
+    ($step:expr) => {
+        closure_to_fn_spec(|s: ReconcileLocalState| {
+            let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
+            at_step_or_internal!(vds, $step)
+        })
+    };
+}
+
+// usage: at_step_or!(step_or_pred,*)
 // step_or_pred = step | (step, pred)
 #[macro_export]
 macro_rules! at_step_or {
