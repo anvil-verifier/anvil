@@ -206,7 +206,7 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
     );
     let stronger_post = |s: ClusterState| {
         &&& current_state_matches(vrs)(s)
-        &&& at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
+        &&& no_pending_req_at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::Done)(s)
     };
 
     // The use of termination property ensures spec |= true ~> reconcile_idle.

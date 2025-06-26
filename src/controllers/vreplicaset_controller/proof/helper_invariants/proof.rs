@@ -48,17 +48,10 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
             ==> spec.entails(always(lift_state(#[trigger] vrs_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        //spec.entails(always(lift_state(every_create_request_is_well_formed(cluster, controller_id)))),
-        // spec.entails(always(lift_state(no_pending_interfering_update_request()))),
-        // spec.entails(always(lift_state(no_pending_interfering_update_status_request()))),
         spec.entails(always(tla_forall(|vrs: VReplicaSetView| lift_state(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs))))),
         spec.entails(always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods()))),
         spec.entails(always(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)))),
-        //spec.entails(always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))),
-        // spec.entails(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)))),
-        // spec.entails(always(lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id)))),
-        // spec.entails(always(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))),
         spec.entails(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id))))),
@@ -606,7 +599,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     );
 }
 
-// TODO: broken by updating vrs rely/guarantee.
+// TODO: broken by updating vrs rely/guarantee. MARKED FOR DELETION.
 #[verifier(external_body)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_status_request(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
@@ -1903,7 +1896,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
-// #[verifier(rlimit(100))]
+// #[verifier(rlimit(100))] MARKED FOR DELETION.
 #[verifier(external_body)]
 pub proof fn lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,

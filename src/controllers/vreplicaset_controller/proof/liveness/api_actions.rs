@@ -31,7 +31,8 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref())(s),
         Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s),
         helper_invariants::no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)(s),
-        !Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg),
+        (!Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
+            || !s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())),
     ensures
         matching_pods(vrs, s.resources()) == matching_pods(vrs, s_prime.resources()),
 {
