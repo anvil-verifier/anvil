@@ -276,6 +276,7 @@ pub open spec fn no_pending_interfering_update_request() -> StatePred<ClusterSta
             &&& msg.content.is_APIRequest()
         } ==> match msg.content.get_APIRequest_0() {
             APIRequest::UpdateRequest(req) => vrs_rely_update_req(req)(s),
+            APIRequest::GetThenUpdateRequest(req) => vrs_rely_get_then_update_req(req)(s),
             _ => true,
         }
     }
@@ -307,9 +308,13 @@ pub open spec fn garbage_collector_does_not_delete_vrs_pods(vrs: VReplicaSetView
             &&& req.preconditions.is_Some()
             &&& req.preconditions.unwrap().uid.is_Some()
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
-            &&& s.resources().contains_key(req.key)
-                    ==> (!matching_pods(vrs, s.resources()).contains(s.resources()[req.key])
-                          || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
+            &&& s.resources().contains_key(req.key) ==> {
+                let obj = s.resources()[req.key];
+                ||| !(obj.metadata.owner_references_contains(vrs.controller_owner_ref())
+                        && obj.kind == Kind::PodKind 
+                        && obj.metadata.namespace == vrs.metadata.namespace)
+                ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+            }
         }
     }
 }
