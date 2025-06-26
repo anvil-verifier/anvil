@@ -11,6 +11,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vreplicaset_controller::{
     model::{install::*, reconciler::*},
+    proof::helper_invariants,
     trusted::{
         liveness_theorem::*,
         rely_guarantee::*,
@@ -36,6 +37,13 @@ pub open spec fn lifted_vrs_rely_condition_action(cluster: Cluster, controller_i
             ==> #[trigger] vrs_rely(other_id)(s))
         && (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vrs_rely(other_id)(s_prime))
+    })
+}
+
+pub open spec fn lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id: int) -> TempPred<ClusterState> {
+    lift_action(|s, s_prime| {
+        (forall |vrs: VReplicaSetView| helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(s))
+        && (forall |vrs: VReplicaSetView| helper_invariants::vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(s_prime))
     })
 }
 
