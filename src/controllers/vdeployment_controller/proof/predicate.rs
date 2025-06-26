@@ -50,7 +50,6 @@ pub open spec fn req_msg_is_list_vrs_req(vd: VDeploymentView, req_msg: Message) 
 
 pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VDeploymentReconcileStepView::AfterListVRS;
         let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         &&& s.in_flight().contains(msg)
@@ -61,12 +60,48 @@ pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: 
 
 pub open spec fn req_msg_is_the_pending_list_req_in_flight(vd: VDeploymentView, controller_id: int, msg: Message,) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let step = VDeploymentReconcileStepView::AfterListVRS;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg_is_list_vrs_req(vd, msg)
     }
+}
+
+// should be used with VReplicaSetView::marshal_preserves_integrity()
+// resp is list resp matching req && resp content match etcd
+pub open spec fn exists_pending_list_resp_in_flight_and_match_req(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_list_vrs_req(vd, req_msg)
+        // predicate on resp_msg
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
+    s: ClusterState, vd: VDeploymentView, resp_msg: Message
+) -> bool {
+    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
+    &&& resp_msg.content.is_list_response()
+    &&& resp_msg.content.get_list_response().res.is_Ok()
+    &&& objects_to_vrs_list(resp_objs).is_Some()
+    &&& resp_objs.no_duplicates()
+    &&& resp_objs == s.resources().values().filter(|o: DynamicObjectView| {
+        &&& o.object_ref().namespace == vd.metadata.namespace.unwrap()
+        &&& o.object_ref().kind == VReplicaSetView::kind()
+    }).to_seq()
+    &&& filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list)) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
+    // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
+    // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+    // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
 
 pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
@@ -79,32 +114,6 @@ pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id
         &&& req_msg.get_CreateRequest_0() == CreateRequest {
             namespace: vd.metadata.namespace.unwrap(),
             obj: make_replica_set(vd).marshal(),
-        }
-    }
-}
-
-// should be used with VReplicaSetView::marshal_preserves_integrity()
-// resp is list resp matching req && resp content match etcd
-pub open spec fn list_resp_in_flight(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-        &&& pending_list_req_in_flight(vd, controller_id)(s)
-        &&& s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg.content.get_list_response().res.is_Ok()
-        &&& {
-            let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-            let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
-            &&& objects_to_vrs_list(resp_objs).is_Some()
-            &&& resp_objs.no_duplicates()
-            &&& resp_objs == s.resources().values().filter(|o: DynamicObjectView| {
-                &&& o.object_ref().namespace == vd.metadata.namespace.unwrap()
-                &&& o.object_ref().kind == VReplicaSetView::kind()
-            }).to_seq()
-            &&& filter_old_and_new_vrs(vd, filter_vrs_list(vd, objects_to_vrs_list(resp_objs).unwrap())) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
-            // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
-            // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
-            // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
         }
     }
 }
