@@ -52,4 +52,8 @@ pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaS
     }
 }
 
+pub open spec fn match_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+    vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
+}
+
 }
