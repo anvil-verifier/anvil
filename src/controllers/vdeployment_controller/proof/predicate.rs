@@ -85,7 +85,9 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(vd: VDeploymen
     }
 }
 
-pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
+pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         // predicate on req_msg, it's not in_flight
@@ -113,6 +115,19 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
+}
+
+pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg.content.is_APIRequest()
+        // ..
+    }
 }
 
 pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
@@ -150,6 +165,15 @@ pub open spec fn should_scale_down_old_vrs(vd: VDeploymentView) -> StatePred<Clu
         &&& new_vrs.is_Some()
         &&& match_replicas(vd, new_vrs.get_Some_0())
         &&& old_vrs_list.len() > 0
+    }
+}
+
+pub open spec fn should_scale_down_old_vrs_with_diff(vd: VDeploymentView, diff: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& new_vrs.is_Some()
+        &&& match_replicas(vd, new_vrs.get_Some_0())
+        &&& old_vrs_list.len() == diff
     }
 }
 

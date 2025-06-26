@@ -107,7 +107,7 @@ ensures
         .or(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
             resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            nothing_to_do(vd)))
+            should_scale_down_old_vrs_with_diff(vd, nat0!())))
         ))
     ));
     // TODO: prove as long as the current state is not init (and we have message to push controller transition)
@@ -118,7 +118,61 @@ ensures
     assume(false);
 }
 
-pub proof fn lemma_from_nothing_todo_to_current_state_matches(
+pub proof fn lemma_from_should_scale_down_old_vrs_with_diff_to_current_state_matches(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, diff: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    diff > 0,
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterScaleDownOldVRS)),
+            resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
+            should_scale_down_old_vrs_with_diff(vd, diff)
+        ))
+       .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterScaleDownOldVRS)),
+            resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
+            should_scale_down_old_vrs_with_diff(vd, diff - nat1!())
+        )))),
+decreases
+    diff,
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterScaleDownOldVRS)),
+        resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
+        should_scale_down_old_vrs_with_diff(vd, diff)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterScaleDownOldVRS)),
+        resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
+        should_scale_down_old_vrs_with_diff(vd, diff)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = (Some(resp_msg), Some(vd.object_ref()));
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::ControllerStep(input) => {
+                VDeploymentReconcileState::marshal_preserves_integrity();
+            }
+        }
+    }
+}
+
+pub proof fn lemma_from_old_vrs_len_zero_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message
 )
 requires
@@ -129,9 +183,9 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS, AfterCreateNewVRS, AfterScaleNewVRS, AfterScaleDownOldVRS, Done)),
+            at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
             resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            nothing_to_do(vd)
+            should_scale_down_old_vrs_with_diff(vd, nat0!())
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step!(Done)),
@@ -139,9 +193,9 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS, AfterCreateNewVRS, AfterScaleNewVRS, AfterScaleDownOldVRS, Done)),
+        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        nothing_to_do(vd)
+        should_scale_down_old_vrs_with_diff(vd, nat0!())
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step!(Done)),
@@ -168,6 +222,7 @@ ensures
             Step::ControllerStep(..) => {
                 VDeploymentReconcileState::marshal_preserves_integrity();
                 // TODO: fix this
+                // it's possible to transit into Error for other states
                 assume(at_vd_step_with_vd(vd, controller_id, at_step!(Done))(s_prime));
             },
             _ => {}
