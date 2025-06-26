@@ -85,6 +85,20 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(vd: VDeploymen
     }
 }
 
+pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(vd: VDeploymentView, controller_id: int, resp_msg: Message) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        // predicate on req_msg, it's not in_flight
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_list_vrs_req(vd, req_msg)
+        // predicate on resp_msg
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
+    }
+}
+
 pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     s: ClusterState, vd: VDeploymentView, resp_msg: Message
 ) -> bool {
