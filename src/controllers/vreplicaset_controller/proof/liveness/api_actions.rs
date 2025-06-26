@@ -37,7 +37,9 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
 {
     if msg.content.is_get_then_delete_request() {
         let req = msg.content.get_get_then_delete_request();
-        if req.key.kind == Kind::PodKind && s.resources().contains_key(req.key) {
+        if req.key.kind == Kind::PodKind
+            && req.key.namespace == vrs.metadata.namespace.unwrap()
+            && s.resources().contains_key(req.key) {
             let obj = s.resources()[req.key];
             if obj.metadata.owner_references_contains(req.owner_ref) {
                 let owners = obj.metadata.owner_references.get_Some_0();
@@ -49,9 +51,11 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
                 assert(!controller_owners.contains(vrs.controller_owner_ref()));
             }
         }
-    } else if msg.content.is_get_then_update_request() {
+    } else if msg.content.is_get_then_update_request() { 
         let req = msg.content.get_get_then_update_request();
-        if req.obj.kind == Kind::PodKind && s.resources().contains_key(req.key()) {
+        if req.obj.kind == Kind::PodKind 
+            && req.key().namespace == vrs.metadata.namespace.unwrap()
+            && s.resources().contains_key(req.key()) {
             let obj = s.resources()[req.key()];
             if obj.metadata.owner_references_contains(req.owner_ref) {
                 let owners = obj.metadata.owner_references.get_Some_0();

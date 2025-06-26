@@ -29,7 +29,8 @@ pub open spec fn no_other_pending_create_request_interferes_with_vrs_reconcile(
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> !{
+        (req.obj.kind == Kind::PodKind
+            && req.key().namespace == vrs.metadata.namespace.unwrap()) ==> !{
             let owner_references = req.obj.metadata.owner_references.get_Some_0();
             &&& req.obj.metadata.owner_references.is_Some()
             &&& owner_references.contains(vrs.controller_owner_ref())
@@ -42,7 +43,8 @@ pub open spec fn no_other_pending_update_request_interferes_with_vrs_reconcile(
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==>
+        (req.obj.kind == Kind::PodKind
+            && req.key().namespace == vrs.metadata.namespace.unwrap()) ==>
             req.obj.metadata.resource_version.is_Some()
             // Prevents 1): where a message not from our specific vrs updates
             // a vrs-owned pod.
@@ -68,7 +70,8 @@ pub open spec fn no_other_pending_update_status_request_interferes_with_vrs_reco
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == Kind::PodKind ==> 
+        (req.obj.kind == Kind::PodKind
+            && req.key().namespace == vrs.metadata.namespace.unwrap()) ==> 
             req.obj.metadata.resource_version.is_Some()
             && !{
                 let etcd_obj = s.resources()[req.key()];
@@ -91,9 +94,11 @@ pub open spec fn no_other_pending_get_then_update_request_interferes_with_vrs_re
         req.obj.kind == Kind::PodKind ==> {
             // Prevents 1): where a message not from our specific vrs updates
             // a vrs-owned pod.
-            &&& req.owner_ref.controller.is_Some()
-            &&& req.owner_ref.controller.get_Some_0()
-            &&& req.owner_ref != vrs.controller_owner_ref()
+            &&& (req.key().namespace == vrs.metadata.namespace.unwrap() ==> {
+                &&& req.owner_ref.controller.is_Some()
+                &&& req.owner_ref.controller.get_Some_0()
+                &&& req.owner_ref != vrs.controller_owner_ref()
+            })
             // Prevents 2): where any message not from our specific vrs updates 
             // pods so they become owned by another VReplicaSet.
             &&& (req.obj.metadata.owner_references.is_Some() ==>
@@ -107,7 +112,8 @@ pub open spec fn no_other_pending_delete_request_interferes_with_vrs_reconcile(
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.key.kind == Kind::PodKind ==>
+        (req.key.kind == Kind::PodKind
+            && req.key.namespace == vrs.metadata.namespace.unwrap()) ==>
             req.preconditions.is_Some()
             && {
                 ||| {
@@ -144,7 +150,8 @@ pub open spec fn no_other_pending_get_then_delete_request_interferes_with_vrs_re
     vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.key.kind == Kind::PodKind ==> {
+        (req.key.kind == Kind::PodKind
+            && req.key.namespace == vrs.metadata.namespace.unwrap()) ==> {
             &&& req.owner_ref.controller.is_Some()
             &&& req.owner_ref.controller.get_Some_0()
             &&& req.owner_ref != vrs.controller_owner_ref()
@@ -186,6 +193,7 @@ pub open spec fn vrs_reconcile_create_request_only_interferes_with_itself(
     |s: ClusterState| {
         let owner_references = req.obj.metadata.owner_references.get_Some_0();
         &&& req.obj.kind == Kind::PodKind
+        &&& req.key().namespace == vrs.metadata.namespace.unwrap()
         &&& req.obj.metadata.owner_references.is_Some()
         &&& exists |owner_ref: OwnerReferenceView| {
             // using the macro messes up the trigger.
@@ -204,6 +212,7 @@ pub open spec fn vrs_reconcile_get_then_delete_request_only_interferes_with_itse
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& req.key.kind == Kind::PodKind
+        &&& req.key.namespace == vrs.metadata.namespace.unwrap()
         &&& req.owner_ref.controller.is_Some()
         &&& req.owner_ref.controller.get_Some_0()
         &&& req.owner_ref.kind == VReplicaSetView::kind()
