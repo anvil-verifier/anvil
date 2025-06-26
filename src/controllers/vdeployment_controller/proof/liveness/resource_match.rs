@@ -139,7 +139,7 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS)),
+        at_vd_step_with_vd(vd, controller_id, at_step_or!(AfterListVRS, AfterCreateNewVRS, AfterScaleNewVRS, AfterScaleDownOldVRS, Done)),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
         nothing_to_do(vd)
     );
@@ -157,27 +157,25 @@ ensures
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
-    assert(spec.entails(lift_state(pre).implies(lift_state(current_state_matches(vd)))));
-    entails_implies_leads_to(spec, lift_state(pre), lift_state(current_state_matches(vd)));
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || at_vd_step_with_vd(vd, controller_id, at_step!(Done))(s_prime) by {
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ControllerStep(input) => {
-                VDeploymentReconcileState::marshal_preserves_integrity();
-                let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                match local_state.reconcile_step {
-                    AfterListVRS => {
-                        assume(lift_local(controller_id, vd, at_step!(Done))(s_prime));
-                    },
-                    _ => {
-                        assume(false);
-                    }
-                }
-            },
-            _ => {
-                assume(false);
+            Step::APIServerStep(input) => {
+                lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+                    s, s_prime, vd, cluster, controller_id, input.get_Some_0()
+                );
             }
+            Step::ControllerStep(..) => {
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                // TODO: fix this
+                assume(at_vd_step_with_vd(vd, controller_id, at_step!(Done))(s_prime));
+            },
+            _ => {}
         }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime)
+        && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        VDeploymentReconcileState::marshal_preserves_integrity();
     }
     assert forall |s| #[trigger] pre(s) implies cluster.controller_action_pre(ControllerStep::ContinueReconcile, (controller_id, input.0, input.1))(s) by {
         use crate::kubernetes_cluster::spec::network::state_machine::network;
@@ -199,7 +197,7 @@ ensures
         assert(network_result.is_Enabled());
     }
     cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, at_vd_step_with_vd(vd, controller_id, at_step!(Done))
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
     );
     
 }

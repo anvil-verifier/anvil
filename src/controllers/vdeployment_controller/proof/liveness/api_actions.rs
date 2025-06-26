@@ -34,4 +34,23 @@ ensures
     let resp_msg = handle_list_request_msg(msg, s.api_server).1;
     return resp_msg;
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
+    msg: Message,
+)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    !Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg),
+ensures
+    filter_old_and_new_vrs_on_etcd(vd, s.resources()) ==
+    filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
+    s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq() ==
+    s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq(),
+    objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()) ==
+    objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()),
+{}
+
 }
