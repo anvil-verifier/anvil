@@ -110,6 +110,11 @@ ensures
             nothing_to_do(vd)))
         ))
     ));
+    // TODO: prove as long as the current state is not init (and we have message to push controller transition)
+    // nothing_to_do ~> Done
+    // should_scale_down_old_vrs ~> at_step!(AfterScaleDownOldVRS) ~> (need ranking function) Done
+    // should_scale_new_vrs ~> at_step!(AfterScaleNewVRS) ~> at_step!(AfterScaleDownOldVRS) | Done
+    // should_create_new_vrs ~> at_step!(AfterCreateNewVRS) ~> at_step!(AfterScaleNewVRS) | at_step!(AfterScaleDownOldVRS) | Done
     assume(false);
 }
 
@@ -152,20 +157,25 @@ ensures
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+    assert(spec.entails(lift_state(pre).implies(lift_state(current_state_matches(vd)))));
+    entails_implies_leads_to(spec, lift_state(pre), lift_state(current_state_matches(vd)));
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || at_vd_step_with_vd(vd, controller_id, at_step!(Done))(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
                 VDeploymentReconcileState::marshal_preserves_integrity();
                 let local_state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                 match local_state.reconcile_step {
-                    AfterListVRS | AfterCreateNewVRS | AfterScaleNewVRS | AfterScaleDownOldVRS => {
+                    AfterListVRS => {
                         assume(lift_local(controller_id, vd, at_step!(Done))(s_prime));
                     },
-                    _ => {}
+                    _ => {
+                        assume(false);
+                    }
                 }
             },
             _ => {
+                assume(false);
             }
         }
     }
@@ -189,8 +199,9 @@ ensures
         assert(network_result.is_Enabled());
     }
     cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, at_vd_step_with_vd(vd, controller_id, at_step!(Done))
     );
+    
 }
 
 pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(

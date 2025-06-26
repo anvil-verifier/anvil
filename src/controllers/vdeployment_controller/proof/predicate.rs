@@ -108,10 +108,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_msg.content.get_list_response().res.is_Ok()
     &&& objects_to_vrs_list(resp_objs).is_Some()
     &&& resp_objs.no_duplicates()
-    &&& resp_objs == s.resources().values().filter(|o: DynamicObjectView| {
-        &&& o.object_ref().namespace == vd.metadata.namespace.unwrap()
-        &&& o.object_ref().kind == VReplicaSetView::kind()
-    }).to_seq()
+    &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()
     &&& filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list)) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
