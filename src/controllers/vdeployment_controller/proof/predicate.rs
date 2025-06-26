@@ -118,26 +118,36 @@ pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id
     }
 }
 
-pub open spec fn new_vrs_does_not_exists_in_etcd(vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn should_create_new_vrs(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
         &&& new_vrs.is_None()
     }
 }
 
-pub open spec fn new_vrs_matching_vd_replicas_exists_in_etcd(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
-        &&& new_vrs.is_Some()
-        &&& match_replicas(vd, new_vrs.get_Some_0())
-    }
-}
-
-pub open spec fn new_vrs_not_matching_vd_replicas_exists_in_etcd(vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn should_scale_new_vrs(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
         &&& new_vrs.is_Some()
         &&& !match_replicas(vd, new_vrs.get_Some_0())
+    }
+}
+
+pub open spec fn should_scale_down_old_vrs(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& new_vrs.is_Some()
+        &&& match_replicas(vd, new_vrs.get_Some_0())
+        &&& old_vrs_list.len() > 0
+    }
+}
+
+pub open spec fn nothing_to_do(vd: VDeploymentView) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& new_vrs.is_Some()
+        &&& match_replicas(vd, new_vrs.get_Some_0())
+        &&& old_vrs_list.len() == 0
     }
 }
 
@@ -238,8 +248,29 @@ macro_rules! and_internal {
     };
 }
 
+#[macro_export]
+macro_rules! or {
+    ($($tokens:tt)+) => {
+        closure_to_fn_spec(|s| {
+            or_internal!(s, $($tokens)+)
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! or_internal {
+    ($s:expr, $head:expr) => {
+        $head($s)
+    };
+
+    ($s:expr, $head:expr, $($tail:tt)+) => {
+        or_internal!($s, $head) || or_internal!($s, $($tail)+)
+    };
+}
+
 // usage: at_step!(step_or_pred)
 // step_or_pred = step | (step, pred)
+#[macro_export]
 macro_rules! at_step {
     ($step:expr) => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
@@ -301,6 +332,9 @@ pub use nat0;
 pub use nat1;
 pub use at_step_or_internal;
 pub use at_step_or;
+pub use at_step;
+pub use or;
+pub use or_internal;
 pub use and;
 pub use and_internal;
 }
