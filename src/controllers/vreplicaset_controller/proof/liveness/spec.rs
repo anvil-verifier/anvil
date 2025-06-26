@@ -35,17 +35,15 @@ pub open spec fn assumption_and_invariants_of_all_phases(vrs: VReplicaSetView, c
     .and(invariants_since_phase_iii(vrs, cluster, controller_id))
     .and(invariants_since_phase_iv(vrs, cluster, controller_id))
     .and(invariants_since_phase_v(vrs, cluster, controller_id))
-    .and(invariants_since_phase_vi(vrs, cluster, controller_id))
-    .and(invariants_since_phase_vii(vrs, cluster, controller_id))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id))),
         valid(stable(invariants(vrs, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id))),
 {
-    reveal_with_fuel(spec_before_phase_n, 7);
+    reveal_with_fuel(spec_before_phase_n, 5);
     invariants_is_stable(vrs, cluster, controller_id);
     always_p_is_stable(lift_state(Cluster::desired_state_is(vrs)));
     invariants_since_phase_i_is_stable(controller_id, vrs);
@@ -53,8 +51,6 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetV
     invariants_since_phase_iii_is_stable(vrs, cluster, controller_id);
     invariants_since_phase_iv_is_stable(vrs, cluster, controller_id);
     invariants_since_phase_v_is_stable(vrs, cluster, controller_id);
-    invariants_since_phase_vi_is_stable(vrs, cluster, controller_id);
-    invariants_since_phase_vii_is_stable(vrs, cluster, controller_id);
     stable_and_n!(
         invariants(vrs, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vrs))),
@@ -62,9 +58,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vrs: VReplicaSetV
         invariants_since_phase_ii(controller_id, vrs),
         invariants_since_phase_iii(vrs, cluster, controller_id),
         invariants_since_phase_iv(vrs, cluster, controller_id),
-        invariants_since_phase_v(vrs, cluster, controller_id),
-        invariants_since_phase_vi(vrs, cluster, controller_id),
-        invariants_since_phase_vii(vrs, cluster, controller_id)
+        invariants_since_phase_v(vrs, cluster, controller_id)
     );
 }
 
@@ -72,12 +66,12 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(v
     requires
         valid(stable(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id))),
         valid(stable(invariants(vrs, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id))),
     ensures
         valid(stable(stable_spec(cluster, controller_id))),
         valid(stable(stable_spec(cluster, controller_id).and(assumption_and_invariants_of_all_phases(vrs, cluster, controller_id)))),
         valid(stable(stable_spec(cluster, controller_id).and(invariants(vrs, cluster, controller_id)))),
-        forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vrs, cluster, controller_id)))),
+        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vrs, cluster, controller_id)))),
 {
     stable_spec_is_stable(cluster, controller_id);
     stable_and_n!(
@@ -89,9 +83,9 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(v
         invariants(vrs, cluster, controller_id)
     );
     assert forall |i: nat| 
-        0 <= i <= 7 
+        0 <= i <= 5
         && valid(stable(stable_spec(cluster, controller_id)))
-        && forall |i: nat| 0 <= i <= 7 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id)))
+        && forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vrs, cluster, controller_id)))
         implies valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vrs, cluster, controller_id)))) by {
         stable_and_n!(
             stable_spec(cluster, controller_id),
@@ -114,10 +108,6 @@ pub open spec fn invariants_since_phase_n(n: nat, vrs: VReplicaSetView, cluster:
         invariants_since_phase_iv(vrs, cluster, controller_id)
     } else if n == 5 {
         invariants_since_phase_v(vrs, cluster, controller_id)
-    } else if n == 6 {
-        invariants_since_phase_vi(vrs, cluster, controller_id)
-    } else if n == 7 {
-        invariants_since_phase_vii(vrs, cluster, controller_id)
     } else {
         true_pred()
     }
@@ -128,7 +118,7 @@ pub open spec fn spec_before_phase_n(n: nat, vrs: VReplicaSetView, cluster: Clus
 {
     if n == 1 {
         invariants(vrs, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vrs))))
-    } else if 2 <= n <= 8 {
+    } else if 2 <= n <= 6 {
         spec_before_phase_n((n-1) as nat, vrs, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vrs, cluster, controller_id))
     } else {
         true_pred()
@@ -173,9 +163,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vrs: VRepli
 pub open spec fn invariants_since_phase_iii(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
     always(lift_state(no_pending_interfering_update_request()))
-    .and(always(lift_state(no_pending_interfering_update_status_request())))
     .and(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods())))
-    .and(always(lift_state(every_create_request_is_well_formed(cluster, controller_id))))
     .and(always(lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id))))
     .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))))
 }
@@ -185,9 +173,7 @@ pub proof fn invariants_since_phase_iii_is_stable(vrs: VReplicaSetView, cluster:
 {
     stable_and_always_n!(
         lift_state(no_pending_interfering_update_request()),
-        lift_state(no_pending_interfering_update_status_request()),
         lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
-        lift_state(every_create_request_is_well_formed(cluster, controller_id)),
         lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))
     );
@@ -195,59 +181,29 @@ pub proof fn invariants_since_phase_iii_is_stable(vrs: VReplicaSetView, cluster:
 
 pub open spec fn invariants_since_phase_iv(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    always(lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id)))
+    always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)))
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iv(vrs, cluster, controller_id))),
 {
-    always_p_is_stable(
-        lift_state(every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(vrs, controller_id))
-    );
+    always_p_is_stable(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)));
 }
 
 pub open spec fn invariants_since_phase_v(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    always(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)))
-    .and(always(lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id))))
-    .and(always(lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))))
+    always(lift_state(no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))
 }
 
 pub proof fn invariants_since_phase_v_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_v(vrs, cluster, controller_id))),
-{
-    stable_and_always_n!(
-        lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)),
-        lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-        lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
-    );
-}
-
-pub open spec fn invariants_since_phase_vi(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
-{
-    always(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)))
-}
-
-pub proof fn invariants_since_phase_vi_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
-    ensures valid(stable(invariants_since_phase_vi(vrs, cluster, controller_id))),
-{
-    always_p_is_stable(lift_state(at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(vrs, controller_id)));
-}
-
-pub open spec fn invariants_since_phase_vii(vrs: VReplicaSetView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
-{
-    always(lift_state(no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)))
-}
-
-pub proof fn invariants_since_phase_vii_is_stable(vrs: VReplicaSetView, cluster: Cluster, controller_id: int)
-    ensures valid(stable(invariants_since_phase_vii(vrs, cluster, controller_id))),
 {
     always_p_is_stable(lift_state(no_other_pending_request_interferes_with_vrs_reconcile(vrs, controller_id)));
 }
 
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int, i: nat)
     requires 
-        1 <= i <= 7,
+        1 <= i <= 5,
         // The vrs type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vrs controller runs in the cluster.
@@ -281,7 +237,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         }
     }
 
-    reveal_with_fuel(spec_before_phase_n, 7);
+    reveal_with_fuel(spec_before_phase_n, 5);
     if i == 1 {
         use_tla_forall(spec, |input| cluster.disable_crash().weak_fairness(input), controller_id);
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
@@ -324,39 +280,21 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         } else if i == 3 {
             always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
             lemma_eventually_always_no_pending_interfering_update_request(spec, cluster, controller_id);
-            lemma_eventually_always_no_pending_interfering_update_status_request(spec, cluster, controller_id);
             lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_pods(spec, cluster, controller_id);
-            lemma_eventually_always_every_create_request_is_well_formed(spec, cluster, controller_id);
             lemma_eventually_always_vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vrs, cluster, controller_id);
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vrs.object_ref());
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
                 lift_state(no_pending_interfering_update_request()),
-                lift_state(no_pending_interfering_update_status_request()),
                 lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
-                lift_state(every_create_request_is_well_formed(cluster, controller_id)),
                 lift_state(vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(vrs, controller_id)),
                 lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vrs.object_ref()))
             );
         } else if i == 4 {
             always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
-            lemma_eventually_always_every_delete_request_from_vrs_has_rv_precondition_that_is_less_than_rv_counter(spec, vrs, cluster, controller_id);
-        } else if i == 5 {
-            always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
             lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(spec, vrs, cluster, controller_id);
-            lemma_eventually_always_every_create_matching_pod_request_implies_at_after_create_pod_step(spec, vrs, cluster, controller_id);
-            lemma_eventually_always_every_delete_matching_pod_request_implies_at_after_delete_pod_step(spec, vrs, cluster, controller_id);
-            leads_to_always_combine_n!(
-                spec, 
-                true_pred(),
-                lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)),
-                lift_state(every_create_matching_pod_request_implies_at_after_create_pod_step(vrs, cluster.installed_types, controller_id)),
-                lift_state(every_delete_matching_pod_request_implies_at_after_delete_pod_step(vrs, controller_id))
-            );
-        } else if i == 6 {
-            lemma_eventually_always_at_after_delete_pod_step_implies_filtered_pods_in_matching_pod_entries(spec, vrs, cluster, controller_id);
-        } else if i == 7 {
+        } else if i == 5 {
             always_tla_forall_apply(spec, |vrs: VReplicaSetView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vrs.object_ref())), vrs);
             lemma_eventually_always_no_other_pending_request_interferes_with_vrs_reconcile(spec, vrs, cluster, controller_id);
         }
