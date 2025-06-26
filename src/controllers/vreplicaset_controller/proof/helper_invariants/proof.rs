@@ -19,7 +19,7 @@ use vstd::{map::*, map_lib::*, multiset::*, prelude::*, seq_lib::*};
 
 verus! {
 
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vrs_reconcile(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -113,7 +113,9 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s)
         &&& garbage_collector_does_not_delete_vrs_pods(vrs)(s_prime)
         &&& no_pending_mutation_request_not_from_controller_on_pods()(s)
+        &&& no_pending_mutation_request_not_from_controller_on_pods()(s_prime)
         &&& every_msg_from_vrs_controller_carries_vrs_key(controller_id)(s)
+        &&& every_msg_from_vrs_controller_carries_vrs_key(controller_id)(s_prime)
         &&& forall |vrs: VReplicaSetView| #[trigger] vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(s)
         &&& forall |vrs: VReplicaSetView| #[trigger] vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs)(s_prime)
     };
@@ -126,100 +128,175 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
             VReplicaSetView::marshal_preserves_integrity();
 
             if requirements_antecedent(msg, s_prime) {
+                // approach: dissect msg by its sender and content, and invoke the appropriate invariant
+                // (instantiated on both s and s_prime).
 
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-
-                // if step.is_APIServerStep() || step.is_ControllerStep() {
-                //     assume(false);
-                // }
-                let step = choose |step| cluster.next_step(s, s_prime, step);
-                match step {
-                    Step::APIServerStep(req_msg_opt) => {
-                        let req_msg = req_msg_opt.unwrap();
-                        assert(s.in_flight().contains(req_msg));
-                        if req_msg.src.is_Controller() {
-                            assume(false);
-                        }
-
-                        if req_msg.src.is_BuiltinController() {
-                            let req = req_msg.content.get_delete_request();
-                            assert({
-                                let req = req_msg.content.get_delete_request(); 
-                                &&& req_msg.content.is_delete_request()
-                                &&& req.preconditions.is_Some()
-                                &&& req.preconditions.unwrap().uid.is_Some()
-                                &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
-                                &&& s.resources().contains_key(req.key)
-                                        ==> (!matching_pods(vrs, s.resources()).contains(s.resources()[req.key])
-                                            || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
-                            });
-                            //assume(false);
-                            if s.resources().contains_key(req.key) && !matching_pods(vrs, s.resources()).contains(s.resources()[req.key]) {
-                                let obj = s.resources()[req.key];
-
-                                if msg.content.is_update_request() {
-                                    assert(s.resources()[req.key] == s_prime.resources()[req.key]);
-                                    assert({{
-                                        let s = s_prime;
-                                        let req = msg.content.get_update_request();
-                                        req.obj.kind == Kind::PodKind ==>
-                                            req.obj.metadata.resource_version.is_Some()
-                                            // Prevents 1): where a message not from our specific vrs updates
-                                            // a vrs-owned pod.
-                                            && !{
-                                                let etcd_obj = s.resources()[req.key()];
-                                                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
-                                                &&& s.resources().contains_key(req.key())
-                                                &&& etcd_obj.metadata.resource_version.is_Some()
-                                                &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                                                &&& etcd_obj.metadata.owner_references.is_Some()
-                                                &&& owner_references.contains(vrs.controller_owner_ref())
-                                            }
-                                            // Prevents 2): where any message not from our specific vrs updates 
-                                            // pods so they become owned by another VReplicaSet.
-                                            && (req.obj.metadata.owner_references.is_Some() ==>
-                                                        ! req.obj.metadata.owner_references.get_Some_0().contains(vrs.controller_owner_ref()))
-                                    }});
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        if id != controller_id {
+                            assert(vrs_rely(id)(s_prime));
+                        } else {
+                            let havoc_vrs = make_vrs(); // havoc for VReplicaSetView
+                            let vrs_with_key = VReplicaSetView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..havoc_vrs.metadata
+                                },
+                                ..havoc_vrs
+                            };
+                            assert(cr_key == vrs_with_key.object_ref());
+                            assert(vrs_reconcile_request_only_interferes_with_itself(controller_id, vrs_with_key)(s_prime));
+                            if vrs_with_key.object_ref() != vrs.object_ref() {
+                                if msg.content.is_create_request() {
+                                    assert(vrs_reconcile_create_request_only_interferes_with_itself(msg.content.get_create_request(), vrs_with_key)(s_prime));
+                                assert({
+                                    let req = msg.content.get_create_request();
+                                    {
+        req.obj.kind == Kind::PodKind ==> !{
+            let owner_references = req.obj.metadata.owner_references.get_Some_0();
+            &&& req.obj.metadata.owner_references.is_Some()
+            &&& owner_references.contains(vrs.controller_owner_ref())
+        }
+    }
+                                });
+                                    assert(no_other_pending_create_request_interferes_with_vrs_reconcile(msg.content.get_create_request(), vrs)(s_prime));
+                                    //assume(false);
+                                } else if msg.content.is_get_then_delete_request() {
+                                    assume(false);
                                 }
-assume(false);
-                                //assert(!obj.metadata.owner_references_contains(vrs.controller_owner_ref()));
-                                                assert({let content = msg.content;
-                                    let s = s_prime;
-                                match content.get_APIRequest_0() {
-                                    APIRequest::CreateRequest(req) => no_other_pending_create_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                                    APIRequest::UpdateRequest(req) => no_other_pending_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                                    APIRequest::UpdateStatusRequest(req) => no_other_pending_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                                    APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                                    APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                                    APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                                    _ => true,
-                                }});
+
+                                    
+        //                         assert( { let s = s_prime;
+        //                         let content = msg.content;
+        // match content.get_APIRequest_0() {
+        //     APIRequest::CreateRequest(req) => no_other_pending_create_request_interferes_with_vrs_reconcile(req, vrs)(s),
+        //     APIRequest::UpdateRequest(req) => no_other_pending_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
+        //     APIRequest::UpdateStatusRequest(req) => no_other_pending_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
+        //     APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
+        //     APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+        //     APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+        //     _ => true,
+        // }});
+                                //assume(false);
                             }
                         }
-                    //     // assume(req_msg != msg);
-                    //     // assume(req_msg.src == HostId::Controller(controller_id, vrs.object_ref()));
-                    //                 assert({let content = msg.content;
-                    //     let s = s_prime;
-                    // match content.get_APIRequest_0() {
-                    //     APIRequest::CreateRequest(req) => no_other_pending_create_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                    //     APIRequest::UpdateRequest(req) => no_other_pending_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                    //     APIRequest::UpdateStatusRequest(req) => no_other_pending_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                    //     APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                    //     APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                    //     APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
-                    //     _ => true,
-                    // }});
                     },
-                    Step::ControllerStep((id, _, cr_key)) => {
-                        assume(false);
-                        // if id != controller_id {
-                        //     assert(vrs_rely(id)(s_prime));
-                        // }
-                    },
-                    _ => {
-                        assert(requirements(msg, s_prime));
-                    },
+                    _ => {},
                 }
+                
+
+
+                // old approach -- actually care about the step.
+                // let step = choose |step| cluster.next_step(s, s_prime, step);
+                // match step {
+                //     Step::APIServerStep(req_msg_opt) => {
+                //         let req_msg = req_msg_opt.unwrap();
+                //         assert(s.in_flight().contains(req_msg));
+                //         match req_msg.src {
+                //             HostId::Controller(id, cr_key) => {
+                //                 if id != controller_id {
+                //                     assert(vrs_rely(id)(s));
+
+                //                     // if req_msg.content.is_create_request() {
+                //                     //     //assume(false);
+                //                     // } else if req_msg.content.is_delete_request() {
+                //                     //     //assume(false);
+                //                     // } else if req_msg.content.is_update_request() {
+                //                     //     //assume(false);
+                //                     // } else if req_msg.content.is_update_status_request() {
+                //                     //     //assume(false);
+                //                     // } else 
+                //                     if req_msg.content.is_get_then_delete_request() {
+                //                         assume(msg.content.is_update_request());
+                                        
+                //                         let other_req = msg.content.get_update_request();
+                //                         let req = req_msg.content.get_get_then_delete_request();
+                //                         // if req.key.kind == Kind::PodKind {
+                //                         //     assert({&&& req.owner_ref.controller.is_Some()
+                //                         //             &&& req.owner_ref.controller.get_Some_0()
+                //                         //             &&& req.owner_ref.kind != VReplicaSetView::kind()});
+                //                         //     assume(false);
+                //                         //     //assert(!s.resources()[req.key].metadata.owner_references_contains(vrs.controller_owner_ref()));
+                //                         // }
+
+                //                         assume(s.resources().contains_key(req.key) && s_prime.resources().contains_key(req.key));
+                //                         let etcd_obj = s.resources()[req.key()];
+                //                         let new_etcd_obj = s.resources()[req.key()];
+                //                         //assume(s.resources()[req.key] == s_prime.resources()[req.key]);
+                //                         if other_req.obj.metadata.resource_version.get_Some_0() == new_etcd_obj.metadata.resource_version.get_Some_0() {
+                                            
+                //                             let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                //                            // assume(etcd_obj.metadata.namespace == vrs.metadata.namespace);
+                //                             assume(false);
+                //                         } else {
+                //                             //assume(false);
+                //                         }
+
+                //                         assert({
+                //                             {
+                //                             let req = msg.content.get_update_request();
+                //                             let s = s_prime;
+                //                                 req.obj.kind == Kind::PodKind ==>
+                //                                     req.obj.metadata.resource_version.is_Some()
+                //                                     // Prevents 1): where a message not from our specific vrs updates
+                //                                     // a vrs-owned pod.
+                //                                     && !{
+                //                                         let etcd_obj = s.resources()[req.key()];
+                //                                         let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                //                                         &&& s.resources().contains_key(req.key())
+                //                                         &&& etcd_obj.metadata.namespace == vrs.metadata.namespace
+                //                                         &&& etcd_obj.metadata.resource_version.is_Some()
+                //                                         &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
+                //                                         &&& etcd_obj.metadata.owner_references.is_Some()
+                //                                         &&& owner_references.contains(vrs.controller_owner_ref())
+                //                                     }
+                //                                     // Prevents 2): where any message not from our specific vrs updates 
+                //                                     // pods so they become owned by another VReplicaSet.
+                //                                     && (req.obj.metadata.owner_references.is_Some() ==>
+                //                                                 ! req.obj.metadata.owner_references.get_Some_0().contains(vrs.controller_owner_ref()))
+                //                             }
+                //                         });
+
+                //                                      assert({
+                //                 let s = s_prime;
+                //             let content = msg.content;
+                //             match content.get_APIRequest_0() {
+                //                 APIRequest::CreateRequest(req) => no_other_pending_create_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                //                 APIRequest::UpdateRequest(req) => no_other_pending_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                //                 APIRequest::UpdateStatusRequest(req) => no_other_pending_update_status_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                //                 APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                //                 APIRequest::DeleteRequest(req) => no_other_pending_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                //                 APIRequest::GetThenDeleteRequest(req) => no_other_pending_get_then_delete_request_interferes_with_vrs_reconcile(req, vrs)(s),
+                //                 _ => true,
+                //             }
+                //         });
+                //                     } 
+                //                     // else if req_msg.content.is_get_then_update_request() {
+                //                     //     //assume(false);
+                //                     // }
+                                    
+                //         //             assume(false);
+                        
+                //                 } else {
+                //                     assume(false);
+                //                 }
+                                
+                               
+                //             },
+                //             _ => {},
+                //         }
+                //     },
+                //     Step::ControllerStep((id, _, cr_key)) => {
+                //         assume(false);
+                //         // if id != controller_id {
+                //         //     assert(vrs_rely(id)(s_prime));
+                //         // }
+                //     },
+                //     _ => {
+                //         assert(requirements(msg, s_prime));
+                //     },
+                // }
                 // if s.in_flight().contains(msg) {
                 //     assert(requirements(msg, s));
 
@@ -255,6 +332,8 @@ assume(false);
     }
 
     always_to_always_later(spec, lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)));
+    always_to_always_later(spec, lift_state(no_pending_mutation_request_not_from_controller_on_pods()));
+    always_to_always_later(spec, lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)));
     helper_lemmas::only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
         spec, cluster, controller_id
     );
@@ -288,7 +367,9 @@ assume(false);
         lift_state(garbage_collector_does_not_delete_vrs_pods(vrs)),
         later(lift_state(garbage_collector_does_not_delete_vrs_pods(vrs))),
         lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
+        later(lift_state(no_pending_mutation_request_not_from_controller_on_pods())),
         lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id)),
+        later(lift_state(every_msg_from_vrs_controller_carries_vrs_key(controller_id))),
         lifted_vrs_reconcile_request_only_interferes_with_itself_action(controller_id)
     );
 
@@ -298,6 +379,9 @@ assume(false);
         lift_state(Cluster::every_in_flight_req_msg_satisfies(requirements))
     );
 }
+
+// Havoc function for VReplicaSetView.
+uninterp spec fn make_vrs() -> VReplicaSetView;
 
 #[verifier(rlimit(100))]
 pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(

@@ -50,6 +50,7 @@ pub open spec fn no_other_pending_update_request_interferes_with_vrs_reconcile(
                 let etcd_obj = s.resources()[req.key()];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.namespace == vrs.metadata.namespace
                 &&& etcd_obj.metadata.resource_version.is_Some()
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 &&& etcd_obj.metadata.owner_references.is_Some()
@@ -73,6 +74,7 @@ pub open spec fn no_other_pending_update_status_request_interferes_with_vrs_reco
                 let etcd_obj = s.resources()[req.key()];
                 let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                 &&& s.resources().contains_key(req.key())
+                &&& etcd_obj.metadata.namespace == vrs.metadata.namespace
                 &&& etcd_obj.metadata.resource_version.is_Some()
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
                 &&& etcd_obj.metadata.owner_references.is_Some()
@@ -114,6 +116,7 @@ pub open spec fn no_other_pending_delete_request_interferes_with_vrs_reconcile(
                         let etcd_obj = s.resources()[req.key];
                         let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
                         &&& s.resources().contains_key(req.key)
+                        &&& etcd_obj.metadata.namespace == vrs.metadata.namespace
                         &&& etcd_obj.metadata.resource_version.is_Some()
                         &&& etcd_obj.metadata.resource_version
                             == req.preconditions.get_Some_0().resource_version
@@ -124,9 +127,13 @@ pub open spec fn no_other_pending_delete_request_interferes_with_vrs_reconcile(
                 ||| { // required to handle garbage collector's messages.
                     &&& req.preconditions.unwrap().uid.is_Some()
                     &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
-                    &&& s.resources().contains_key(req.key)
-                            ==> (!matching_pods(vrs, s.resources()).contains(s.resources()[req.key])
-                                || s.resources()[req.key].metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap())
+                    &&& s.resources().contains_key(req.key) ==> {
+                        let obj = s.resources()[req.key];
+                        ||| !(obj.metadata.owner_references_contains(vrs.controller_owner_ref())
+                                && obj.kind == Kind::PodKind 
+                                && obj.metadata.namespace == vrs.metadata.namespace)
+                        ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
+                    }
                 }
             }
     }
