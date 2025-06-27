@@ -7,6 +7,7 @@ pub enum VDeploymentReconcileStep {
     AfterListVRS,
     AfterCreateNewVRS,
     AfterScaleNewVRS,
+    AfterEnsureNewVRS,
     AfterScaleDownOldVRS,
     Done,
     Error,
@@ -39,18 +40,19 @@ impl View for VDeploymentReconcileStep {
             VDeploymentReconcileStep::AfterCreateNewVRS => VDeploymentReconcileStepView::AfterCreateNewVRS,
             VDeploymentReconcileStep::AfterScaleNewVRS => VDeploymentReconcileStepView::AfterScaleNewVRS,
             VDeploymentReconcileStep::AfterScaleDownOldVRS => VDeploymentReconcileStepView::AfterScaleDownOldVRS,
+            VDeploymentReconcileStep::AfterEnsureNewVRS => VDeploymentReconcileStepView::AfterEnsureNewVRS,
             VDeploymentReconcileStep::Done => VDeploymentReconcileStepView::Done,
             VDeploymentReconcileStep::Error => VDeploymentReconcileStepView::Error,
         }
     }
 }
 
-#[is_variant]
 pub enum VDeploymentReconcileStepView {
     Init,
     AfterListVRS,
     AfterCreateNewVRS,
     AfterScaleNewVRS,
+    AfterEnsureNewVRS,
     AfterScaleDownOldVRS,
     Done,
     Error,

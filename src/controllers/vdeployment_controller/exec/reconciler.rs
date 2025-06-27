@@ -145,43 +145,21 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 // scale new vrs to desired replicas
                 return scale_new_vrs(new_vrs, old_vrs_list, &vd);
             }
-            if old_vrs_list.len() > 0 {
-                if !old_vrs_list[old_vrs_list.len() - 1].well_formed() {
-                    return (error_state(state), None);
-                }
-                // scale old vrs to zero
-                return scale_down_old_vrs(Some(new_vrs), old_vrs_list, &vd);
-            }
-            // all good
-            return (done_state(state), None);
+            return (new_vrs_ensured_state(state), None);
         },
         VDeploymentReconcileStep::AfterCreateNewVRS => {
             if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            if state.new_vrs.is_none() {
-                return (error_state(state), None);
-            }
-            let new_vrs = state.new_vrs.clone().unwrap();
-            if !new_vrs.well_formed() {
-                return (error_state(state), None);
-            }
-            if !match_replicas(&vd, &new_vrs) {
-                return scale_new_vrs(new_vrs, state.old_vrs_list, &vd);
-            }
-            if state.old_vrs_list.len() > 0 {
-                if !state.old_vrs_list[state.old_vrs_list.len() - 1].well_formed() {
-                    return (error_state(state), None);
-                }
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
-            } else {
-                return (done_state(state), None)
-            }
+            return (new_vrs_ensured_state(state), None);
         }
         VDeploymentReconcileStep::AfterScaleNewVRS => {
             if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
+            return (new_vrs_ensured_state(state), None);
+        },
+        VDeploymentReconcileStep::AfterEnsureNewVRS => {
             if state.old_vrs_list.len() > 0 {
                 if !state.old_vrs_list[state.old_vrs_list.len() - 1].well_formed() {
                     return (error_state(state), None);
@@ -207,6 +185,15 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
         _ => {
             return (state, None)
         }
+    }
+}
+
+pub fn new_vrs_ensured_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState)
+    ensures state_prime@ == model_reconciler::new_vrs_ensured_state(state@),
+{
+    VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
+        ..state
     }
 }
 
