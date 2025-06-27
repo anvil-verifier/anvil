@@ -65,6 +65,7 @@ requires
     spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))),
     // no request in init
     spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init])))),
+    spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS])))),
     // there is always pending request for vd to proceed
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS])))),
     spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS])))),
@@ -195,7 +196,7 @@ ensures
             );
         }
     }
-    // 3, AfterScaleNewVRS ~> idle.
+    // 3, AfterEnsureNewVRS ~> idle.
     or_leads_to_combine_and_equality!(spec,
         lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS, Error, Done])),
         lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])),
@@ -203,45 +204,57 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![Done]));
         lift_state(reconcile_idle)
     );
+    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+        at_step_or![AfterEnsureNewVRS](s) ==> at_step_or![AfterScaleDownOldVRS, Error, Done]
+                                             ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
+    // AfterEnsureNewVRS is similar to init on no pending req/resp is needed for the transition to next step
+    // let me borrow this lemma for init here
+    cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
+        spec, controller_id, vd.marshal(),
+        at_step_or![AfterEnsureNewVRS],
+        at_step_or![AfterScaleDownOldVRS, Error, Done]
+    );
+    // 4, AfterScaleNewVRS ~> idle.
+    or_leads_to_combine_and_equality!(spec,
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS, Error])),
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS])),
+        lift_state(lift_local(controller_id, vd, at_step_or![Error]));
+        lift_state(reconcile_idle)
+    );
     assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)] 
-        at_step_or![AfterScaleNewVRS](s) ==> at_step_or![AfterScaleDownOldVRS, Error, Done]
+        at_step_or![AfterScaleNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                              ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
         at_step_or![AfterScaleNewVRS],
-        at_step_or![AfterScaleDownOldVRS, Error, Done]
+        at_step_or![AfterEnsureNewVRS, Error]
     );
-    // 4, AfterCreateNewVRS ~> idle
-    or_leads_to_combine_and_equality!(spec,
-        lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done])),
-        lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS, Error, Done])),
-        lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleNewVRS]));
-        lift_state(reconcile_idle)
-    );
+    // 5, AfterCreateNewVRS ~> idle
     assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
-        at_step_or![AfterCreateNewVRS](s) ==> at_step_or![AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done]
+        at_step_or![AfterCreateNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                               ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
         at_step_or![AfterCreateNewVRS],
-        at_step_or![AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done]
+        at_step_or![AfterEnsureNewVRS, Error]
     );
-    // 5, AfterListVRS ~> idle
+    // 6, AfterListVRS ~> idle
     or_leads_to_combine_and_equality!(spec,
-        lift_state(lift_local(controller_id, vd, at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done])),
-        lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done])),
-        lift_state(lift_local(controller_id, vd, at_step_or![AfterCreateNewVRS]));
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error])),
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterCreateNewVRS])),
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleNewVRS])),
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS, Error]));
         lift_state(reconcile_idle)
     );
     assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
-        at_step_or![AfterListVRS](s) ==> at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done]
+        at_step_or![AfterListVRS](s) ==> at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error]
                                          ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
         at_step_or![AfterListVRS],
-        at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterScaleDownOldVRS, Error, Done]
+        at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error]
     );
-    // 6, Init ~> idle
+    // 7, Init ~> idle
     cluster.lemma_from_init_state_to_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
         at_step_or![Init],
@@ -252,6 +265,7 @@ ensures
         .or(lift_state(lift_local(controller_id, vd, at_step_or![AfterListVRS])))
         .or(lift_state(lift_local(controller_id, vd, at_step_or![AfterCreateNewVRS])))
         .or(lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleNewVRS])))
+        .or(lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS])))
         .or(lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])))
         .or(lift_state(lift_local(controller_id, vd, at_step_or![Done])))
         .or(lift_state(lift_local(controller_id, vd, at_step_or![Error])))
@@ -265,6 +279,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![AfterListVRS])),
         lift_state(lift_local(controller_id, vd, at_step_or![AfterCreateNewVRS])),
         lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleNewVRS])),
+        lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS])),
         lift_state(lift_local(controller_id, vd, at_step_or![AfterScaleDownOldVRS])),
         lift_state(lift_local(controller_id, vd, at_step_or![Done])),
         lift_state(lift_local(controller_id, vd, at_step_or![Error]));
