@@ -172,7 +172,7 @@ pub open spec fn should_scale_down_old_vrs(vd: VDeploymentView) -> StatePred<Clu
     }
 }
 
-pub open spec fn should_scale_down_old_vrs_with_diff(vd: VDeploymentView, diff: nat) -> StatePred<ClusterState> {
+pub open spec fn should_scale_down_old_vrs_of_n(vd: VDeploymentView, diff: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& new_vrs.is_Some()
@@ -307,7 +307,7 @@ macro_rules! or_internal {
     };
 }
 
-// usage: at_step!(step_or_pred)
+// usage: at_step![step_or_pred]
 // step_or_pred = step | (step, pred)
 #[macro_export]
 macro_rules! at_step {
@@ -319,7 +319,7 @@ macro_rules! at_step {
     };
 }
 
-// usage: at_step_or!(step_or_pred,*)
+// usage: at_step_or![step_or_pred,*]
 // step_or_pred = step | (step, pred)
 #[macro_export]
 macro_rules! at_step_or {
@@ -347,7 +347,7 @@ macro_rules! at_step_or_internal {
     };
 }
 
-// usage: lift_local(controller_id, vd, at_step_or!(step_or_pred+])
+// usage: lift_local(controller_id, vd, at_step_or![step_or_pred+])
 pub open spec fn lift_local(controller_id: int, vd: VDeploymentView, step_pred: spec_fn(ReconcileLocalState) -> bool) -> StatePred<ClusterState> {
     Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), step_pred)
 }
