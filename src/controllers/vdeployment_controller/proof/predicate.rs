@@ -127,10 +127,25 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         // predicate on req_msg, it's not in_flight
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg.content.is_APIRequest()
-        // ..
+        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
+        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.is_get_then_update_response()
+        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+    }
+}
+
+pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_id: int, req_msg: Message) -> bool {
+    let request = req_msg.content.get_APIRequest_0();
+    &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content.is_APIRequest()
+    &&& request.is_GetThenUpdateRequest()
+    &&& request.get_GetThenUpdateRequest_0() == GetThenUpdateRequest {
+        namespace: vd.metadata.namespace.unwrap(),
+        owner_ref: vd.controller_owner_ref(),
+        ..request.get_GetThenUpdateRequest_0()
     }
 }
 
@@ -148,51 +163,24 @@ pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id
     }
 }
 
-pub open spec fn should_create_new_vrs(vd: VDeploymentView) -> StatePred<ClusterState> {
+pub open spec fn with_n_old_vrs_in_etcd(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
-        &&& new_vrs.is_None()
-    }
-}
-
-pub open spec fn should_scale_new_vrs(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let new_vrs = filter_old_and_new_vrs_on_etcd(vd, s.resources()).0;
-        &&& new_vrs.is_Some()
-        &&& !match_replicas(vd, new_vrs.get_Some_0())
-    }
-}
-
-pub open spec fn should_scale_down_old_vrs(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& new_vrs.is_Some()
-        &&& match_replicas(vd, new_vrs.get_Some_0())
-        &&& old_vrs_list.len() > 0
-    }
-}
-
-pub open spec fn at_scale_down_old_vrs_step_of_n(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& new_vrs.is_Some()
-        &&& match_replicas(vd, new_vrs.get_Some_0())
+        &&& objects_to_vrs_list(objs).is_Some()
         &&& old_vrs_list.len() == n
-        &&& lift_local(controller_id, vd, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n))])(s)
-    }
-}
-
-pub open spec fn nothing_to_do(vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& new_vrs.is_Some()
+        &&& match_template_without_hash(vd, new_vrs.get_Some_0())
         &&& match_replicas(vd, new_vrs.get_Some_0())
-        &&& old_vrs_list.len() == 0
     }
 }
 
 pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
-    |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n
+    |vds: VDeploymentReconcileState| {
+        let old_vrs_list = vds.old_vrs_list;
+        &&& old_vrs_list.len() == n
+        &&& (n > 0 ==> old_vrs_list.last().well_formed())
+    }
 }
 
 pub open spec fn vd_rely_condition(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {

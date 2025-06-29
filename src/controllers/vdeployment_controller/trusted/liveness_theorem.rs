@@ -27,8 +27,8 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
         &&& objects_to_vrs_list(objs).is_Some()
         &&& old_vrs_list.len() == 0
         &&& new_vrs.is_Some()
-        &&& new_vrs.unwrap().spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
         &&& match_template_without_hash(vd, new_vrs.get_Some_0())
+        &&& match_replicas(vd, new_vrs.get_Some_0())
         //&&& current_state_matches(new_vrs_list[0])
     }
 }
