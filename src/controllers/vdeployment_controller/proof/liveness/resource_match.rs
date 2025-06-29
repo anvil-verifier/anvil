@@ -129,9 +129,9 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleDownOldVRS]),
-            resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            at_scale_down_old_vrs_step_of_n(controller_id, vd, nat0!())
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(nat0!()))]),
+            no_pending_req_in_cluster(vd, controller_id),
+            with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![Done]),
@@ -139,9 +139,9 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleDownOldVRS]),
-        resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        at_scale_down_old_vrs_step_of_n(controller_id, vd, nat0!())
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(nat0!()))]),
+        no_pending_req_in_cluster(vd, controller_id),
+        with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
@@ -168,10 +168,14 @@ ensures
             },
             Step::ControllerStep(..) => {
                 VDeploymentReconcileState::marshal_preserves_integrity();
+                assume(post(s_prime));
             },
             _ => {}
         }
     }
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
 }
 
 pub proof fn lemma_from_old_vrs_len_zero_at_after_ensure_new_vrs_to_current_state_matches(
@@ -185,9 +189,9 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(nat0!()))]),
             no_pending_req_in_cluster(vd, controller_id),
-            at_scale_down_old_vrs_step_of_n(controller_id, vd, nat0!())
+            with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step!(Done)),
@@ -195,9 +199,9 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(nat0!()))]),
         no_pending_req_in_cluster(vd, controller_id),
-        at_scale_down_old_vrs_step_of_n(controller_id, vd, nat0!())
+        with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
@@ -222,11 +226,16 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg
                 );
             },
-            Step::ControllerStep(..) => {
-                VDeploymentReconcileState::marshal_preserves_integrity();
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
+                    VDeploymentReconcileState::marshal_preserves_integrity();
+                }
             },
             _ => {}
         }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
+        VDeploymentReconcileState::marshal_preserves_integrity();
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
