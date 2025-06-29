@@ -118,7 +118,7 @@ ensures
     assume(false);
 }
 
-pub proof fn lemma_from_at_scale_down_old_vrs_of_n_to_current_state_matches(
+pub proof fn lemma_from_at_scale_down_old_vrs_of_zero_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message
 )
 requires
@@ -130,7 +130,7 @@ requires
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(nat0!()))]),
-            no_pending_req_in_cluster(vd, controller_id),
+            resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
             with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
         ))
        .leads_to(lift_state(and!(
@@ -140,7 +140,7 @@ ensures
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(nat0!()))]),
-        no_pending_req_in_cluster(vd, controller_id),
+        resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
         with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
     );
     let post = and!(
@@ -166,12 +166,17 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg
                 );
             },
-            Step::ControllerStep(..) => {
-                VDeploymentReconcileState::marshal_preserves_integrity();
-                assume(post(s_prime));
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                    VDeploymentReconcileState::marshal_preserves_integrity();
+                }
             },
             _ => {}
         }
+    }
+    // without this the proof will be 1s slower
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
+        VDeploymentReconcileState::marshal_preserves_integrity();
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
@@ -234,6 +239,7 @@ ensures
             _ => {}
         }
     }
+    // without this proof will fail
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
     }
