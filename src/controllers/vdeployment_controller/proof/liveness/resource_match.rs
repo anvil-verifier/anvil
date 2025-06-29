@@ -119,7 +119,7 @@ ensures
 }
 
 pub proof fn lemma_from_at_scale_down_old_vrs_of_n_to_current_state_matches(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -127,30 +127,25 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-    n > 0,
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleDownOldVRS]),
             resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            at_scale_down_old_vrs_step_of_n(controller_id, vd, n)
+            at_scale_down_old_vrs_step_of_n(controller_id, vd, nat0!())
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleDownOldVRS]),
-            resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            at_scale_down_old_vrs_step_of_n(controller_id, vd, n - nat1!())
+            at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+            current_state_matches(vd)
         )))),
-decreases
-    n,
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleDownOldVRS]),
         resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        at_scale_down_old_vrs_step_of_n(controller_id, vd, n)
+        at_scale_down_old_vrs_step_of_n(controller_id, vd, nat0!())
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterScaleDownOldVRS]),
-        resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        at_scale_down_old_vrs_step_of_n(controller_id, vd, n)
+        at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+        current_state_matches(vd)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -165,9 +160,15 @@ decreases
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
-            Step::ControllerStep(input) => {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+            },
+            Step::ControllerStep(..) => {
                 VDeploymentReconcileState::marshal_preserves_integrity();
-            }
+            },
             _ => {}
         }
     }
