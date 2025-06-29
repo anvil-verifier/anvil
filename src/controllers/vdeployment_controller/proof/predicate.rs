@@ -172,12 +172,13 @@ pub open spec fn should_scale_down_old_vrs(vd: VDeploymentView) -> StatePred<Clu
     }
 }
 
-pub open spec fn should_scale_down_old_vrs_of_n(vd: VDeploymentView, diff: nat) -> StatePred<ClusterState> {
+pub open spec fn at_scale_down_old_vrs_step_of_n(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& new_vrs.is_Some()
         &&& match_replicas(vd, new_vrs.get_Some_0())
-        &&& old_vrs_list.len() == diff
+        &&& old_vrs_list.len() == n
+        &&& lift_local(controller_id, vd, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n))])(s)
     }
 }
 
@@ -188,6 +189,10 @@ pub open spec fn nothing_to_do(vd: VDeploymentView) -> StatePred<ClusterState> {
         &&& match_replicas(vd, new_vrs.get_Some_0())
         &&& old_vrs_list.len() == 0
     }
+}
+
+pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
+    |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n
 }
 
 pub open spec fn vd_rely_condition(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
@@ -311,10 +316,10 @@ macro_rules! or_internal {
 // step_or_pred = step | (step, pred)
 #[macro_export]
 macro_rules! at_step {
-    [ $step:expr ] => {
+    [ $($tokens:tt)? ] => {
         closure_to_fn_spec(|s: ReconcileLocalState| {
             let vds = VDeploymentReconcileState::unmarshal(s).unwrap();
-            at_step_or_internal!(vds, $step)
+            at_step_or_internal!(vds, $($tokens)?)
         })
     };
 }
