@@ -43,7 +43,8 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_filter_old_a
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    !Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg),
+    (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()))
 ensures
     filter_old_and_new_vrs_on_etcd(vd, s.resources()) ==
     filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
