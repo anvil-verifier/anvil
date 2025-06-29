@@ -54,20 +54,20 @@ pub open spec fn req_msg_is_list_vrs_req(vd: VDeploymentView, req_msg: Message) 
 
 pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-        &&& s.in_flight().contains(msg)
-        &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_list_vrs_req(vd, msg)
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_list_vrs_req(vd, req_msg)
     }
 }
 
-pub open spec fn req_msg_is_the_pending_list_req_in_flight(vd: VDeploymentView, controller_id: int, msg: Message,) -> StatePred<ClusterState> {
+pub open spec fn req_msg_is_the_pending_list_req_in_flight(vd: VDeploymentView, controller_id: int, req_msg: Message,) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-        &&& s.in_flight().contains(msg)
-        &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_list_vrs_req(vd, msg)
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_list_vrs_req(vd, req_msg)
     }
 }
 
@@ -121,6 +121,36 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
 
+pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_id: int, req_msg: Message) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let request = req_msg.content.get_APIRequest_0();
+        // Q: state.old_vrs_list does not contain the deleted vrs
+        let key = request.get_GetThenUpdateRequest_0().key();
+        let obj = s.resources()[key];
+        let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        &&& req_msg.dst == HostId::APIServer
+        &&& req_msg.content.is_APIRequest()
+        &&& request.is_GetThenUpdateRequest()
+        &&& request.get_GetThenUpdateRequest_0() == GetThenUpdateRequest {
+            namespace: vd.metadata.namespace.unwrap(),
+            owner_ref: vd.controller_owner_ref(),
+            ..request.get_GetThenUpdateRequest_0()
+        }
+        &&& s.resources().contains_key(key)
+        &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())
+    }
+}
+
+pub open spec fn pending_get_then_update_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
+    }
+}
+
 pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
     vd: VDeploymentView, controller_id: int, resp_msg: Message
 ) -> StatePred<ClusterState> {
@@ -128,38 +158,11 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         // predicate on req_msg, it's not in_flight
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
-        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)
+        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_update_response()
         &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
-    }
-}
-
-pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_id: int, req_msg: Message) -> bool {
-    let request = req_msg.content.get_APIRequest_0();
-    &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-    &&& req_msg.dst == HostId::APIServer
-    &&& req_msg.content.is_APIRequest()
-    &&& request.is_GetThenUpdateRequest()
-    &&& request.get_GetThenUpdateRequest_0() == GetThenUpdateRequest {
-        namespace: vd.metadata.namespace.unwrap(),
-        owner_ref: vd.controller_owner_ref(),
-        ..request.get_GetThenUpdateRequest_0()
-    }
-}
-
-pub open spec fn pending_create_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-        let req_msg = msg.content.get_APIRequest_0();
-        &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& msg.dst == HostId::APIServer
-        &&& req_msg.is_CreateRequest()
-        &&& req_msg.get_CreateRequest_0() == CreateRequest {
-            namespace: vd.metadata.namespace.unwrap(),
-            obj: make_replica_set(vd).marshal(),
-        }
     }
 }
 
