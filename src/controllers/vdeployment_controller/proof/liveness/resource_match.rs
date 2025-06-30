@@ -133,7 +133,7 @@ ensures
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(n))]),
             no_pending_req_in_cluster(vd, controller_id),
             with_n_old_vrs_in_etcd(controller_id, vd, n),
-            local_state_match_etcd(vd, controller_id)
+            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
@@ -145,7 +145,7 @@ ensures
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(n))]),
         no_pending_req_in_cluster(vd, controller_id),
         with_n_old_vrs_in_etcd(controller_id, vd, n),
-        local_state_match_etcd(vd, controller_id)
+        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),

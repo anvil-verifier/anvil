@@ -163,7 +163,10 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
     }
 }
 
-pub open spec fn local_state_match_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+// a weaker version of strong coherence between local cache and etcd
+// only need the key to be in etcd
+// this predicate holds since AfterListVRS state
+pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
@@ -172,6 +175,20 @@ pub open spec fn local_state_match_etcd(vd: VDeploymentView, controller_id: int)
             s.resources().contains_key(vds.old_vrs_list[i].object_ref())
             && #[trigger] vds.old_vrs_list[i].well_formed()
             && #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+        &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
+    }
+}
+
+// a copy of ESR without talking about old_vrs_list
+// this predicate holds since AfterEnsureNewVRS state
+pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
+        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());=
+        &&& objects_to_vrs_list(objs).is_Some()
+        &&& new_vrs.is_Some()
+        &&& match_template_without_hash(vd, new_vrs.get_Some_0())
+        &&& match_replicas(vd, new_vrs.get_Some_0())
     }
 }
 
