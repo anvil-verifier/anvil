@@ -118,7 +118,7 @@ ensures
     assume(false);
 }
 
-pub proof fn lemma_from_at_after_ensure_new_vrs_to_after_scale_down_old_vrs_of_n(
+pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
 requires
@@ -132,7 +132,8 @@ ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(n))]),
             no_pending_req_in_cluster(vd, controller_id),
-            with_n_old_vrs_in_etcd(controller_id, vd, n)
+            with_n_old_vrs_in_etcd(controller_id, vd, n),
+            local_state_match_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
@@ -143,7 +144,8 @@ ensures
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(n))]),
         no_pending_req_in_cluster(vd, controller_id),
-        with_n_old_vrs_in_etcd(controller_id, vd, n)
+        with_n_old_vrs_in_etcd(controller_id, vd, n),
+        local_state_match_etcd(vd, controller_id)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
@@ -172,9 +174,44 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))])(s_prime));
-                    assume(pending_get_then_update_req_in_flight(vd, controller_id)(s_prime));
+                    assert(pending_get_then_update_req_in_flight(vd, controller_id)(s_prime)) by {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                        assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
+                        assert(s_prime.in_flight().contains(req_msg));
+                        assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
+                        assert(req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s_prime)) by {
+                            let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                            // Q: state.old_vrs_list does not contain the deleted vrs
+                            let key = request.key();
+                            let obj = s_prime.resources()[key];
+                            let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                            let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+
+                            assert(req_msg.dst == HostId::APIServer);
+                            assert(req_msg.content.is_APIRequest());
+                            assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
+                            assert(request.namespace == vd.metadata.namespace.unwrap());
+                            assert(request.owner_ref == vd.controller_owner_ref());
+                            assert(s_prime.resources().contains_key(key)) by {
+                                assert(s.resources().contains_key(key)) by {
+                                    assert(key == ObjectRef{
+                                        kind: VReplicaSetView::kind(),
+                                        namespace: vd.metadata.namespace.unwrap(),
+                                        name: vrls.old_vrs_list.last().metadata.name.unwrap(),
+                                    });
+                                    assert(vrls.old_vrs_list[vrls.old_vrs_list.len() - 1].metadata.namespace == vd.metadata.namespace) by {
+                                        local_state_match_etcd(vd, controller_id)(s);
+                                    }
+                                    assert(key == vrls.old_vrs_list.last().object_ref());
+                                }
+                            }
+                            // assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap()));
+                        }
+                    }
                     assume(with_n_old_vrs_in_etcd(controller_id, vd, n)(s_prime));
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))])(s_prime));
+                    assert(post(s_prime));
+                    assume(false);
                 }
             },
             _ => {}

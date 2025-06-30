@@ -52,6 +52,7 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()),
+    local_state_match_etcd(vd, controller_id)(s) == local_state_match_etcd(vd, controller_id)(s_prime),
 {}
 
 }

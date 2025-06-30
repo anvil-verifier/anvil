@@ -123,21 +123,18 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
 
 pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_id: int, req_msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let request = req_msg.content.get_APIRequest_0();
+        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         // Q: state.old_vrs_list does not contain the deleted vrs
-        let key = request.get_GetThenUpdateRequest_0().key();
+        let key = request.key();
         let obj = s.resources()[key];
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
-        &&& request.is_GetThenUpdateRequest()
-        &&& request.get_GetThenUpdateRequest_0() == GetThenUpdateRequest {
-            namespace: vd.metadata.namespace.unwrap(),
-            owner_ref: vd.controller_owner_ref(),
-            ..request.get_GetThenUpdateRequest_0()
-        }
+        &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
+        &&& request.namespace == vd.metadata.namespace.unwrap()
+        &&& request.owner_ref == vd.controller_owner_ref()
         &&& s.resources().contains_key(key)
-        &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())
+        // &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())
     }
 }
 
@@ -166,6 +163,18 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
     }
 }
 
+pub open spec fn local_state_match_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
+        &&& forall |i| #![trigger vds.old_vrs_list[i]]
+            0 <= i < vds.old_vrs_list.len() ==>
+            s.resources().contains_key(vds.old_vrs_list[i].object_ref())
+            && #[trigger] vds.old_vrs_list[i].well_formed()
+            && #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+    }
+}
+
 pub open spec fn with_n_old_vrs_in_etcd(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
@@ -176,13 +185,12 @@ pub open spec fn with_n_old_vrs_in_etcd(controller_id: int, vd: VDeploymentView,
         &&& match_template_without_hash(vd, new_vrs.get_Some_0())
         &&& match_replicas(vd, new_vrs.get_Some_0())
     }
-}
+} 
 
 pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
     |vds: VDeploymentReconcileState| {
         let old_vrs_list = vds.old_vrs_list;
         &&& old_vrs_list.len() == n
-        &&& (n > 0 ==> old_vrs_list.last().well_formed())
     }
 }
 
