@@ -138,7 +138,8 @@ ensures
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
             pending_get_then_update_req_in_flight(vd, controller_id),
-            with_n_old_vrs_in_etcd(controller_id, vd, n)
+            with_n_old_vrs_in_etcd(controller_id, vd, n),
+            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         )))),
 {
     let pre = and!(
@@ -150,7 +151,8 @@ ensures
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
         pending_get_then_update_req_in_flight(vd, controller_id),
-        with_n_old_vrs_in_etcd(controller_id, vd, n)
+        with_n_old_vrs_in_etcd(controller_id, vd, n),
+        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -174,6 +176,17 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
+                    assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime)) by {
+
+                        let vds = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
+                        assert(forall |i| #![trigger vds.old_vrs_list[i]]
+                            0 <= i < vds.old_vrs_list.len() ==>
+                            s_prime.resources().contains_key(vds.old_vrs_list[i].object_ref())
+                            && #[trigger] vds.old_vrs_list[i].well_formed()
+                            && #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace);
+                        assert(vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
+                    }
                 }
             },
             _ => {}
