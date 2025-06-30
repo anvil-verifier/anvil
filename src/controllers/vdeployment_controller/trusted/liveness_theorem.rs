@@ -8,6 +8,14 @@ use vstd::prelude::*;
 
 verus !{
 
+pub open spec fn vd_eventually_stable_reconciliation() -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation(|vd| current_state_matches(vd))
+}
+
+pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView) -> TempPred<ClusterState> {
+    Cluster::eventually_stable_reconciliation_per_cr(vd, |vd| current_state_matches(vd))
+}
+
 // draft of ESR for VDeployment
 // TODO: add another version which talks about pods and derives from VRS ESR and this ESR
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {

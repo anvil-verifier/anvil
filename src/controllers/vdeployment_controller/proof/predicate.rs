@@ -1,6 +1,6 @@
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vdeployment_controller::{
-    trusted::{step::*, spec_types::*},
+    trusted::{rely_guarantee::*, step::*, spec_types::*},
     model::{install::*, reconciler::*},
 };
 use crate::kubernetes_cluster::spec::{
@@ -66,4 +66,22 @@ pub use nat0;
 pub use nat1;
 pub use at_step_internal_or;
 pub use at_step_or;
+
+// General helper predicates
+pub open spec fn lifted_vd_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    lift_state(|s| {
+        forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vd_rely(other_id)(s)
+    })
+}
+
+pub open spec fn lifted_vd_rely_condition_action(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
+    lift_action(|s, s_prime| {
+        (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+            ==> #[trigger] vd_rely(other_id)(s))
+        && (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+                ==> #[trigger] vd_rely(other_id)(s_prime))
+    })
+}
+
 }
