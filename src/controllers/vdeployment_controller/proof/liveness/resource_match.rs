@@ -200,7 +200,7 @@ ensures
                                         name: vrls.old_vrs_list.last().metadata.name.unwrap(),
                                     });
                                     assert(vrls.old_vrs_list[vrls.old_vrs_list.len() - 1].metadata.namespace == vd.metadata.namespace) by {
-                                        local_state_match_etcd(vd, controller_id)(s);
+                                        assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s));
                                     }
                                     assert(key == vrls.old_vrs_list.last().object_ref());
                                 }
@@ -208,10 +208,9 @@ ensures
                             // assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap()));
                         }
                     }
-                    assume(with_n_old_vrs_in_etcd(controller_id, vd, n)(s_prime));
+                    assert(with_n_old_vrs_in_etcd(controller_id, vd, n)(s_prime));
                     assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))])(s_prime));
                     assert(post(s_prime));
-                    assume(false);
                 }
             },
             _ => {}
