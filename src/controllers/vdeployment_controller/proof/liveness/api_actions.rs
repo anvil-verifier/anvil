@@ -52,7 +52,10 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()),
-    local_state_match_etcd(vd, controller_id)(s) == local_state_match_etcd(vd, controller_id)(s_prime),
+    // TODO: find a place for this post condition which holds since AfterListVRS state
+    local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s) == local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime),
+    // TODO: find a place for this post condition which holds since AfterEnsureNewVRS state
+    local_state_match_etcd_on_new_vrs(vd, controller_id)(s) == local_state_match_etcd_on_new_vrs(vd, controller_id)(s_prime),
 {}
 
 }
