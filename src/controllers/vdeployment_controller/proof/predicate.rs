@@ -184,7 +184,7 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
 pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
-        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());=
+        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& objects_to_vrs_list(objs).is_Some()
         &&& new_vrs.is_Some()
         &&& match_template_without_hash(vd, new_vrs.get_Some_0())
