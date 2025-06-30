@@ -14,6 +14,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
+use crate::vstd_ext::seq_lib::*;
 use vstd::prelude::*;
 
 verus !{
@@ -176,17 +177,9 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime)) by {
-
-                        let vds = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
-                        assert(forall |i| #![trigger vds.old_vrs_list[i]]
-                            0 <= i < vds.old_vrs_list.len() ==>
-                            s_prime.resources().contains_key(vds.old_vrs_list[i].object_ref())
-                            && #[trigger] vds.old_vrs_list[i].well_formed()
-                            && #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace);
-                        assert(vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
-                    }
+                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    commutativity_of_seq_drop_last_and_map(vds.old_vrs_list, |vrs: VReplicaSetView| vrs.object_ref());
                 }
             },
             _ => {}
