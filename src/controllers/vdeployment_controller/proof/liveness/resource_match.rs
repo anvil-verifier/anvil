@@ -130,28 +130,28 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n -  nat1!())), (AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
             req_msg_is_pending_get_then_update_req_in_flight(vd, controller_id, req_msg),
             with_n_old_vrs_in_etcd(controller_id, vd, n),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
             exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
-            with_n_old_vrs_in_etcd(controller_id, vd, n -  nat1!()),
+            with_n_old_vrs_in_etcd(controller_id, vd, n - nat1!()),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n -  nat1!())), (AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
         req_msg_is_pending_get_then_update_req_in_flight(vd, controller_id, req_msg),
         with_n_old_vrs_in_etcd(controller_id, vd, n),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
         exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
-        with_n_old_vrs_in_etcd(controller_id, vd, n -  nat1!()),
+        with_n_old_vrs_in_etcd(controller_id, vd, n - nat1!()),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
@@ -173,9 +173,14 @@ ensures
                     let resp_msg = lemma_get_then_update_request_returns_ok(s, s_prime, vd, cluster, controller_id, msg);
                     // instantiate existential quantifier.
                     assert({
-                        &&& s.in_flight().contains(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
+                    let one: nat = 1;
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len((n - one) as nat))])(s_prime));
+                    assert(exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id)(s_prime));
+                    assert(with_n_old_vrs_in_etcd(controller_id, vd, (n - one) as nat)(s_prime));
+                    assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
                 }
             },
             _ => {}
@@ -186,7 +191,7 @@ ensures
         let resp_msg = lemma_get_then_update_request_returns_ok(s, s_prime, vd, cluster, controller_id, msg);
         // instantiate existential quantifier.
         assert({
-            &&& s.in_flight().contains(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         });
     }
