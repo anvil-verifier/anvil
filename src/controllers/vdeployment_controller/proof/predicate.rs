@@ -129,14 +129,14 @@ pub open spec fn resp_msg_is_ok_get_then_update_resp(s: ClusterState, vd: VDeplo
     &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
 }
 
-pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_when(
-    vd: VDeploymentView, controller_id: int, step: VDeploymentReconcileStepView
+pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_with_replicas(
+    vd: VDeploymentView, controller_id: int, n: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, step)(s)
+        &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, n)(s)
         &&& exists |resp_msg| {
             // predicate on resp_msg
             &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -146,8 +146,8 @@ pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_when(
     }
 }
 
-pub open spec fn req_msg_is_get_then_update_req_when(
-    vd: VDeploymentView, controller_id: int, req_msg: Message, step: VDeploymentReconcileStepView
+pub open spec fn req_msg_is_get_then_update_req_with_replicas(
+    vd: VDeploymentView, controller_id: int, req_msg: Message, n: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
@@ -168,40 +168,30 @@ pub open spec fn req_msg_is_get_then_update_req_when(
         // can pass get_then_update check
         &&& etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())
         // step-specific update content
-        &&& match step {
-            AfterScaleDownOldVRS => {
-                req_vrs.unwrap().spec.replicas == Some(0 as int)
-            },
-            AfterScaleNewVRS => {
-                req_vrs.unwrap().spec.replicas == vd.spec.replicas
-            },
-            _ => {
-                false
-            }
-        }
+        &&& req_vrs.unwrap().spec.replicas.unwrap_or(1) == n
     }
 }
 
-pub open spec fn req_msg_is_pending_get_then_update_req_in_flight_when(
-    vd: VDeploymentView, controller_id: int, req_msg: Message, step: VDeploymentReconcileStepView
+pub open spec fn req_msg_is_pending_get_then_update_req_in_flight_with_replicas(
+    vd: VDeploymentView, controller_id: int, req_msg: Message, n: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, step)(s)
+        &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, n)(s)
     }
 }
 
-pub open spec fn pending_get_then_update_req_in_flight_when(
-    vd: VDeploymentView, controller_id: int, step: VDeploymentReconcileStepView
+pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
+    vd: VDeploymentView, controller_id: int, n: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, step)(s)
+        &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, n)(s)
     }
 }
 
@@ -212,7 +202,7 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         // predicate on req_msg, it's not in_flight
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
-        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, AfterScaleDownOldVRS)(s)
+        &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, 0)(s)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_update_response()
@@ -450,8 +440,16 @@ macro_rules! nat1 {
     };
 }
 
+#[macro_export]
+macro_rules! int0 {
+    () => {
+        spec_literal_int("0")
+    };
+}
+
 pub use nat0;
 pub use nat1;
+pub use int0;
 pub use at_step_or_internal;
 pub use at_step_or;
 <<<<<<< HEAD
