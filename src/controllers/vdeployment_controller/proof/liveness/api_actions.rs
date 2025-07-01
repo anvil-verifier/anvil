@@ -2,7 +2,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
-    api_server::{types::*, state_machine::handle_list_request_msg},
+    api_server::{types::*, state_machine::*},
     cluster::*, 
     message::*
 };
@@ -32,6 +32,23 @@ ensures
     resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg),
 {
     let resp_msg = handle_list_request_msg(msg, s.api_server).1;
+    return resp_msg;
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_get_then_update_request_returns_ok(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
+    msg: Message,
+) -> (resp_msg: Message)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    req_msg_is_get_then_update_req(vd, controller_id, msg)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+ensures
+    resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
+    resp_msg_is_ok_get_then_update_resp(s_prime, vd, resp_msg),
+{
+    let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
     return resp_msg;
 }
 

@@ -121,6 +121,28 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
 
+pub open spec fn resp_msg_is_ok_get_then_update_resp(s: ClusterState, vd: VDeploymentView, resp_msg: Message) -> bool {
+    // predicate on req_msg, it's not in_flight
+    // predicate on resp_msg
+    &&& resp_msg.content.is_get_then_update_response()
+    &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+}
+
+pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
+        &&& exists |resp_msg| {
+            // predicate on resp_msg
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            // we don't need info on content of the response at the moment
+        }
+    }
+}
+
 pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_id: int, req_msg: Message) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
@@ -137,6 +159,17 @@ pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_
         // so this object will be in filter_old_and_new_vrs_on_etcd
         &&& obj.kind == VReplicaSetView::kind()
         &&& obj.metadata.namespace == vd.metadata.namespace
+    }
+}
+
+pub open spec fn req_msg_is_pending_get_then_update_req_in_flight(
+    vd: VDeploymentView, controller_id: int, req_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
     }
 }
 
