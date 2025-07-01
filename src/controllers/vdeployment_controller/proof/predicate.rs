@@ -134,7 +134,9 @@ pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_
         &&& request.namespace == vd.metadata.namespace.unwrap()
         &&& request.owner_ref == vd.controller_owner_ref()
         &&& s.resources().contains_key(key)
-        // &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())
+        // so this object will be in filter_old_and_new_vrs_on_etcd
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& obj.metadata.namespace == vd.metadata.namespace
     }
 }
 
