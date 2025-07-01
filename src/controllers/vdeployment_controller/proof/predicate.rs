@@ -129,12 +129,14 @@ pub open spec fn resp_msg_is_ok_get_then_update_resp(s: ClusterState, vd: VDeplo
     &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
 }
 
-pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_when(
+    vd: VDeploymentView, controller_id: int, step: VDeploymentReconcileStepView
+) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
+        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, step)(s)
         &&& exists |resp_msg| {
             // predicate on resp_msg
             &&& #[trigger] s.in_flight().contains(resp_msg)
@@ -144,12 +146,15 @@ pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(vd: VDeploymentView,
     }
 }
 
-pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_id: int, req_msg: Message) -> StatePred<ClusterState> {
+pub open spec fn req_msg_is_get_then_update_req_when(
+    vd: VDeploymentView, controller_id: int, req_msg: Message, step: VDeploymentReconcileStepView
+) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         // Q: state.old_vrs_list does not contain the deleted vrs
         let key = request.key();
-        let obj = s.resources()[key];
+        let etcd_obj = s.resources()[key];
+        let req_vrs = VReplicaSetView::unmarshal(request.obj);
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
@@ -158,31 +163,45 @@ pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_
         &&& request.owner_ref == vd.controller_owner_ref()
         &&& s.resources().contains_key(key)
         // so this object will be in filter_old_and_new_vrs_on_etcd
-        &&& obj.kind == VReplicaSetView::kind()
-        &&& obj.metadata.namespace == vd.metadata.namespace
+        &&& etcd_obj.kind == VReplicaSetView::kind()
+        &&& etcd_obj.metadata.namespace == vd.metadata.namespace
         // can pass get_then_update check
-        &&& obj.metadata.owner_references_contains(vd.controller_owner_ref())
+        &&& etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())
+        // step-specific update content
+        &&& match step {
+            AfterScaleDownOldVRS => {
+                req_vrs.unwrap().spec.replicas == Some(0 as int)
+            },
+            AfterScaleNewVRS => {
+                req_vrs.unwrap().spec.replicas == vd.spec.replicas
+            },
+            _ => {
+                false
+            }
+        }
     }
 }
 
-pub open spec fn req_msg_is_pending_get_then_update_req_in_flight(
-    vd: VDeploymentView, controller_id: int, req_msg: Message
+pub open spec fn req_msg_is_pending_get_then_update_req_in_flight_when(
+    vd: VDeploymentView, controller_id: int, req_msg: Message, step: VDeploymentReconcileStepView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
+        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, step)(s)
     }
 }
 
-pub open spec fn pending_get_then_update_req_in_flight(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn pending_get_then_update_req_in_flight_when(
+    vd: VDeploymentView, controller_id: int, step: VDeploymentReconcileStepView
+) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
+        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, step)(s)
     }
 }
 
@@ -193,7 +212,7 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
         // predicate on req_msg, it's not in_flight
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
-        &&& req_msg_is_get_then_update_req(vd, controller_id, req_msg)(s)
+        &&& req_msg_is_get_then_update_req_when(vd, controller_id, req_msg, AfterScaleDownOldVRS)(s)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_update_response()
