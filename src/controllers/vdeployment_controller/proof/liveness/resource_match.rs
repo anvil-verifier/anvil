@@ -119,7 +119,7 @@ ensures
     assume(false);
 }
 
-pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs(
+pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
 requires
@@ -169,7 +169,6 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_update_request_returns_ok(s, s_prime, vd, cluster, controller_id, msg);
                     // instantiate existential quantifier.
@@ -196,7 +195,7 @@ ensures
     );
 }
 
-pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_to_pending_scale_down_req_in_flight(
+pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
 requires
