@@ -159,6 +159,8 @@ pub open spec fn req_msg_is_get_then_update_req(vd: VDeploymentView, controller_
         // so this object will be in filter_old_and_new_vrs_on_etcd
         &&& obj.kind == VReplicaSetView::kind()
         &&& obj.metadata.namespace == vd.metadata.namespace
+        // can pass get_then_update check
+        &&& obj.metadata.owner_references_contains(vd.controller_owner_ref())
     }
 }
 
@@ -206,10 +208,13 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
         &&& forall |i| #![trigger vds.old_vrs_list[i]]
-            0 <= i < vds.old_vrs_list.len() ==>
-            s.resources().contains_key(vds.old_vrs_list[i].object_ref())
-            && #[trigger] vds.old_vrs_list[i].well_formed()
-            && #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+            0 <= i < vds.old_vrs_list.len() ==> {
+                &&& #[trigger] vds.old_vrs_list[i].well_formed()
+                &&& #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+                // obj in etcd exists and is owned by vd
+                &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
+                &&& s.resources()[vds.old_vrs_list[i].object_ref()].metadata.owner_references_contains(vd.controller_owner_ref())
+            }
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
     }
 }
@@ -221,7 +226,9 @@ pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controll
         let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
         let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& objects_to_vrs_list(objs).is_Some()
+        // obj in etcd exists and is owned by vd
         &&& new_vrs.is_Some()
+        &&& new_vrs.get_Some_0().metadata.owner_references_contains(vd.controller_owner_ref())
         &&& match_template_without_hash(vd, new_vrs.get_Some_0())
         &&& match_replicas(vd, new_vrs.get_Some_0())
     }
