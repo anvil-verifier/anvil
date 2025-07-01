@@ -36,13 +36,13 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_get_then_update_request_returns_ok_when(
+pub proof fn lemma_get_then_update_request_returns_ok_with_replicas(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    msg: Message, step: VDeploymentReconcileStepView,
+    msg: Message, n: int
 ) -> (resp_msg: Message)
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_get_then_update_req_when(vd, controller_id, msg, step)(s),
+    req_msg_is_get_then_update_req_with_replicas(vd, controller_id, msg, n)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,

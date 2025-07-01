@@ -131,26 +131,26 @@ requires
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-            req_msg_is_pending_get_then_update_req_in_flight_when(vd, controller_id, req_msg, AfterScaleDownOldVRS),
+            req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
             with_n_old_vrs_in_etcd(controller_id, vd, n),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-            exists_resp_msg_is_ok_get_then_update_resp_when(vd, controller_id, AfterScaleDownOldVRS),
+            exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
             with_n_old_vrs_in_etcd(controller_id, vd, n - nat1!()),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         )))),
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-        req_msg_is_pending_get_then_update_req_in_flight_when(vd, controller_id, req_msg, AfterScaleDownOldVRS),
+        req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
         with_n_old_vrs_in_etcd(controller_id, vd, n),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-        exists_resp_msg_is_ok_get_then_update_resp_when(vd, controller_id, AfterScaleDownOldVRS),
+        exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
         with_n_old_vrs_in_etcd(controller_id, vd, n - nat1!()),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
@@ -170,7 +170,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
                 if msg == req_msg {
-                    let resp_msg = lemma_get_then_update_request_returns_ok_when(s, s_prime, vd, cluster, controller_id, msg, AfterScaleDownOldVRS);
+                    let resp_msg = lemma_get_then_update_request_returns_ok_with_replicas(s, s_prime, vd, cluster, controller_id, msg, int0!());
                     // instantiate existential quantifier.
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -178,7 +178,7 @@ ensures
                     });
                     let one: nat = 1;
                     assert(at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len((n - one) as nat))])(s_prime));
-                    assert(exists_resp_msg_is_ok_get_then_update_resp_when(vd, controller_id, AfterScaleDownOldVRS)(s_prime));
+                    assert(exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!())(s_prime));
                     assert(with_n_old_vrs_in_etcd(controller_id, vd, (n - one) as nat)(s_prime));
                     assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
                 }
@@ -188,7 +188,7 @@ ensures
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input.get_Some_0();
-        let resp_msg = lemma_get_then_update_request_returns_ok_when(s, s_prime, vd, cluster, controller_id, msg, AfterScaleDownOldVRS);
+        let resp_msg = lemma_get_then_update_request_returns_ok_with_replicas(s, s_prime, vd, cluster, controller_id, msg, int0!());
         // instantiate existential quantifier.
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
@@ -219,7 +219,7 @@ ensures
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-            pending_get_then_update_req_in_flight_when(vd, controller_id, AfterScaleDownOldVRS),
+            pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
             with_n_old_vrs_in_etcd(controller_id, vd, n),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         )))),
@@ -232,7 +232,7 @@ ensures
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-        pending_get_then_update_req_in_flight_when(vd, controller_id, AfterScaleDownOldVRS),
+        pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
         with_n_old_vrs_in_etcd(controller_id, vd, n),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
