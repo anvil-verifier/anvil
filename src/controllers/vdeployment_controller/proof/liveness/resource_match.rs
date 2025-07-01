@@ -2,7 +2,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
-    api_server::types::*,
+    api_server::{types::*, state_machine::*},
     cluster::*, 
     message::*
 };
@@ -117,6 +117,83 @@ ensures
     // should_scale_new_vrs ~> at_step!(AfterScaleNewVRS) ~> at_step!(AfterScaleDownOldVRS) | Done
     // should_create_new_vrs ~> at_step!(AfterCreateNewVRS) ~> at_step!(AfterScaleNewVRS) | at_step!(AfterScaleDownOldVRS) | Done
     assume(false);
+}
+
+pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n)), (AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+            req_msg_is_pending_get_then_update_req_in_flight(vd, controller_id, req_msg),
+            with_n_old_vrs_in_etcd(controller_id, vd, n + nat1!()),
+            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        ))
+       .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+            exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
+            with_n_old_vrs_in_etcd(controller_id, vd, n),
+            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        )))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n)), (AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+        req_msg_is_pending_get_then_update_req_in_flight(vd, controller_id, req_msg),
+        with_n_old_vrs_in_etcd(controller_id, vd, n + nat1!()),
+        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+        exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
+        with_n_old_vrs_in_etcd(controller_id, vd, n),
+        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = Some(req_msg);
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+
+                if msg == req_msg {
+                    let resp_msg = lemma_get_then_update_request_returns_ok(s, s_prime, vd, cluster, controller_id, msg);
+                    // instantiate existential quantifier.
+                    assert({
+                        &&& s.in_flight().contains(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                    });
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+        let msg = input.get_Some_0();
+        let resp_msg = lemma_get_then_update_request_returns_ok(s, s_prime, vd, cluster, controller_id, msg);
+        // instantiate existential quantifier.
+        assert({
+            &&& s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        });
+    }
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, (input, Some(vd.object_ref())), stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
 }
 
 pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_to_pending_scale_down_req_in_flight(
