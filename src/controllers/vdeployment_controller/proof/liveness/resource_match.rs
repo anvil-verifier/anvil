@@ -271,7 +271,7 @@ ensures
     );
 }
 
-pub proof fn lemma_from_at_scale_down_old_vrs_of_zero_to_current_state_matches(
+pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message
 )
 requires
