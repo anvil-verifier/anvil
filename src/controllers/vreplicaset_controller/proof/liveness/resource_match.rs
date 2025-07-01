@@ -2607,6 +2607,9 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     );
 }
 
+// TODO: investigate flaky proof; higher priority since even very
+// unrelated changes in the verification environment seem to affect it.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>,
     vrs: VReplicaSetView,
