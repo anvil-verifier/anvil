@@ -36,13 +36,13 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_get_then_update_request_returns_ok(
+pub proof fn lemma_get_then_update_request_returns_ok_when(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    msg: Message,
+    msg: Message, step: VDeploymentReconcileStepView,
 ) -> (resp_msg: Message)
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_get_then_update_req(vd, controller_id, msg)(s),
+    req_msg_is_get_then_update_req_when(vd, controller_id, msg, step)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
@@ -50,9 +50,9 @@ ensures
     ({
         // if preconditions are met, the object is updated
         let req = msg.content.get_get_then_update_request();
-        let new_obj = s_prime.resources[req.key()];
-        &&& (s_prime, resp_msg) = handle_get_then_update_request_msg(installed_types, msg, s.api_server);
-        &&& resp_msg.content.get_get_then_update_response().res.is_Ok(),
+        let new_obj = s_prime.resources()[req.key()];
+        &&& (s_prime.api_server, resp_msg) == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server)
+        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
         &&& new_obj == DynamicObjectView {
                 metadata: ObjectMetaView {
                     resource_version: new_obj.metadata.resource_version,
@@ -60,7 +60,7 @@ ensures
                     ..req.obj.metadata
                 },
                 ..req.obj
-        };
+        }
     })
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
