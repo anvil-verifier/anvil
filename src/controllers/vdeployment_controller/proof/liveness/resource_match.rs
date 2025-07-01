@@ -127,31 +127,31 @@ requires
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n)), (AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n -  nat1!())), (AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
             req_msg_is_pending_get_then_update_req_in_flight(vd, controller_id, req_msg),
-            with_n_old_vrs_in_etcd(controller_id, vd, n + nat1!()),
+            with_n_old_vrs_in_etcd(controller_id, vd, n),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
             exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
-            with_n_old_vrs_in_etcd(controller_id, vd, n),
+            with_n_old_vrs_in_etcd(controller_id, vd, n -  nat1!()),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n)), (AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS, old_vrs_list_len(n -  nat1!())), (AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
         req_msg_is_pending_get_then_update_req_in_flight(vd, controller_id, req_msg),
-        with_n_old_vrs_in_etcd(controller_id, vd, n + nat1!()),
+        with_n_old_vrs_in_etcd(controller_id, vd, n),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n -  nat1!()))]),
         exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
-        with_n_old_vrs_in_etcd(controller_id, vd, n),
+        with_n_old_vrs_in_etcd(controller_id, vd, n -  nat1!()),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
@@ -191,8 +191,8 @@ ensures
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         });
     }
-    cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, (input, Some(vd.object_ref())), stronger_next, ControllerStep::ContinueReconcile, pre, post
+    cluster.lemma_pre_leads_to_post_by_api_server(
+        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
     );
 }
 
