@@ -47,9 +47,23 @@ requires
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(s_prime, vd, resp_msg),
+    ({
+        // if preconditions are met, the object is updated
+        let req = msg.content.get_get_then_update_request();
+        let new_obj = s_prime.resources[req.key()];
+        &&& (s_prime, resp_msg) = handle_get_then_update_request_msg(installed_types, msg, s.api_server);
+        &&& resp_msg.content.get_get_then_update_response().res.is_Ok(),
+        &&& new_obj == DynamicObjectView {
+                metadata: ObjectMetaView {
+                    resource_version: new_obj.metadata.resource_version,
+                    uid: new_obj.metadata.uid,
+                    ..req.obj.metadata
+                },
+                ..req.obj
+        };
+    })
 {
-    let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
-    return resp_msg;
+    return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
 
 #[verifier(external_body)]

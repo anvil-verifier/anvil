@@ -121,6 +121,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
 
+// TODO: it's possible to eliminate resp_msg here as it can be crafted from req
 pub open spec fn resp_msg_is_ok_get_then_update_resp(s: ClusterState, vd: VDeploymentView, resp_msg: Message) -> bool {
     // predicate on req_msg, it's not in_flight
     // predicate on resp_msg
