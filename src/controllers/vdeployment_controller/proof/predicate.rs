@@ -118,10 +118,71 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
 
+pub open spec fn req_msg_is_create_vrs_req(
+    vd: VDeploymentView, controller_id: int, req_msg: Message
+) -> bool {
+    let request = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+    &&& req_msg.dst == HostId::APIServer
+    &&& req_msg.content.is_APIRequest()
+    &&& req_msg.content.get_APIRequest_0().is_CreateRequest()
+    &&& request == CreateRequest {
+        namespace: vd.metadata.namespace.unwrap(),
+        obj: make_replica_set(vd).marshal()
+    }
+}
+
 pub open spec fn pending_create_new_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int
 ) -> StatePred<ClusterState> {
-    |s: ClusterState| false
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+    }
+}
+
+pub open spec fn req_msg_is_the_pending_create_new_vrs_req_in_flight(
+    vd: VDeploymentView, controller_id: int, req_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+    }
+}
+
+pub open spec fn resp_msg_is_ok_create_new_vrs_resp(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.is_create_response()
+        &&& resp_msg.content.get_create_response().res.is_Ok()
+    }
+}
+
+pub open spec fn exists_resp_msg_is_ok_create_new_vrs_resp(
+    vd: VDeploymentView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+        &&& exists |resp_msg| {
+            // predicate on resp_msg
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            // we don't need info on content of the response at the moment
+            &&& resp_msg.content.is_create_response()
+            &&& resp_msg.content.get_create_response().res.is_Ok()
+        }
+    }
 }
 
 // TODO: it's possible to eliminate resp_msg here as it can be crafted from req
@@ -134,6 +195,8 @@ pub open spec fn resp_msg_is_ok_get_then_update_resp_with_replicas(
         &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, n)(s)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.is_get_then_update_response()
+        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
     }
 }
 
@@ -149,6 +212,8 @@ pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_with_replicas(
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             // we don't need info on content of the response at the moment
+            &&& resp_msg.content.is_get_then_update_response()
+            &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
         }
     }
 }
