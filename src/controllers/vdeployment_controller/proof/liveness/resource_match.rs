@@ -119,6 +119,113 @@ ensures
     assume(false);
 }
 
+pub proof fn lemma_from_init_step_to_send_list_vrs_req(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+ensures
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![Init]), no_pending_req_in_cluster(vd, controller_id)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), pending_list_req_in_flight(vd, controller_id))))),
+{
+    VDeploymentReconcileState::marshal_preserves_integrity();
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or![Init]),
+        no_pending_req_in_cluster(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        pending_list_req_in_flight(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = (None::<Message>, Some(vd.object_ref()));
+    // this assertion makes proof 86% faster
+    assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
+}
+
+pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+ensures
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), exists_pending_list_resp_in_flight_and_match_req(vd, controller_id))))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = Some(req_msg);
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                if msg == req_msg {
+                    let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
+                    // instantiate existential quantifier.
+                    assert({
+                        &&& s_prime.in_flight().contains(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)
+                    });
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+        let msg = input.get_Some_0();
+        let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
+            s, s_prime, vd, cluster, controller_id, msg,
+        );
+        // instantiate existential quantifier.
+        assert({
+            &&& s_prime.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)
+        });
+    }
+    cluster.lemma_pre_leads_to_post_by_api_server(
+        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
+    );
+}
+
 #[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
@@ -484,110 +591,4 @@ ensures
     
 }
 
-pub proof fn lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message
-)
-requires
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), exists_pending_list_resp_in_flight_and_match_req(vd, controller_id))))),
-{
-    let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-        req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)
-    );
-    let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-        exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
-    );
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
-    );
-    let input = Some(req_msg);
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
-        let step = choose |step| cluster.next_step(s, s_prime, step);
-        match step {
-            Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
-                if msg == req_msg {
-                    let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
-                        s, s_prime, vd, cluster, controller_id, msg
-                    );
-                    // instantiate existential quantifier.
-                    assert({
-                        &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)
-                    });
-                }
-            },
-            _ => {}
-        }
-    }
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input.get_Some_0();
-        let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
-            s, s_prime, vd, cluster, controller_id, msg,
-        );
-        // instantiate existential quantifier.
-        assert({
-            &&& s_prime.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)
-        });
-    }
-    cluster.lemma_pre_leads_to_post_by_api_server(
-        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
-    );
-}
-
-pub proof fn lemma_from_init_step_to_send_list_vrs_req(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
-)
-requires
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
-    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
-    spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
-ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![Init]), no_pending_req_in_cluster(vd, controller_id)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), pending_list_req_in_flight(vd, controller_id))))),
-{
-    VDeploymentReconcileState::marshal_preserves_integrity();
-    let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![Init]),
-        no_pending_req_in_cluster(vd, controller_id)
-    );
-    let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-        pending_list_req_in_flight(vd, controller_id)
-    );
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& cluster.next()(s, s_prime)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-    };
-    combine_spec_entails_always_n!(spec,
-        lift_action(stronger_next),
-        lift_action(cluster.next()),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
-    );
-    let input = (None::<Message>, Some(vd.object_ref()));
-    // this assertion makes proof 86% faster
-    assert(forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
-    cluster.lemma_pre_leads_to_post_by_controller(
-        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
-    );
-}
 }
