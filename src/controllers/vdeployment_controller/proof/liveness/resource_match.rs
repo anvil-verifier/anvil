@@ -199,7 +199,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -208,7 +207,7 @@ requires
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     n > 0,
 ensures
     spec.entails(lift_state(and!(
@@ -220,13 +219,62 @@ ensures
         ))
         .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
-                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
             pending_create_new_vrs_req_in_flight(vd, controller_id),
-            n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
-            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            no_new_vrs_exists_in_etcd(controller_id, vd),
             local_state_match_etcd(vd, controller_id)
         )))),
 {
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        no_new_vrs_exists_in_etcd(controller_id, vd),
+        local_state_match_etcd(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
+        pending_create_new_vrs_req_in_flight(vd, controller_id),
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        no_new_vrs_exists_in_etcd(controller_id, vd),
+        local_state_match_etcd(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = (Some(resp_msg), Some(vd.object_ref()));
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                    VDeploymentReconcileState::marshal_preserves_integrity();
+                    // the request should carry the update of replicas, which requires reasoning over unmarshalling vrs
+                    VReplicaSetView::marshal_preserves_integrity();
+                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                }
+            },
+            _ => {}
+        }
+    }
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
 }
 
 
