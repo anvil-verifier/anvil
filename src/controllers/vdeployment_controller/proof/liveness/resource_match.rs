@@ -200,6 +200,86 @@ ensures
 }
 
 #[verifier(external_body)]
+pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
+            exists_pending_list_resp_in_flight_and_match_req(vd, controller_id),
+            n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
+        ))
+        .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
+            no_pending_req_in_cluster(vd, controller_id),
+            n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
+        )))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
+        exists_pending_list_resp_in_flight_and_match_req(vd, controller_id),
+        n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
+        no_pending_req_in_cluster(vd, controller_id),
+        n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = (Some(resp_msg), Some(vd.object_ref()));
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                    VDeploymentReconcileState::marshal_preserves_integrity();
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        VDeploymentReconcileState::marshal_preserves_integrity();
+    }
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
+}
+
+
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
