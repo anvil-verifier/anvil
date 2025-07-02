@@ -36,6 +36,26 @@ ensures
 }
 
 #[verifier(external_body)]
+pub proof fn lemma_create_new_vrs_request_returns_ok_at_after_ensure_new_vrs(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
+    msg: Message, n: nat
+) -> (resp_msg: Message)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    req_msg_is_the_pending_create_new_vrs_req_in_flight(vd, controller_id, msg)(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
+    no_new_vrs_exists_in_etcd(controller_id, vd)(s),
+ensures
+    resp_msg == handle_create_request_msg(cluster.installed_types, msg, s.api_server).1,
+    resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
+    n_old_vrs_exists_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime),
+    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
+{
+    return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
+}
+
+#[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message, n: nat
@@ -49,22 +69,6 @@ requires
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!())(s_prime),
-    ({
-        // if preconditions are met, the object is updated
-        let req = msg.content.get_get_then_update_request();
-        let new_obj = s_prime.resources()[req.key()];
-        &&& s_prime.resources().contains_key(req.key())
-        &&& (s_prime.api_server, resp_msg) == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server)
-        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
-        &&& new_obj == DynamicObjectView {
-                metadata: ObjectMetaView {
-                    resource_version: new_obj.metadata.resource_version,
-                    uid: new_obj.metadata.uid,
-                    ..req.obj.metadata
-                },
-                ..req.obj
-        }
-    }),
     n_old_vrs_exists_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime),
     new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
 {
