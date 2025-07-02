@@ -222,24 +222,24 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
         // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
         &&& forall |i|
             #![trigger vds.old_vrs_list[i]]
-            #![trigger filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap())]
+            //#![trigger filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap())]
             0 <= i < vds.old_vrs_list.len() ==> {
             &&& #[trigger] vds.old_vrs_list[i].well_formed()
             &&& #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
             &&& #[trigger] vds.old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
-            &&& ({
-                let etcd_obj = s.resources()[vds.old_vrs_list[i].object_ref()];
-                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
-                // can pass list_vrs_obj_filter
-                &&& etcd_obj.kind == VReplicaSetView::kind()
-                &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-                // can pass objects_to_vrs_list
-                &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
-                // can pass filter_old_and_new_vrs_on_etcd
-                &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
-            })
+            //&&& ({
+            //    let etcd_obj = s.resources()[vds.old_vrs_list[i].object_ref()];
+            //    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
+            //    // can pass list_vrs_obj_filter
+            //    &&& etcd_obj.kind == VReplicaSetView::kind()
+            //    &&& etcd_obj.metadata.namespace == vd.metadata.namespace
+            //    // can pass objects_to_vrs_list
+            //    &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
+            //    // can pass filter_old_and_new_vrs_on_etcd
+            //    &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
+            //})
         }
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
     }
@@ -462,7 +462,11 @@ pub use nat1;
 pub use int0;
 pub use at_step_or_internal;
 pub use at_step_or;
-<<<<<<< HEAD
+pub use at_step;
+pub use or;
+pub use or_internal;
+pub use and;
+pub use and_internal;
 
 // General helper predicates
 pub open spec fn lifted_vd_rely_condition(cluster: Cluster, controller_id: int) -> TempPred<ClusterState> {
@@ -481,11 +485,4 @@ pub open spec fn lifted_vd_rely_condition_action(cluster: Cluster, controller_id
     })
 }
 
-=======
-pub use at_step;
-pub use or;
-pub use or_internal;
-pub use and;
-pub use and_internal;
->>>>>>> eaa666b (merge from vd_wf)
 }
