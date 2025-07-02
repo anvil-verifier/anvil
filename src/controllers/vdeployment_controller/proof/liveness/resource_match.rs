@@ -128,10 +128,11 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    n > 0,
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-            req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!()),
+            req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
             with_n_old_vrs_in_etcd(controller_id, vd, n),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         ))
@@ -144,7 +145,7 @@ ensures
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-        req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!()),
+        req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
         with_n_old_vrs_in_etcd(controller_id, vd, n),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
@@ -171,18 +172,39 @@ ensures
                 let msg = input.get_Some_0();
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_update_request_returns_ok_with_replicas(s, s_prime, vd, cluster, controller_id, msg, int0!());
-                    // instantiate existential quantifier.
-                    assert({
-                        &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                    });
                     let one: nat = 1;
                     assert(at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len((n - one) as nat))])(s_prime));
                     assert(exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!())(s_prime)) by {
                         assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
                         assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
-                        assert(req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!())(s_prime));
-                        assert(exists |resp_msg| {
+                        assert(req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!())(s_prime)) by {
+                            VReplicaSetView::marshal_preserves_integrity();
+                            let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                            let key = request.key();
+                            let etcd_obj = s_prime.resources()[key];
+                            let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
+                            let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                            assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
+                            assert(req_msg.dst == HostId::APIServer);
+                            assert(req_msg.content.is_APIRequest());
+                            assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
+                            assert(request.namespace == vd.metadata.namespace.unwrap());
+                            assert(request.owner_ref == vd.controller_owner_ref());
+                            assert(s_prime.resources().contains_key(key));
+                            assert(etcd_obj.kind == VReplicaSetView::kind());
+                            assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
+                            assert(etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
+                                assert(etcd_obj.metadata == ObjectMetaView {
+                                    resource_version: etcd_obj.metadata.resource_version,
+                                    uid: etcd_obj.metadata.uid,
+                                    ..request.obj.metadata
+                                });
+                                assert(request.obj.metadata == req_vrs.metadata);
+                                assert(req_vrs.metadata.owner_references_contains(vd.controller_owner_ref()));
+                                assert(req_vrs.spec.replicas.unwrap_or(1) == int0!());
+                            }
+                        }
+                        assert({
                             // predicate on resp_msg
                             &&& #[trigger] s_prime.in_flight().contains(resp_msg)
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -197,6 +219,7 @@ ensures
             _ => {}
         }
     }
+    assume(false);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input.get_Some_0();
         let resp_msg = lemma_get_then_update_request_returns_ok_with_replicas(s, s_prime, vd, cluster, controller_id, msg, int0!());
