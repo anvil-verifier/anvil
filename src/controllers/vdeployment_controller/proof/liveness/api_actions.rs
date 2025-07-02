@@ -56,6 +56,26 @@ ensures
 }
 
 #[verifier(external_body)]
+pub proof fn lemma_get_then_update_request_returns_ok_at_after_scale_new_vrs(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
+    msg: Message, replicas: int, n: nat
+) -> (resp_msg: Message)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    req_msg_is_get_then_update_req_with_replicas(vd, controller_id, msg, vd.spec.replicas.unwrap_or(int1!()))(s),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
+    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, replicas)(s),
+ensures
+    resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
+    resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, replicas)(s_prime),
+    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s_prime),
+    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
+{
+    return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
+}
+
+#[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message, n: nat
