@@ -89,33 +89,6 @@ ensures
         exists_list_resp,
         tla_exists(|msg| msg_is_list_resp(msg))
     );
-    // path diverges
-    // assert(forall |resp_msg: Message| #![trigger msg_is_list_resp(resp_msg)] 
-    //     inv ==> spec.entails(msg_is_list_resp(resp_msg).implies(
-    //     lift_state(and!(
-    //         // controller local state machine need to use non-Init step with resp message to transit
-    //         at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-    //         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-    //         should_create_new_vrs(vd)))
-    //     .or(lift_state(and!(
-    //         at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-    //         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-    //         should_scale_new_vrs(vd))))
-    //     .or(lift_state(and!(
-    //         at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-    //         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-    //         should_scale_down_old_vrs(vd))))
-    //     .or(lift_state(and!(
-    //         at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
-    //         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-    //         should_scale_down_old_vrs_of_n(vd, nat0!())))
-    //     ))
-    // ));
-    // TODO: prove as long as the current state is not init (and we have message to push controller transition)
-    // nothing_to_do ~> Done
-    // should_scale_down_old_vrs ~> at_step!(AfterScaleDownOldVRS) ~> (need ranking function) Done
-    // should_scale_new_vrs ~> at_step!(AfterScaleNewVRS) ~> at_step!(AfterScaleDownOldVRS) | Done
-    // should_create_new_vrs ~> at_step!(AfterCreateNewVRS) ~> at_step!(AfterScaleNewVRS) | at_step!(AfterScaleDownOldVRS) | Done
     assume(false);
 }
 
@@ -227,6 +200,37 @@ ensures
 }
 
 #[verifier(external_body)]
+pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    n > 0,
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+            resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            no_new_vrs_exists_in_etcd(controller_id, vd),
+            local_state_match_etcd(vd, controller_id)
+        ))
+        .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+            pending_create_new_vrs_req_in_flight(vd, controller_id),
+            n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
+        )))),
+{
+}
+
+
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
@@ -239,29 +243,37 @@ requires
     n > 0,
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
-            with_n_old_vrs_in_etcd(controller_id, vd, n),
-            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
-            with_n_old_vrs_in_etcd(controller_id, vd, n - nat1!()),
-            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+            n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
         req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
-        with_n_old_vrs_in_etcd(controller_id, vd, n),
-        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
         exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
-        with_n_old_vrs_in_etcd(controller_id, vd, n - nat1!()),
-        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -317,29 +329,37 @@ requires
     n > 0
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
             resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!()),
-            with_n_old_vrs_in_etcd(controller_id, vd, n),
-            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-            with_n_old_vrs_in_etcd(controller_id, vd, n),
-            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
         resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!()),
-        with_n_old_vrs_in_etcd(controller_id, vd, n),
-        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
         pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-        with_n_old_vrs_in_etcd(controller_id, vd, n),
-        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -394,29 +414,37 @@ requires
     n > 0
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
             no_pending_req_in_cluster(vd, controller_id),
-            with_n_old_vrs_in_etcd(controller_id, vd, n),
-            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-            with_n_old_vrs_in_etcd(controller_id, vd, n),
-            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
         no_pending_req_in_cluster(vd, controller_id),
-        with_n_old_vrs_in_etcd(controller_id, vd, n),
-        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
         pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-        with_n_old_vrs_in_etcd(controller_id, vd, n),
-        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
@@ -471,9 +499,11 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(nat0!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
             resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
+            n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![Done]),
@@ -481,9 +511,11 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(nat0!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
         resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
+        n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
@@ -536,9 +568,11 @@ requires
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(nat0!()))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
             no_pending_req_in_cluster(vd, controller_id),
-            with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
+            n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step!(Done)),
@@ -546,9 +580,11 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, old_vrs_list_len(nat0!()))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))]),
         no_pending_req_in_cluster(vd, controller_id),
-        with_n_old_vrs_in_etcd(controller_id, vd, nat0!())
+        n_old_vrs_exists_in_etcd(controller_id, vd, nat0!()),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
