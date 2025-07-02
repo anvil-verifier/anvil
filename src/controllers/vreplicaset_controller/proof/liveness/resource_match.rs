@@ -2111,6 +2111,8 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     );
 }
 
+// TODO: investigate flaky proof.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     req_msg: Message, diff: int
@@ -2476,6 +2478,8 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
     );
 }
 
+// TODO: investigate flaky proof
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
     resp_msg: Message,
@@ -2603,6 +2607,9 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_delete_pod_step_to_done(
     );
 }
 
+// TODO: investigate flaky proof; higher priority since even very
+// unrelated changes in the verification environment seem to affect it.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>,
     vrs: VReplicaSetView,

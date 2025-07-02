@@ -151,7 +151,7 @@ pub open spec fn vd_guarantee_get_then_update_req(req: GetThenUpdateRequest) -> 
     |s: ClusterState| {
         &&& req.obj.kind == VReplicaSetView::kind()
         &&& exists |vd: VDeploymentView|
-            req.owner_ref == vd.controller_owner_ref()
+            req.owner_ref == #[trigger] vd.controller_owner_ref()
             && req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
     }
 }

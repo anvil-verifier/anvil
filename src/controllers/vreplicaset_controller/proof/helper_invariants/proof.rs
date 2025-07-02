@@ -19,7 +19,6 @@ use vstd::{map::*, map_lib::*, multiset::*, prelude::*, seq_lib::*};
 
 verus! {
 
-#[verifier(rlimit(100))]
 pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vrs_reconcile(
     spec: TempPred<ClusterState>, vrs: VReplicaSetView, cluster: Cluster, controller_id: int,
 )
@@ -127,6 +126,7 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vr
                 match msg.src {
                     HostId::Controller(id, cr_key) => {
                         if id != controller_id {
+                            assert(cluster.controller_models.remove(controller_id).contains_key(id));
                             assert(vrs_rely(id)(s_prime));
                         } else {
                             let havoc_vrs = make_vrs(); // havoc for VReplicaSetView
@@ -320,6 +320,8 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
     init_invariant(spec, cluster.init(), stronger_next, invariant);
 }
 
+// TODO: Investigate flaky proof.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
@@ -1329,6 +1331,9 @@ ensures
             && #[trigger] s_prime.in_flight().contains(msg)
             && msg.src.is_controller_id(controller_id)
             implies msg.dst != HostId::External(controller_id) by {
+            if s.in_flight().contains(msg) {
+                // Empty if statement required to trigger quantifiers.
+            }
             if new_msgs.contains(msg) {
                 // Empty if statement required to trigger quantifiers.
             }
