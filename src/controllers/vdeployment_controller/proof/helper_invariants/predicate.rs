@@ -220,6 +220,7 @@ pub open spec fn vd_reconcile_get_then_update_request_only_interferes_with_itsel
         &&& req.owner_ref.controller.get_Some_0()
         &&& req.owner_ref.kind == VDeploymentView::kind()
         &&& req.owner_ref.name == vd.object_ref().name
+        &&& req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
     }
 }
 
