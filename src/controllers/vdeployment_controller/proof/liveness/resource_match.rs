@@ -364,47 +364,45 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
+pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, replicas: int, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
-    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
-    n > 0,
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    replicas != vd.spec.replicas.unwrap_or(int1!()),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
-                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
-            req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
+            at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+            resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
             n_old_vrs_exists_in_etcd(controller_id, vd, n),
-            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, replicas),
             local_state_match_etcd(vd, controller_id)
         ))
-       .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
-                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
-            exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
-            n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+        .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS,
+                and!(new_vrs_is_some_with_replicas(replicas), old_vrs_list_len(n)))]),
+            pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, vd.spec.replicas.unwrap_or(int1!())),
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
             new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
             local_state_match_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
-            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
-        req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
         n_old_vrs_exists_in_etcd(controller_id, vd, n),
-        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, replicas),
         local_state_match_etcd(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
-            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
-        exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
-        n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS,
+            and!(new_vrs_is_some_with_replicas(replicas), old_vrs_list_len(n)))]),
+        pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, vd.spec.replicas.unwrap_or(int1!())),
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
         new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
         local_state_match_etcd(vd, controller_id)
     );
@@ -417,35 +415,31 @@ ensures
         lift_action(cluster.next()),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
-    let input = Some(req_msg);
+    let input = (Some(resp_msg), Some(vd.object_ref()));
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
-                if msg == req_msg {
-                    let resp_msg = lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
+                lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                    VDeploymentReconcileState::marshal_preserves_integrity();
+                    // the request should carry the update of replicas, which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
-                    assert({
-                        &&& s_prime.in_flight().contains(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                    });
                 }
             },
             _ => {}
         }
     }
-    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input.get_Some_0();
-        let resp_msg = lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
-        // instantiate existential quantifier.
-        assert({
-            &&& s_prime.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        });
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
+        VDeploymentReconcileState::marshal_preserves_integrity();
     }
-    cluster.lemma_pre_leads_to_post_by_api_server(
-        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
     );
 }
 
@@ -617,6 +611,92 @@ ensures
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    n > 0,
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+            req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
+            n_old_vrs_exists_in_etcd(controller_id, vd, n),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
+        ))
+       .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+            exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
+            n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+            new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+            local_state_match_etcd(vd, controller_id)
+        )))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+        req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
+        n_old_vrs_exists_in_etcd(controller_id, vd, n),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+        exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
+        n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
+        new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!())),
+        local_state_match_etcd(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = Some(req_msg);
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                if msg == req_msg {
+                    let resp_msg = lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
+                    VReplicaSetView::marshal_preserves_integrity();
+                    assert({
+                        &&& s_prime.in_flight().contains(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                    });
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
+        let msg = input.get_Some_0();
+        let resp_msg = lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
+        // instantiate existential quantifier.
+        assert({
+            &&& s_prime.in_flight().contains(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        });
+    }
+    cluster.lemma_pre_leads_to_post_by_api_server(
+        spec, input, stronger_next, APIServerStep::HandleRequest, pre, post
     );
 }
 
