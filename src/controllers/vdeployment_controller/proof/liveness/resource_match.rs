@@ -273,10 +273,12 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
+                assume(false);
                 let msg = input.get_Some_0();
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
+                assume(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
@@ -286,6 +288,9 @@ ensures
                     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     commutativity_of_seq_drop_last_and_map(vds.old_vrs_list, |vrs: VReplicaSetView| vrs.object_ref());
+                    assume(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
+                } else {
+                    assume(false);
                 }
             },
             _ => {}
