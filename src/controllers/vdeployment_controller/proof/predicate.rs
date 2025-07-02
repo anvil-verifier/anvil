@@ -241,7 +241,7 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
 }
 
 // a weaker version of coherence between local cache and etcd
-// only need the key to be in etcd
+// only need the key to be in etcd and corresponding objects can pass the filter
 // this predicate holds since AfterEnsureNewVRS state
 pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
