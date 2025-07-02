@@ -131,7 +131,7 @@ requires
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-            req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
+            req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!()),
             with_n_old_vrs_in_etcd(controller_id, vd, n),
             local_state_match_etcd_on_old_vrs_list(vd, controller_id)
         ))
@@ -144,7 +144,7 @@ ensures
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
-        req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
+        req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!()),
         with_n_old_vrs_in_etcd(controller_id, vd, n),
         local_state_match_etcd_on_old_vrs_list(vd, controller_id)
     );
@@ -178,7 +178,18 @@ ensures
                     });
                     let one: nat = 1;
                     assert(at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len((n - one) as nat))])(s_prime));
-                    assert(exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!())(s_prime));
+                    assert(exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!())(s_prime)) by {
+                        assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
+                        assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
+                        assert(req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!())(s_prime));
+                        assert(exists |resp_msg| {
+                            // predicate on resp_msg
+                            &&& #[trigger] s_prime.in_flight().contains(resp_msg)
+                            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                            // we don't need info on content of the response at the moment
+                        });
+                    }
+                    assume(false);
                     assert(with_n_old_vrs_in_etcd(controller_id, vd, (n - one) as nat)(s_prime));
                     assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
                 }

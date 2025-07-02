@@ -25,7 +25,7 @@ pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
 ) -> (resp_msg: Message)
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_list_vrs_req(vd, msg),
+    req_msg_is_list_vrs_req(vd, controller_id, msg),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg == handle_list_request_msg(msg, s.api_server).1,
