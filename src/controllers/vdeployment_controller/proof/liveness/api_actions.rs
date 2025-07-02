@@ -51,6 +51,7 @@ ensures
         // if preconditions are met, the object is updated
         let req = msg.content.get_get_then_update_request();
         let new_obj = s_prime.resources()[req.key()];
+        &&& s_prime.resources().contains_key(req.key())
         &&& (s_prime.api_server, resp_msg) == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server)
         &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
         &&& new_obj == DynamicObjectView {

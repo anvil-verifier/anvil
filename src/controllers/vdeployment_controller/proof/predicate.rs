@@ -150,7 +150,7 @@ pub open spec fn req_msg_is_get_then_update_req_with_replicas(
         // Q: state.old_vrs_list does not contain the deleted vrs
         let key = request.key();
         let etcd_obj = s.resources()[key];
-        let req_vrs = VReplicaSetView::unmarshal(request.obj);
+        let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
@@ -158,6 +158,7 @@ pub open spec fn req_msg_is_get_then_update_req_with_replicas(
         &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
         &&& request.namespace == vd.metadata.namespace.unwrap()
         &&& request.owner_ref == vd.controller_owner_ref()
+        &&& VReplicaSetView::unmarshal(request.obj).is_ok()
         &&& s.resources().contains_key(key)
         // so this object will be in filter_old_and_new_vrs_on_etcd
         &&& etcd_obj.kind == VReplicaSetView::kind()
@@ -165,7 +166,8 @@ pub open spec fn req_msg_is_get_then_update_req_with_replicas(
         // can pass get_then_update check
         &&& etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())
         // step-specific update content
-        &&& req_vrs.unwrap().spec.replicas.unwrap_or(1) == n
+        &&& req_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
+        &&& req_vrs.spec.replicas.unwrap_or(1) == n
     }
 }
 
@@ -216,6 +218,7 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
             0 <= i < vds.old_vrs_list.len() ==> {
                 &&& #[trigger] vds.old_vrs_list[i].well_formed()
                 &&& #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+                &&& #[trigger] vds.old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
                 // obj in etcd exists and is owned by vd
                 &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
                 &&& s.resources()[vds.old_vrs_list[i].object_ref()].metadata.owner_references_contains(vd.controller_owner_ref())
