@@ -455,7 +455,7 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS,
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS,
                 and!(new_vrs_is_some_with_replicas(replicas), old_vrs_list_len(n)))]),
             req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, vd.spec.replicas.unwrap_or(int1!())),
             n_old_vrs_exists_in_etcd(controller_id, vd, n),
@@ -472,7 +472,7 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS,
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS,
             and!(new_vrs_is_some_with_replicas(replicas), old_vrs_list_len(n)))]),
         req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, vd.spec.replicas.unwrap_or(int1!())),
         n_old_vrs_exists_in_etcd(controller_id, vd, n),
