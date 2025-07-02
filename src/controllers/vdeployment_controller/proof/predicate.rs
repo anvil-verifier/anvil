@@ -154,7 +154,6 @@ pub open spec fn req_msg_is_get_then_update_req_with_replicas(
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         // Q: state.old_vrs_list does not contain the deleted vrs
         let key = request.key();
-        let etcd_obj = s.resources()[key];
         let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
@@ -165,11 +164,6 @@ pub open spec fn req_msg_is_get_then_update_req_with_replicas(
         &&& request.owner_ref == vd.controller_owner_ref()
         &&& VReplicaSetView::unmarshal(request.obj).is_ok()
         &&& s.resources().contains_key(key)
-        // so this object will be in filter_old_and_new_vrs_on_etcd
-        &&& etcd_obj.kind == VReplicaSetView::kind()
-        &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-        // can pass get_then_update check
-        &&& etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())
         // step-specific update content
         &&& req_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
         &&& req_vrs.spec.replicas.unwrap_or(1) == n
@@ -224,22 +218,23 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
             #![trigger vds.old_vrs_list[i]]
             //#![trigger filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap())]
             0 <= i < vds.old_vrs_list.len() ==> {
+            // the get-then-update request can succeed
             &&& #[trigger] vds.old_vrs_list[i].well_formed()
             &&& #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
             &&& #[trigger] vds.old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
-            //&&& ({
-            //    let etcd_obj = s.resources()[vds.old_vrs_list[i].object_ref()];
-            //    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
-            //    // can pass list_vrs_obj_filter
-            //    &&& etcd_obj.kind == VReplicaSetView::kind()
-            //    &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-            //    // can pass objects_to_vrs_list
-            //    &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
-            //    // can pass filter_old_and_new_vrs_on_etcd
-            //    &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
-            //})
+            &&& ({
+                let etcd_obj = s.resources()[vds.old_vrs_list[i].object_ref()];
+                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
+                // can pass list_vrs_obj_filter
+                &&& etcd_obj.kind == VReplicaSetView::kind()
+                &&& etcd_obj.metadata.namespace == vd.metadata.namespace
+                // can pass objects_to_vrs_list
+                &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
+                // can pass filter_old_and_new_vrs_on_etcd
+                &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
+            })
         }
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
     }
@@ -250,7 +245,28 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
 // this predicate holds since AfterEnsureNewVRS state
 pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        false
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        &&& vds.new_vrs.is_None() ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0.is_None()
+        &&& vds.new_vrs.is_Some() ==> {
+            let new_vrs = vds.new_vrs.get_Some_0();
+            // the get-then-update request can succeed
+            &&& #[trigger] new_vrs.well_formed()
+            &&& #[trigger] new_vrs.metadata.namespace == vd.metadata.namespace
+            &&& #[trigger] new_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
+            // obj in etcd exists and is owned by vd
+            &&& s.resources().contains_key(new_vrs.object_ref())
+            &&& ({
+                let etcd_obj = s.resources()[new_vrs.object_ref()];
+                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
+                // can pass list_vrs_obj_filter
+                &&& etcd_obj.kind == VReplicaSetView::kind()
+                &&& etcd_obj.metadata.namespace == vd.metadata.namespace
+                // can pass objects_to_vrs_list
+                &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
+                // can pass filter_old_and_new_vrs_on_etcd
+                &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(etcd_vrs)
+            })
+        }
     }
 }
 
