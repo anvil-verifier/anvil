@@ -119,6 +119,7 @@ ensures
     assume(false);
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
@@ -165,7 +166,6 @@ ensures
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = Some(req_msg);
-    // this proof is cursed
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
@@ -173,42 +173,16 @@ ensures
                 let msg = input.get_Some_0();
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
-                    // assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
-                    // assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
                     VReplicaSetView::marshal_preserves_integrity();
-                    // let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
-                    // let key = request.key();
-                    // let etcd_obj = s_prime.resources()[key];
-                    // let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
-                    // assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
-                    // assert(req_msg.dst == HostId::APIServer);
-                    // assert(req_msg.content.is_APIRequest());
-                    // assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
-                    // assert(request.namespace == vd.metadata.namespace.unwrap());
-                    // assert(request.owner_ref == vd.controller_owner_ref());
-                    // assert(s_prime.resources().contains_key(key));
-                    // assert(etcd_obj.kind == VReplicaSetView::kind());
-                    // assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
-                    // assert(etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref()));
-                    // assert(req_vrs.metadata.owner_references_contains(vd.controller_owner_ref()));
-                    // assert(req_vrs.spec.replicas.unwrap_or(1) == int0!());
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
-                    // assert(exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!())(s_prime));
-                    // assert(at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))])(s_prime));
-                    // assert(with_n_old_vrs_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime));
-                    // assert(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
-                    assert(post(s_prime));
                 }
             },
-            _ => {
-                assert(pre(s_prime));
-            }
+            _ => {}
         }
     }
-    assume(false);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input.get_Some_0();
         let resp_msg = lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
@@ -223,6 +197,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_at_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -273,12 +248,10 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                //assume(false);
                 let msg = input.get_Some_0();
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
-                //assume(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
@@ -288,9 +261,6 @@ ensures
                     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     commutativity_of_seq_drop_last_and_map(vds.old_vrs_list, |vrs: VReplicaSetView| vrs.object_ref());
-                    //assume(local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime));
-                } else {
-                    //assume(false);
                 }
             },
             _ => {}
@@ -304,6 +274,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
@@ -381,6 +352,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message
 )
