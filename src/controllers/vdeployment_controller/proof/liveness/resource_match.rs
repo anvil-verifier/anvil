@@ -45,7 +45,7 @@ ensures
     // send list req ~> exists |msg| msg_is_list_req(msg)
     // just to make verus happy with trigger on macro
     let list_req = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), pending_list_req_in_flight(vd, controller_id)));
-    let msg_is_list_req = |msg| lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, msg)));
+    let msg_is_list_req = |msg| lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_pending_list_req_in_flight(vd, controller_id, msg)));
     assert(spec.entails(list_req.leads_to(tla_exists(|msg| msg_is_list_req(msg))))) by {
         assert forall |ex| #[trigger] list_req.satisfied_by(ex) implies
             tla_exists(|msg| msg_is_list_req(msg)).satisfied_by(ex) by {
@@ -141,12 +141,12 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)))
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)))
        .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), exists_pending_list_resp_in_flight_and_match_req(vd, controller_id))))),
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
-        req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)
+        req_msg_is_pending_list_req_in_flight(vd, controller_id, req_msg)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
@@ -288,7 +288,7 @@ ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS,
                 and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
-            req_msg_is_the_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg),
+            req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg),
             n_old_vrs_exists_in_etcd(controller_id, vd, n),
             no_new_vrs_exists_in_etcd(controller_id, vd),
             local_state_match_etcd(vd, controller_id)
@@ -305,7 +305,7 @@ ensures
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS,
             and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
-        req_msg_is_the_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg),
+        req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg),
         n_old_vrs_exists_in_etcd(controller_id, vd, n),
         no_new_vrs_exists_in_etcd(controller_id, vd),
         local_state_match_etcd(vd, controller_id)
