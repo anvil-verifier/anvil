@@ -47,7 +47,7 @@ requires
     with_n_old_vrs_in_etcd(controller_id, vd, n)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
-    resp_msg_is_ok_get_then_update_resp(s_prime, vd, resp_msg),
+    resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!())(s_prime),
     ({
         // if preconditions are met, the object is updated
         let req = msg.content.get_get_then_update_request();

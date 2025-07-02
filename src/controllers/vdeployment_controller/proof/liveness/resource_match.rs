@@ -223,6 +223,82 @@ ensures
     );
 }
 
+pub proof fn lemma_from_at_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    n > 0
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+            resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!()),
+            with_n_old_vrs_in_etcd(controller_id, vd, n),
+            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        ))
+       .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+            pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
+            with_n_old_vrs_in_etcd(controller_id, vd, n),
+            local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+        )))),
+{
+    let pre = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n))]),
+        resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!()),
+        with_n_old_vrs_in_etcd(controller_id, vd, n),
+        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+    );
+    let post = and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, old_vrs_list_len(n - nat1!()))]),
+        pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
+        with_n_old_vrs_in_etcd(controller_id, vd, n),
+        local_state_match_etcd_on_old_vrs_list(vd, controller_id)
+    );
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+    };
+    combine_spec_entails_always_n!(spec,
+        lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+    );
+    let input = (Some(resp_msg), Some(vd.object_ref()));
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(input) => {
+                let msg = input.get_Some_0();
+                lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+            },
+            Step::ControllerStep(input) => {
+                if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
+                    VDeploymentReconcileState::marshal_preserves_integrity();
+                    // the request should carry the update of replicas, which requires reasoning over unmarshalling vrs
+                    VReplicaSetView::marshal_preserves_integrity();
+                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    commutativity_of_seq_drop_last_and_map(vds.old_vrs_list, |vrs: VReplicaSetView| vrs.object_ref());
+                }
+            },
+            _ => {}
+        }
+    }
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
+        VDeploymentReconcileState::marshal_preserves_integrity();
+    }
+    cluster.lemma_pre_leads_to_post_by_controller(
+        spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
+    );
+}
+
 pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )

@@ -119,11 +119,16 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
 }
 
 // TODO: it's possible to eliminate resp_msg here as it can be crafted from req
-pub open spec fn resp_msg_is_ok_get_then_update_resp(s: ClusterState, vd: VDeploymentView, resp_msg: Message) -> bool {
-    // predicate on req_msg, it's not in_flight
-    // predicate on resp_msg
-    &&& resp_msg.content.is_get_then_update_response()
-    &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+pub open spec fn resp_msg_is_ok_get_then_update_resp_with_replicas(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, n: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, n)(s)
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+    }
 }
 
 pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_with_replicas(
