@@ -62,7 +62,7 @@ pub open spec fn pending_list_req_in_flight(vd: VDeploymentView, controller_id: 
     }
 }
 
-pub open spec fn req_msg_is_the_pending_list_req_in_flight(vd: VDeploymentView, controller_id: int, req_msg: Message,) -> StatePred<ClusterState> {
+pub open spec fn req_msg_is_pending_list_req_in_flight(vd: VDeploymentView, controller_id: int, req_msg: Message,) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
@@ -143,7 +143,7 @@ pub open spec fn pending_create_new_vrs_req_in_flight(
     }
 }
 
-pub open spec fn req_msg_is_the_pending_create_new_vrs_req_in_flight(
+pub open spec fn req_msg_is_pending_create_new_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {

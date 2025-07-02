@@ -42,7 +42,7 @@ pub proof fn lemma_create_new_vrs_request_returns_ok_at_after_ensure_new_vrs(
 ) -> (resp_msg: Message)
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_the_pending_create_new_vrs_req_in_flight(vd, controller_id, msg)(s),
+    req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
     no_new_vrs_exists_in_etcd(controller_id, vd)(s),
