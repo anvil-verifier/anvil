@@ -118,6 +118,12 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
 
+pub open spec fn pending_create_new_vrs_req_in_flight(
+    vd: VDeploymentView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| false
+}
+
 // TODO: it's possible to eliminate resp_msg here as it can be crafted from req
 pub open spec fn resp_msg_is_ok_get_then_update_resp_with_replicas(
     vd: VDeploymentView, controller_id: int, resp_msg: Message, n: int
@@ -208,15 +214,12 @@ pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
 
 // a weaker version of coherence between local cache and etcd
 // - only need the key to be in etcd and corresponding objects can pass the filter
-// - so if that object is scaled down, the count of old_vrs in etcd will decrease
+// - so current_state_matches can be reached by sending get-then-update request
 // this predicate holds since AfterListVRS state
-pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn local_state_match_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        // &&& (vds.new_vrs, vds.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
-        &&& forall |i|
-            //#![trigger filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap())]
-            0 <= i < vds.old_vrs_list.len() ==> {
+        &&& forall |i| 0 <= i < vds.old_vrs_list.len() ==> {
             // the get-then-update request can succeed
             &&& #[trigger] vds.old_vrs_list[i].well_formed()
             &&& #[trigger] vds.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
@@ -236,15 +239,7 @@ pub open spec fn local_state_match_etcd_on_old_vrs_list(vd: VDeploymentView, con
             })
         }
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
-    }
-}
-
-// a weaker version of coherence between local cache and etcd
-// only need the key to be in etcd and corresponding objects can pass the filter
-// this predicate holds since AfterEnsureNewVRS state
-pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        // new vrs
         &&& vds.new_vrs.is_None() ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0.is_None()
         &&& vds.new_vrs.is_Some() ==> {
             let new_vrs = vds.new_vrs.get_Some_0();
@@ -269,17 +264,40 @@ pub open spec fn local_state_match_etcd_on_new_vrs(vd: VDeploymentView, controll
     }
 }
 
-pub open spec fn with_n_old_vrs_in_etcd(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
+pub open spec fn no_new_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
-        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& objects_to_vrs_list(objs).is_Some()
-        &&& old_vrs_list.len() == n
+        &&& new_vrs.is_None()
+    }
+}
+
+pub open spec fn new_vrs_with_replicas_exists_in_etcd(controller_id: int, vd: VDeploymentView, n: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
+        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& objects_to_vrs_list(objs).is_Some()
         &&& new_vrs.is_Some()
         &&& match_template_without_hash(vd, new_vrs.get_Some_0())
-        &&& match_replicas(vd, new_vrs.get_Some_0())
+        &&& new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
+    }
+}
+
+pub open spec fn n_old_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
+        let (_, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& objects_to_vrs_list(objs).is_Some()
+        &&& old_vrs_list.len() == n
     }
 } 
+
+pub open spec fn new_vrs_is_some_with_replicas(n: int) -> spec_fn(VDeploymentReconcileState) -> bool {
+    |vds: VDeploymentReconcileState| {
+        vds.new_vrs.is_Some() && vds.new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
+    }
+}
 
 pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
     |vds: VDeploymentReconcileState| {
@@ -460,9 +478,17 @@ macro_rules! int0 {
     };
 }
 
+#[macro_export]
+macro_rules! int1 {
+    () => {
+        spec_literal_int("1")
+    };
+}
+
 pub use nat0;
 pub use nat1;
 pub use int0;
+pub use int1;
 pub use at_step_or_internal;
 pub use at_step_or;
 pub use at_step;

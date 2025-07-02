@@ -44,7 +44,8 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     req_msg_is_get_then_update_req_with_replicas(vd, controller_id, msg, int0!())(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    with_n_old_vrs_in_etcd(controller_id, vd, n)(s),
+    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
+    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!())(s_prime),
@@ -64,7 +65,8 @@ ensures
                 ..req.obj
         }
     }),
-    with_n_old_vrs_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime),
+    n_old_vrs_exists_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime),
+    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
@@ -86,10 +88,6 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()),
-    // TODO: find a place for this post condition which holds since AfterListVRS state
-    local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s) == local_state_match_etcd_on_old_vrs_list(vd, controller_id)(s_prime),
-    // TODO: find a place for this post condition which holds since AfterEnsureNewVRS state
-    local_state_match_etcd_on_new_vrs(vd, controller_id)(s) == local_state_match_etcd_on_new_vrs(vd, controller_id)(s_prime),
 {}
 
 }
