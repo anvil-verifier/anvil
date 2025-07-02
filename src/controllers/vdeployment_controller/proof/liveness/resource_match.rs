@@ -30,8 +30,8 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![Init]), no_pending_req_in_cluster(vd, controller_id)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![Done]), current_state_matches(vd))))),
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Done]), current_state_matches(vd))))),
 {
     let inv = {
         &&& spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))
@@ -40,12 +40,12 @@ ensures
         &&& spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
     };
     // init ~> send list req
-    let init = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![Init]), no_pending_req_in_cluster(vd, controller_id)));
+    let init = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)));
     lemma_from_init_step_to_send_list_vrs_req(vd, spec, cluster, controller_id);
     // send list req ~> exists |msg| msg_is_list_req(msg)
     // just to make verus happy with trigger on macro
-    let list_req = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), pending_list_req_in_flight(vd, controller_id)));
-    let msg_is_list_req = |msg| lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, msg)));
+    let list_req = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), pending_list_req_in_flight(vd, controller_id)));
+    let msg_is_list_req = |msg| lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, msg)));
     assert(spec.entails(list_req.leads_to(tla_exists(|msg| msg_is_list_req(msg))))) by {
         assert forall |ex| #[trigger] list_req.satisfied_by(ex) implies
             tla_exists(|msg| msg_is_list_req(msg)).satisfied_by(ex) by {
@@ -56,14 +56,14 @@ ensures
     }
     // forall |msg| msg_is_list_req(msg) ~> exists_pending_list_resp_in_flight_and_match_req
     let exists_list_resp = lift_state(and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
     ));
     assert forall |req_msg: Message| inv implies #[trigger] spec.entails(msg_is_list_req(req_msg).leads_to(exists_list_resp)) by {
         lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(vd, spec, cluster, controller_id, req_msg);
     };
     let msg_is_list_resp = |msg| lift_state(and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)
     ));
     leads_to_exists_intro(spec, |req_msg| msg_is_list_req(req_msg), exists_list_resp);
@@ -102,16 +102,16 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![Init]), no_pending_req_in_cluster(vd, controller_id)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), pending_list_req_in_flight(vd, controller_id))))),
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), pending_list_req_in_flight(vd, controller_id))))),
 {
     VDeploymentReconcileState::marshal_preserves_integrity();
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![Init]),
+        at_vd_step_with_vd(vd, controller_id, at_step![Init]),
         no_pending_req_in_cluster(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         pending_list_req_in_flight(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
@@ -141,15 +141,15 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]), exists_pending_list_resp_in_flight_and_match_req(vd, controller_id))))),
+    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)))
+       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), exists_pending_list_resp_in_flight_and_match_req(vd, controller_id))))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         req_msg_is_the_pending_list_req_in_flight(vd, controller_id, req_msg)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
@@ -212,14 +212,14 @@ requires
     n > 0,
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![AfterListVRS]),
+            at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
             resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
             n_old_vrs_exists_in_etcd(controller_id, vd, n),
             no_new_vrs_exists_in_etcd(controller_id, vd),
             local_state_match_etcd(vd, controller_id)
         ))
         .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterEnsureNewVRS,
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
                 and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             pending_create_new_vrs_req_in_flight(vd, controller_id),
             n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
@@ -243,7 +243,7 @@ requires
     n > 0,
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
                 and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
             n_old_vrs_exists_in_etcd(controller_id, vd, n),
@@ -251,7 +251,7 @@ ensures
             local_state_match_etcd(vd, controller_id)
         ))
        .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
                 and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
             exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
             n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
@@ -260,7 +260,7 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
             and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
         req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, req_msg, int0!()),
         n_old_vrs_exists_in_etcd(controller_id, vd, n),
@@ -268,7 +268,7 @@ ensures
         local_state_match_etcd(vd, controller_id)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step_or![(AfterScaleDownOldVRS,
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
             and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
         exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
         n_old_vrs_exists_in_etcd(controller_id, vd, n - nat1!()),
