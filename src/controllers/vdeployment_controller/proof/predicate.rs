@@ -329,6 +329,27 @@ pub open spec fn local_state_match_etcd(vd: VDeploymentView, controller_id: int)
     }
 }
 
+// new_vrs_replicas is Some(x) -> new vrs exists and has replicas = x; else new vrs does not exist
+pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_replicas: Option<int>, old_vrs_list_len: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
+        let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+        &&& objects_to_vrs_list(objs).is_Some()
+        &&& old_vrs_list.len() == old_vrs_list_len
+        &&& match new_vrs_replicas {
+            Some(n) => {
+                &&& new_vrs.is_Some()
+                &&& new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
+                &&& match_template_without_hash(vd, new_vrs.get_Some_0())
+            },
+            None => {
+                new_vrs.is_None()
+            }
+        }
+    }
+}
+
+// TODO: remove these predicates and switch to etcd_state_is
 pub open spec fn no_new_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
@@ -358,6 +379,20 @@ pub open spec fn n_old_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentVie
     }
 } 
 
+pub open spec fn local_state_is(new_vrs_replicas: Option<int>, old_vrs_list_len: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
+    |vds: VDeploymentReconcileState| {
+        &&& match new_vrs_replicas {
+            Some(n) => {
+                &&& vds.new_vrs.is_Some()
+                &&& vds.new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
+            }
+            None => vds.new_vrs.is_None()
+        }
+        &&& vds.old_vrs_list.len() == old_vrs_list_len
+    }
+}
+
+// TODO: remove these predicates and switch to local_state_is
 pub open spec fn new_vrs_is_some_with_replicas(n: int) -> spec_fn(VDeploymentReconcileState) -> bool {
     |vds: VDeploymentReconcileState| {
         vds.new_vrs.is_Some() && vds.new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
