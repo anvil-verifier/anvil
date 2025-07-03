@@ -349,27 +349,6 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_
     }
 }
 
-// TODO: remove these predicates and switch to etcd_state_is
-pub open spec fn no_new_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
-        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& objects_to_vrs_list(objs).is_Some()
-        &&& new_vrs.is_None()
-    }
-}
-
-pub open spec fn new_vrs_with_replicas_exists_in_etcd(controller_id: int, vd: VDeploymentView, n: int) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
-        let (new_vrs, _) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& objects_to_vrs_list(objs).is_Some()
-        &&& new_vrs.is_Some()
-        &&& match_template_without_hash(vd, new_vrs.get_Some_0())
-        &&& new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
-    }
-}
-
 pub open spec fn n_old_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
