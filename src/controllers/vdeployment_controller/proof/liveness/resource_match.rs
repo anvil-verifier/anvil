@@ -89,6 +89,25 @@ ensures
         exists_list_resp,
         tla_exists(|msg| msg_is_list_resp(msg))
     );
+    let msg_is_list_resp_with_etcd_state = |msg: Message, replicas_or_not_exist: Option<int>, n: nat| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
+        resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg),
+        etcd_state_is(vd, controller_id, replicas_or_not_exist, n),
+        local_state_match_etcd(vd, controller_id)
+    ));
+    assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(msg_is_list_resp(msg).leads_to(
+        tla_exists(|i: (Option<int>, nat)| msg_is_list_resp_with_etcd_state(msg, i.0, i.1)))) by {
+        assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] msg_is_list_resp(msg).satisfied_by(ex) implies
+            tla_exists(|i: (Option<int>, nat)| msg_is_list_resp_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
+            let s = ex.head();
+            let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| etcd_state_is(vd, controller_id, i.0, i.1)(s);
+            tla_exists_proved_by_witness(
+                ex,
+                |i: (Option<int>, nat)| msg_is_list_resp_with_etcd_state(msg, i.0, i.1),
+                (replicas_or_not_exist, n)
+            );
+        }
+    }
     assume(false);
 }
 
@@ -199,7 +218,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -261,8 +279,8 @@ ensures
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let vrsl_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert((vrsl_prime.new_vrs, vrsl_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
+                    let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
                         assert(resp_msg.content.is_list_response());
@@ -271,6 +289,7 @@ ensures
                         assert(resp_objs.no_duplicates());
                         assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
                         assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                        assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list)));
                     }
                 }
             },
