@@ -299,6 +299,75 @@ pub open spec fn no_pending_mutation_request_not_from_controller_on_vrs_objects(
     }
 }
 
+pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        forall |key: ObjectRef|
+            #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
+            ==> {
+                let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
+                let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
+                let new_vrs = state.new_vrs.unwrap();
+                let old_vrs_list = state.old_vrs_list;
+                &&& triggering_cr.object_ref() == key
+                &&& triggering_cr.metadata().well_formed_for_namespaced()
+                &&& forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() ==>
+                    (
+                        old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                        && old_vrs_list[i].metadata.owner_references_contains(
+                            triggering_cr.controller_owner_ref()
+                        )
+                    )
+                &&& state.new_vrs.is_Some()
+                    ==> (new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                        && new_vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref()))
+                // Special case: a stronger property implying the above property
+                // after filtering holds on a list response to the
+                // appropriate request. 
+                &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
+                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.content.is_list_request()
+                    &&& req_msg.content.get_list_request() == ListRequest {
+                        kind: VReplicaSetView::kind(),
+                        namespace: triggering_cr.metadata.namespace.unwrap(),
+                    }
+                    &&& forall |msg| {
+                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                        &&& msg.src.is_APIServer()
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& is_ok_resp(msg.content.get_APIResponse_0())
+                    } ==> {
+                        let resp_objs = msg.content.get_list_response().res.unwrap();
+                        &&& msg.content.is_list_response()
+                        &&& msg.content.get_list_response().res.is_Ok()
+                        &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
+                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
+                        (
+                            resp_objs[i].metadata.namespace.is_some()
+                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                            && ((s.resources().contains_key(resp_objs[i].object_ref())
+                                    && s.resources()[resp_objs[i].object_ref()].metadata.resource_version
+                                    == resp_objs[i].metadata.resource_version) ==> 
+                                    s.resources()[resp_objs[i].object_ref()].metadata
+                                        == resp_objs[i].metadata)
+                            && resp_objs[i].metadata.resource_version.is_some()
+                            && resp_objs[i].metadata.resource_version.unwrap()
+                                    < s.api_server.resource_version_counter
+                        )
+                    }
+                }
+            }
+    }
+}
+//
+// TODO: See if we can split up this invariant into smaller ones.
+// Both parts are necessary outside of this proof, but maybe for presentation purposes it 
+// would be better to split them.
+//
+
 pub open spec fn every_msg_from_vd_controller_carries_vd_key(
     controller_id: int,
 ) -> StatePred<ClusterState> {
