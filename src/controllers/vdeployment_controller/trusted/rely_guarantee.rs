@@ -173,6 +173,7 @@ pub open spec fn vd_guarantee(controller_id: int) -> StatePred<ClusterState> {
             &&& msg.content.is_APIRequest()
             &&& msg.src.is_controller_id(controller_id)
         } ==> match msg.content.get_APIRequest_0() {
+            APIRequest::ListRequest(_) => true,
             APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s),
             APIRequest::GetThenUpdateRequest(req) => vd_guarantee_get_then_update_req(req)(s),
             APIRequest::GetThenDeleteRequest(req) => vd_guarantee_get_then_delete_req(req)(s),
