@@ -44,13 +44,11 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
-    no_new_vrs_exists_in_etcd(controller_id, vd)(s),
+    etcd_state_is(vd, controller_id, None, n)(s),
 ensures
     resp_msg == handle_create_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
-    n_old_vrs_exists_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime),
-    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
+    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime),
 {
     return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
@@ -64,13 +62,11 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     req_msg_is_get_then_update_req_with_replicas(vd, controller_id, msg, vd.spec.replicas.unwrap_or(int1!()))(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
-    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, replicas)(s),
+    etcd_state_is(vd, controller_id, Some(replicas), n)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, replicas)(s_prime),
-    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s_prime),
-    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
+    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
@@ -84,13 +80,11 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     req_msg_is_get_then_update_req_with_replicas(vd, controller_id, msg, int0!())(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    n_old_vrs_exists_in_etcd(controller_id, vd, n)(s),
-    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s),
+    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!())(s_prime),
-    n_old_vrs_exists_in_etcd(controller_id, vd, (n - nat1!()) as nat)(s_prime),
-    new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime),
+    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), (n - nat1!()) as nat)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
