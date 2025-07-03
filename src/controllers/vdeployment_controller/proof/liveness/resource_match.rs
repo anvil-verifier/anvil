@@ -92,15 +92,14 @@ ensures
     let msg_is_list_resp_with_etcd_state = |msg: Message, replicas_or_not_exist: Option<int>, n: nat| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg),
-        etcd_state_is(vd, controller_id, replicas_or_not_exist, n),
-        local_state_match_etcd(vd, controller_id)
+        etcd_state_is(vd, controller_id, replicas_or_not_exist, n)
     ));
     assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(msg_is_list_resp(msg).leads_to(
         tla_exists(|i: (Option<int>, nat)| msg_is_list_resp_with_etcd_state(msg, i.0, i.1)))) by {
         assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] msg_is_list_resp(msg).satisfied_by(ex) implies
             tla_exists(|i: (Option<int>, nat)| msg_is_list_resp_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
             let s = ex.head();
-            let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| etcd_state_is(vd, controller_id, i.0, i.1)(s);
+            let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| #[trigger] etcd_state_is(vd, controller_id, i.0, i.1)(s);
             tla_exists_proved_by_witness(
                 ex,
                 |i: (Option<int>, nat)| msg_is_list_resp_with_etcd_state(msg, i.0, i.1),
@@ -232,8 +231,7 @@ ensures
             // at this stage there's no local cache available
             at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
             resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
-            local_state_match_etcd(vd, controller_id)
+            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)
         ))
         .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -246,8 +244,7 @@ ensures
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
-        local_state_match_etcd(vd, controller_id)
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -320,8 +317,7 @@ ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
             resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            etcd_state_is(vd, controller_id, None, n),
-            local_state_match_etcd(vd, controller_id)
+            etcd_state_is(vd, controller_id, None, n)
         ))
         .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS,
@@ -637,8 +633,7 @@ ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
             resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-            etcd_state_is(vd, controller_id, Some(replicas), n),
-            local_state_match_etcd(vd, controller_id)
+            etcd_state_is(vd, controller_id, Some(replicas), n)
         ))
         .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS,
