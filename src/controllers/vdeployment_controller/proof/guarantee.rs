@@ -7,7 +7,9 @@ use crate::vdeployment_controller::{
     proof::helper_invariants,
     trusted::{
         rely_guarantee::*,
-        spec_types::*, 
+        spec_types::*,
+        step::*,
+        util::*,
     },
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
@@ -16,9 +18,6 @@ use vstd::prelude::*;
 
 verus! {
 
-// TODO: finish proof; proof in progress.
-#[verifier(external_body)]
-#[verifier(rlimit(100))]
 pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int)
     requires
         spec.entails(lift_state(cluster.init())),
@@ -43,15 +42,19 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         &&& cluster.next()(s, s_prime)
         &&& Cluster::there_is_the_controller_state(controller_id)(s)
         &&& helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
+        &&& helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
         &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s)
         &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
         &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
     };
 
+    always_to_always_later(spec, lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
+
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next), lift_action(cluster.next()),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
+        later(lift_state(helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
         lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
         lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
         lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed())
@@ -101,57 +104,29 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     if id == controller_id {
                         let new_msgs = s_prime.in_flight().sub(s.in_flight());
                         if new_msgs.contains(msg) && msg.content.is_get_then_update_request() {
-                            assert(s_prime.ongoing_reconciles(controller_id)[cr_key].pending_req_msg.unwrap() == msg);
                             let req = msg.content.get_get_then_update_request();
                             let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();    
 
-                            assert(req.owner_ref == triggering_cr.controller_owner_ref());
+                            if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
+                                let list_resp = resp_msg_opt.unwrap().content.get_list_response();
+                                let objs = list_resp.res.unwrap();
+                                let vrs_list_or_none = objects_to_vrs_list(objs);
+                                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, filter_vrs_list(triggering_cr, vrs_list_or_none->0));
 
-                            if state.new_vrs is Some && state.old_vrs_list.len() > 0 {
-                                let old_vrs = state.old_vrs_list.last();
-                                let updated_vrs = VReplicaSetView {
-                                    spec: VReplicaSetSpecView {
-                                        replicas: Some(0 as int),
-                                        ..old_vrs.spec
-                                    },
-                                    ..old_vrs
-                                };
-                                assert(req.obj == updated_vrs.marshal()
-                                    || req.obj == state.new_vrs.unwrap().marshal());
-                            } else if state.old_vrs_list.len() > 0 {
-                                let old_vrs = state.old_vrs_list.last();
-                                let updated_vrs = VReplicaSetView {
-                                    spec: VReplicaSetSpecView {
-                                        replicas: Some(0 as int),
-                                        ..old_vrs.spec
-                                    },
-                                    ..old_vrs
-                                };
-                                assert(req.obj == updated_vrs.marshal());
-                            } else if state.new_vrs is Some {
-                                assert(req.obj == state.new_vrs.unwrap().marshal());
+                                // idea: sidestep an explicit proof that the message we send is owned by triggering_cr
+                                // by applying the invariant `vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd`
+                                // to s_prime.
+                                if new_vrs is Some && !match_replicas(triggering_cr, new_vrs->0) {
+                                    let state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                                    // we need this to trigger the invariant on the post-state.
+                                    assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
+                                }
                             }
+                            assert(req.owner_ref == triggering_cr.controller_owner_ref());
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
-                            assert(exists |vd: VDeploymentView| 
-                                req.owner_ref == #[trigger] vd.controller_owner_ref()
-                                && req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
-                            );
                         }
                     }
-
-                    
-    //                  assert(match msg.content.get_APIRequest_0() {
-    //                 APIRequest::ListRequest(_) => true,
-    //                 APIRequest::CreateRequest(req) => vd_guarantee_create_req(req)(s_prime),
-    //                 APIRequest::GetThenUpdateRequest(req) => {
-    //     &&& req.obj.kind == VReplicaSetView::kind()
-    //     &&& exists |vd: VDeploymentView|
-    //         req.owner_ref == #[trigger] vd.controller_owner_ref()
-    //         && req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
-    // },
-    //                 _ => false, 
-    //             });
                 }
             }
             _ => {
