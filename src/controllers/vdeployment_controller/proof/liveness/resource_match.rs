@@ -1009,6 +1009,7 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     n > 0
 ensures
     spec.entails(lift_state(and!(
@@ -1055,19 +1056,19 @@ ensures
         local_state_match_etcd(vd, controller_id)
     ));
     assert forall |resp_msg: Message| n > 0 implies #[trigger]
-        spec.entails(scale_resp_msg(resp_msg, n).leads_to(scale_req(n - nat1!()))) by {
+        spec.entails(scale_resp_msg(resp_msg, n).leads_to(scale_req(n))) by {
         lemma_from_at_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
             vd, spec, cluster, controller_id, resp_msg, n
         );
     }
     assert forall |req_msg: Message| n > 0 implies #[trigger]
-        spec.entails(scale_req_msg(req_msg, n).leads_to(scale_resp(n - nat1!()))) by {
+        spec.entails(scale_req_msg(req_msg, n).leads_to(scale_resp((n - 1) as nat))) by {
         lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
             vd, spec, cluster, controller_id, req_msg, n
         );
     }
     leads_to_exists_intro(spec, |resp_msg: Message| scale_resp_msg(resp_msg, n), scale_req(n));
-    leads_to_exists_intro(spec, |req_msg: Message| scale_req_msg(req_msg, n), scale_resp(n - nat1!()));
+    leads_to_exists_intro(spec, |req_msg: Message| scale_req_msg(req_msg, n), scale_resp((n - 1) as nat));
     assert(spec.entails(scale_req(n).leads_to(tla_exists(|req_msg: Message| scale_req_msg(req_msg, n))))) by {
         assert forall |ex| #[trigger] scale_req(n).satisfied_by(ex) implies
             tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)).satisfied_by(ex) by {
@@ -1087,15 +1088,16 @@ ensures
                 &&& resp_msg.content.is_get_then_update_response()
                 &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
             };
+            tla_exists_proved_by_witness(ex, |resp_msg| scale_resp_msg(resp_msg, n), resp_msg);
         }
         entails_implies_leads_to(spec, scale_resp(n), tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)));
     }
     leads_to_trans_n!(spec,
         scale_resp(n),
         tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)),
-        scale_req(n - nat1!()),
-        tla_exists(|req_msg: Message| scale_req_msg(req_msg, n - nat1!())),
-        scale_resp(n - nat1!())
+        scale_req(n),
+        tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)),
+        scale_resp((n - 1) as nat)
     );
 }
 
