@@ -1000,6 +1000,105 @@ ensures
     );
 }
 
+pub proof fn lemma_from_n_to_n_minus_one_on_old_vrs_len(
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    n > 0
+ensures
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
+            exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
+            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
+            local_state_match_etcd(vd, controller_id)
+        ))
+       .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+                and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+            exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
+            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()),
+            local_state_match_etcd(vd, controller_id)
+        )))),
+{
+    let scale_resp = |n: nat| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
+        exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, int0!()),
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
+        local_state_match_etcd(vd, controller_id)
+    ));
+    let scale_resp_msg = |msg: Message, n: nat| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n)))]),
+        resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, msg, int0!()),
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
+        local_state_match_etcd(vd, controller_id)
+    ));
+    let scale_req = |n: nat| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+        pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
+        local_state_match_etcd(vd, controller_id)
+    ));
+    let scale_req_msg = |msg: Message, n: nat| lift_state(and!(
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS,
+            and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(n - nat1!())))]),
+        req_msg_is_pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, msg, int0!()),
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
+        local_state_match_etcd(vd, controller_id)
+    ));
+    assert forall |resp_msg: Message| n > 0 implies #[trigger]
+        spec.entails(scale_resp_msg(resp_msg, n).leads_to(scale_req(n - nat1!()))) by {
+        lemma_from_at_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
+            vd, spec, cluster, controller_id, resp_msg, n
+        );
+    }
+    assert forall |req_msg: Message| n > 0 implies #[trigger]
+        spec.entails(scale_req_msg(req_msg, n).leads_to(scale_resp(n - nat1!()))) by {
+        lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
+            vd, spec, cluster, controller_id, req_msg, n
+        );
+    }
+    leads_to_exists_intro(spec, |resp_msg: Message| scale_resp_msg(resp_msg, n), scale_req(n));
+    leads_to_exists_intro(spec, |req_msg: Message| scale_req_msg(req_msg, n), scale_resp(n - nat1!()));
+    assert(spec.entails(scale_req(n).leads_to(tla_exists(|req_msg: Message| scale_req_msg(req_msg, n))))) by {
+        assert forall |ex| #[trigger] scale_req(n).satisfied_by(ex) implies
+            tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)).satisfied_by(ex) by {
+            let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+            tla_exists_proved_by_witness(ex, |req_msg| scale_req_msg(req_msg, n), req_msg);
+        }
+        entails_implies_leads_to(spec, scale_req(n), tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)));
+    }
+    assert(spec.entails(scale_resp(n).leads_to(tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n))))) by {
+        assert forall |ex| #[trigger] scale_resp(n).satisfied_by(ex) implies
+            tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)).satisfied_by(ex) by {
+            let s = ex.head();
+            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+            let resp_msg = choose |resp_msg| {
+                &&& #[trigger] s.in_flight().contains(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& resp_msg.content.is_get_then_update_response()
+                &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+            };
+        }
+        entails_implies_leads_to(spec, scale_resp(n), tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)));
+    }
+    leads_to_trans_n!(spec,
+        scale_resp(n),
+        tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)),
+        scale_req(n - nat1!()),
+        tla_exists(|req_msg: Message| scale_req_msg(req_msg, n - nat1!())),
+        scale_resp(n - nat1!())
+    );
+}
+
 pub proof fn lemma_from_old_vrs_len_zero_at_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
