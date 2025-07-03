@@ -95,7 +95,12 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                             // scale new vrs to desired replicas
                             scale_new_vrs(new_vrs, old_vrs_list, vd)
                         } else {
-                            (new_vrs_ensured_state(state), None)
+                            let state = VDeploymentReconcileState {
+                                reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
+                                new_vrs: Some(new_vrs),
+                                old_vrs_list: old_vrs_list,
+                            };
+                            (state, None)
                         }
                     }
                 }
