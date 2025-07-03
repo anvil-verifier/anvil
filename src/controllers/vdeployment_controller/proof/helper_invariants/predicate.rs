@@ -242,6 +242,7 @@ pub open spec fn vd_reconcile_request_only_interferes_with_itself(
     }
 }
 
+// TODO: rethink the below pair of invariants (which rely on each other for proof).
 pub open spec fn no_pending_interfering_update_request() -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
