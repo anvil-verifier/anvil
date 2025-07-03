@@ -89,7 +89,7 @@ ensures
         spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(zero)
     );
     // 0 ~> Done | Error ~> idle
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)] at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero))](s)
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))] at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero))](s)
         ==> at_step_or![Error, Done]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
@@ -193,7 +193,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![Done]));
         lift_state(reconcile_idle)
     );
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
         at_step_or![AfterEnsureNewVRS](s) ==> at_step_or![AfterScaleDownOldVRS, Error, Done]
                                              ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     // AfterEnsureNewVRS is similar to init on no pending req/resp is needed for the transition to next step
@@ -210,7 +210,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![Error]));
         lift_state(reconcile_idle)
     );
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)] 
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))] 
         at_step_or![AfterScaleNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                              ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
@@ -219,7 +219,7 @@ ensures
         at_step_or![AfterEnsureNewVRS, Error]
     );
     // 5, AfterCreateNewVRS ~> idle
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
         at_step_or![AfterCreateNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                               ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
@@ -235,7 +235,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS, Error]));
         lift_state(reconcile_idle)
     );
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
         at_step_or![AfterListVRS](s) ==> at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error]
                                          ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(

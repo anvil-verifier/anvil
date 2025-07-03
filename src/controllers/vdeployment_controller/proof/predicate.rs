@@ -446,9 +446,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
 }
 
 // just to make Verus happy
-pub uninterp spec fn dummy_trigger_n(n: nat) -> bool;
-pub uninterp spec fn dummy_trigger_ex(ex: Execution<ClusterState>) -> bool;
-pub uninterp spec fn dummy_trigger_transition(input: DynamicObjectView, resp_o: Option<ResponseContent>, s: ReconcileLocalState) -> bool;
+pub uninterp spec fn dummy<T>(t: T) -> bool;
 
 #[macro_export]
 macro_rules! and {
