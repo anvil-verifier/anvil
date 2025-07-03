@@ -199,6 +199,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -259,8 +260,20 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    assert(no_pending_req_in_cluster(vd, controller_id)(s_prime));
+                    let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vrsl_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assert((vrsl_prime.new_vrs, vrsl_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
+                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                        let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
+                        assert(resp_msg.content.is_list_response());
+                        assert(resp_msg.content.get_list_response().res.is_Ok());
+                        assert(objects_to_vrs_list(resp_objs).is_Some());
+                        assert(resp_objs.no_duplicates());
+                        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
+                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                    }
                     assert(n_old_vrs_exists_in_etcd(controller_id, vd, nat0!())(s_prime));
+                    assert(no_pending_req_in_cluster(vd, controller_id)(s_prime));
                     assert(new_vrs_with_replicas_exists_in_etcd(controller_id, vd, vd.spec.replicas.unwrap_or(int1!()))(s_prime));
                     assert(local_state_match_etcd(vd, controller_id)(s_prime));
                     assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, and!(new_vrs_is_some_with_replicas(vd.spec.replicas.unwrap_or(int1!())), old_vrs_list_len(nat0!())))])(s_prime));
