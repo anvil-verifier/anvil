@@ -275,9 +275,10 @@ ensures
                             }
                         }
                         entails_implies_leads_to(spec, scale_new_vrs_resp, tla_exists(|msg| scale_new_vrs_resp_msg(msg)));
-                        assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(scale_new_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
+                        assert forall |msg: Message| spec.entails(#[trigger] scale_new_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
                             lemma_from_receive_ok_resp_at_after_scale_new_vrs_to_after_ensure_new_vrs(vd, spec, cluster, controller_id, msg, n);
                         }
+                        leads_to_exists_intro(spec, |msg| scale_new_vrs_resp_msg(msg), after_ensure_vrs(n));
                         leads_to_trans_n!(
                             spec,
                             after_list_with_etcd_state(msg, Some(replicas), n),
