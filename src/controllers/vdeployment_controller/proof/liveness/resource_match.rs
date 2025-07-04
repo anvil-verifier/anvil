@@ -101,18 +101,26 @@ ensures
         tla_exists(|msg| list_resp_msg(msg))
     );
     assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(list_resp_msg(msg).leads_to(tla_exists(|n: nat| after_ensure_vrs(n)))) by{
-        assert(spec.entails(list_resp_msg(msg).leads_to(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))))) by {
+        assert(list_resp_msg(msg).entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)))) by {
             assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] list_resp_msg(msg).satisfied_by(ex) implies
                 tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
-                let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| #[trigger] etcd_state_is(vd, controller_id, i.0, i.1)(s);
+                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+                let replicas = if new_vrs.is_Some() {
+                    Some(new_vrs.get_Some_0().spec.replicas.unwrap_or(int1!()))
+                } else {
+                    None
+                };
+                let n = old_vrs_list.len();
+                // let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| #[trigger] etcd_state_is(vd, controller_id, i.0, i.1)(s);
                 tla_exists_proved_by_witness(
                     ex,
                     |i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1),
-                    (replicas_or_not_exist, n)
+                    (replicas, n)
                 );
             }
         }
+        entails_implies_leads_to(spec, list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         assert forall |n: nat| #![trigger dummy(n)] spec.entails(tla_forall(|replicas: int| after_list_with_etcd_state(msg, Some(replicas), n)).leads_to(after_ensure_vrs(n))) by {
             assert forall |replicas: Option<int>| #![trigger dummy(replicas)] true implies spec.entails(
                 tla_forall(|n| after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n)))) by {
