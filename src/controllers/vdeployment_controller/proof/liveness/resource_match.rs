@@ -295,6 +295,7 @@ ensures
             }
             leads_to_exists_intro(spec, |replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n), after_ensure_vrs(n));
         }
+        leads_to_exists_intro(spec, |msg: Message| list_resp_msg(msg), tla_exists(|n: nat| after_ensure_vrs(n)));
     }
     leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|n: nat| after_ensure_vrs(n)));
     assume(false);
