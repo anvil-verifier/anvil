@@ -145,7 +145,12 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 // scale new vrs to desired replicas
                 return scale_new_vrs(new_vrs, old_vrs_list, &vd);
             }
-            return (new_vrs_ensured_state(state), None);
+            let state = VDeploymentReconcileState {
+                reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
+                new_vrs: Some(new_vrs),
+                old_vrs_list: old_vrs_list,
+            };
+            return (state, None);
         },
         VDeploymentReconcileStep::AfterCreateNewVRS => {
             if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp_as_ref!(resp_o).is_ok()) {
