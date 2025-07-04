@@ -115,7 +115,7 @@ ensures
         // here replicas.is_Some == if new vrs exists, replicas.get_Some_0() == new_vrs.spec.replicas.unwrap_or(1)
         // 1 is the default value if not set
         assert(list_resp_msg(msg).entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)))) by {
-            assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] list_resp_msg(msg).satisfied_by(ex) implies
+            assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) implies
                 tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
                 let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
@@ -126,16 +126,12 @@ ensures
                 };
                 let n = old_vrs_list.len();
                 // let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| #[trigger] etcd_state_is(vd, controller_id, i.0, i.1)(s);
-                tla_exists_proved_by_witness(
-                    ex,
-                    |i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1),
-                    (replicas, n)
-                );
+                tla_exists_proved_by_witness(ex, |i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1), (replicas, n));
             }
         }
         entails_implies_leads_to(spec, list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         // \A |n| \A |replicas| etcd_state_is(replicas, n) ~> after_ensure_vrs(n)
-        assert forall |n: nat| spec.entails(tla_forall(|replicas: int| after_list_with_etcd_state(msg, Some(replicas), n)).leads_to(#[trigger] after_ensure_vrs(n))) by {
+        assert forall |n: nat| #![trigger after_ensure_vrs(n)] forall |replicas: Option<int>| spec.entails(#[trigger] after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n))) by {
             // \A |replicas| after_list_with_etcd_state(msg, Some(replicas), n) ~> after_ensure_vrs(n)
             // since here the transitions branch over the existence and replicas of new vrs
             assert forall |replicas: Option<int>| spec.entails(#[trigger] after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n))) by {
