@@ -138,8 +138,7 @@ ensures
         assert forall |n: nat| #![trigger dummy(n)] spec.entails(tla_forall(|replicas: int| after_list_with_etcd_state(msg, Some(replicas), n)).leads_to(after_ensure_vrs(n))) by {
             // \A |replicas| after_list_with_etcd_state(msg, Some(replicas), n) ~> after_ensure_vrs(n)
             // since here the transitions branch over the existence and replicas of new vrs
-            assert forall |replicas: Option<int>| #![trigger dummy(replicas)] spec.entails(
-                tla_forall(|n| after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n)))) by {
+            assert forall |replicas: Option<int>| spec.entails(#[trigger] after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n))) by {
                 // new vrs does not exists. Here the existance is encoded as is_Some, and replicas is get_Some_0
                 if replicas.is_None() {
                     // AfterListVRS ~> AfterCreateNewVRS
