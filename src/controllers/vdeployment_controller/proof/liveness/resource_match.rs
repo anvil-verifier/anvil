@@ -233,7 +233,7 @@ ensures
                             etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
                             local_state_match_etcd(vd, controller_id)
                         ));
-                        assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(scale_new_vrs_req_msg(msg).leads_to(scale_new_vrs_resp)) by {
+                        assert forall |msg: Message| spec.entails(#[trigger] scale_new_vrs_req_msg(msg).leads_to(scale_new_vrs_resp)) by {
                             lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(vd, spec, cluster, controller_id, msg, replicas, n);
                         }
                         leads_to_exists_intro(spec, |msg| scale_new_vrs_req_msg(msg), scale_new_vrs_resp);
