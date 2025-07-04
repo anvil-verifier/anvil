@@ -720,7 +720,7 @@ ensures
         .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
             pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, vd.spec.replicas.unwrap_or(int1!())),
-            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
+            etcd_state_is(vd, controller_id, Some(replicas), n),
             local_state_match_etcd(vd, controller_id)
         )))),
 {
