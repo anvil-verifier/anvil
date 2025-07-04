@@ -135,7 +135,7 @@ ensures
         }
         entails_implies_leads_to(spec, list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         // \A |n| \A |replicas| etcd_state_is(replicas, n) ~> after_ensure_vrs(n)
-        assert forall |n: nat| spec.entails(tla_forall(|replicas: int| #[trigger] after_list_with_etcd_state(msg, Some(replicas), n)).leads_to(after_ensure_vrs(n))) by {
+        assert forall |n: nat| spec.entails(tla_forall(|replicas: int| after_list_with_etcd_state(msg, Some(replicas), n)).leads_to(#[trigger] after_ensure_vrs(n))) by {
             // \A |replicas| after_list_with_etcd_state(msg, Some(replicas), n) ~> after_ensure_vrs(n)
             // since here the transitions branch over the existence and replicas of new vrs
             assert forall |replicas: Option<int>| spec.entails(#[trigger] after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n))) by {
