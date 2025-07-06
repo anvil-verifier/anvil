@@ -89,14 +89,6 @@ ensures
         // |= |= ~>
         entails_implies_leads_to(spec, list_resp, tla_exists(|msg| list_resp_msg(msg)));
     };
-    leads_to_trans_n!(
-        spec,
-        init,
-        list_req,
-        tla_exists(|msg| list_req_msg(msg)),
-        list_resp,
-        tla_exists(|msg| list_resp_msg(msg))
-    );
     let after_list_with_etcd_state = |msg: Message, replicas_or_not_exist: Option<int>, n: nat| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg),
@@ -318,6 +310,15 @@ ensures
         );
     }
     leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|n: nat| after_ensure_vrs(n)));
+    leads_to_trans_n!(
+        spec,
+        init,
+        list_req,
+        tla_exists(|msg| list_req_msg(msg)),
+        list_resp,
+        tla_exists(|msg| list_resp_msg(msg)),
+        tla_exists(|n: nat| after_ensure_vrs(n))
+    );
     assume(false);
 }
 
