@@ -638,7 +638,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input.get_Some_0();
                 if msg == req_msg {
-                    let resp_msg = lemma_create_new_vrs_request_returns_ok_at_after_ensure_new_vrs(
+                    let resp_msg = lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
                         s, s_prime, vd, cluster, controller_id, msg, n
                     );
                     VReplicaSetView::marshal_preserves_integrity();
@@ -653,7 +653,7 @@ ensures
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input.get_Some_0();
-        let resp_msg = lemma_create_new_vrs_request_returns_ok_at_after_ensure_new_vrs(
+        let resp_msg = lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
             s, s_prime, vd, cluster, controller_id, msg, n
         );
         // instantiate existential quantifier.
@@ -970,7 +970,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_from_at_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
+pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
 requires
@@ -1315,7 +1315,7 @@ ensures
     );
 }
 
-pub proof fn lemma_from_old_vrs_len_zero_at_after_ensure_new_vrs_to_current_state_matches(
+pub proof fn lemma_from_old_vrs_len_zero_after_ensure_new_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
 requires
