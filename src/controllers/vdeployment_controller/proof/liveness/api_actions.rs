@@ -36,7 +36,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_create_new_vrs_request_returns_ok_at_after_ensure_new_vrs(
+pub proof fn lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message, n: nat
 ) -> (resp_msg: Message)
@@ -54,7 +54,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_get_then_update_request_returns_ok_at_after_scale_new_vrs(
+pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message, replicas: int, n: nat
 ) -> (resp_msg: Message)
@@ -72,7 +72,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_get_then_update_request_returns_ok_at_after_scale_down_old_vrs(
+pub proof fn lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message, n: nat
 ) -> (resp_msg: Message)

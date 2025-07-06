@@ -262,21 +262,6 @@ pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
     }
 }
 
-pub open spec fn resp_msg_is_scale_down_old_vrs_resp_in_flight_and_match_req(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-        // predicate on req_msg, it's not in_flight
-        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
-        &&& req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, 0)(s)
-        &&& s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg.content.is_get_then_update_response()
-        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
-    }
-}
-
 // a weaker version of coherence between local cache and etcd
 // - only need the key to be in etcd and corresponding objects can pass the filter
 // - so current_state_matches can be reached by sending get-then-update request
@@ -349,15 +334,6 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_
     }
 }
 
-pub open spec fn n_old_vrs_exists_in_etcd(controller_id: int, vd: VDeploymentView, n: nat) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
-        let (_, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& objects_to_vrs_list(objs).is_Some()
-        &&& old_vrs_list.len() == n
-    }
-} 
-
 pub open spec fn local_state_is(new_vrs_replicas: Option<int>, old_vrs_list_len: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
     |vds: VDeploymentReconcileState| {
         &&& match new_vrs_replicas {
@@ -368,13 +344,6 @@ pub open spec fn local_state_is(new_vrs_replicas: Option<int>, old_vrs_list_len:
             None => vds.new_vrs.is_None()
         }
         &&& vds.old_vrs_list.len() == old_vrs_list_len
-    }
-}
-
-// TODO: remove these predicates and switch to local_state_is
-pub open spec fn new_vrs_is_some_with_replicas(n: int) -> spec_fn(VDeploymentReconcileState) -> bool {
-    |vds: VDeploymentReconcileState| {
-        vds.new_vrs.is_Some() && vds.new_vrs.get_Some_0().spec.replicas.unwrap_or(1) == n
     }
 }
 
