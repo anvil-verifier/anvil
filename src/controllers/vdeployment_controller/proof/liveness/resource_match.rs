@@ -1108,7 +1108,7 @@ ensures
     );
 }
 
-#[verifier(external_body)]
+// local_state_match_etcd significantly slowed and flaked this proof
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
