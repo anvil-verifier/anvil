@@ -170,10 +170,8 @@ ensures
                         etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
                         local_state_match_etcd(vd, controller_id)
                     ));
-                    // TODO: fix this
                     assert(spec.entails(create_vrs_resp.leads_to(tla_exists(|msg| create_vrs_resp_msg(msg))))) by {
-                        assume(false);
-                        assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] create_vrs_resp.satisfied_by(ex) implies
+                        assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) implies
                             tla_exists(|msg| create_vrs_resp_msg(msg)).satisfied_by(ex) by {
                             let s = ex.head();
                             let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
@@ -189,12 +187,10 @@ ensures
                     }
                     // AfterCreateNewVRS ~> AfterEnsureNewVRS
                     // Because maxSurge is not supported, this transition can be completed without scaling new VRS
-                    assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(create_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
+                    assert forall |msg: Message| spec.entails(#[trigger] create_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
                         lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(vd, spec, cluster, controller_id, msg, n);
                     }
-                    // TODO: fix this
-                    // leads_to_exists_intro(spec, |msg| create_vrs_resp_msg(msg), after_ensure_vrs(n));
-                    assume(spec.entails(tla_exists(|msg| create_vrs_resp_msg(msg)).leads_to(after_ensure_vrs(n))));
+                    leads_to_exists_intro(spec, |msg| create_vrs_resp_msg(msg), after_ensure_vrs(n));
                     leads_to_trans_n!(
                         spec,
                         after_list_with_etcd_state(msg, replicas, n),
@@ -221,11 +217,9 @@ ensures
                             etcd_state_is(vd, controller_id, replicas, n),
                             local_state_match_etcd(vd, controller_id)
                         ));
-                        // TODO: fix this
                         // temp_pred_equality(scale_new_vrs_req, tla_exists(|msg| scale_new_vrs_req_msg(msg)));
                         assert(scale_new_vrs_req.entails(tla_exists(|msg| scale_new_vrs_req_msg(msg)))) by {
-                            assume(false);
-                            assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] scale_new_vrs_req.satisfied_by(ex) implies
+                            assert forall |ex: Execution<ClusterState>| #[trigger] scale_new_vrs_req.satisfied_by(ex) implies
                                 tla_exists(|msg| scale_new_vrs_req_msg(msg)).satisfied_by(ex) by {
                                 let s = ex.head();
                                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
@@ -250,10 +244,8 @@ ensures
                             local_state_match_etcd(vd, controller_id)
                         ));
                         assert(scale_new_vrs_resp.entails(tla_exists(|msg| scale_new_vrs_resp_msg(msg)))) by {
-                            assume(false);
-                            assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] scale_new_vrs_resp.satisfied_by(ex) implies
+                            assert forall |ex: Execution<ClusterState>| #[trigger] scale_new_vrs_resp.satisfied_by(ex) implies
                                 tla_exists(|msg| scale_new_vrs_resp_msg(msg)).satisfied_by(ex) by {
-                                assume(false);
                                 let s = ex.head();
                                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
                                 let resp_msg = choose |resp_msg| {
