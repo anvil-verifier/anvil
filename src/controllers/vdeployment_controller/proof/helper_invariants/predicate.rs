@@ -104,7 +104,8 @@ pub open spec fn no_other_pending_get_then_update_request_interferes_with_vd_rec
             })
             // Prevents 2): where any message not from our specific vd updates 
             // vrs objects so they become owned by another VDeployment.
-            &&& (req.obj.metadata.owner_references is Some ==>
+            &&& ((req.obj.metadata.owner_references is Some
+                    && req.key().namespace == vd.object_ref().namespace) ==>
                     ! req.obj.metadata.owner_references->0.contains(vd.controller_owner_ref()))
         }
     }
@@ -214,13 +215,18 @@ pub open spec fn vd_reconcile_get_then_update_request_only_interferes_with_itsel
     vd: VDeploymentView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let owners = req.obj.metadata.owner_references.get_Some_0();
+        let controller_owners = owners.filter(
+            |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+        );
         &&& req.key().kind == VReplicaSetView::kind()
         &&& req.key().namespace == vd.metadata.namespace.unwrap()
         &&& req.owner_ref.controller is Some
         &&& req.owner_ref.controller->0
         &&& req.owner_ref.kind == VDeploymentView::kind()
         &&& req.owner_ref.name == vd.object_ref().name
-        &&& req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
+        &&& req.obj.metadata.owner_references.is_Some()
+        &&& controller_owners == seq![vd.controller_owner_ref()]
     }
 }
 
@@ -349,14 +355,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         (
                             resp_objs[i].metadata.namespace.is_some()
                             && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            && ((s.resources().contains_key(resp_objs[i].object_ref())
-                                    && s.resources()[resp_objs[i].object_ref()].metadata.resource_version
-                                    == resp_objs[i].metadata.resource_version) ==> 
-                                    s.resources()[resp_objs[i].object_ref()].metadata
-                                        == resp_objs[i].metadata)
-                            && resp_objs[i].metadata.resource_version.is_some()
-                            && resp_objs[i].metadata.resource_version.unwrap()
-                                    < s.api_server.resource_version_counter
+                            && resp_objs[i].kind == VReplicaSetView::kind()
                         )
                     }
                 }
