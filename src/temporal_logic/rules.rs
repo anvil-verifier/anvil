@@ -682,6 +682,12 @@ pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -
     };
 }
 
+#[verifier(external_body)]
+pub proof fn leads_to_exists_intro_pred<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a_to_q: spec_fn(A) -> TempPred<T>)
+    requires forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(a_to_q(a))),
+    ensures spec.entails(tla_exists(a_to_p).leads_to(tla_exists(a_to_q))),
+{}
+
 // This lemmas instantiates tla_forall for a.
 pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: spec_fn(A) -> TempPred<T>, a: A)
     requires spec.entails(tla_forall(a_to_p)),

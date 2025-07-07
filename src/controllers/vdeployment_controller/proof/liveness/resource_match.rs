@@ -121,7 +121,8 @@ ensures
         }
         entails_implies_leads_to(spec, list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         // \A |n| \A |replicas| etcd_state_is(replicas, n) ~> after_ensure_vrs(n)
-        assert forall |n: nat| #![trigger after_ensure_vrs(n)] spec.entails(tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n)).leads_to(after_ensure_vrs(n))) by {
+        assert forall |n: nat| #![trigger after_ensure_vrs(n)] spec.entails(tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n))
+            .leads_to(after_ensure_vrs(n))) by {
             // \A |replicas| after_list_with_etcd_state(msg, Some(replicas), n) ~> after_ensure_vrs(n)
             // since here the transitions branch over the existence and replicas of new vrs
             assert forall |replicas: Option<int>| spec.entails(#[trigger] after_list_with_etcd_state(msg, replicas, n).leads_to(after_ensure_vrs(n))) by {
@@ -272,8 +273,14 @@ ensures
             leads_to_exists_intro(spec, |replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n), after_ensure_vrs(n));
         }
         // need to prove (\A |a| (a_to_p(a) ~> a_to_q(a))) && (r ~> \E |a| a_to_p(a)) ==> r ~> \E |a| a_to_q(a)
-        assert(spec.entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).leads_to(tla_exists(|n: nat| after_ensure_vrs(n))))) by {
+        assert(spec.entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))
+            .leads_to(tla_exists(|n: nat| after_ensure_vrs(n))))) by {
+            leads_to_exists_intro_pred(spec, |n: nat| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n)), |n: nat| after_ensure_vrs(n));
             assume(false);
+            temp_pred_equality(
+                tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)),
+                tla_exists(|n: nat| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n)))
+            );
         };
         // no proper trigger inside tla_exists, if I use dummy I will make verus panic
         // assert(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).entails(tla_exists(|n: nat| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n))))) by {
