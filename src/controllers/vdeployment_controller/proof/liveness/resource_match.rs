@@ -646,8 +646,7 @@ ensures
     );
 }
 
-
-#[verifier(external_body)]
+// maybe another case of flakiness, see verus log
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -705,6 +704,22 @@ ensures
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // the request should carry the make_replica_set(vd).marshal(), which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
+                    let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
+                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                        let vrs_list_or_none = objects_to_vrs_list(resp_objs);
+                        assert(resp_msg.content.is_list_response());
+                        assert(resp_msg.content.get_list_response().res.is_Ok());
+                        assert(vrs_list_or_none.is_Some());
+                        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
+                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0())) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
+                        assert(new_vrs_or_none.is_None());
+                        // try comment out the next line
+                        assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
+                        assert(vrls_prime == create_new_vrs(old_vrs_list, vd).0);
+                    }
                 }
             },
             _ => {}
