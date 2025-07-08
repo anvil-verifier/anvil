@@ -44,7 +44,6 @@ pub open spec fn filter_old_and_new_vrs_on_etcd(vd: VDeploymentView, resources: 
     filter_old_and_new_vrs(vd, filtered_vrs_list)
 }
 
-// why this fn makes proof pass?
 pub open spec fn list_vrs_obj_filter(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
     |obj: DynamicObjectView| {
         &&& obj.kind == VReplicaSetView::kind()

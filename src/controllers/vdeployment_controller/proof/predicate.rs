@@ -267,7 +267,7 @@ pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
 // - so current_state_matches can be reached by sending get-then-update request
 // this predicate holds since AfterListVRS state
 // TODO: simplify this may help to reduce flakiness
-pub open spec fn local_state_match_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& forall |i| 0 <= i < vds.old_vrs_list.len() ==> {
