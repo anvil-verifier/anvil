@@ -64,8 +64,8 @@ impl ResourceView for RoleBindingView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -133,8 +133,8 @@ impl ResourceView for RoleBindingView {
         &&& self.role_ref.api_group == "rbac.authorization.k8s.io"@
         &&& (self.role_ref.kind == "Role"@ || self.role_ref.kind == "ClusterRole"@)
         // &&& self.role_ref.name.len() > 0
-        // &&& self.subjects.is_Some()
-        //     ==> forall |i| 0 <= i < self.subjects.get_Some_0().len() ==> #[trigger] self.subjects.get_Some_0()[i].state_validation(true)
+        // &&& self.subjects is Some
+        //     ==> forall |i| 0 <= i < self.subjects->0.len() ==> #[trigger] self.subjects->0[i].state_validation(true)
     }
 
     open spec fn transition_validation(self, old_obj: RoleBindingView) -> bool {
@@ -196,7 +196,7 @@ impl SubjectView {
 
     pub open spec fn state_validation(self, is_namespaced: bool) -> bool {
         &&& self.kind == "ServiceAccount"@ // TODO: support User and Group as kind here
-        &&& is_namespaced ==> self.namespace.is_Some() && self.namespace.get_Some_0().len() > 0
+        &&& is_namespaced ==> self.namespace is Some && self.namespace->0.len() > 0
     }
 
     pub open spec fn with_kind(self, kind: StringView) -> SubjectView {

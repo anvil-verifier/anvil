@@ -49,7 +49,7 @@ ensures
     // list_req == \E |msg| list_req_msg(msg)
     assert(list_req == tla_exists(|msg| list_req_msg(msg))) by {
         assert forall |ex| #[trigger] list_req.satisfied_by(ex) implies tla_exists(|msg| list_req_msg(msg)).satisfied_by(ex) by {
-            let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+            let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
             assert((|msg| list_req_msg(msg))(req_msg).satisfied_by(ex));
         }
         temp_pred_equality(list_req, tla_exists(|msg| list_req_msg(msg)));
@@ -74,7 +74,7 @@ ensures
         assert forall |ex| #[trigger] list_resp.satisfied_by(ex) implies
             tla_exists(|msg| list_resp_msg(msg)).satisfied_by(ex) by {
             let s = ex.head();
-            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
             let resp_msg = choose |resp_msg| {
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -100,15 +100,15 @@ ensures
     // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs(n))
     assert forall |msg: Message| #![trigger list_resp_msg(msg)] spec.entails(list_resp_msg(msg).leads_to(tla_exists(|n: nat| after_ensure_vrs(n)))) by{
         // (\A |msg|) list_resp_msg(msg) == \E |replicas: Options<int>, n: nat| after_ensure_vrs(n)
-        // here replicas.is_Some == if new vrs exists, replicas.get_Some_0() == new_vrs.spec.replicas.unwrap_or(1)
+        // here replicas.is_Some == if new vrs exists, replicas->0 == new_vrs.spec.replicas.unwrap_or(1)
         // 1 is the default value if not set
         assert(list_resp_msg(msg) == tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))) by {
             assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) implies
                 tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
                 let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-                let replicas = if new_vrs.is_Some() {
-                    Some(new_vrs.get_Some_0().spec.replicas.unwrap_or(int1!()))
+                let replicas = if new_vrs is Some {
+                    Some(new_vrs->0.spec.replicas.unwrap_or(int1!()))
                 } else {
                     None
                 };
@@ -142,7 +142,7 @@ ensures
                     assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_req.satisfied_by(ex) implies
                         tla_exists(|msg| create_vrs_req_msg(msg)).satisfied_by(ex) by {
                         let s = ex.head();
-                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                         assert((|msg| create_vrs_req_msg(msg))(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(create_vrs_req, tla_exists(|msg| create_vrs_req_msg(msg)));
@@ -167,7 +167,7 @@ ensures
                     assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) implies
                         tla_exists(|msg| create_vrs_resp_msg(msg)).satisfied_by(ex) by {
                         let s = ex.head();
-                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                         let resp_msg = choose |resp_msg| {
                             &&& #[trigger] s.in_flight().contains(resp_msg)
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -213,7 +213,7 @@ ensures
                         assert forall |ex: Execution<ClusterState>| #[trigger] scale_new_vrs_req.satisfied_by(ex) implies
                             tla_exists(|msg| scale_new_vrs_req_msg(msg)).satisfied_by(ex) by {
                             let s = ex.head();
-                            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                             assert((|msg| scale_new_vrs_req_msg(msg))(req_msg).satisfied_by(ex));
                         }
                         temp_pred_equality(scale_new_vrs_req, tla_exists(|msg| scale_new_vrs_req_msg(msg)));
@@ -238,7 +238,7 @@ ensures
                         assert forall |ex: Execution<ClusterState>| #[trigger] scale_new_vrs_resp.satisfied_by(ex) implies
                             tla_exists(|msg| scale_new_vrs_resp_msg(msg)).satisfied_by(ex) by {
                             let s = ex.head();
-                            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                             let resp_msg = choose |resp_msg| {
                                 &&& #[trigger] s.in_flight().contains(resp_msg)
                                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -323,7 +323,7 @@ ensures
                 assert forall |ex: Execution<ClusterState>| #[trigger] scale_down_req.satisfied_by(ex) implies
                     tla_exists(|msg| scale_down_req_msg(msg)).satisfied_by(ex) by {
                     let s = ex.head();
-                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                     assert((|msg| scale_down_req_msg(msg))(req_msg).satisfied_by(ex));
                 }
                 temp_pred_equality(scale_down_req, tla_exists(|msg| scale_down_req_msg(msg)));
@@ -358,7 +358,7 @@ ensures
                 assert forall |ex: Execution<ClusterState>| #[trigger] scale_down_resp(nat0!()).satisfied_by(ex) implies
                     tla_exists(|msg| scale_down_resp_msg_zero(msg)).satisfied_by(ex) by {
                     let s = ex.head();
-                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] s.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -466,7 +466,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 if msg == req_msg {
                     let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
                         s, s_prime, vd, cluster, controller_id, msg
@@ -483,7 +483,7 @@ ensures
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input.get_Some_0();
+        let msg = input->0;
         let resp_msg = lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
             s, s_prime, vd, cluster, controller_id, msg,
         );
@@ -549,7 +549,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -565,15 +565,15 @@ ensures
                     //     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
                     //     assert(resp_msg.content.is_list_response());
                     //     assert(resp_msg.content.get_list_response().res.is_Ok());
-                    //     assert(vrs_list_or_none.is_Some());
+                    //     assert(vrs_list_or_none is Some);
                     //     assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                    //     assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0())) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                    //     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
-                    //     assert(new_vrs_or_none.is_Some());
-                    //     let new_vrs = new_vrs_or_none.get_Some_0();
+                    //     assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                    //     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
+                    //     assert(new_vrs_or_none is Some);
+                    //     let new_vrs = new_vrs_or_none->0;
                     //     assert(match_replicas(vd, new_vrs));
-                    //     assert(vrls_prime.new_vrs.is_Some());
-                    //     assert(vrls_prime.new_vrs.get_Some_0() == new_vrs);
+                    //     assert(vrls_prime.new_vrs is Some);
+                    //     assert(vrls_prime.new_vrs->0 == new_vrs);
                     //     assert(vrls_prime.old_vrs_list == old_vrs_list);
                     //     assert(vrls_prime.reconcile_step == AfterEnsureNewVRS);
                     // }
@@ -639,7 +639,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -656,10 +656,10 @@ ensures
                         let vrs_list_or_none = objects_to_vrs_list(resp_objs);
                         assert(resp_msg.content.is_list_response());
                         assert(resp_msg.content.get_list_response().res.is_Ok());
-                        assert(vrs_list_or_none.is_Some());
+                        assert(vrs_list_or_none is Some);
                         assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0())) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
+                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
                         assert(new_vrs_or_none.is_None());
                         // try comment out the next line
                         assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
@@ -724,7 +724,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 if msg == req_msg {
                     let resp_msg = lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
                         s, s_prime, vd, cluster, controller_id, msg, n
@@ -740,7 +740,7 @@ ensures
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input.get_Some_0();
+        let msg = input->0;
         let resp_msg = lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
             s, s_prime, vd, cluster, controller_id, msg, n
         );
@@ -806,7 +806,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -877,7 +877,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -950,7 +950,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
                         s, s_prime, vd, cluster, controller_id, msg, replicas, n
@@ -966,7 +966,7 @@ ensures
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input.get_Some_0();
+        let msg = input->0;
         let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
             s, s_prime, vd, cluster, controller_id, msg, replicas, n
         );
@@ -1032,7 +1032,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -1105,7 +1105,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -1183,7 +1183,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -1260,7 +1260,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 if msg == req_msg {
                     let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
                     VReplicaSetView::marshal_preserves_integrity();
@@ -1274,7 +1274,7 @@ ensures
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let msg = input.get_Some_0();
+        let msg = input->0;
         let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
         // instantiate existential quantifier.
         assert({
@@ -1353,7 +1353,7 @@ ensures
     assert(scale_req(n) == tla_exists(|msg| scale_req_msg(msg, n))) by {
         assert forall |ex| #[trigger] scale_req(n).satisfied_by(ex) implies
             tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)).satisfied_by(ex) by {
-            let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+            let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
             assert((|msg: Message| scale_req_msg(msg, n))(req_msg).satisfied_by(ex));
         }
         temp_pred_equality(scale_req(n), tla_exists(|msg| scale_req_msg(msg, n)));
@@ -1362,7 +1362,7 @@ ensures
         assert forall |ex| #[trigger] scale_resp(n).satisfied_by(ex) implies
             tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)).satisfied_by(ex) by {
             let s = ex.head();
-            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
+            let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
             let resp_msg = choose |resp_msg| {
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1428,7 +1428,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
@@ -1495,7 +1495,7 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input.get_Some_0();
+                let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );

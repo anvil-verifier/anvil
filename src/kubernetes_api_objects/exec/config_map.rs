@@ -30,8 +30,8 @@ impl ConfigMap {
     #[verifier(external_body)]
     pub fn data(&self) -> (data: Option<StringMap>)
         ensures
-            self@.data.is_Some() == data.is_Some(),
-            data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
+            self@.data is Some == data is Some,
+            data is Some ==> data->0@ == self@.data->0,
     {
         match &self.inner.data {
             Some(d) => Some(StringMap::from_rust_map(d.clone())),

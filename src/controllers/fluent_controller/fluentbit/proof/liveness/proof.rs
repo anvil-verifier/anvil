@@ -291,7 +291,7 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
         assert_by(tla_exists(pre) == lift_state(pending_req_at_after_get_secret_step_with_fb(fb)), {
             assert forall |ex| #[trigger] lift_state(pending_req_at_after_get_secret_step_with_fb(fb)).satisfied_by(ex)
             implies tla_exists(pre).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg->0;
                 assert(pre(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre), lift_state(pending_req_at_after_get_secret_step_with_fb(fb)));
@@ -309,7 +309,7 @@ proof fn lemma_from_init_step_to_after_get_service_account_step(spec: TempPred<F
         assert_by(tla_exists(pre) == lift_state(at_after_get_secret_step_and_exists_ok_resp_in_flight(fb)), {
             assert forall |ex| #[trigger] lift_state(at_after_get_secret_step_and_exists_ok_resp_in_flight(fb)).satisfied_by(ex)
             implies tla_exists(pre).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg->0;
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -349,7 +349,7 @@ proof fn lemma_from_init_step_to_after_get_secret_step(spec: TempPred<FBCluster>
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.1.get_Some_0() != fb.object_ref() {
+                if input.1->0 != fb.object_ref() {
                     assert(pre(s_prime));
                 } else {
                     assert(post(s_prime));
@@ -397,7 +397,7 @@ proof fn lemma_from_send_get_secret_req_to_receive_ok_resp_at_after_get_secret_s
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = FBCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -463,7 +463,7 @@ proof fn lemma_from_after_get_secret_step_to_after_get_service_account_step(spec
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.1.get_Some_0() != fb.object_ref() {
+                if input.1->0 != fb.object_ref() {
                     assert(pre(s_prime));
                 } else {
                     assert(post(s_prime));

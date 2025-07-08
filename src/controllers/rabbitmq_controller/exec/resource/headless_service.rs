@@ -81,7 +81,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::He
 pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_service: Service) -> (service: Service)
     requires
         rabbitmq@.well_formed(),
-        found_headless_service@.spec.is_Some(),
+        found_headless_service@.spec is Some,
     ensures service@ == model_resource::update_headless_service(rabbitmq@, found_headless_service@),
 {
     let made_service = make_headless_service(rabbitmq);
@@ -110,7 +110,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
 pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     requires
         rabbitmq@.well_formed(),
-        rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.namespace is Some,
     ensures
         name@ == model_resource::make_headless_service_name(rabbitmq@),
 {
@@ -127,7 +127,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            model_resource::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_headless_service(rabbitmq@).spec->0.ports->0
         );
     }
     make_service(rabbitmq, make_headless_service_name(rabbitmq), ports, false)

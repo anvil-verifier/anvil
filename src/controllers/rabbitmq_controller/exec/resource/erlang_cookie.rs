@@ -89,7 +89,7 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
         proof {
             assert_seqs_equal!(
                 owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                model_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@).metadata.owner_references.get_Some_0()
+                model_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@).metadata.owner_references->0
             );
         }
         metadata.set_owner_references(make_owner_references(rabbitmq));

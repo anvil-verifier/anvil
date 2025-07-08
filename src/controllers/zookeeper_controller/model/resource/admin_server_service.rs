@@ -30,7 +30,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() && service.get_Ok_0().spec.is_Some() {
+        if service.is_Ok() && service.get_Ok_0().spec is Some {
             Ok(update_admin_server_service(zk, service.get_Ok_0()).marshal())
         } else {
             Err(())
@@ -70,11 +70,11 @@ pub open spec fn make_admin_server_service_key(zk: ZookeeperClusterView) -> Obje
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_admin_server_service_name(zk),
-        namespace: zk.metadata.namespace.get_Some_0(),
+        namespace: zk.metadata.namespace->0,
     }
 }
 
-pub open spec fn make_admin_server_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-admin-server"@ }
+pub open spec fn make_admin_server_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name->0 + "-admin-server"@ }
 
 pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_admin_server_service: ServiceView) -> ServiceView {
     ServiceView {
@@ -86,10 +86,10 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
             ..found_admin_server_service.metadata
         },
         spec: Some(ServiceSpecView {
-            ports: make_admin_server_service(zk).spec.get_Some_0().ports,
-            selector: make_admin_server_service(zk).spec.get_Some_0().selector,
-            publish_not_ready_addresses: make_admin_server_service(zk).spec.get_Some_0().publish_not_ready_addresses,
-            ..found_admin_server_service.spec.get_Some_0()
+            ports: make_admin_server_service(zk).spec->0.ports,
+            selector: make_admin_server_service(zk).spec->0.selector,
+            publish_not_ready_addresses: make_admin_server_service(zk).spec->0.publish_not_ready_addresses,
+            ..found_admin_server_service.spec->0
         }),
         ..found_admin_server_service
     }

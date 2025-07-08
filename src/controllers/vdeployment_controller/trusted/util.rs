@@ -35,7 +35,7 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
         Some(new_vrs_list.first())
     };
     let old_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
-        &&& new_vrs.is_None() || vrs.metadata.uid != new_vrs.get_Some_0().metadata.uid
+        &&& new_vrs.is_None() || vrs.metadata.uid != new_vrs->0.metadata.uid
         &&& vrs.spec.replicas.is_None() || vrs.spec.replicas.unwrap() > 0
     });
     (new_vrs, old_vrs_list)

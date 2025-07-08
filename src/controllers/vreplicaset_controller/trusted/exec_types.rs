@@ -183,8 +183,8 @@ impl VReplicaSetSpec {
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
-            replicas.is_Some() == self@.replicas.is_Some(),
-            replicas.is_Some() ==> replicas.get_Some_0() as int == self@.replicas.get_Some_0(),
+            replicas is Some == self@.replicas is Some,
+            replicas is Some ==> replicas->0 as int == self@.replicas->0,
     {
         self.inner.replicas
     }
@@ -199,8 +199,8 @@ impl VReplicaSetSpec {
     #[verifier(external_body)]
     pub fn template(&self) -> (template: Option<PodTemplateSpec>)
         ensures
-            template.is_Some() == self@.template.is_Some(),
-            template.is_Some() ==> template.get_Some_0()@ == self@.template.get_Some_0(),
+            template is Some == self@.template is Some,
+            template is Some ==> template->0@ == self@.template->0,
     {
         match &self.inner.template {
             Some(t) => Some(PodTemplateSpec::from_kube(t.clone())),

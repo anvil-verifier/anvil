@@ -88,7 +88,7 @@ pub fn make_client_service_name(zk: &ZookeeperCluster) -> (name: String)
 pub fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) -> (client_service: Service)
     requires
         zk@.well_formed(),
-        found_client_service@.spec.is_Some(),
+        found_client_service@.spec is Some,
     ensures client_service@ == model_resource::update_client_service(zk@, found_client_service@),
 {
     let mut client_service = found_client_service.clone();
@@ -123,7 +123,7 @@ pub fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            model_resource::make_client_service(zk@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_client_service(zk@).spec->0.ports->0
         );
     }
 

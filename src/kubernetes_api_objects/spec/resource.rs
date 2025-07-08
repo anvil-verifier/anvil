@@ -44,8 +44,8 @@ pub trait ResourceView: Sized {
             forall |o: Self|
                 #[trigger] o.object_ref() == (ObjectRef {
                     kind: Self::kind(),
-                    name: o.metadata().name.get_Some_0(),
-                    namespace: o.metadata().namespace.get_Some_0(),
+                    name: o.metadata().name->0,
+                    namespace: o.metadata().namespace->0,
                 });
 
     // Get the spec of the object

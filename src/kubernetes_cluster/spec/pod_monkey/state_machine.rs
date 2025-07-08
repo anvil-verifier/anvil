@@ -14,7 +14,7 @@ pub open spec fn create_pod() -> PodMonkeyAction {
             let create_req_msg = pod_monkey_req_msg(
                 input.rpc_id_allocator.allocate().1,
                 create_req_msg_content(
-                    input.pod.metadata.namespace.get_Some_0(),
+                    input.pod.metadata.namespace->0,
                     input.pod.marshal()
                 )
             );
@@ -60,8 +60,8 @@ pub open spec fn update_pod() -> PodMonkeyAction {
             let update_req_msg = pod_monkey_req_msg(
                 input.rpc_id_allocator.allocate().1,
                 update_req_msg_content(
-                    input.pod.metadata.namespace.get_Some_0(),
-                    input.pod.metadata.name.get_Some_0(),
+                    input.pod.metadata.namespace->0,
+                    input.pod.metadata.name->0,
                     input.pod.marshal()
                 )
             );
@@ -85,8 +85,8 @@ pub open spec fn update_pod_status() -> PodMonkeyAction {
             let update_status_req_msg = pod_monkey_req_msg(
                 input.rpc_id_allocator.allocate().1,
                 update_status_req_msg_content(
-                    input.pod.metadata.namespace.get_Some_0(),
-                    input.pod.metadata.name.get_Some_0(),
+                    input.pod.metadata.namespace->0,
+                    input.pod.metadata.name->0,
                     input.pod.marshal()
                 )
             );

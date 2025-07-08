@@ -131,12 +131,12 @@ impl Cluster {
                     // and crash for this controller is enabled...
                     &&& s.controller_and_externals[key].crash_enabled
                     // and if the controller has an associated external system...
-                    &&& model.external_model.is_Some()
+                    &&& model.external_model is Some
                         ==> {
                             // the internal state of that external system exists...
-                            &&& s.controller_and_externals[key].external.is_Some()
+                            &&& s.controller_and_externals[key].external is Some
                             // and is initialized.
-                            &&& (external(model.external_model.get_Some_0()).init)(s.controller_and_externals[key].external.get_Some_0())
+                            &&& (external(model.external_model->0).init)(s.controller_and_externals[key].external->0)
                         }
                 }
         }
@@ -278,8 +278,8 @@ impl Cluster {
         Action {
             precondition: |input: (Option<Message>, Option<ObjectRef>), s: ClusterState| {
                 &&& self.controller_models.contains_key(controller_id)
-                &&& input.1.is_Some()
-                &&& received_msg_destined_for(input.0, HostId::Controller(controller_id, input.1.get_Some_0()))
+                &&& input.1 is Some
+                &&& received_msg_destined_for(input.0, HostId::Controller(controller_id, input.1->0))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
             },
@@ -562,7 +562,7 @@ impl Cluster {
         let result = |input: Option<Message>, s: ClusterState| {
             let host_result = self.external(controller_id).next_result(
                 ExternalActionInput{recv: input, resources: s.api_server.resources},
-                s.controller_and_externals[controller_id].external.get_Some_0()
+                s.controller_and_externals[controller_id].external->0
             );
             let msg_ops = MessageOps {
                 recv: input,
@@ -575,7 +575,7 @@ impl Cluster {
         Action {
             precondition: |input: Option<Message>, s: ClusterState| {
                 &&& self.controller_models.contains_key(controller_id)
-                &&& self.controller_models[controller_id].external_model.is_Some()
+                &&& self.controller_models[controller_id].external_model is Some
                 &&& received_msg_destined_for(input, HostId::External(controller_id))
                 &&& result(input, s).0.is_Enabled()
                 &&& result(input, s).1.is_Enabled()
@@ -680,8 +680,8 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
-            &&& input.2.is_Some()
-            &&& received_msg_destined_for(input.1, HostId::Controller(controller_id, input.2.get_Some_0()))
+            &&& input.2 is Some
+            &&& received_msg_destined_for(input.1, HostId::Controller(controller_id, input.2->0))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
         }
@@ -693,7 +693,7 @@ impl Cluster {
             let host_result = self.external(controller_id).next_action_result(
                 (self.external(controller_id).step_to_action)(step),
                 ExternalActionInput{recv: input.1, resources: s.api_server.resources},
-                s.controller_and_externals[controller_id].external.get_Some_0()
+                s.controller_and_externals[controller_id].external->0
             );
             let msg_ops = MessageOps {
                 recv: input.1,
@@ -702,7 +702,7 @@ impl Cluster {
             let network_result = network().next_result(msg_ops, s.network);
 
             &&& self.controller_models.contains_key(input.0)
-            &&& self.controller_models[controller_id].external_model.is_Some()
+            &&& self.controller_models[controller_id].external_model is Some
             &&& received_msg_destined_for(input.1, HostId::External(controller_id))
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
@@ -726,7 +726,7 @@ impl Cluster {
     }
 
     pub open spec fn external(self, controller_id: int) -> ExternalStateMachine {
-        external(self.controller_models[controller_id].external_model.get_Some_0())
+        external(self.controller_models[controller_id].external_model->0)
     }
 
     #[verifier(inline)]

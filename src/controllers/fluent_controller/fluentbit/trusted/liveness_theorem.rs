@@ -21,7 +21,7 @@ pub open spec fn liveness<M: Maker>(fb:FluentBitView) -> TempPred<FBCluster> {
 pub open spec fn desired_secret_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
         name: fb.spec.fluentbit_config_name,
     }
 }
@@ -72,11 +72,11 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
         SubResource::Service => {
             let key = M::make_service_key(fb);
             let obj = resources[key];
-            let made_spec = M::make_service(fb).spec.get_Some_0();
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            let made_spec = M::make_service(fb).spec->0;
+            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec->0;
             &&& resources.contains_key(key)
             &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& ServiceView::unmarshal(obj).get_Ok_0().spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec

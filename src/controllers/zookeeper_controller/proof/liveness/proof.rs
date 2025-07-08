@@ -373,7 +373,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(spec: TempPr
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.1.get_Some_0() != zookeeper.object_ref() {
+                if input.1->0 != zookeeper.object_ref() {
                     assert(pre(s_prime));
                 } else {
                     assert(post(s_prime));

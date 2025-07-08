@@ -30,7 +30,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() && service.get_Ok_0().spec.is_Some() {
+        if service.is_Ok() && service.get_Ok_0().spec is Some {
             Ok(update_service(fb, service.get_Ok_0()).marshal())
         } else {
             Err(())
@@ -66,13 +66,13 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
     }
 }
 
-pub open spec fn make_service_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() }
+pub open spec fn make_service_name(fb: FluentBitView) -> StringView { fb.metadata.name->0 }
 
 pub open spec fn make_service_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_service_name(fb),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
     }
 }
 
@@ -87,9 +87,9 @@ pub open spec fn update_service(fb: FluentBitView, found_service: ServiceView) -
             ..found_service.metadata
         },
         spec: Some(ServiceSpecView {
-            ports: made_service.spec.get_Some_0().ports,
-            selector: made_service.spec.get_Some_0().selector,
-            ..found_service.spec.get_Some_0()
+            ports: made_service.spec->0.ports,
+            selector: made_service.spec->0.selector,
+            ..found_service.spec->0
         }),
         ..found_service
     }
@@ -108,20 +108,20 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
             ports: {
                 let metrics_port = ServicePortView {
                     name: Some("metrics"@),
-                    port: if fb.spec.metrics_port.is_Some() {
-                        fb.spec.metrics_port.get_Some_0()
+                    port: if fb.spec.metrics_port is Some {
+                        fb.spec.metrics_port->0
                     } else {
                         2020
                     },
                     ..ServicePortView::default()
                 };
-                if fb.spec.ports.is_Some() {
-                    Some(fb.spec.ports.get_Some_0().map_values(|p: ContainerPortView| make_service_port(p)).push(metrics_port))
+                if fb.spec.ports is Some {
+                    Some(fb.spec.ports->0.map_values(|p: ContainerPortView| make_service_port(p)).push(metrics_port))
                 } else {
                     Some(seq![metrics_port])
                 }
             },
-            selector: if fb.spec.service_selector.is_Some() {
+            selector: if fb.spec.service_selector is Some {
                     fb.spec.service_selector
                 } else {
                     Some(make_base_labels(fb))
@@ -135,8 +135,8 @@ pub open spec fn make_service(fb: FluentBitView) -> ServiceView {
 pub open spec fn make_service_port(port: ContainerPortView) -> ServicePortView {
     ServicePortView {
         port: port.container_port,
-        name: if port.name.is_Some() { port.name } else { ServicePortView::default().name },
-        protocol: if port.protocol.is_Some() { port.protocol } else { ServicePortView::default().protocol },
+        name: if port.name is Some { port.name } else { ServicePortView::default().name },
+        protocol: if port.protocol is Some { port.protocol } else { ServicePortView::default().protocol },
         ..ServicePortView::default()
     }
 }

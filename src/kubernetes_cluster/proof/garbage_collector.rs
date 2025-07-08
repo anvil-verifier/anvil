@@ -78,8 +78,8 @@ spec fn effective_delete_request_msg_for_key(key: ObjectRef, msg: Message) -> St
         && s.api_server.resources.contains_key(key)
         && msg.dst.is_APIServer()
         && msg.content.is_delete_request_with_key(key)
-        && msg.content.get_delete_request().preconditions.get_Some_0().uid == s.api_server.resources[key].metadata.uid
-        && msg.content.get_delete_request().preconditions.get_Some_0().resource_version.is_None()
+        && msg.content.get_delete_request().preconditions->0.uid == s.api_server.resources[key].metadata.uid
+        && msg.content.get_delete_request().preconditions->0.resource_version.is_None()
     }
 }
 
@@ -239,7 +239,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         let step = choose |step| self.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 if resource_create_request_msg(key)(req) {} else {}
                 if resource_update_request_msg(key)(req) {} else {}
                 if resource_get_then_update_request_msg(key)(req) {} else {}
@@ -303,8 +303,8 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                             &&& ex.head().api_server.resources.contains_key(key)
                             &&& msg.dst.is_APIServer()
                             &&& msg.content.is_delete_request_with_key(key)
-                            &&& msg.content.get_delete_request().preconditions.get_Some_0().uid == ex.head().api_server.resources[key].metadata.uid
-                            &&& msg.content.get_delete_request().preconditions.get_Some_0().resource_version.is_None()
+                            &&& msg.content.get_delete_request().preconditions->0.uid == ex.head().api_server.resources[key].metadata.uid
+                            &&& msg.content.get_delete_request().preconditions->0.resource_version.is_None()
                         };
                         assert(msg_to_p(msg).satisfied_by(ex));
                     }

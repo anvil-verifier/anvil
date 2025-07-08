@@ -86,7 +86,7 @@ pub fn make_admin_server_service_name(zk: &ZookeeperCluster) -> (name: String)
 pub fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service: &Service) -> (admin_server_service: Service)
     requires
         zk@.well_formed(),
-        found_admin_server_service@.spec.is_Some(),
+        found_admin_server_service@.spec is Some,
     ensures admin_server_service@ == model_resource::update_admin_server_service(zk@, found_admin_server_service@),
 {
     let mut admin_server_service = found_admin_server_service.clone();
@@ -121,7 +121,7 @@ pub fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            model_resource::make_admin_server_service(zk@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_admin_server_service(zk@).spec->0.ports->0
         );
     }
 

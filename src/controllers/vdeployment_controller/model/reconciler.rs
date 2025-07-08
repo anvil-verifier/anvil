@@ -85,12 +85,12 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none.is_None() {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
+                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
                     if new_vrs.is_None() {
                         // create the new vrs
                         create_new_vrs(old_vrs_list, vd)
                     } else {
-                        let new_vrs = new_vrs.get_Some_0();
+                        let new_vrs = new_vrs->0;
                         if !match_replicas(vd, new_vrs) {
                             // scale new vrs to desired replicas
                             scale_new_vrs(new_vrs, old_vrs_list, vd)

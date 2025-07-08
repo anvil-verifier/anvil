@@ -15,8 +15,8 @@ pub open spec fn etcd_object_is_weakly_well_formed(key: ObjectRef) -> StatePred<
         let obj = s.resources()[key];
         &&& obj.metadata.well_formed_for_namespaced()
         &&& obj.object_ref() == key
-        &&& obj.metadata.resource_version.get_Some_0() < s.api_server.resource_version_counter
-        &&& obj.metadata.uid.get_Some_0() < s.api_server.uid_counter
+        &&& obj.metadata.resource_version->0 < s.api_server.resource_version_counter
+        &&& obj.metadata.uid->0 < s.api_server.uid_counter
     }
 }
 
@@ -83,7 +83,7 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
                 let step = choose |step| self.next_step(s, s_prime, step);
                 match step {
                     Step::APIServerStep(input) => {
-                        match input.get_Some_0().content.get_APIRequest_0() {
+                        match input->0.content.get_APIRequest_0() {
                             APIRequest::GetRequest(_) => {}
                             APIRequest::ListRequest(_) => {}
                             APIRequest::CreateRequest(_) => {}
@@ -100,7 +100,7 @@ pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec:
                 let step = choose |step| self.next_step(s, s_prime, step);
                 match step {
                     Step::APIServerStep(input) => {
-                        match input.get_Some_0().content.get_APIRequest_0() {
+                        match input->0.content.get_APIRequest_0() {
                             APIRequest::GetRequest(_) => {}
                             APIRequest::ListRequest(_) => {}
                             APIRequest::CreateRequest(_) => {
@@ -158,7 +158,7 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                 let step = choose |step| self.next_step(s, s_prime, step);
                 match step {
                     Step::APIServerStep(input) => {
-                        match input.get_Some_0().content.get_APIRequest_0() {
+                        match input->0.content.get_APIRequest_0() {
                             APIRequest::GetRequest(_) => {}
                             APIRequest::ListRequest(_) => {}
                             APIRequest::CreateRequest(_) => {}
@@ -189,7 +189,7 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                 let step = choose |step| self.next_step(s, s_prime, step);
                 match step {
                     Step::APIServerStep(input) => {
-                        match input.get_Some_0().content.get_APIRequest_0() {
+                        match input->0.content.get_APIRequest_0() {
                             APIRequest::GetRequest(_) => {}
                             APIRequest::ListRequest(_) => {}
                             APIRequest::CreateRequest(_) => {
@@ -249,11 +249,11 @@ pub open spec fn each_object_in_etcd_has_at_most_one_controller_owner() -> State
             #[trigger] s.resources().contains_key(key)
                 ==> {
                     let obj = s.resources()[key];
-                    let owners = obj.metadata.owner_references.get_Some_0();
+                    let owners = obj.metadata.owner_references->0;
                     let controller_owners = owners.filter(
-                        |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                        |o: OwnerReferenceView| o.controller is Some && o.controller->0
                     );
-                    obj.metadata.owner_references.is_Some() ==> controller_owners.len() <= 1
+                    obj.metadata.owner_references is Some ==> controller_owners.len() <= 1
                 }
     }
 }

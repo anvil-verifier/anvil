@@ -32,8 +32,8 @@ impl StatefulSet {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<StatefulSetSpec>)
         ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+            self@.spec is Some == spec is Some,
+            spec is Some ==> spec->0@ == self@.spec->0,
     {
         if self.inner.spec.is_none() {
             None
@@ -45,8 +45,8 @@ impl StatefulSet {
     #[verifier(external_body)]
     pub fn status(&self) -> (status: Option<StatefulSetStatus>)
         ensures
-            self@.status.is_Some() == status.is_Some(),
-            status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
+            self@.status is Some == status is Some,
+            status is Some ==> status->0@ == self@.status->0,
     {
         if self.inner.status.is_none() {
             None
@@ -146,8 +146,8 @@ impl StatefulSetSpec {
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
-            self@.replicas.is_Some() == replicas.is_Some(),
-            replicas.is_Some() ==> replicas.get_Some_0() == self@.replicas.get_Some_0(),
+            self@.replicas is Some == replicas is Some,
+            replicas is Some ==> replicas->0 == self@.replicas->0,
     {
         self.inner.replicas.clone()
     }
@@ -169,8 +169,8 @@ impl StatefulSetSpec {
     #[verifier(external_body)]
     pub fn pod_management_policy(&self) -> (pod_management_policy: Option<String>)
         ensures
-            self@.pod_management_policy.is_Some() == pod_management_policy.is_Some(),
-            pod_management_policy.is_Some() ==> pod_management_policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+            self@.pod_management_policy is Some == pod_management_policy is Some,
+            pod_management_policy is Some ==> pod_management_policy->0@ == self@.pod_management_policy->0,
     {
         self.inner.pod_management_policy.clone()
     }
@@ -178,8 +178,8 @@ impl StatefulSetSpec {
     #[verifier(external_body)]
     pub fn volume_claim_templates(&self) -> (volume_claim_templates: Option<Vec<PersistentVolumeClaim>>)
         ensures
-            self@.volume_claim_templates.is_Some() == volume_claim_templates.is_Some(),
-            volume_claim_templates.is_Some() ==> volume_claim_templates.get_Some_0()@.map_values(|p: PersistentVolumeClaim| p@) == self@.volume_claim_templates.get_Some_0(),
+            self@.volume_claim_templates is Some == volume_claim_templates is Some,
+            volume_claim_templates is Some ==> volume_claim_templates->0@.map_values(|p: PersistentVolumeClaim| p@) == self@.volume_claim_templates->0,
     {
         match &self.inner.volume_claim_templates {
             Some(p) => Some(p.into_iter().map(|item| PersistentVolumeClaim::from_kube(item.clone())).collect()),
@@ -197,8 +197,8 @@ impl StatefulSetSpec {
     #[verifier(external_body)]
     pub fn persistent_volume_claim_retention_policy(&self) -> (persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
         ensures
-            self@.persistent_volume_claim_retention_policy.is_Some() == persistent_volume_claim_retention_policy.is_Some(),
-            persistent_volume_claim_retention_policy.is_Some() ==> persistent_volume_claim_retention_policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+            self@.persistent_volume_claim_retention_policy is Some == persistent_volume_claim_retention_policy is Some,
+            persistent_volume_claim_retention_policy is Some ==> persistent_volume_claim_retention_policy->0@ == self@.persistent_volume_claim_retention_policy->0,
     {
         match &self.inner.persistent_volume_claim_retention_policy {
             Some(p) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(p.clone())),
@@ -255,8 +255,8 @@ impl StatefulSetStatus {
     #[verifier(external_body)]
     pub fn ready_replicas(&self) -> (ready_replicas: Option<i32>)
         ensures
-            self@.ready_replicas.is_Some() == ready_replicas.is_Some(),
-            ready_replicas.is_Some() ==> ready_replicas.get_Some_0() == self@.ready_replicas.get_Some_0(),
+            self@.ready_replicas is Some == ready_replicas is Some,
+            ready_replicas is Some ==> ready_replicas->0 == self@.ready_replicas->0,
     {
         self.inner.ready_replicas.clone()
     }

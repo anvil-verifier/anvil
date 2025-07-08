@@ -88,7 +88,7 @@ pub fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
 pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Service) -> (headless_service: Service)
     requires
         zk@.well_formed(),
-        found_headless_service@.spec.is_Some(),
+        found_headless_service@.spec is Some,
     ensures headless_service@ == model_resource::update_headless_service(zk@, found_headless_service@),
 {
     let mut headless_service = found_headless_service.clone();
@@ -127,7 +127,7 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            model_resource::make_headless_service(zk@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_headless_service(zk@).spec->0.ports->0
         );
     }
 

@@ -67,13 +67,13 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
     }
 }
 
-pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() + "-role-binding"@ }
+pub open spec fn make_role_binding_name(fb: FluentBitView) -> StringView { fb.metadata.name->0 + "-role-binding"@ }
 
 pub open spec fn make_role_binding_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: RoleBindingView::kind(),
         name: make_role_binding_name(fb),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
     }
 }
 
@@ -106,7 +106,7 @@ pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView {
         ).with_subjects(seq![SubjectView::default()
             .with_kind("ServiceAccount"@)
             .with_name(make_service_account_name(fb))
-            .with_namespace(fb.metadata.namespace.get_Some_0())
+            .with_namespace(fb.metadata.namespace->0)
         ])
 }
 

@@ -261,7 +261,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| obj.metadata.namespace == vrs.metadata.namespace);
         assert(forall |i: int| 0 <= i < resp_objs.len() ==> {
             &&& #[trigger] resp_objs[i].kind == PodView::kind()
-            &&& #[trigger] resp_objs[i].metadata.namespace.is_Some()
+            &&& #[trigger] resp_objs[i].metadata.namespace is Some
             &&& #[trigger] resp_objs[i].metadata.namespace == vrs.metadata.namespace
         });
         assert(forall |i: int| 0 <= i < resp_objs.len() ==>

@@ -35,9 +35,9 @@ pub type FluentBitConfigStatusView = EmptyStatusView;
 
 impl FluentBitConfigView {
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.name.is_Some()
-        &&& self.metadata.namespace.is_Some()
-        &&& self.metadata.uid.is_Some()
+        &&& self.metadata.name is Some
+        &&& self.metadata.namespace is Some
+        &&& self.metadata.uid is Some
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
@@ -45,8 +45,8 @@ impl FluentBitConfigView {
             block_owner_deletion: None,
             controller: Some(true),
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            uid: self.metadata.uid.get_Some_0(),
+            name: self.metadata.name->0,
+            uid: self.metadata.uid->0,
         }
     }
 }
@@ -70,8 +70,8 @@ impl ResourceView for FluentBitConfigView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 

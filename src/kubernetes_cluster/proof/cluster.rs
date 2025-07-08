@@ -24,7 +24,7 @@ pub proof fn lemma_always_there_is_the_controller_state(self, spec: TempPred<Clu
 pub open spec fn there_is_the_external_state(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.controller_and_externals.contains_key(controller_id)
-        &&& s.controller_and_externals[controller_id].external.is_Some()
+        &&& s.controller_and_externals[controller_id].external is Some
     }
 }
 
@@ -33,7 +33,7 @@ pub proof fn lemma_always_there_is_the_external_state_if_external_model_exists(s
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
         self.controller_models.contains_key(controller_id),
-        self.controller_models[controller_id].external_model.is_Some(),
+        self.controller_models[controller_id].external_model is Some,
     ensures spec.entails(always(lift_state(Self::there_is_the_external_state(controller_id)))),
 {
     let invariant = Self::there_is_the_external_state(controller_id);

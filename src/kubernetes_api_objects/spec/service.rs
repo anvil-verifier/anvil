@@ -57,8 +57,8 @@ impl ResourceView for ServiceView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -123,7 +123,7 @@ impl ResourceView for ServiceView {
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
-        &&& self.spec.is_Some()
+        &&& self.spec is Some
     }
 
     open spec fn transition_validation(self, old_obj: ServiceView) -> bool {

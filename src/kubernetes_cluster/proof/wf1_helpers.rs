@@ -150,7 +150,7 @@ pub proof fn external_action_pre_implies_next_pre(self, step: ExternalStep, inpu
     assert forall |s| #[trigger] self.external_action_pre(step, input)(s) implies self.external_next().pre(input)(s) by {
         let action = (self.external(input.0).step_to_action)(step);
         let action_input = ExternalActionInput{recv: input.1, resources: s.api_server.resources};
-        assert((action.precondition)(action_input, s.controller_and_externals[input.0].external.get_Some_0()));
+        assert((action.precondition)(action_input, s.controller_and_externals[input.0].external->0));
     };
 }
 

@@ -30,7 +30,7 @@ impl LabelSelectorView {
         if self.match_labels.is_None() {
             true
         } else {
-            let match_labels = self.match_labels.get_Some_0();
+            let match_labels = self.match_labels->0;
             forall |k, v| match_labels.contains_pair(k, v) ==> labels.contains_pair(k, v)
         }
     }

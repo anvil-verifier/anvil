@@ -32,7 +32,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ClientSe
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() && service.get_Ok_0().spec.is_Some() {
+        if service.is_Ok() && service.get_Ok_0().spec is Some {
             Ok(update_client_service(zk, service.get_Ok_0()).marshal())
         } else {
             Err(())
@@ -72,11 +72,11 @@ pub open spec fn make_client_service_key(zk: ZookeeperClusterView) -> ObjectRef 
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_client_service_name(zk),
-        namespace: zk.metadata.namespace.get_Some_0(),
+        namespace: zk.metadata.namespace->0,
     }
 }
 
-pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-client"@ }
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name->0 + "-client"@ }
 
 pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_service: ServiceView) -> ServiceView {
     ServiceView {
@@ -88,10 +88,10 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
             ..found_client_service.metadata
         },
         spec: Some(ServiceSpecView {
-            ports: make_client_service(zk).spec.get_Some_0().ports,
-            selector: make_client_service(zk).spec.get_Some_0().selector,
-            publish_not_ready_addresses: make_client_service(zk).spec.get_Some_0().publish_not_ready_addresses,
-            ..found_client_service.spec.get_Some_0()
+            ports: make_client_service(zk).spec->0.ports,
+            selector: make_client_service(zk).spec->0.selector,
+            publish_not_ready_addresses: make_client_service(zk).spec->0.publish_not_ready_addresses,
+            ..found_client_service.spec->0
         }),
         ..found_client_service
     }

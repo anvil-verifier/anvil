@@ -31,11 +31,11 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
         SubResource::HeadlessService => {
             let key = M::make_headless_service_key(rabbitmq);
             let obj = resources[key];
-            let made_spec = M::make_headless_service(rabbitmq).spec.get_Some_0();
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            let made_spec = M::make_headless_service(rabbitmq).spec->0;
+            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec->0;
             &&& resources.contains_key(key)
             &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& ServiceView::unmarshal(obj).get_Ok_0().spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -46,11 +46,11 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
         SubResource::Service => {
             let key = M::make_main_service_key(rabbitmq);
             let obj = resources[key];
-            let made_spec = M::make_main_service(rabbitmq).spec.get_Some_0();
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            let made_spec = M::make_main_service(rabbitmq).spec->0;
+            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec->0;
             &&& resources.contains_key(key)
             &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& ServiceView::unmarshal(obj).get_Ok_0().spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -128,10 +128,10 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let obj = resources[key];
             let cm_key = M::make_server_config_map_key(rabbitmq);
             let cm_obj = resources[cm_key];
-            let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
+            let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
             &&& resources.contains_key(key)
             &&& resources.contains_key(cm_key)
-            &&& cm_obj.metadata.resource_version.is_Some()
+            &&& cm_obj.metadata.resource_version is Some
             &&& StatefulSetView::unmarshal(obj).is_Ok()
             &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec == made_sts.spec
             &&& obj.metadata.labels == made_sts.metadata.labels

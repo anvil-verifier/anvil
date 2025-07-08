@@ -90,7 +90,7 @@ pub open spec fn pending_req_in_flight_at_after_get_resource_step(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
         &&& RMQCluster::has_pending_k8s_api_req_msg(s, rabbitmq.object_ref())
@@ -134,7 +134,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
         &&& RMQCluster::has_pending_k8s_api_req_msg(s, rabbitmq.object_ref())
@@ -157,7 +157,7 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -182,7 +182,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -205,7 +205,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
         &&& RMQCluster::has_pending_k8s_api_req_msg(s, rabbitmq.object_ref())
@@ -224,7 +224,7 @@ pub open spec fn pending_req_in_flight_at_after_create_resource_step(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_create_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
         &&& RMQCluster::has_pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& s.in_flight().contains(msg)
@@ -251,7 +251,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_create_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -272,7 +272,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_create_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -291,7 +291,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_update_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let resource_key= get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
         &&& RMQCluster::has_pending_k8s_api_req_msg(s, rabbitmq.object_ref())
@@ -299,7 +299,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(resource_key)(msg)
         &&& s.resources().contains_key(resource_key)
-        &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
+        &&& msg.content.get_update_request().obj.metadata.resource_version is Some
         &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
     }
 }
@@ -316,7 +316,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& req_msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
         &&& s.resources().contains_key(resource_key)
-        &&& req_msg.content.get_update_request().obj.metadata.resource_version.is_Some()
+        &&& req_msg.content.get_update_request().obj.metadata.resource_version is Some
         &&& req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
     }
 }
@@ -326,7 +326,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_update_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -347,7 +347,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_update_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, rabbitmq).key;
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)

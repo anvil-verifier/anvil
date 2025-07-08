@@ -69,105 +69,105 @@ impl<T> ResponseView<T> {
 #[macro_export]
 macro_rules! is_some_k_get_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_GetResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_GetResponse()
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_create_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_CreateResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_CreateResponse()
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_update_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_UpdateResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_UpdateResponse()
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_list_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_ListResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_ListResponse()
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_delete_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_DeleteResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_DeleteResponse()
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_get_then_update_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_GetThenUpdateResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_GetThenUpdateResponse()
     };
 }
 
 #[macro_export]
 macro_rules! is_some_k_get_then_delete_resp_view {
     ($r:expr) => {
-        $r.is_Some() && $r.get_Some_0().is_KResponse()
-        && $r.get_Some_0().get_KResponse_0().is_GetThenDeleteResponse()
+        $r is Some && $r->0.is_KResponse()
+        && $r->0.get_KResponse_0().is_GetThenDeleteResponse()
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_get_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_GetResponse_0().res
+        $r->0.get_KResponse_0().get_GetResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_create_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_CreateResponse_0().res
+        $r->0.get_KResponse_0().get_CreateResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_update_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res
+        $r->0.get_KResponse_0().get_UpdateResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_list_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_ListResponse_0().res
+        $r->0.get_KResponse_0().get_ListResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_delete_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_DeleteResponse_0().res
+        $r->0.get_KResponse_0().get_DeleteResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_get_then_update_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_GetThenUpdateResponse_0().res
+        $r->0.get_KResponse_0().get_GetThenUpdateResponse_0().res
     };
 }
 
 #[macro_export]
 macro_rules! extract_some_k_get_then_delete_resp_view {
     ($r:expr) => {
-        $r.get_Some_0().get_KResponse_0().get_GetThenDeleteResponse_0().res
+        $r->0.get_KResponse_0().get_GetThenDeleteResponse_0().res
     };
 }
 

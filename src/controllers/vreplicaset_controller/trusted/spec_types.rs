@@ -17,7 +17,7 @@ pub type VReplicaSetStatusView = EmptyStatusView;
 impl VReplicaSetView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.well_formed_for_namespaced()
-        &&& self.metadata.namespace.is_Some()
+        &&& self.metadata.namespace is Some
         &&& self.state_validation()
     }
 
@@ -26,8 +26,8 @@ impl VReplicaSetView {
             block_owner_deletion: Some(true),
             controller: Some(true),
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            uid: self.metadata.uid.get_Some_0(),
+            name: self.metadata.name->0,
+            uid: self.metadata.uid->0,
         }
     }
 
@@ -65,8 +65,8 @@ impl ResourceView for VReplicaSetView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -129,19 +129,19 @@ impl ResourceView for VReplicaSetView {
     // TODO: keep it consistent with k8s's ReplicaSet
     open spec fn state_validation(self) -> bool {
         // replicas is non-negative
-        &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
+        &&& self.spec.replicas is Some ==> self.spec.replicas->0 >= 0
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
-        &&& self.spec.selector.match_labels.is_Some()
-        &&& self.spec.selector.match_labels.get_Some_0().len() > 0
+        &&& self.spec.selector.match_labels is Some
+        &&& self.spec.selector.match_labels->0.len() > 0
         // template, and its metadata ane spec exists
-        &&& self.spec.template.is_Some()
-        &&& self.spec.template.get_Some_0().metadata.is_Some()
-        &&& self.spec.template.get_Some_0().spec.is_Some()
+        &&& self.spec.template is Some
+        &&& self.spec.template->0.metadata is Some
+        &&& self.spec.template->0.spec is Some
         // kubernetes requires selector matches template's metadata's labels
         // and also requires selector to be non-empty, so it implicitly requires that the labels are non-empty
-        &&& self.spec.template.get_Some_0().metadata.get_Some_0().labels.is_Some()
-        &&& self.spec.selector.matches(self.spec.template.get_Some_0().metadata.get_Some_0().labels.get_Some_0())
+        &&& self.spec.template->0.metadata->0.labels is Some
+        &&& self.spec.selector.matches(self.spec.template->0.metadata->0.labels->0)
     }
 
     open spec fn transition_validation(self, old_obj: VReplicaSetView) -> bool {

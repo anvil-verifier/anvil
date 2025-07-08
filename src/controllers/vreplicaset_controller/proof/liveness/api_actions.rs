@@ -43,11 +43,11 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
             && s.resources().contains_key(req.key) {
             let obj = s.resources()[req.key];
             if obj.metadata.owner_references_contains(req.owner_ref) {
-                let owners = obj.metadata.owner_references.get_Some_0();
+                let owners = obj.metadata.owner_references->0;
                 let controller_owners = owners.filter(
-                    |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                    |o: OwnerReferenceView| o.controller is Some && o.controller->0
                 );
-                assert(req.owner_ref.controller.is_Some() && req.owner_ref.controller.get_Some_0());
+                assert(req.owner_ref.controller is Some && req.owner_ref.controller->0);
                 assert(controller_owners.contains(req.owner_ref));
                 assert(!controller_owners.contains(vrs.controller_owner_ref()));
             }
@@ -59,11 +59,11 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_matching_pod
             && s.resources().contains_key(req.key()) {
             let obj = s.resources()[req.key()];
             if obj.metadata.owner_references_contains(req.owner_ref) {
-                let owners = obj.metadata.owner_references.get_Some_0();
+                let owners = obj.metadata.owner_references->0;
                 let controller_owners = owners.filter(
-                    |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                    |o: OwnerReferenceView| o.controller is Some && o.controller->0
                 );
-                assert(req.owner_ref.controller.is_Some() && req.owner_ref.controller.get_Some_0());
+                assert(req.owner_ref.controller is Some && req.owner_ref.controller->0);
                 assert(controller_owners.contains(req.owner_ref));
                 assert(!controller_owners.contains(vrs.controller_owner_ref()));
             }
@@ -166,7 +166,7 @@ pub proof fn lemma_list_pods_request_returns_ok_list_resp_containing_matching_po
 
         assert forall |i: int, j: int| #![auto]
             0 <= i && i < pods_seq.len() && (0 <= j && j < pods_seq.len()) && !(i == j)
-            && objects_to_pods(selected_elements_seq).is_Some()
+            && objects_to_pods(selected_elements_seq) is Some
             && lem
             implies pods_seq[i] != pods_seq[j] by {
             let o1 = selected_elements_seq[i];
@@ -316,7 +316,7 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
     // reasoning about owner_references to prove that 
     // our request creates a vrs-owned pod.
     assert(created_obj.metadata.owner_references == Some(seq![vrs.controller_owner_ref()]));
-    assert(created_obj.metadata.owner_references.get_Some_0()[0] == vrs.controller_owner_ref());
+    assert(created_obj.metadata.owner_references->0[0] == vrs.controller_owner_ref());
     assert(created_obj.metadata.owner_references_contains(vrs.controller_owner_ref()));
     
     assert(owned_selector_match_is(vrs, created_obj));

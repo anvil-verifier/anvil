@@ -32,7 +32,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Headless
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() && service.get_Ok_0().spec.is_Some() {
+        if service.is_Ok() && service.get_Ok_0().spec is Some {
             Ok(update_headless_service(zk, service.get_Ok_0()).marshal())
         } else {
             Err(())
@@ -72,11 +72,11 @@ pub open spec fn make_headless_service_key(zk: ZookeeperClusterView) -> ObjectRe
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_headless_service_name(zk),
-        namespace: zk.metadata.namespace.get_Some_0(),
+        namespace: zk.metadata.namespace->0,
     }
 }
 
-pub open spec fn make_headless_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-headless"@ }
+pub open spec fn make_headless_service_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name->0 + "-headless"@ }
 
 pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headless_service: ServiceView) -> ServiceView {
     ServiceView {
@@ -88,10 +88,10 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
             ..found_headless_service.metadata
         },
         spec: Some(ServiceSpecView {
-            ports: make_headless_service(zk).spec.get_Some_0().ports,
-            selector: make_headless_service(zk).spec.get_Some_0().selector,
-            publish_not_ready_addresses: make_headless_service(zk).spec.get_Some_0().publish_not_ready_addresses,
-            ..found_headless_service.spec.get_Some_0()
+            ports: make_headless_service(zk).spec->0.ports,
+            selector: make_headless_service(zk).spec->0.selector,
+            publish_not_ready_addresses: make_headless_service(zk).spec->0.publish_not_ready_addresses,
+            ..found_headless_service.spec->0
         }),
         ..found_headless_service
     }

@@ -64,13 +64,13 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
     }
 }
 
-pub open spec fn make_service_account_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() }
+pub open spec fn make_service_account_name(fb: FluentBitView) -> StringView { fb.metadata.name->0 }
 
 pub open spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: ServiceAccountView::kind(),
         name: make_service_account_name(fb),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
     }
 }
 

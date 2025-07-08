@@ -84,8 +84,8 @@ pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectVi
         SubResource::Service => {
             let service = ServiceView::unmarshal(object);
             &&& service.is_Ok()
-            &&& service.get_Ok_0().spec.is_Some()
-            &&& service.get_Ok_0().spec.get_Some_0().publish_not_ready_addresses.is_None()
+            &&& service.get_Ok_0().spec is Some
+            &&& service.get_Ok_0().spec->0.publish_not_ready_addresses.is_None()
         },
         _ => true,
     }

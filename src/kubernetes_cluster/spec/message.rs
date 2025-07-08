@@ -221,8 +221,8 @@ pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bo
 }
 
 pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
-    if recv.is_Some() {
-        recv.get_Some_0().dst == host_id
+    if recv is Some {
+        recv->0.dst == host_id
     } else {
         true
     }
@@ -508,7 +508,7 @@ pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message)
     |msg: Message|
         msg.dst.is_APIServer()
         && msg.content.is_create_request()
-        && msg.content.get_create_request().obj.metadata.name.is_Some()
+        && msg.content.get_create_request().obj.metadata.name is Some
         && msg.content.get_create_request().key() == key
 }
 
@@ -519,7 +519,7 @@ pub open spec fn resource_create_request_msg_without_name(kind: Kind, namespace:
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == namespace
         && msg.content.get_create_request().obj.metadata.name.is_None()
-        && msg.content.get_create_request().obj.metadata.generate_name.is_Some()
+        && msg.content.get_create_request().obj.metadata.generate_name is Some
         && msg.content.get_create_request().obj.kind == kind
 }
 

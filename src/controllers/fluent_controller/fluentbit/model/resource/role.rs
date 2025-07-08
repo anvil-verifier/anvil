@@ -66,13 +66,13 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBuilder {
     }
 }
 
-pub open spec fn make_role_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() + "-role"@ }
+pub open spec fn make_role_name(fb: FluentBitView) -> StringView { fb.metadata.name->0 + "-role"@ }
 
 pub open spec fn make_role_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: RoleView::kind(),
         name: make_role_name(fb),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
     }
 }
 

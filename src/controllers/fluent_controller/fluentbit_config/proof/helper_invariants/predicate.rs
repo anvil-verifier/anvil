@@ -69,7 +69,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
                 block_owner_deletion: None,
                 controller: Some(true),
                 kind: FluentBitConfigView::kind(),
-                name: fbc.metadata.name.get_Some_0(),
+                name: fbc.metadata.name->0,
                 uid: uid,
             }])
     }
@@ -118,12 +118,12 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     let resource_key = get_request(sub_resource, fbc).key;
     |s: FBCCluster| {
         at_fbc_step(key, FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+        ==> s.ongoing_reconciles()[key].pending_req_msg is Some
+            && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg->0)
             && (
                 forall |msg: FBCMessage|
                     #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_get_response_msg(resource_key)(msg)
             )
     }
@@ -170,8 +170,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         } ==> {
             &&& at_fbc_step(key, FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& FBCCluster::pending_req_msg_is(s, key, msg)
-            &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
-            &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+            &&& msg.content.get_update_request().obj.metadata.resource_version is Some
+            &&& msg.content.get_update_request().obj.metadata.resource_version->0 < s.kubernetes_api_state.resource_version_counter
             &&& (
                 s.resources().contains_key(resource_key)
                 && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version

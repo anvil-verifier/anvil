@@ -167,7 +167,7 @@ pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_u
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
             match step {
                 Step::ApiServerStep(input) => {
-                    let req = input.get_Some_0();
+                    let req = input->0;
                     assert(!resource_delete_request_msg(cm_key)(req));
                     assert(!resource_update_status_request_msg(cm_key)(req));
                     if resource_update_request_msg(cm_key)(req) {} else {}
@@ -261,19 +261,19 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
     let resource_key = get_request(SubResource::ConfigMap, zookeeper).key;
     let key = zookeeper.object_ref();
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg->0;
         if at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ConfigMap))(s_prime) {
             assert_by(
-                s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some()
-                && resource_create_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()),
+                s_prime.ongoing_reconciles()[key].pending_req_msg is Some
+                && resource_create_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0),
                 {
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
-                            let cr_key = input.1.get_Some_0();
+                            let cr_key = input.1->0;
                             if cr_key == key {
-                                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-                                assert(resource_create_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                                assert(s_prime.ongoing_reconciles()[key].pending_req_msg is Some);
+                                assert(resource_create_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0));
                             } else {
                                 assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
                             }
@@ -294,7 +294,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                     match step {
                         Step::ApiServerStep(input) => {
-                            let req_msg = input.get_Some_0();
+                            let req_msg = input->0;
                             assert(!resource_delete_request_msg(resource_key)(req_msg));
                             assert(!resource_update_request_msg(resource_key)(req_msg));
                             assert(!resource_update_status_request_msg(resource_key)(req_msg));
@@ -412,19 +412,19 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     let resource_key = get_request(SubResource::ConfigMap, zookeeper).key;
     let key = zookeeper.object_ref();
     assert forall |s: ZKCluster, s_prime: ZKCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg->0;
         if at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ConfigMap))(s_prime) {
             assert_by(
-                s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some()
-                && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()),
+                s_prime.ongoing_reconciles()[key].pending_req_msg is Some
+                && resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0),
                 {
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
-                            let cr_key = input.1.get_Some_0();
+                            let cr_key = input.1->0;
                             if cr_key == key {
-                                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-                                assert(resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                                assert(s_prime.ongoing_reconciles()[key].pending_req_msg is Some);
+                                assert(resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0));
                             } else {
                                 assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
                             }
@@ -446,7 +446,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                     let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                     match step {
                         Step::ApiServerStep(input) => {
-                            let req_msg = input.get_Some_0();
+                            let req_msg = input->0;
                             assert(!resource_delete_request_msg(resource_key)(req_msg));
                             assert(!resource_update_status_request_msg(resource_key)(req_msg));
                             assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req_msg));
@@ -510,10 +510,10 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
             let step = choose |step| ZKCluster::next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
+                    let cr_key = input.1->0;
                     if cr_key == key {
-                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg is Some);
+                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0));
                     } else {
                         assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
                     }
@@ -595,8 +595,8 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         resource_update_request_msg(resource_key)(msg) ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& ZKCluster::pending_req_msg_is(s, key, msg)
-            &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
-            &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+            &&& msg.content.get_update_request().obj.metadata.resource_version is Some
+            &&& msg.content.get_update_request().obj.metadata.resource_version->0 < s.kubernetes_api_state.resource_version_counter
             &&& (
                 s.resources().contains_key(resource_key)
                 && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
@@ -631,7 +631,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                 let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, zookeeper, s, s_prime, msg, step);
-                    let resp = step.get_ControllerStep_0().0.get_Some_0();
+                    let resp = step.get_ControllerStep_0().0->0;
                     assert(ZKCluster::is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
                     assert(resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
@@ -880,8 +880,8 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of_except_state
                     let step = choose |step: ZKStep| ZKCluster::next_step(s, s_prime, step);
                     match step {
                         Step::ControllerStep(input) => {
-                            if input.1.is_Some() {
-                                let cr_key = input.1.get_Some_0();
+                            if input.1 is Some {
+                                let cr_key = input.1->0;
                                 if s.ongoing_reconciles().contains_key(cr_key) {
                                     match s.ongoing_reconciles()[cr_key].local_state.reconcile_step {
                                         ZookeeperReconcileStep::Init => {},
@@ -944,8 +944,8 @@ pub proof fn lemma_always_no_update_status_request_msg_not_from_bc_in_flight_of_
                 let step = choose |step: ZKStep| ZKCluster::next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
-                        if input.1.is_Some() {
-                            let cr_key = input.1.get_Some_0();
+                        if input.1 is Some {
+                            let cr_key = input.1->0;
                             if s.ongoing_reconciles().contains_key(cr_key) {
                                 match s.ongoing_reconciles()[cr_key].local_state.reconcile_step {
                                     ZookeeperReconcileStep::Init => {},
@@ -1028,7 +1028,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                let req_msg = input.get_Some_0();
+                let req_msg = input->0;
                 assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req_msg));
             }
             _ => {}
@@ -1108,20 +1108,20 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                     assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state).get_Ok_0());
                     assert(msg.content.get_create_request().obj.metadata.finalizers.is_None());
                     assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
-                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
+                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
                     ]));
                 }
                 if resource_update_request_msg(resource_key)(msg) {
-                    assert(step.get_ControllerStep_0().0.get_Some_0().content.is_get_response());
-                    assert(step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.is_Ok());
+                    assert(step.get_ControllerStep_0().0->0.content.is_get_response());
+                    assert(step.get_ControllerStep_0().0->0.content.get_get_response().res.is_Ok());
                     assert(update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.get_Ok_0()
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res.get_Ok_0()
                     ).is_Ok());
                     assert(msg.content.get_update_request().obj == update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.get_Ok_0()
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res.get_Ok_0()
                     ).get_Ok_0());
                     assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
-                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
+                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
                     ]));
                 }
 
@@ -1145,12 +1145,12 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
         ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         resource_create_request_msg(get_request(sub_resource, zookeeper).key)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == zookeeper.object_ref()
+        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1->0 == zookeeper.object_ref()
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime)
             && ZKCluster::pending_req_msg_is(s_prime, zookeeper.object_ref(), msg),
         resource_update_request_msg(get_request(sub_resource, zookeeper).key)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == zookeeper.object_ref()
+        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1->0 == zookeeper.object_ref()
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)
             && ZKCluster::pending_req_msg_is(s_prime, zookeeper.object_ref(), msg),
@@ -1158,7 +1158,7 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
-    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1->0;
     let key = zookeeper.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, zookeeper).key;
@@ -1359,14 +1359,14 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(sp
                         if s.resources().contains_key(resource_key) {
                             let owner_refs = s.resources()[resource_key].metadata.owner_references;
                             assert(owner_refs == Some(seq![zookeeper.controller_owner_ref()]));
-                            assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
+                            assert(owner_reference_to_object_reference(owner_refs->0[0], key.namespace) == key);
                         }
                     },
                     Step::ControllerStep(input) => {
-                        let cr_key = input.1.get_Some_0();
-                        if s_prime.ongoing_reconciles()[cr_key].pending_req_msg.is_Some() {
-                            assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0());
-                            assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.is_delete_request());
+                        let cr_key = input.1->0;
+                        if s_prime.ongoing_reconciles()[cr_key].pending_req_msg is Some {
+                            assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg->0);
+                            assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg->0.content.is_delete_request());
                         }
                     },
                     Step::ClientStep() => {
@@ -1594,7 +1594,7 @@ pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<ZKCluster>, zooke
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 assert(!resource_delete_request_msg(cm_key)(req));
                 assert(!resource_update_status_request_msg(cm_key)(req));
                 if resource_update_request_msg(cm_key)(req) {} else {}

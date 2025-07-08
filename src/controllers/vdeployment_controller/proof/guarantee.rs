@@ -83,7 +83,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 }
             }
             Step::ControllerStep((id, _, cr_key_opt)) => {
-                let cr_key = cr_key_opt.get_Some_0();
+                let cr_key = cr_key_opt->0;
                 assert forall |msg| {
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)
@@ -108,7 +108,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
 
                             assert(req.owner_ref == triggering_cr.controller_owner_ref());
 
-                            if state.new_vrs.is_Some() && state.old_vrs_list.len() > 0 {
+                            if state.new_vrs is Some && state.old_vrs_list.len() > 0 {
                                 let old_vrs = state.old_vrs_list.last();
                                 let updated_vrs = VReplicaSetView {
                                     spec: VReplicaSetSpecView {
@@ -129,7 +129,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                                     ..old_vrs
                                 };
                                 assert(req.obj == updated_vrs.marshal());
-                            } else if state.new_vrs.is_Some() {
+                            } else if state.new_vrs is Some {
                                 assert(req.obj == state.new_vrs.unwrap().marshal());
                             }
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));

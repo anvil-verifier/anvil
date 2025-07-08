@@ -36,8 +36,8 @@ impl VDeploymentView {
             block_owner_deletion: Some(true),
             controller: Some(true),
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            uid: self.metadata.uid.get_Some_0(),
+            name: self.metadata.name->0,
+            uid: self.metadata.uid->0,
         }
     }
 }
@@ -61,8 +61,8 @@ impl ResourceView for VDeploymentView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -125,7 +125,7 @@ impl ResourceView for VDeploymentView {
     // TODO: keep it consistent with k8s's Deployment
     open spec fn state_validation(self) -> bool {
         // replicas is non-negative
-        &&& self.spec.replicas.is_Some() ==> self.spec.replicas.get_Some_0() >= 0
+        &&& self.spec.replicas is Some ==> self.spec.replicas->0 >= 0
 
         // minReadySeconds is non-negative
         &&& match (self.spec.min_ready_seconds, self.spec.progress_deadline_seconds) {
@@ -139,19 +139,19 @@ impl ResourceView for VDeploymentView {
         }
 
         // If strategy provided, it should be Recreate or RollingUpdate
-        &&& self.spec.strategy.is_Some() ==> {
+        &&& self.spec.strategy is Some ==> {
             (
-                self.spec.strategy.get_Some_0().type_.is_Some() ==> (
+                self.spec.strategy->0.type_ is Some ==> (
                     (
-                        self.spec.strategy.get_Some_0().type_.get_Some_0() == "Recreate"@
+                        self.spec.strategy->0.type_->0 == "Recreate"@
                         // rollingUpdate block only appear when type == "RollingUpdate"
-                        && self.spec.strategy.get_Some_0().rolling_update.is_None()
+                        && self.spec.strategy->0.rolling_update.is_None()
                     )
                     || (
                         // maxSurge and maxUnavailable cannot both exist and be 0
-                        self.spec.strategy.get_Some_0().type_.get_Some_0() == "RollingUpdate"@
-                        && (self.spec.strategy.get_Some_0().rolling_update.is_Some() ==>
-                            match (self.spec.strategy.get_Some_0().rolling_update.get_Some_0().max_surge, self.spec.strategy.get_Some_0().rolling_update.get_Some_0().max_unavailable) {
+                        self.spec.strategy->0.type_->0 == "RollingUpdate"@
+                        && (self.spec.strategy->0.rolling_update is Some ==>
+                            match (self.spec.strategy->0.rolling_update->0.max_surge, self.spec.strategy->0.rolling_update->0.max_unavailable) {
                                 (Some(max_surge), Some(max_unavailable)) => max_surge >= 0 && max_unavailable >= 0 && !(max_surge == 0 && max_unavailable == 0),
                                 (Some(max_surge), None) => max_surge >= 0,
                                 (None, Some(max_unavailable)) => max_unavailable >= 0,
@@ -165,15 +165,15 @@ impl ResourceView for VDeploymentView {
 
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
-        &&& self.spec.selector.match_labels.is_Some()
-        &&& self.spec.selector.match_labels.get_Some_0().len() > 0
+        &&& self.spec.selector.match_labels is Some
+        &&& self.spec.selector.match_labels->0.len() > 0
         // template and its metadata ane spec exists
-        &&& self.spec.template.metadata.is_Some()
+        &&& self.spec.template.metadata is Some
         // can be derived from selector match labels
-        &&& self.spec.template.metadata.get_Some_0().labels.is_Some()
-        &&& self.spec.template.spec.is_Some()
+        &&& self.spec.template.metadata->0.labels is Some
+        &&& self.spec.template.spec is Some
         // selector matches template's metadata's labels
-        &&& self.spec.selector.matches(self.spec.template.metadata.get_Some_0().labels.get_Some_0())
+        &&& self.spec.selector.matches(self.spec.template.metadata->0.labels->0)
     }
 
 

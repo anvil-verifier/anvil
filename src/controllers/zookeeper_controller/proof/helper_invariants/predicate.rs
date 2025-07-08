@@ -70,7 +70,7 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
                 block_owner_deletion: None,
                 controller: Some(true),
                 kind: ZookeeperClusterView::kind(),
-                name: zookeeper.metadata.name.get_Some_0(),
+                name: zookeeper.metadata.name->0,
                 uid: uid,
             }])
     }
@@ -119,12 +119,12 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {
         at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+        ==> s.ongoing_reconciles()[key].pending_req_msg is Some
+            && resource_get_request_msg(resource_key)(s.ongoing_reconciles()[key].pending_req_msg->0)
             && (
                 forall |msg: ZKMessage|
                     #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_get_response_msg(resource_key)(msg)
             )
     }
@@ -136,15 +136,15 @@ pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etc
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {
-        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        let pending_req = s.ongoing_reconciles()[key].pending_req_msg->0;
 
         at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+        ==> s.ongoing_reconciles()[key].pending_req_msg is Some
             && resource_update_request_msg(resource_key)(pending_req)
             && (
                 forall |msg: ZKMessage|
                     #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_update_response_msg(resource_key, s)(msg)
             )
     }
@@ -156,15 +156,15 @@ pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etc
     let key = zookeeper.object_ref();
     let resource_key = get_request(sub_resource, zookeeper).key;
     |s: ZKCluster| {
-        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        let pending_req = s.ongoing_reconciles()[key].pending_req_msg->0;
 
         at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+        ==> s.ongoing_reconciles()[key].pending_req_msg is Some
             && resource_create_request_msg(resource_key)(pending_req)
             && (
                 forall |msg: ZKMessage|
                     #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg->0)
                     ==> resource_create_response_msg(resource_key, s)(msg)
             )
     }
@@ -209,8 +209,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         } ==> {
             &&& at_zk_step(key, ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& ZKCluster::pending_req_msg_is(s, key, msg)
-            &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
-            &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+            &&& msg.content.get_update_request().obj.metadata.resource_version is Some
+            &&& msg.content.get_update_request().obj.metadata.resource_version->0 < s.kubernetes_api_state.resource_version_counter
             &&& (
                 s.resources().contains_key(resource_key)
                 && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
@@ -276,8 +276,8 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper: Zo
                     SubResource::StatefulSet => {
                         let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
                         &&& s.resources().contains_key(cm_key)
-                        &&& s.resources()[cm_key].metadata.resource_version.is_Some()
-                        &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0()))
+                        &&& s.resources()[cm_key].metadata.resource_version is Some
+                        &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
                     },
                     _ => true,
                 }
@@ -285,8 +285,8 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(zookeeper: Zo
             ZookeeperReconcileStep::AfterExistsStatefulSet | ZookeeperReconcileStep::AfterExistsZKNode | ZookeeperReconcileStep::AfterCreateZKParentNode | ZookeeperReconcileStep::AfterCreateZKNode | ZookeeperReconcileStep::AfterUpdateZKNode => {
                 let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
                 &&& s.resources().contains_key(cm_key)
-                &&& s.resources()[cm_key].metadata.resource_version.is_Some()
-                &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0()))
+                &&& s.resources()[cm_key].metadata.resource_version is Some
+                &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version->0))
             }
             _ => true,
         }
@@ -305,7 +305,7 @@ pub open spec fn cm_rv_stays_unchanged(zookeeper: ZookeeperClusterView) -> Actio
         let cm_key = get_request(SubResource::ConfigMap, zookeeper).key;
         &&& s.resources().contains_key(cm_key)
         &&& s_prime.resources().contains_key(cm_key)
-        &&& s.resources()[cm_key].metadata.resource_version.is_Some()
+        &&& s.resources()[cm_key].metadata.resource_version is Some
         &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
     }
 }

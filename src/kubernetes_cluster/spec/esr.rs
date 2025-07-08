@@ -22,8 +22,8 @@ impl Cluster {
 // We require the cr object's spec field to remain unchanged, but other fields, like status, could change.
 pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& cr.metadata().name.is_Some()
-        &&& cr.metadata().namespace.is_Some()
+        &&& cr.metadata().name is Some
+        &&& cr.metadata().namespace is Some
         // The object that has the same key with cr exists in etcd...
         &&& s.resources().contains_key(cr.object_ref())
         // and its uid is the same as cr...

@@ -115,7 +115,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
         assert_by(tla_exists(pre_and_req_in_flight) == pre, {
             assert forall |ex| #[trigger] pre.satisfied_by(ex) implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
@@ -129,7 +129,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
             assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex) implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0())
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0)
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
@@ -144,7 +144,7 @@ pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_m
         leads_to_exists_intro(spec, post_and_req_in_flight, match_and_ok_resp);
         assert_by(tla_exists(post_and_req_in_flight) == post, {
             assert forall |ex| #[trigger] post.satisfied_by(ex) implies tla_exists(post_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
                 assert(post_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(post_and_req_in_flight), post);
@@ -198,7 +198,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         assert_by(tla_exists(pre_and_req_in_flight) == pre, {
             assert forall |ex| #[trigger] pre.satisfied_by(ex)
             implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
@@ -214,7 +214,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0())
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0)
                     &&& resp_msg.content.get_get_response().res.is_Ok()
                     &&& resp_msg.content.get_get_response().res.get_Ok_0() == ex.head().resources()[resource_key]
                 };
@@ -230,7 +230,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         assert_by(tla_exists(pre_and_req_in_flight) == lift_state(post), {
             assert forall |ex| #[trigger] lift_state(post).satisfied_by(ex)
             implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_and_req_in_flight), lift_state(post));
@@ -299,8 +299,8 @@ proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resou
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
-                if input.get_Some_0() == req_msg {
+                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
+                if input->0 == req_msg {
                     let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -390,8 +390,8 @@ proof fn lemma_from_after_get_resource_step_to_after_create_resource_step(spec: 
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_create_request_msg(resource_key)(input.get_Some_0()));
-                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
+                assert(!resource_create_request_msg(resource_key)(input->0));
+                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
             },
             _ => {}
         }
@@ -454,7 +454,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
     };
 
     assert forall |s, s_prime: FBCCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let pending_msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let pending_msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let resp = FBCCluster::handle_create_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
@@ -466,8 +466,8 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(spec: TempPr
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
-                if resource_create_request_msg(resource_key)(input.get_Some_0()) {} else {}
+                assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
+                if resource_create_request_msg(resource_key)(input->0) {} else {}
             },
             _ => {}
         }
@@ -525,7 +525,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = FBCCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -608,7 +608,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(spec: TempPr
     };
 
     assert forall |s, s_prime: FBCCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
-        let pending_msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let pending_msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let resp = FBCCluster::handle_update_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {

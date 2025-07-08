@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessSe
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
         let found_service = service.get_Ok_0();
-        if service.is_Ok() && found_service.spec.is_Some() {
+        if service.is_Ok() && found_service.spec is Some {
             Ok(update_headless_service(rabbitmq, found_service).marshal())
         } else {
             Err(())
@@ -70,13 +70,13 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessSe
     }
 }
 
-pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-nodes"@ }
+pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-nodes"@ }
 
 pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_headless_service_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
@@ -91,10 +91,10 @@ pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_he
             ..found_headless_service.metadata
         },
         spec: Some(ServiceSpecView {
-            ports: made_headless_service.spec.get_Some_0().ports,
-            selector: made_headless_service.spec.get_Some_0().selector,
-            publish_not_ready_addresses: made_headless_service.spec.get_Some_0().publish_not_ready_addresses,
-            ..found_headless_service.spec.get_Some_0()
+            ports: made_headless_service.spec->0.ports,
+            selector: made_headless_service.spec->0.selector,
+            publish_not_ready_addresses: made_headless_service.spec->0.publish_not_ready_addresses,
+            ..found_headless_service.spec->0
         }),
         ..found_headless_service
     }

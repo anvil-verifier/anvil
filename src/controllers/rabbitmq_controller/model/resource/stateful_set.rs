@@ -28,8 +28,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 
     open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
-        if state.latest_config_map_rv_opt.is_Some() {
-            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.get_Some_0()).marshal())
+        if state.latest_config_map_rv_opt is Some {
+            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt->0).marshal())
         } else {
             Err(())
         }
@@ -39,8 +39,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
         let sts = StatefulSetView::unmarshal(obj);
         let found_sts = sts.get_Ok_0();
         if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-        && state.latest_config_map_rv_opt.is_Some() && found_sts.spec.is_Some() {
-            Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.get_Some_0()).marshal())
+        && state.latest_config_map_rv_opt is Some && found_sts.spec is Some {
+            Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt->0).marshal())
         } else {
             Err(())
         }
@@ -77,16 +77,16 @@ pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     ObjectRef {
         kind: StatefulSetView::kind(),
         name: make_stateful_set_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
-pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server"@ }
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-server"@ }
 
 pub open spec fn sts_restart_annotation() -> StringView { "anvil.dev/lastRestartAt"@ }
 
 pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_stateful_set: StatefulSetView, config_map_rv: StringView) -> StatefulSetView {
-    let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();
+    let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec->0;
     StatefulSetView {
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(rabbitmq)),
@@ -99,16 +99,16 @@ pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_statef
             replicas: made_spec.replicas,
             template: made_spec.template,
             persistent_volume_claim_retention_policy: made_spec.persistent_volume_claim_retention_policy,
-            ..found_stateful_set.spec.get_Some_0()
+            ..found_stateful_set.spec->0
         }),
         ..found_stateful_set
     }
 }
 
 pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv: StringView) -> StatefulSetView {
-    let name = rabbitmq.metadata.name.get_Some_0();
+    let name = rabbitmq.metadata.name->0;
     let sts_name = make_stateful_set_name(rabbitmq);
-    let namespace = rabbitmq.metadata.namespace.get_Some_0();
+    let namespace = rabbitmq.metadata.namespace->0;
 
     let labels = Map::empty().insert("app"@, name);
     let metadata = ObjectMetaView::default()
@@ -168,7 +168,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         VolumeView::default()
             .with_name("plugins-conf"@)
             .with_config_map(ConfigMapVolumeSourceView::default()
-                .with_name(rabbitmq.metadata.name.get_Some_0() + "-plugins-conf"@)
+                .with_name(rabbitmq.metadata.name->0 + "-plugins-conf"@)
             ),
         VolumeView::default()
             .with_name("rabbitmq-confd"@)
@@ -176,7 +176,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 .with_sources(seq![
                     VolumeProjectionView::default()
                         .with_config_map(ConfigMapProjectionView::default()
-                            .with_name(rabbitmq.metadata.name.get_Some_0() + "-server-conf"@)
+                            .with_name(rabbitmq.metadata.name->0 + "-server-conf"@)
                             .with_items(seq![
                                 KeyToPathView::default()
                                     .with_key("operatorDefaults.conf"@)
@@ -188,7 +188,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         ),
                     VolumeProjectionView::default()
                         .with_secret(SecretProjectionView::default()
-                            .with_name(rabbitmq.metadata.name.get_Some_0() + "-default-user"@)
+                            .with_name(rabbitmq.metadata.name->0 + "-default-user"@)
                             .with_items(seq![
                                 KeyToPathView::default()
                                     .with_key("default_user.conf"@)
@@ -203,7 +203,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         VolumeView::default()
             .with_name("erlang-cookie-secret"@)
             .with_secret(SecretVolumeSourceView::default()
-                .with_secret_name(rabbitmq.metadata.name.get_Some_0() + "-erlang-cookie"@)
+                .with_secret_name(rabbitmq.metadata.name->0 + "-erlang-cookie"@)
             ),
         VolumeView::default()
             .with_name("rabbitmq-plugins"@)
@@ -222,7 +222,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
     ];
 
     PodSpecView {
-        service_account_name: Some(rabbitmq.metadata.name.get_Some_0() + "-server"@),
+        service_account_name: Some(rabbitmq.metadata.name->0 + "-server"@),
         init_containers: Some(
             seq![
                 ContainerView::default()
@@ -307,10 +307,10 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                             .with_mount_path("/etc/rabbitmq/conf.d/11-default_user.conf"@)
                             .with_sub_path("default_user.conf"@),
                     ];
-                    if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
-                    && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != ""@
-                    && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
-                    && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != ""@ {
+                    if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.advanced_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.advanced_config->0 != ""@
+                    && rabbitmq.spec.rabbitmq_config->0.env_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.env_config->0 != ""@ {
                         volume_mounts.push(
                             VolumeMountView::default()
                                 .with_name("server-conf"@)
@@ -322,16 +322,16 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                                 .with_mount_path("/etc/rabbitmq/advanced.config"@)
                                 .with_sub_path("advanced.config"@)
                             )
-                    } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
-                    && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != ""@ {
+                    } else if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.advanced_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.advanced_config->0 != ""@ {
                         volume_mounts.push(
                             VolumeMountView::default()
                                 .with_name("server-conf"@)
                                 .with_mount_path("/etc/rabbitmq/advanced.config"@)
                                 .with_sub_path("advanced.config"@),
                         )
-                    } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
-                    && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != ""@ {
+                    } else if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.env_config is Some
+                    && rabbitmq.spec.rabbitmq_config->0.env_config->0 != ""@ {
                         volume_mounts.push(
                             VolumeMountView::default()
                                 .with_name("server-conf"@)
@@ -403,7 +403,7 @@ pub open spec fn make_env_vars(rabbitmq: RabbitmqClusterView) -> Seq<EnvVarView>
         },
         EnvVarView {
             name: "K8S_SERVICE_NAME"@,
-            value: Some(rabbitmq.metadata.name.get_Some_0() + "-nodes"@),
+            value: Some(rabbitmq.metadata.name->0 + "-nodes"@),
             ..EnvVarView::default()
         },
         EnvVarView {

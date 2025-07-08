@@ -58,8 +58,8 @@ impl ResourceView for StatefulSetView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -124,19 +124,19 @@ impl ResourceView for StatefulSetView {
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
-        let new_spec = self.spec.get_Some_0();
-        &&& self.spec.is_Some()
-        &&& new_spec.replicas.is_Some() ==> new_spec.replicas.get_Some_0() >= 0
-        // &&& new_spec.pod_management_policy.is_Some()
-        //     ==> (new_spec.pod_management_policy.get_Some_0() == "OrderedReady"@
-        //         || new_spec.pod_management_policy.get_Some_0() == "Parallel"@)
-        // &&& new_spec.persistent_volume_claim_retention_policy.is_Some()
-        //     ==> new_spec.persistent_volume_claim_retention_policy.get_Some_0().state_validation()
+        let new_spec = self.spec->0;
+        &&& self.spec is Some
+        &&& new_spec.replicas is Some ==> new_spec.replicas->0 >= 0
+        // &&& new_spec.pod_management_policy is Some
+        //     ==> (new_spec.pod_management_policy->0 == "OrderedReady"@
+        //         || new_spec.pod_management_policy->0 == "Parallel"@)
+        // &&& new_spec.persistent_volume_claim_retention_policy is Some
+        //     ==> new_spec.persistent_volume_claim_retention_policy->0.state_validation()
     }
 
     open spec fn transition_validation(self, old_obj: StatefulSetView) -> bool {
-        let old_spec = old_obj.spec.get_Some_0();
-        let new_spec = self.spec.get_Some_0();
+        let old_spec = old_obj.spec->0;
+        let new_spec = self.spec->0;
         // Fields other than replicas, template, persistent_volume_claim_retention_policy
         // (and some other unspecified fields) are immutable.
         &&& old_spec == StatefulSetSpecView {
@@ -242,8 +242,8 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
     }
 
     pub open spec fn state_validation(self) -> bool {
-        &&& self.when_deleted.is_Some() ==> (self.when_deleted.get_Some_0() == "Retain"@ || self.when_deleted.get_Some_0() == "Delete"@)
-        &&& self.when_scaled.is_Some() ==> (self.when_scaled.get_Some_0() == "Retain"@ || self.when_scaled.get_Some_0() == "Delete"@)
+        &&& self.when_deleted is Some ==> (self.when_deleted->0 == "Retain"@ || self.when_deleted->0 == "Delete"@)
+        &&& self.when_scaled is Some ==> (self.when_scaled->0 == "Retain"@ || self.when_scaled->0 == "Delete"@)
     }
 
     pub open spec fn with_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {

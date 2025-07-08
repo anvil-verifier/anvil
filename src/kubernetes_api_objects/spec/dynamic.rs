@@ -19,13 +19,13 @@ pub struct DynamicObjectView {
 impl DynamicObjectView {
     pub open spec fn object_ref(self) -> ObjectRef
         recommends
-            self.metadata.name.is_Some(),
-            self.metadata.namespace.is_Some(),
+            self.metadata.name is Some,
+            self.metadata.namespace is Some,
     {
         ObjectRef {
             kind: self.kind,
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 

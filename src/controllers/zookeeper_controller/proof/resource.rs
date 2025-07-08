@@ -80,9 +80,9 @@ pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectVi
         },
         SubResource::StatefulSet => {
             &&& StatefulSetView::unmarshal(object).is_Ok()
-            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.is_Some()
-            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.get_Some_0().replicas.is_Some()
-            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
+            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec is Some
+            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec->0.replicas is Some
+            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec->0.replicas->0 > 0
         },
         _ => true,
     }

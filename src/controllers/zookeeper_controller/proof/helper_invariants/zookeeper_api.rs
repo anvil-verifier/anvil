@@ -79,7 +79,7 @@ pub proof fn lemma_eventually_always_every_zk_set_data_request_implies_at_after_
                 let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_zk_request_implies_step_helper(zookeeper, s, s_prime, msg, step);
-                    let resp = step.get_ControllerStep_0().0.get_Some_0();
+                    let resp = step.get_ControllerStep_0().0->0;
                     assert(s.in_flight().contains(resp));
                 } else {
                     assert(requirements(msg, s));
@@ -157,7 +157,7 @@ pub proof fn lemma_eventually_always_every_zk_create_node_request_implies_at_aft
                 let step = choose |step| ZKCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_zk_request_implies_step_helper(zookeeper, s, s_prime, msg, step);
-                    let resp = step.get_ControllerStep_0().0.get_Some_0();
+                    let resp = step.get_ControllerStep_0().0->0;
                     assert(s.in_flight().contains(resp));
                 } else {
                     assert(requirements(msg, s));
@@ -190,17 +190,17 @@ pub proof fn lemma_zk_request_implies_step_helper(zookeeper: ZookeeperClusterVie
         ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         zk_set_data_request_msg(zookeeper)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == zookeeper.object_ref()
+        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1->0 == zookeeper.object_ref()
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterExistsZKNode)(s)
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterUpdateZKNode)(s_prime)
             && ZKCluster::pending_req_msg_is(s_prime, zookeeper.object_ref(), msg),
         zk_create_node_request_msg(zookeeper)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == zookeeper.object_ref()
+        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1->0 == zookeeper.object_ref()
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterCreateZKParentNode)(s)
             && at_zk_step(zookeeper.object_ref(), ZookeeperReconcileStep::AfterCreateZKNode)(s_prime)
             && ZKCluster::pending_req_msg_is(s_prime, zookeeper.object_ref(), msg),
 {
-    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1->0;
     let key = zookeeper.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     if zk_set_data_request_msg(zookeeper)(msg) {

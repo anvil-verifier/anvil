@@ -33,8 +33,8 @@ impl OwnerReference {
     #[verifier(external_body)]
     pub fn controller(&self) -> (controller: Option<bool>)
         ensures
-            self@.controller.is_Some() == controller.is_Some(),
-            controller.is_Some() ==> controller.get_Some_0() == self@.controller.get_Some_0(),
+            self@.controller is Some == controller is Some,
+            controller is Some ==> controller->0 == self@.controller->0,
     {
         match &self.inner.controller {
             Some(c) => Some(*c),

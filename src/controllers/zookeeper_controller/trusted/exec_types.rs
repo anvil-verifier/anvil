@@ -187,8 +187,8 @@ impl ZookeeperClusterSpec {
     #[verifier(external_body)]
     pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
-            self@.resources.is_Some() == resources.is_Some(),
-            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
+            self@.resources is Some == resources is Some,
+            resources is Some ==> resources->0@ == self@.resources->0,
     {
         match &self.inner.resources {
             Some(r) => Some(ResourceRequirements::from_kube(r.clone())),
@@ -199,8 +199,8 @@ impl ZookeeperClusterSpec {
     #[verifier(external_body)]
     pub fn affinity(&self) -> (affinity: Option<Affinity>)
         ensures
-            self@.affinity.is_Some() == affinity.is_Some(),
-            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+            self@.affinity is Some == affinity is Some,
+            affinity is Some ==> affinity->0@ == self@.affinity->0,
     {
         match &self.inner.affinity {
             Some(a) => Some(Affinity::from_kube(a.clone())),
@@ -211,8 +211,8 @@ impl ZookeeperClusterSpec {
     #[verifier(external_body)]
     pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
         ensures
-            self@.tolerations.is_Some() == tolerations.is_Some(),
-            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+            self@.tolerations is Some == tolerations is Some,
+            tolerations is Some ==> tolerations->0@.map_values(|t: Toleration| t@) == self@.tolerations->0,
     {
         match &self.inner.tolerations {
             Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),

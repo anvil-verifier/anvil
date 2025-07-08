@@ -36,9 +36,9 @@ pub type RabbitmqClusterStatusView = EmptyStatusView;
 
 impl RabbitmqClusterView {
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.name.is_Some()
-        &&& self.metadata.namespace.is_Some()
-        &&& self.metadata.uid.is_Some()
+        &&& self.metadata.name is Some
+        &&& self.metadata.namespace is Some
+        &&& self.metadata.uid is Some
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
@@ -46,8 +46,8 @@ impl RabbitmqClusterView {
             block_owner_deletion: None,
             controller: Some(true),
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            uid: self.metadata.uid.get_Some_0(),
+            name: self.metadata.name->0,
+            uid: self.metadata.uid->0,
         }
     }
 }
@@ -71,8 +71,8 @@ impl ResourceView for RabbitmqClusterView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -134,11 +134,11 @@ impl ResourceView for RabbitmqClusterView {
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.replicas >= 0
-        // &&& self.spec.pod_management_policy.is_Some() ==>
-        //     (self.spec.pod_management_policy.get_Some_0() == "OrderedReady"@
-        //         || self.spec.pod_management_policy.get_Some_0() == "Parallel"@)
-        // &&& self.spec.persistent_volume_claim_retention_policy.is_Some() ==>
-        //     self.spec.persistent_volume_claim_retention_policy.get_Some_0().state_validation()
+        // &&& self.spec.pod_management_policy is Some ==>
+        //     (self.spec.pod_management_policy->0 == "OrderedReady"@
+        //         || self.spec.pod_management_policy->0 == "Parallel"@)
+        // &&& self.spec.persistent_volume_claim_retention_policy is Some ==>
+        //     self.spec.persistent_volume_claim_retention_policy->0.state_validation()
     }
 
     open spec fn transition_validation(self, old_obj: RabbitmqClusterView) -> bool {

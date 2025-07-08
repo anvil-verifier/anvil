@@ -155,8 +155,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
-            replicas.is_Some() == self@.replicas.is_Some(),
-            replicas.is_Some() ==> replicas.get_Some_0() as int == self@.replicas.get_Some_0(),
+            replicas is Some == self@.replicas is Some,
+            replicas is Some ==> replicas->0 as int == self@.replicas->0,
     {
         self.inner.replicas
     }
@@ -179,8 +179,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn min_ready_seconds(&self) -> (min_ready_seconds: Option<i32>)
         ensures
-            min_ready_seconds.is_Some() == self@.min_ready_seconds.is_Some(),
-            min_ready_seconds.is_Some() ==> min_ready_seconds.get_Some_0() as int == self@.min_ready_seconds.get_Some_0(),
+            min_ready_seconds is Some == self@.min_ready_seconds is Some,
+            min_ready_seconds is Some ==> min_ready_seconds->0 as int == self@.min_ready_seconds->0,
     {
         self.inner.min_ready_seconds
     }
@@ -188,8 +188,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn progress_deadline_seconds(&self) -> (progress_deadline: Option<i32>)
         ensures
-            progress_deadline.is_Some() == self@.progress_deadline_seconds.is_Some(),
-            progress_deadline.is_Some() ==> progress_deadline.get_Some_0() as int == self@.progress_deadline_seconds.get_Some_0(),
+            progress_deadline is Some == self@.progress_deadline_seconds is Some,
+            progress_deadline is Some ==> progress_deadline->0 as int == self@.progress_deadline_seconds->0,
     {
         self.inner.progress_deadline_seconds
     }
@@ -197,8 +197,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn strategy(&self) -> (strategy: Option<DeploymentStrategy>)
         ensures
-            strategy.is_Some() == self@.strategy.is_Some(),
-            strategy.is_Some() ==> strategy.get_Some_0()@ == self@.strategy.get_Some_0(),
+            strategy is Some == self@.strategy is Some,
+            strategy is Some ==> strategy->0@ == self@.strategy->0,
     {
         match &self.inner.strategy {
             Some(s) => Some(DeploymentStrategy::from_kube(s.clone())),
@@ -209,8 +209,8 @@ impl VDeploymentSpec {
     #[verifier(external_body)]
     pub fn paused(&self) -> (paused: Option<bool>)
         ensures
-            paused.is_Some() == self@.paused.is_Some(),
-            paused.is_Some() ==> paused.get_Some_0() == self@.paused.get_Some_0(),
+            paused is Some == self@.paused is Some,
+            paused is Some ==> paused->0 == self@.paused->0,
     {
         self.inner.paused
     }
@@ -233,8 +233,8 @@ impl DeploymentStrategy {
     #[verifier(external_body)]
     pub fn type_(&self) -> (type_: Option<String>)
         ensures
-            self@.type_.is_Some() == type_.is_Some(),
-            type_.is_Some() ==> type_.get_Some_0()@ == self@.type_.get_Some_0(),
+            self@.type_ is Some == type_ is Some,
+            type_ is Some ==> type_->0@ == self@.type_->0,
     {
         self.inner.type_.clone()
     }
@@ -242,8 +242,8 @@ impl DeploymentStrategy {
     #[verifier(external_body)]
     pub fn rolling_update(&self) -> (rolling_update: Option<RollingUpdateDeployment>)
         ensures
-            self@.rolling_update.is_Some() == rolling_update.is_Some(),
-            rolling_update.is_Some() ==> rolling_update.get_Some_0()@ == self@.rolling_update.get_Some_0(),
+            self@.rolling_update is Some == rolling_update is Some,
+            rolling_update is Some ==> rolling_update->0@ == self@.rolling_update->0,
     {
         match &self.inner.rolling_update {
             Some(ru) => Some(RollingUpdateDeployment::from_kube(ru.clone())),
@@ -282,8 +282,8 @@ impl RollingUpdateDeployment {
     #[verifier(external_body)]
     pub fn max_surge(&self) -> (max_surge: Option<i32>)
         ensures
-            self@.max_surge.is_Some() == max_surge.is_Some(),
-            max_surge.is_Some() ==> max_surge.get_Some_0() as int == self@.max_surge.get_Some_0(),
+            self@.max_surge is Some == max_surge is Some,
+            max_surge is Some ==> max_surge->0 as int == self@.max_surge->0,
     {
         match &self.inner.max_surge {
             Some(ms) => match ms {
@@ -298,8 +298,8 @@ impl RollingUpdateDeployment {
     #[verifier(external_body)]
     pub fn max_unavailable(&self) -> (max_unavailable: Option<i32>)
         ensures
-            self@.max_unavailable.is_Some() == max_unavailable.is_Some(),
-            max_unavailable.is_Some() ==> max_unavailable.get_Some_0() as int == self@.max_unavailable.get_Some_0(),
+            self@.max_unavailable is Some == max_unavailable is Some,
+            max_unavailable is Some ==> max_unavailable->0 as int == self@.max_unavailable->0,
     {
         match &self.inner.max_unavailable {
             Some(mu) => match mu {

@@ -84,7 +84,7 @@ impl ObjectMetaView {
         let old_map = if self.labels.is_None() {
             Map::empty()
         } else {
-            self.labels.get_Some_0()
+            self.labels->0
         };
         ObjectMetaView {
             labels: Some(old_map.insert(key, value)),
@@ -93,7 +93,7 @@ impl ObjectMetaView {
     }
 
     pub open spec fn without_label(self, key: StringView) -> ObjectMetaView {
-        if self.labels.is_Some() {
+        if self.labels is Some {
             ObjectMetaView {
                 labels: Some(self.labels.unwrap().remove(key)),
                 ..self
@@ -114,7 +114,7 @@ impl ObjectMetaView {
         let old_map = if self.annotations.is_None() {
             Map::empty()
         } else {
-            self.annotations.get_Some_0()
+            self.annotations->0
         };
         ObjectMetaView {
             annotations: Some(old_map.insert(key, value)),
@@ -154,7 +154,7 @@ impl ObjectMetaView {
         if self.finalizers.is_None() {
             Set::empty()
         } else {
-            self.finalizers.get_Some_0().to_set()
+            self.finalizers->0.to_set()
         }
     }
 
@@ -166,10 +166,10 @@ impl ObjectMetaView {
     }
 
     pub open spec fn well_formed_for_namespaced(self) -> bool {
-        &&& self.name.is_Some()
-        &&& self.namespace.is_Some()
-        &&& self.resource_version.is_Some()
-        &&& self.uid.is_Some()
+        &&& self.name is Some
+        &&& self.namespace is Some
+        &&& self.resource_version is Some
+        &&& self.uid is Some
     }
 }
 

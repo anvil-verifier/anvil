@@ -26,7 +26,7 @@ pub open spec fn scale_down_old_vrs_rank_n(n: nat) -> spec_fn(ReconcileLocalStat
 
 pub open spec fn new_vrs_some_and_replicas(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
     // vrs.spec.replicas.is_None => 1 replica
-    |vds: VDeploymentReconcileState| vds.new_vrs.is_Some() && vds.new_vrs.unwrap().spec.replicas.unwrap_or(1) == n
+    |vds: VDeploymentReconcileState| vds.new_vrs is Some && vds.new_vrs.unwrap().spec.replicas.unwrap_or(1) == n
 }
 
 pub proof fn reconcile_eventually_terminates_on_vd_object(

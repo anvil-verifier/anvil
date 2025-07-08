@@ -66,14 +66,14 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
 }
 
 pub open spec fn make_secret_name(fbc: FluentBitConfigView) -> StringView {
-    fbc.metadata.name.get_Some_0()
+    fbc.metadata.name->0
 }
 
 pub open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
         name: make_secret_name(fbc),
-        namespace: fbc.metadata.namespace.get_Some_0(),
+        namespace: fbc.metadata.namespace->0,
     }
 }
 
