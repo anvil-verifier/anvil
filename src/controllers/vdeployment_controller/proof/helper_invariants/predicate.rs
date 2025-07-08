@@ -227,7 +227,11 @@ pub open spec fn vd_reconcile_get_then_update_request_only_interferes_with_itsel
         &&& req.owner_ref.kind == VDeploymentView::kind()
         &&& req.owner_ref.name == vd.object_ref().name
         &&& req.obj.metadata.owner_references.is_Some()
-        &&& controller_owners == seq![vd.controller_owner_ref()]
+        // We can't prove controller_owners == seq![vd.controller_owner_ref()]
+        // directly since owner references carry a uid...
+        &&& controller_owners.len() == 1
+        &&& controller_owners[0].name == vd.object_ref().name
+        &&& controller_owners[0].kind == VDeploymentView::kind()
     }
 }
 

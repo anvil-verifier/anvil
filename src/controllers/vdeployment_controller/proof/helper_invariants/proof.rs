@@ -5,6 +5,7 @@ use crate::kubernetes_cluster::spec::{
     cluster::*, 
     message::*
 };
+use crate::reconciler::spec::io::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
@@ -159,13 +160,12 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
                                 let controller_owners = owners.filter(
                                     |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
                                 );
-                                assert(
-                                    controller_owners == seq![vd_with_key.controller_owner_ref()]
-                                );
+                                assert(controller_owners.len() == 1);
+                                assert(controller_owners[0].name == vd_with_key.object_ref().name);
+                                assert(controller_owners[0].kind == VDeploymentView::kind());
                                 if req.key().namespace == vd.object_ref().namespace {
-                                    assert(vd_with_key.controller_owner_ref() != vd.controller_owner_ref());
-                                    assert(controller_owners[0] == vd_with_key.controller_owner_ref());
-                                    assert(controller_owners.contains(vd_with_key.controller_owner_ref()));
+                                    assert(vd_with_key.controller_owner_ref().name != vd.controller_owner_ref().name);
+                                    assert(controller_owners[0].name == vd_with_key.controller_owner_ref().name);
                                     assert(!controller_owners.contains(vd.controller_owner_ref()));
                                 }
                             }
@@ -228,6 +228,159 @@ pub proof fn lemma_eventually_always_no_other_pending_request_interferes_with_vd
 
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
+
+pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
+    spec: TempPred<ClusterState>, 
+    cluster: Cluster, 
+    controller_id: int,
+    vd: VDeploymentView
+)
+    requires
+        spec.entails(lift_state(cluster.init())),
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    ensures
+        spec.entails(always(lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))
+{
+    let invariant = vd_reconcile_request_only_interferes_with_itself(controller_id, vd);
+
+    cluster.lemma_always_cr_states_are_unmarshallable::<VDeploymentReconciler, VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidERespView>(spec, controller_id);
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(spec, cluster, controller_id);
+    cluster.lemma_always_each_object_in_etcd_has_at_most_one_controller_owner(spec);
+    cluster.lemma_always_each_object_in_etcd_is_weakly_well_formed(spec);
+    cluster.lemma_always_each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(spec);
+
+    let stronger_next = |s, s_prime| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+        &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
+        &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
+        &&& Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)(s)
+        &&& Cluster::each_object_in_etcd_has_at_most_one_controller_owner()(s)
+        &&& Cluster::each_object_in_etcd_is_weakly_well_formed()(s)
+        &&& cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()(s)
+    };
+
+    always_to_always_later(spec, lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
+
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id)),
+        lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
+        later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
+        lift_state(Cluster::each_object_in_etcd_has_at_most_one_controller_owner()),
+        lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()),
+        lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>())
+    );
+
+    assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        VDeploymentView::marshal_preserves_integrity();
+        VDeploymentReconcileState::marshal_preserves_integrity();
+        VReplicaSetView::marshal_preserves_integrity();
+
+        let step = choose |step| cluster.next_step(s, s_prime, step);
+        match step {
+            Step::APIServerStep(req_msg_opt) => {
+                let req_msg = req_msg_opt.unwrap();
+
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content.is_APIRequest()
+                    &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
+                } implies match msg.content.get_APIRequest_0() {
+                    APIRequest::ListRequest(_) => true,
+                    APIRequest::CreateRequest(req) => vd_reconcile_create_request_only_interferes_with_itself(req, vd)(s),
+                    APIRequest::GetThenUpdateRequest(req) => vd_reconcile_get_then_update_request_only_interferes_with_itself(req, vd)(s),
+                    _ => false, // vd doesn't send other requests (yet).
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+                }
+            }
+            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
+                let cr_key = cr_key_opt.get_Some_0();
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content.is_APIRequest()
+                    &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
+                } implies match msg.content.get_APIRequest_0() {
+                    APIRequest::ListRequest(_) => true,
+                    APIRequest::CreateRequest(req) => vd_reconcile_create_request_only_interferes_with_itself(req, vd)(s),
+                    APIRequest::GetThenUpdateRequest(req) => vd_reconcile_get_then_update_request_only_interferes_with_itself(req, vd)(s),
+                    _ => false, // vd doesn't send other requests (yet).
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+
+                    if id == controller_id && cr_key == vd.object_ref() {
+                        let new_msgs = s_prime.in_flight().sub(s.in_flight());
+
+                        if new_msgs.contains(msg) && msg.content.is_get_then_update_request() {
+                            let req = msg.content.get_get_then_update_request();
+                            let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                            let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();    
+
+                            if state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS {
+                                let list_resp = resp_msg_opt.unwrap().content.get_list_response();
+                                let objs = list_resp.res.unwrap();
+                                let vrs_list_or_none = objects_to_vrs_list(objs);
+                                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, filter_vrs_list(triggering_cr, vrs_list_or_none.get_Some_0()));
+
+                                // idea: sidestep an explicit proof that the message we send is owned by triggering_cr
+                                // by applying the invariant `vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd`
+                                // to s_prime.
+                                if new_vrs.is_Some() && !match_replicas(triggering_cr, new_vrs.get_Some_0()) {
+                                    let state_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
+                                    // we need this to trigger the invariant on the post-state.
+                                    assert(s_prime.ongoing_reconciles(controller_id).contains_key(cr_key));
+                                }
+                            }
+                            assert(req.owner_ref == triggering_cr.controller_owner_ref());
+                            let owners = req.obj.metadata.owner_references.get_Some_0();
+                            let controller_owners = owners.filter(
+                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                            );
+                            assert(controller_owners.len() == 1);
+                            assert(controller_owners[0] == triggering_cr.controller_owner_ref());
+                            assert(controller_owners == seq![triggering_cr.controller_owner_ref()]);
+                            assert(controller_owners.contains(triggering_cr.controller_owner_ref()));
+                            seq_filter_contains_implies_seq_contains(
+                                owners,
+                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0(),
+                                triggering_cr.controller_owner_ref(),
+                            );
+                            assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
+                        }
+                    }
+                }
+            }
+            _ => {
+                assert forall |msg| {
+                    &&& invariant(s)
+                    &&& stronger_next(s, s_prime)
+                    &&& #[trigger] s_prime.in_flight().contains(msg)
+                    &&& msg.content.is_APIRequest()
+                    &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
+                } implies match msg.content.get_APIRequest_0() {
+                    APIRequest::ListRequest(_) => true,
+                    APIRequest::CreateRequest(req) => vd_reconcile_create_request_only_interferes_with_itself(req, vd)(s),
+                    APIRequest::GetThenUpdateRequest(req) => vd_reconcile_get_then_update_request_only_interferes_with_itself(req, vd)(s),
+                    _ => false, // vd doesn't send other requests (yet).
+                } by {
+                    if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
+                }
+            }
+        }
+    }
+
+    init_invariant(spec, cluster.init(), stronger_next, invariant);
+}
 
 pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_vrs_objects(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
@@ -315,7 +468,7 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
     );
 }
 
-// TODO: speed up proof; fairly high priority.
+// TODO: speed up proof; fairly high priority since it takes ~3min.
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(
