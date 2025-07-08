@@ -146,7 +146,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res is Err
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
     }

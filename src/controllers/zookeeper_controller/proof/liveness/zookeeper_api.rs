@@ -108,7 +108,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_g
     let pre_and_resp_in_flight = |resp_msg| lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
         &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
-        &&& resp_msg.content.get_get_response().res.is_Err()
+        &&& resp_msg.content.get_get_response().res is Err
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     });
 
@@ -134,7 +134,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_g
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
-                    &&& resp_msg.content.get_get_response().res.is_Err()
+                    &&& resp_msg.content.get_get_response().res is Err
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
@@ -549,7 +549,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_get_response().res.is_Err()
+                        &&& resp_msg.content.get_get_response().res is Err
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                     });
                 }
@@ -564,7 +564,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res is Err
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });
     }
@@ -588,7 +588,7 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
                 &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
-                &&& resp_msg.content.get_get_response().res.is_Err()
+                &&& resp_msg.content.get_get_response().res is Err
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             })
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)))
@@ -597,7 +597,7 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
     let pre = |s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
         &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
-        &&& resp_msg.content.get_get_response().res.is_Err()
+        &&& resp_msg.content.get_get_response().res is Err
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper);

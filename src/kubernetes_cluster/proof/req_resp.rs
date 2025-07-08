@@ -221,7 +221,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                     if !s.in_flight().contains(msg) {
                         assert(msg.src.is_APIServer());
                         assert(msg.content.is_get_response());
-                        assert(msg.content.get_get_response().res.is_Err());
+                        assert(msg.content.get_get_response().res is Err);
                     }
                     assert(is_ok_get_response_msg_and_matches_key(req_key)(msg));
                 },
@@ -326,7 +326,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                     if !s.in_flight().contains(msg) {
                         assert(msg.src.is_APIServer());
                         assert(msg.content.is_update_response());
-                        assert(msg.content.get_update_response().res.is_Err());
+                        assert(msg.content.get_update_response().res is Err);
                     }
                     assert(is_ok_update_response_msg_and_matches_key(req_key)(msg));
                 },
@@ -433,7 +433,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                     if !s.in_flight().contains(msg) {
                         assert(msg.src.is_APIServer());
                         assert(msg.content.is_create_response());
-                        assert(msg.content.get_create_response().res.is_Err());
+                        assert(msg.content.get_create_response().res is Err);
                     }
                     assert(is_ok_create_response_msg_and_matches_key(req_key)(msg));
                 },
