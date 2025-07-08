@@ -199,6 +199,7 @@ ensures
                         etcd_state_is(vd, controller_id, replicas, n),
                         local_state_is_consistent_with_etcd(vd, controller_id)
                     ));
+                    // AfterListVRS ~> AfterScaleNewVRS
                     assert(spec.entails(after_list_with_etcd_state(msg, replicas, n).leads_to(scale_new_vrs_req))) by {
                         lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(vd, spec, cluster, controller_id, msg, replicas.unwrap_or(int1!()), n);
                     }
@@ -248,6 +249,7 @@ ensures
                         }
                         temp_pred_equality(scale_new_vrs_resp, tla_exists(|msg| scale_new_vrs_resp_msg(msg)));
                     }
+                    // AfterScaleNewVRS ~> AfterEnsureNewVRS
                     assert forall |msg: Message| spec.entails(#[trigger] scale_new_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
                         lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_vrs(vd, spec, cluster, controller_id, msg, n);
                     }
@@ -263,6 +265,7 @@ ensures
                     lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(vd, spec, cluster, controller_id, msg, replicas.unwrap_or(1), n);
                 }
             }
+            // after_ensure_vrs(i.1) ~> \E |n| after_ensure_vrs(n)
             assert(after_ensure_vrs(n).entails(tla_exists(|n| after_ensure_vrs(n)))) by {
                 assert forall |ex: Execution<ClusterState>| #[trigger] after_ensure_vrs(n).satisfied_by(ex) implies
                     tla_exists(|n| after_ensure_vrs(n)).satisfied_by(ex) by {
@@ -270,6 +273,7 @@ ensures
                 }
             }
             entails_implies_leads_to(spec, after_ensure_vrs(n), tla_exists(|n| after_ensure_vrs(n)));
+            // after_list_with_etcd_state(msg, replicas, n) ~> \E |n| after_ensure_vrs(n)
             leads_to_trans_n!(
                 spec,
                 after_list_with_etcd_state(msg, replicas, n),
@@ -279,7 +283,9 @@ ensures
         }
         leads_to_exists_intro(spec, |i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1), tla_exists(|n| after_ensure_vrs(n)));
     }
+    // \A |msg| (list_resp_msg(msg) ~> \E |n: nat| after_ensure_vrs(n))
     leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|n: nat| after_ensure_vrs(n)));
+    // Init ~> AfterEnsureNewVRS(n)
     leads_to_trans_n!(
         spec,
         init,
