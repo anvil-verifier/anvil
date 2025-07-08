@@ -49,14 +49,13 @@ ensures
     // TODO: try to use X_req == tla_exists(|msg| X_req_msg(msg)) in the future
     let list_req_msg = |msg| lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), req_msg_is_pending_list_req_in_flight(vd, controller_id, msg)));
     // list_req |= \E |msg| list_req_msg(msg)
-    assert(list_req.entails(tla_exists(|msg| list_req_msg(msg)))) by {
-        assert forall |ex| #[trigger] list_req.satisfied_by(ex) implies
-            tla_exists(|msg| list_req_msg(msg)).satisfied_by(ex) by {
+    assert(list_req == tla_exists(|msg| list_req_msg(msg))) by {
+        assert forall |ex| #[trigger] list_req.satisfied_by(ex) implies tla_exists(|msg| list_req_msg(msg)).satisfied_by(ex) by {
             let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-            tla_exists_proved_by_witness(ex, |msg| list_req_msg(msg), req_msg);
+            assert((|msg| list_req_msg(msg))(req_msg).satisfied_by(ex));
         }
+        temp_pred_equality(list_req, tla_exists(|msg| list_req_msg(msg)));
     }
-    temp_pred_equality(list_req, tla_exists(|msg| list_req_msg(msg)));
     let list_resp = lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
@@ -72,7 +71,7 @@ ensures
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg)
     ));
     // list_resp ~> \E |msg| list_resp_msg(msg)
-    assert(list_resp.entails(tla_exists(|msg| list_resp_msg(msg)))) by {
+    assert(list_resp == tla_exists(|msg| list_resp_msg(msg))) by {
         // list_resp |= \E |msg| list_resp_msg(msg)
         assert forall |ex| #[trigger] list_resp.satisfied_by(ex) implies
             tla_exists(|msg| list_resp_msg(msg)).satisfied_by(ex) by {
@@ -83,8 +82,9 @@ ensures
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                 &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
             };
-            tla_exists_proved_by_witness(ex, |msg| list_resp_msg(msg), resp_msg);
+            assert((|msg| list_resp_msg(msg))(resp_msg).satisfied_by(ex));
         }
+        temp_pred_equality(list_resp, tla_exists(|msg| list_resp_msg(msg)));
     };
     temp_pred_equality(list_resp, tla_exists(|msg| list_resp_msg(msg)));
     let after_list_with_etcd_state = |msg: Message, replicas_or_not_exist: Option<int>, n: nat| lift_state(and!(
@@ -104,7 +104,7 @@ ensures
         // (\A |msg|) list_resp_msg(msg) |= \E |replicas: Options<int>, n: nat| after_ensure_vrs(n)
         // here replicas.is_Some == if new vrs exists, replicas.get_Some_0() == new_vrs.spec.replicas.unwrap_or(1)
         // 1 is the default value if not set
-        assert(list_resp_msg(msg).entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)))) by {
+        assert(list_resp_msg(msg) == tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))) by {
             assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) implies
                 tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
@@ -115,11 +115,10 @@ ensures
                     None
                 };
                 let n = old_vrs_list.len();
-                // let (replicas_or_not_exist, n) = choose |i: (Option<int>, nat)| #[trigger] etcd_state_is(vd, controller_id, i.0, i.1)(s);
-                tla_exists_proved_by_witness(ex, |i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1), (replicas, n));
+                assert((|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((replicas, n)).satisfied_by(ex));
             }
+            temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         }
-        entails_implies_leads_to(spec, list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         // \A |n| \A |replicas| etcd_state_is(replicas, n) ~> after_ensure_vrs(n)
         assert forall |n: nat| #![trigger after_ensure_vrs(n)] spec.entails(tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n))
             .leads_to(after_ensure_vrs(n))) by {
@@ -144,22 +143,22 @@ ensures
                         etcd_state_is(vd, controller_id, None, n),
                         local_state_match_etcd(vd, controller_id)
                     ));
-                    assert(create_vrs_req.entails(tla_exists(|msg| create_vrs_req_msg(msg)))) by {
-                        assert forall |ex: Execution<ClusterState>| #![trigger dummy(ex)] create_vrs_req.satisfied_by(ex) implies
+                    assert(create_vrs_req == tla_exists(|msg| create_vrs_req_msg(msg))) by {
+                        assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_req.satisfied_by(ex) implies
                             tla_exists(|msg| create_vrs_req_msg(msg)).satisfied_by(ex) by {
                             let s = ex.head();
                             let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-                            tla_exists_proved_by_witness(ex, |msg| create_vrs_req_msg(msg), req_msg);
+                            assert((|msg| create_vrs_req_msg(msg))(req_msg).satisfied_by(ex));
                         }
+                        temp_pred_equality(create_vrs_req, tla_exists(|msg| create_vrs_req_msg(msg)));
                     }
-                    temp_pred_equality(create_vrs_req, tla_exists(|msg| create_vrs_req_msg(msg)));
                     let create_vrs_resp = lift_state(and!(
                         at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
                         exists_resp_msg_is_ok_create_new_vrs_resp(vd, controller_id),
                         etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
                         local_state_match_etcd(vd, controller_id)
                     ));
-                    assert forall |msg: Message| #![trigger dummy(msg)] spec.entails(create_vrs_req_msg(msg).leads_to(create_vrs_resp)) by {
+                    assert forall |msg: Message| spec.entails(#[trigger] create_vrs_req_msg(msg).leads_to(create_vrs_resp)) by {
                         lemma_from_after_send_create_pod_req_to_receive_ok_resp(vd, spec, cluster, controller_id, msg, n);
                     }
                     leads_to_exists_intro(spec, |msg| create_vrs_req_msg(msg), create_vrs_resp);
@@ -169,7 +168,7 @@ ensures
                         etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
                         local_state_match_etcd(vd, controller_id)
                     ));
-                    assert(create_vrs_resp.entails(tla_exists(|msg| create_vrs_resp_msg(msg)))) by {
+                    assert(create_vrs_resp == tla_exists(|msg| create_vrs_resp_msg(msg))) by {
                         assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_resp.satisfied_by(ex) implies
                             tla_exists(|msg| create_vrs_resp_msg(msg)).satisfied_by(ex) by {
                             let s = ex.head();
@@ -180,10 +179,10 @@ ensures
                                 &&& resp_msg.content.is_create_response()
                                 &&& resp_msg.content.get_create_response().res.is_Ok()
                             };
-                            tla_exists_proved_by_witness(ex, |msg| create_vrs_resp_msg(msg), resp_msg);
+                            assert((|msg| create_vrs_resp_msg(msg))(resp_msg).satisfied_by(ex));
                         }
+                        temp_pred_equality(create_vrs_resp, tla_exists(|msg| create_vrs_resp_msg(msg)));
                     }
-                    temp_pred_equality(create_vrs_resp, tla_exists(|msg| create_vrs_resp_msg(msg)));
                     // AfterCreateNewVRS ~> AfterEnsureNewVRS
                     // Because maxSurge is not supported, this transition can be completed without scaling new VRS
                     assert forall |msg: Message| spec.entails(#[trigger] create_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
@@ -214,15 +213,15 @@ ensures
                             etcd_state_is(vd, controller_id, replicas, n),
                             local_state_match_etcd(vd, controller_id)
                         ));
-                        assert(scale_new_vrs_req.entails(tla_exists(|msg| scale_new_vrs_req_msg(msg)))) by {
+                        assert(scale_new_vrs_req == tla_exists(|msg| scale_new_vrs_req_msg(msg))) by {
                             assert forall |ex: Execution<ClusterState>| #[trigger] scale_new_vrs_req.satisfied_by(ex) implies
                                 tla_exists(|msg| scale_new_vrs_req_msg(msg)).satisfied_by(ex) by {
                                 let s = ex.head();
                                 let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-                                tla_exists_proved_by_witness(ex, |msg| scale_new_vrs_req_msg(msg), req_msg);
+                                assert((|msg| scale_new_vrs_req_msg(msg))(req_msg).satisfied_by(ex));
                             }
+                            temp_pred_equality(scale_new_vrs_req, tla_exists(|msg| scale_new_vrs_req_msg(msg)));
                         }
-                        temp_pred_equality(scale_new_vrs_req, tla_exists(|msg| scale_new_vrs_req_msg(msg)));
                         let scale_new_vrs_resp = lift_state(and!(
                             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
                             exists_resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, vd.spec.replicas.unwrap_or(int1!())),
@@ -239,7 +238,7 @@ ensures
                             etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
                             local_state_match_etcd(vd, controller_id)
                         ));
-                        assert(scale_new_vrs_resp.entails(tla_exists(|msg| scale_new_vrs_resp_msg(msg)))) by {
+                        assert(scale_new_vrs_resp == tla_exists(|msg| scale_new_vrs_resp_msg(msg))) by {
                             assert forall |ex: Execution<ClusterState>| #[trigger] scale_new_vrs_resp.satisfied_by(ex) implies
                                 tla_exists(|msg| scale_new_vrs_resp_msg(msg)).satisfied_by(ex) by {
                                 let s = ex.head();
@@ -250,10 +249,10 @@ ensures
                                     &&& resp_msg.content.is_get_then_update_response()
                                     &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
                                 };
-                                tla_exists_proved_by_witness(ex, |msg| scale_new_vrs_resp_msg(msg), resp_msg);
+                                assert((|msg| scale_new_vrs_resp_msg(msg))(resp_msg).satisfied_by(ex));
                             }
+                            temp_pred_equality(scale_new_vrs_resp, tla_exists(|msg| scale_new_vrs_resp_msg(msg)));
                         }
-                        temp_pred_equality(scale_new_vrs_resp, tla_exists(|msg| scale_new_vrs_resp_msg(msg)));
                         assert forall |msg: Message| spec.entails(#[trigger] scale_new_vrs_resp_msg(msg).leads_to(after_ensure_vrs(n))) by {
                             lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_vrs(vd, spec, cluster, controller_id, msg, n);
                         }
@@ -294,12 +293,6 @@ ensures
         //     tla_exists(|n: nat| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n))),
         //     tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))
         // );
-        leads_to_trans_n!(
-            spec,
-            list_resp_msg(msg),
-            tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)),
-            tla_exists(|n: nat| after_ensure_vrs(n))
-        );
     }
     leads_to_exists_intro(spec, |msg| list_resp_msg(msg), tla_exists(|n: nat| after_ensure_vrs(n)));
     leads_to_trans_n!(
@@ -335,15 +328,15 @@ ensures
                 etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
                 local_state_match_etcd(vd, controller_id)
             ));
-            assert(scale_down_req.entails(tla_exists(|msg| scale_down_req_msg(msg)))) by {
+            assert(scale_down_req == tla_exists(|msg| scale_down_req_msg(msg))) by {
                 assert forall |ex: Execution<ClusterState>| #[trigger] scale_down_req.satisfied_by(ex) implies
                     tla_exists(|msg| scale_down_req_msg(msg)).satisfied_by(ex) by {
                     let s = ex.head();
                     let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-                    tla_exists_proved_by_witness(ex, |msg| scale_down_req_msg(msg), req_msg);
+                    assert((|msg| scale_down_req_msg(msg))(req_msg).satisfied_by(ex));
                 }
+                temp_pred_equality(scale_down_req, tla_exists(|msg| scale_down_req_msg(msg)));
             }
-            temp_pred_equality(scale_down_req, tla_exists(|msg| scale_down_req_msg(msg)));
             // from req to resp
             let scale_down_resp = |n: nat| lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -370,7 +363,7 @@ ensures
                 etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()),
                 local_state_match_etcd(vd, controller_id)
             ));
-            assert(scale_down_resp(nat0!()).entails(tla_exists(|msg| scale_down_resp_msg_zero(msg)))) by {
+            assert(scale_down_resp(nat0!()) == tla_exists(|msg| scale_down_resp_msg_zero(msg))) by {
                 assert forall |ex: Execution<ClusterState>| #[trigger] scale_down_resp(nat0!()).satisfied_by(ex) implies
                     tla_exists(|msg| scale_down_resp_msg_zero(msg)).satisfied_by(ex) by {
                     let s = ex.head();
@@ -381,10 +374,10 @@ ensures
                         &&& resp_msg.content.is_get_then_update_response()
                         &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
                     };
-                    tla_exists_proved_by_witness(ex, |msg| scale_down_resp_msg_zero(msg), resp_msg);
+                    assert((|msg| scale_down_resp_msg_zero(msg))(resp_msg).satisfied_by(ex));
                 }
+                temp_pred_equality(scale_down_resp(nat0!()), tla_exists(|msg| scale_down_resp_msg_zero(msg)));
             }
-            temp_pred_equality(scale_down_resp(nat0!()), tla_exists(|msg| scale_down_resp_msg_zero(msg)));
             assert forall |msg: Message| spec.entails(#[trigger] scale_down_resp_msg_zero(msg).leads_to(done)) by {
                 lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(vd, spec, cluster, controller_id, msg);
             }
@@ -1392,15 +1385,15 @@ ensures
     }
     leads_to_exists_intro(spec, |resp_msg: Message| scale_resp_msg(resp_msg, n), scale_req(n));
     leads_to_exists_intro(spec, |req_msg: Message| scale_req_msg(req_msg, n), scale_resp((n - 1) as nat));
-    assert(spec.entails(scale_req(n).leads_to(tla_exists(|req_msg: Message| scale_req_msg(req_msg, n))))) by {
+    assert(scale_req(n) == tla_exists(|msg| scale_req_msg(msg, n))) by {
         assert forall |ex| #[trigger] scale_req(n).satisfied_by(ex) implies
             tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)).satisfied_by(ex) by {
             let req_msg = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg.get_Some_0();
-            tla_exists_proved_by_witness(ex, |req_msg| scale_req_msg(req_msg, n), req_msg);
+            assert((|msg: Message| scale_req_msg(msg, n))(req_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec, scale_req(n), tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)));
+        temp_pred_equality(scale_req(n), tla_exists(|msg| scale_req_msg(msg, n)));
     }
-    assert(spec.entails(scale_resp(n).leads_to(tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n))))) by {
+    assert(scale_resp(n) == tla_exists(|msg| scale_resp_msg(msg, n))) by {
         assert forall |ex| #[trigger] scale_resp(n).satisfied_by(ex) implies
             tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)).satisfied_by(ex) by {
             let s = ex.head();
@@ -1411,15 +1404,14 @@ ensures
                 &&& resp_msg.content.is_get_then_update_response()
                 &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
             };
-            tla_exists_proved_by_witness(ex, |resp_msg| scale_resp_msg(resp_msg, n), resp_msg);
+            assert((|msg: Message| scale_resp_msg(msg, n))(resp_msg).satisfied_by(ex));
         }
-        entails_implies_leads_to(spec, scale_resp(n), tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)));
+        temp_pred_equality(scale_resp(n), tla_exists(|msg| scale_resp_msg(msg, n)));
     }
-    leads_to_trans_n!(spec,
+    leads_to_trans_n!(
+        spec,
         scale_resp(n),
-        tla_exists(|resp_msg: Message| scale_resp_msg(resp_msg, n)),
         scale_req(n),
-        tla_exists(|req_msg: Message| scale_req_msg(req_msg, n)),
         scale_resp((n - 1) as nat)
     );
 }
