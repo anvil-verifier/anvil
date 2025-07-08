@@ -31,8 +31,8 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
 
     open spec fn update(fbc: FluentBitConfigView, state: FluentBitConfigReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let secret = SecretView::unmarshal(obj);
-        if secret.is_Ok() {
-            Ok(update_secret(fbc, secret.get_Ok_0()).marshal())
+        if secret is Ok {
+            Ok(update_secret(fbc, secret->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -40,7 +40,7 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
 
     open spec fn state_after_create(fbc: FluentBitConfigView, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<APIRequest>), ()>) {
         let sts = SecretView::unmarshal(obj);
-        if sts.is_Ok() {
+        if sts is Ok {
             let state_prime = FluentBitConfigReconcileState {
                 reconcile_step: FluentBitConfigReconcileStep::Done,
                 ..state
@@ -53,7 +53,7 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
 
     open spec fn state_after_update(fbc: FluentBitConfigView, obj: DynamicObjectView, state: FluentBitConfigReconcileState) -> (res: Result<(FluentBitConfigReconcileState, Option<APIRequest>), ()>) {
         let sts = SecretView::unmarshal(obj);
-        if sts.is_Ok() {
+        if sts is Ok {
             let state_prime = FluentBitConfigReconcileState {
                 reconcile_step: FluentBitConfigReconcileStep::Done,
                 ..state
@@ -66,14 +66,14 @@ impl ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState> for Sec
 }
 
 pub open spec fn make_secret_name(fbc: FluentBitConfigView) -> StringView {
-    fbc.metadata.name.get_Some_0()
+    fbc.metadata.name->0
 }
 
 pub open spec fn make_secret_key(fbc: FluentBitConfigView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
         name: make_secret_name(fbc),
-        namespace: fbc.metadata.namespace.get_Some_0(),
+        namespace: fbc.metadata.namespace->0,
     }
 }
 

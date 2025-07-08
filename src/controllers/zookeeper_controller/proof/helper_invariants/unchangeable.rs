@@ -188,7 +188,7 @@ pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubRe
         }
         match step {
             Step::ApiServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 if resource_create_request_msg(resource_key)(req) {} else {}
                 if resource_update_request_msg(resource_key)(req) {} else {}
                 if resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req) {} else {}
@@ -220,10 +220,10 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
                 if s.resources()[resource_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version {
                     assert(unchangeable(sub_resource, msg.content.get_update_request().obj, zookeeper));
                 } else {
-                    assert(s_prime.resources()[resource_key].metadata.resource_version.get_Some_0() == s.kubernetes_api_state.resource_version_counter);
+                    assert(s_prime.resources()[resource_key].metadata.resource_version->0 == s.kubernetes_api_state.resource_version_counter);
                 }
             } else {
-                assert(s_prime.resources()[resource_key].metadata.resource_version.get_Some_0() == s.kubernetes_api_state.resource_version_counter);
+                assert(s_prime.resources()[resource_key].metadata.resource_version->0 == s.kubernetes_api_state.resource_version_counter);
             }
             assert(unchangeable(sub_resource, msg.content.get_update_request().obj, zookeeper));
         } else {
@@ -248,10 +248,10 @@ pub proof fn object_in_every_update_request_msg_satisfies_unchangeable_induction
 proof fn made_config_map_data_satisfies_validation(zookeeper: ZookeeperClusterView)
     requires zookeeper.state_validation(),
     ensures
-        make_config_map(zookeeper).data.is_Some(),
-        validate_config_map_data(make_config_map(zookeeper).data.get_Some_0()),
+        make_config_map(zookeeper).data is Some,
+        validate_config_map_data(make_config_map(zookeeper).data->0),
 {
-    let data = make_config_map(zookeeper).data.get_Some_0();
+    let data = make_config_map(zookeeper).data->0;
     reveal_strlit("zoo.cfg");
     reveal_strlit("log4j.properties");
     reveal_strlit("log4j-quiet.properties");

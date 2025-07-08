@@ -43,8 +43,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures
-            self@.name.is_Some() == name.is_Some(),
-            name.is_Some() ==> name.get_Some_0()@ == self@.name.get_Some_0(),
+            self@.name is Some == name is Some,
+            name is Some ==> name->0@ == self@.name->0,
     {
         self.inner.name.clone()
     }
@@ -52,8 +52,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
         ensures
-            self@.namespace.is_Some() == namespace.is_Some(),
-            namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace.get_Some_0(),
+            self@.namespace is Some == namespace is Some,
+            namespace is Some ==> namespace->0@ == self@.namespace->0,
     {
         self.inner.namespace.clone()
     }
@@ -61,8 +61,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn generate_name(&self) -> (generate_name: Option<String>)
         ensures
-            self@.generate_name.is_Some() == generate_name.is_Some(),
-            generate_name.is_Some() ==> generate_name.get_Some_0()@ == self@.generate_name.get_Some_0(),
+            self@.generate_name is Some == generate_name is Some,
+            generate_name is Some ==> generate_name->0@ == self@.generate_name->0,
     {
         self.inner.generate_name.clone()
     }
@@ -70,8 +70,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn labels(&self) -> (labels: Option<StringMap>)
         ensures
-            self@.labels.is_Some() == labels.is_Some(),
-            labels.is_Some() ==> labels.get_Some_0()@ == self@.labels.get_Some_0(),
+            self@.labels is Some == labels is Some,
+            labels is Some ==> labels->0@ == self@.labels->0,
     {
         match &self.inner.labels {
             Some(l) => Some(StringMap::from_rust_map(l.clone())),
@@ -82,8 +82,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn annotations(&self) -> (annotations: Option<StringMap>)
         ensures
-            self@.annotations.is_Some() == annotations.is_Some(),
-            annotations.is_Some() ==> annotations.get_Some_0()@ == self@.annotations.get_Some_0(),
+            self@.annotations is Some == annotations is Some,
+            annotations is Some ==> annotations->0@ == self@.annotations->0,
     {
         match &self.inner.annotations {
             Some(a) => Some(StringMap::from_rust_map(a.clone())),
@@ -94,8 +94,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn finalizers(&self) -> (finalizers: Option<Vec<String>>)
         ensures
-            self@.finalizers.is_Some() == finalizers.is_Some(),
-            finalizers.is_Some() ==> finalizers.get_Some_0()@.map_values(|s: String| s@) == self@.finalizers.get_Some_0(),
+            self@.finalizers is Some == finalizers is Some,
+            finalizers is Some ==> finalizers->0@.map_values(|s: String| s@) == self@.finalizers->0,
     {
         self.inner.finalizers.clone()
     }
@@ -103,8 +103,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn owner_references(&self) -> (owner_references: Option<Vec<OwnerReference>>)
         ensures
-            self@.owner_references.is_Some() == owner_references.is_Some(),
-            owner_references.is_Some() ==> owner_references.get_Some_0()@.map_values(|o: OwnerReference| o@) == self@.owner_references.get_Some_0(),
+            self@.owner_references is Some == owner_references is Some,
+            owner_references is Some ==> owner_references->0@.map_values(|o: OwnerReference| o@) == self@.owner_references->0,
     {
         match &self.inner.owner_references {
             Some(o) => Some(o.into_iter().map(|item| OwnerReference::from_kube(item.clone())).collect()),
@@ -135,8 +135,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn resource_version(&self) -> (version: Option<String>)
         ensures
-            self@.resource_version.is_Some() == version.is_Some(),
-            version.is_Some() ==> version.get_Some_0()@ == int_to_string_view(self@.resource_version.get_Some_0()),
+            self@.resource_version is Some == version is Some,
+            version is Some ==> version->0@ == int_to_string_view(self@.resource_version->0),
     {
         self.inner.resource_version.clone()
     }
@@ -144,7 +144,7 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn has_some_resource_version(&self) -> (b: bool)
         ensures
-            self@.resource_version.is_Some() == b,
+            self@.resource_version is Some == b,
     {
         self.inner.resource_version.is_some()
     }
@@ -165,7 +165,7 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn has_some_uid(&self) -> (b: bool)
         ensures
-            self@.uid.is_Some() == b,
+            self@.uid is Some == b,
     {
         self.inner.uid.is_some()
     }
@@ -181,7 +181,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn has_deletion_timestamp(&self) -> (b: bool)
-        ensures b == self@.deletion_timestamp.is_Some(),
+        ensures b == self@.deletion_timestamp is Some,
     {
         self.inner.deletion_timestamp.is_some()
     }

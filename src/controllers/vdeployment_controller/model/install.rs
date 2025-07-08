@@ -16,7 +16,7 @@ impl Marshallable for VDeploymentReconcileState {
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity()
-        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0()
+        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()) is Ok && o == Self::unmarshal(o.marshal())->Ok_0
     {}
 }
 

@@ -181,8 +181,8 @@ impl DynamicObject {
     #[verifier(external_body)]
     pub fn object_ref(&self) -> (object_ref: KubeObjectRef)
         requires
-            self@.metadata.name.is_Some(),
-            self@.metadata.namespace.is_Some(),
+            self@.metadata.name is Some,
+            self@.metadata.namespace is Some,
         ensures object_ref@ == self@.object_ref(),
     {
         KubeObjectRef {
@@ -468,8 +468,8 @@ impl StatefulSet {
                 let mut all_equal = true;
                 let mut i = 0;
                 if new_volume_claim_templates.len() != old_volume_claim_templates.len() {
-                    proof { assert(self@.spec.get_Some_0().volume_claim_templates.get_Some_0().len() != old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0().len()) }
-                    proof { assert(!(self@.spec.get_Some_0().volume_claim_templates.get_Some_0() =~= old_obj@.spec.get_Some_0().volume_claim_templates.get_Some_0())) }
+                    proof { assert(self@.spec->0.volume_claim_templates->0.len() != old_obj@.spec->0.volume_claim_templates->0.len()) }
+                    proof { assert(!(self@.spec->0.volume_claim_templates->0 =~= old_obj@.spec->0.volume_claim_templates->0)) }
                     false
                 } else {
                     for i in 0..new_volume_claim_templates.len()
@@ -483,7 +483,7 @@ impl StatefulSet {
                     {
                         all_equal = all_equal && new_volume_claim_templates[i].eq(&old_volume_claim_templates[i]);
                     }
-                    proof { assert(all_equal == (self@.spec.get_Some_0().volume_claim_templates =~= old_obj@.spec.get_Some_0().volume_claim_templates)) }
+                    proof { assert(all_equal == (self@.spec->0.volume_claim_templates =~= old_obj@.spec->0.volume_claim_templates)) }
                     all_equal
                 }
             } else {
@@ -501,8 +501,8 @@ where Self::V: CustomResourceView, Self: std::marker::Sized
 {
     fn unmarshal(obj: DynamicObject) -> (res: Result<Self, UnmarshalError>)
         ensures
-            res.is_Ok() == Self::V::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == Self::V::unmarshal(obj@).get_Ok_0();
+            res is Ok == Self::V::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == Self::V::unmarshal(obj@)->Ok_0;
 
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
@@ -543,8 +543,8 @@ impl ResourceView for SimpleCRView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -566,15 +566,15 @@ impl ResourceView for SimpleCRView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(SimpleCRView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !SimpleCRView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(SimpleCRView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(SimpleCRView {
                 metadata: obj.metadata,
-                spec: SimpleCRView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: SimpleCRView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: SimpleCRView::unmarshal_spec(obj.spec)->Ok_0,
+                status: SimpleCRView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }
@@ -632,8 +632,8 @@ impl CustomResource for SimpleCR {
     #[verifier(external_body)]
     fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, UnmarshalError>)
         ensures
-            res.is_Ok() == SimpleCRView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::unmarshal(obj@).get_Ok_0(),
+            res is Ok == SimpleCRView::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == SimpleCRView::unmarshal(obj@)->Ok_0,
     {
         Ok(SimpleCR {})
     }
@@ -653,7 +653,7 @@ impl CustomResource for SimpleCR {
 
 #[verifier(external_body)]
 pub fn filter_controller_references(owner_references: Vec<OwnerReference>) -> (ret: Vec<OwnerReference>)
-    ensures ret@.map_values(|o: OwnerReference| o@) == owner_references@.map_values(|o: OwnerReference| o@).filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0())
+    ensures ret@.map_values(|o: OwnerReference| o@) == owner_references@.map_values(|o: OwnerReference| o@).filter(|o: OwnerReferenceView| o.controller is Some && o.controller->0)
 {
     // TODO: is there a way to prove postconditions involving filter?
     // TODO: clone the entire Vec instead of clone in map()

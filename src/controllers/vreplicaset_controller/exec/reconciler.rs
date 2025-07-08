@@ -381,7 +381,7 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
             let spec_filter = |pod: PodView|
                 pod.metadata.owner_references_contains(v_replica_set@.controller_owner_ref())
                 && v_replica_set@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp.is_None();
+                && pod.metadata.deletion_timestamp is None;
             let old_filtered = if spec_filter(pod@) {
                 filtered_pods@.map_values(|p: Pod| p@).drop_last()
             } else {

@@ -51,8 +51,8 @@ impl LabelSelector {
     #[verifier(external_body)]
     pub fn match_labels(&self) -> (match_labels: Option<StringMap>)
         ensures
-            self@.match_labels.is_Some() == match_labels.is_Some(),
-            match_labels.is_Some() ==> match_labels.get_Some_0()@ == self@.match_labels.get_Some_0(),
+            self@.match_labels is Some == match_labels is Some,
+            match_labels is Some ==> match_labels->0@ == self@.match_labels->0,
     {
         match &self.inner.match_labels {
             Some(ml) => Some(StringMap::from_rust_map(ml.clone())),

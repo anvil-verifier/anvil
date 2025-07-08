@@ -90,8 +90,8 @@ impl FluentBit {
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<FluentBit, UnmarshalError>)
         ensures
-            res.is_Ok() == FluentBitView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == FluentBitView::unmarshal(obj@).get_Ok_0(),
+            res is Ok == FluentBitView::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == FluentBitView::unmarshal(obj@)->Ok_0,
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::FluentBit>();
         if parse_result.is_ok() {
@@ -135,8 +135,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
-            self@.resources.is_Some() == resources.is_Some(),
-            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
+            self@.resources is Some == resources is Some,
+            resources is Some ==> resources->0@ == self@.resources->0,
     {
         match &self.inner.resources {
             Some(r) => Some(ResourceRequirements::from_kube(r.clone())),
@@ -147,8 +147,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
         ensures
-            self@.tolerations.is_Some() == tolerations.is_Some(),
-            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+            self@.tolerations is Some == tolerations is Some,
+            tolerations is Some ==> tolerations->0@.map_values(|t: Toleration| t@) == self@.tolerations->0,
     {
         match &self.inner.tolerations {
             Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
@@ -187,8 +187,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn service_selector(&self) -> (service_selector: Option<StringMap>)
         ensures
-            service_selector.is_Some() == self@.service_selector.is_Some(),
-            service_selector.is_Some() ==> service_selector.get_Some_0()@ == self@.service_selector.get_Some_0(),
+            service_selector is Some == self@.service_selector is Some,
+            service_selector is Some ==> service_selector->0@ == self@.service_selector->0,
     {
         match &self.inner.service_selector {
             Some(selector) => Some(StringMap::from_rust_map(selector.clone())),
@@ -206,8 +206,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn affinity(&self) -> (affinity: Option<Affinity>)
         ensures
-            self@.affinity.is_Some() == affinity.is_Some(),
-            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+            self@.affinity is Some == affinity is Some,
+            affinity is Some ==> affinity->0@ == self@.affinity->0,
     {
         match &self.inner.affinity {
             Some(a) => Some(Affinity::from_kube(a.clone())),
@@ -253,8 +253,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn volumes(&self) -> (volumes: Option<Vec<Volume>>)
         ensures
-            self@.volumes.is_Some() == volumes.is_Some(),
-            volumes.is_Some() ==> volumes.get_Some_0()@.map_values(|v: Volume| v@) == self@.volumes.get_Some_0(),
+            self@.volumes is Some == volumes is Some,
+            volumes is Some ==> volumes->0@.map_values(|v: Volume| v@) == self@.volumes->0,
     {
         match &self.inner.volumes {
             Some(volumes) => Some(volumes.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::Volume| Volume::from_kube(v)).collect()),
@@ -265,8 +265,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn volume_mounts(&self) -> (volume_mounts: Option<Vec<VolumeMount>>)
         ensures
-            self@.volume_mounts.is_Some() == volume_mounts.is_Some(),
-            volume_mounts.is_Some() ==> volume_mounts.get_Some_0()@.map_values(|v: VolumeMount| v@) == self@.volume_mounts.get_Some_0(),
+            self@.volume_mounts is Some == volume_mounts is Some,
+            volume_mounts is Some ==> volume_mounts->0@.map_values(|v: VolumeMount| v@) == self@.volume_mounts->0,
     {
         match &self.inner.volume_mounts {
             Some(volume_mounts) => Some(volume_mounts.clone().into_iter().map(|v: deps_hack::k8s_openapi::api::core::v1::VolumeMount| VolumeMount::from_kube(v)).collect()),
@@ -284,8 +284,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn metrics_port(&self) -> (metrics_port: Option<i32>)
         ensures
-            metrics_port.is_Some() == self@.metrics_port.is_Some(),
-            metrics_port.is_Some() ==> metrics_port.get_Some_0() as int == self@.metrics_port.get_Some_0(),
+            metrics_port is Some == self@.metrics_port is Some,
+            metrics_port is Some ==> metrics_port->0 as int == self@.metrics_port->0,
     {
         self.inner.metrics_port
     }
@@ -300,8 +300,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn position_db(&self) -> (position_db: Option<HostPathVolumeSource>)
         ensures
-            position_db.is_Some() == self@.position_db.is_Some(),
-            position_db.is_Some() ==> position_db.get_Some_0()@ == self@.position_db.get_Some_0(),
+            position_db is Some == self@.position_db is Some,
+            position_db is Some ==> position_db->0@ == self@.position_db->0,
     {
         match &self.inner.position_db {
             Some(p) => Some(HostPathVolumeSource::from_kube(p.clone())),
@@ -319,8 +319,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn security_context(&self) -> (security_context: Option<PodSecurityContext>)
         ensures
-            security_context.is_Some() == self@.security_context.is_Some(),
-            security_context.is_Some() ==> security_context.get_Some_0()@ == self@.security_context.get_Some_0(),
+            security_context is Some == self@.security_context is Some,
+            security_context is Some ==> security_context->0@ == self@.security_context->0,
     {
         match &self.inner.security_context {
             Some(s) => Some(PodSecurityContext::from_kube(s.clone())),
@@ -331,8 +331,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn container_security_context(&self) -> (container_security_context: Option<SecurityContext>)
         ensures
-            container_security_context.is_Some() == self@.container_security_context.is_Some(),
-            container_security_context.is_Some() ==> container_security_context.get_Some_0()@ == self@.container_security_context.get_Some_0(),
+            container_security_context is Some == self@.container_security_context is Some,
+            container_security_context is Some ==> container_security_context->0@ == self@.container_security_context->0,
     {
         match &self.inner.container_security_context {
             Some(s) => Some(SecurityContext::from_kube(s.clone())),
@@ -350,8 +350,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn args(&self) -> (args: Option<Vec<String>>)
         ensures
-            args.is_Some() == self@.args.is_Some(),
-            args.is_Some() ==> args.get_Some_0()@.map_values(|s: String| s@) == self@.args.get_Some_0(),
+            args is Some == self@.args is Some,
+            args is Some ==> args->0@.map_values(|s: String| s@) == self@.args->0,
     {
         self.inner.args.clone()
     }
@@ -359,8 +359,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn command(&self) -> (command: Option<Vec<String>>)
         ensures
-            command.is_Some() == self@.command.is_Some(),
-            command.is_Some() ==> command.get_Some_0()@.map_values(|s: String| s@) == self@.command.get_Some_0(),
+            command is Some == self@.command is Some,
+            command is Some ==> command->0@.map_values(|s: String| s@) == self@.command->0,
     {
         self.inner.command.clone()
     }
@@ -368,8 +368,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn env_vars(&self) -> (env_vars: Option<Vec<EnvVar>>)
         ensures
-            env_vars.is_Some() == self@.env_vars.is_Some(),
-            env_vars.is_Some() ==> env_vars.get_Some_0()@.map_values(|var: EnvVar| var@) == self@.env_vars.get_Some_0(),
+            env_vars is Some == self@.env_vars is Some,
+            env_vars is Some ==> env_vars->0@.map_values(|var: EnvVar| var@) == self@.env_vars->0,
     {
         match &self.inner.env_vars {
             Some(env_vars) => Some(env_vars.clone().into_iter().map(|e: deps_hack::k8s_openapi::api::core::v1::EnvVar| EnvVar::from_kube(e)).collect()),
@@ -387,8 +387,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn image_pull_secrets(&self) -> (image_pull_secrets: Option<Vec<LocalObjectReference>>)
         ensures
-            self@.image_pull_secrets.is_Some() == image_pull_secrets.is_Some(),
-            image_pull_secrets.is_Some() ==> image_pull_secrets.get_Some_0()@.map_values(|t: LocalObjectReference| t@) == self@.image_pull_secrets.get_Some_0(),
+            self@.image_pull_secrets is Some == image_pull_secrets is Some,
+            image_pull_secrets is Some ==> image_pull_secrets->0@.map_values(|t: LocalObjectReference| t@) == self@.image_pull_secrets->0,
     {
         match &self.inner.image_pull_secrets {
             Some(secrets) => Some(secrets.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference| LocalObjectReference::from_kube(t)).collect()),
@@ -399,8 +399,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn liveness_probe(&self) -> (liveness_probe: Option<Probe>)
         ensures
-            liveness_probe.is_Some() == self@.liveness_probe.is_Some(),
-            liveness_probe.is_Some() ==> liveness_probe.get_Some_0()@ == self@.liveness_probe.get_Some_0(),
+            liveness_probe is Some == self@.liveness_probe is Some,
+            liveness_probe is Some ==> liveness_probe->0@ == self@.liveness_probe->0,
     {
         match &self.inner.liveness_probe {
             Some(s) => Some(Probe::from_kube(s.clone())),
@@ -411,8 +411,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn readiness_probe(&self) -> (readiness_probe: Option<Probe>)
         ensures
-            readiness_probe.is_Some() == self@.readiness_probe.is_Some(),
-            readiness_probe.is_Some() ==> readiness_probe.get_Some_0()@ == self@.readiness_probe.get_Some_0(),
+            readiness_probe is Some == self@.readiness_probe is Some,
+            readiness_probe is Some ==> readiness_probe->0@ == self@.readiness_probe->0,
     {
         match &self.inner.readiness_probe {
             Some(s) => Some(Probe::from_kube(s.clone())),
@@ -423,8 +423,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn init_containers(&self) -> (init_containers: Option<Vec<Container>>)
         ensures
-            self@.init_containers.is_Some() == init_containers.is_Some(),
-            init_containers.is_Some() ==> init_containers.get_Some_0()@.map_values(|c: Container| c@) == self@.init_containers.get_Some_0(),
+            self@.init_containers is Some == init_containers is Some,
+            init_containers is Some ==> init_containers->0@.map_values(|c: Container| c@) == self@.init_containers->0,
     {
         match &self.inner.init_containers {
             Some(containers) => Some(containers.clone().into_iter().map(|c: deps_hack::k8s_openapi::api::core::v1::Container| Container::from_kube(c)).collect()),
@@ -435,8 +435,8 @@ impl FluentBitSpec {
     #[verifier(external_body)]
     pub fn ports(&self) -> (ports: Option<Vec<ContainerPort>>)
         ensures
-            self@.ports.is_Some() == ports.is_Some(),
-            ports.is_Some() ==> ports.get_Some_0()@.map_values(|c: ContainerPort| c@) == self@.ports.get_Some_0(),
+            self@.ports is Some == ports is Some,
+            ports is Some ==> ports->0@.map_values(|c: ContainerPort| c@) == self@.ports->0,
     {
         match &self.inner.ports {
             Some(ports) => Some(ports.clone().into_iter().map(|c: deps_hack::k8s_openapi::api::core::v1::ContainerPort| ContainerPort::from_kube(c)).collect()),

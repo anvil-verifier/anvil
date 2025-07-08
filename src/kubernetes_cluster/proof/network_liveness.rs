@@ -380,8 +380,8 @@ proof fn pending_requests_num_decreases(self, spec: TempPred<ClusterState>, rpc_
         let step = choose |step| self.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                if pending_req_multiset.count(input.get_Some_0()) > 0 {
-                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
+                if pending_req_multiset.count(input->0) > 0 {
+                    assert(pending_req_multiset.remove(input->0) =~= pending_req_multiset_prime);
                 } else {
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }

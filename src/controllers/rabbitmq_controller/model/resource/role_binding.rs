@@ -33,8 +33,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let rb = RoleBindingView::unmarshal(obj);
-        if rb.is_Ok() {
-            Ok(update_role_binding(rabbitmq, rb.get_Ok_0()).marshal())
+        if rb is Ok {
+            Ok(update_role_binding(rabbitmq, rb->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -42,7 +42,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
-        if rb.is_Ok() {
+        if rb is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
                 ..state
@@ -56,7 +56,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
-        if rb.is_Ok() {
+        if rb is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
                 ..state
@@ -69,13 +69,13 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBindin
     }
 }
 
-pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server"@ }
+pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-server"@ }
 
 pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: RoleBindingView::kind(),
         name: make_role_binding_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
@@ -98,18 +98,18 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
     RoleBindingView::default()
         .with_metadata(ObjectMetaView::default()
             .with_name(make_role_binding_name(rabbitmq))
-            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_namespace(rabbitmq.metadata.namespace->0)
             .with_owner_references(make_owner_references(rabbitmq))
             .with_labels(make_labels(rabbitmq))
             .with_annotations(rabbitmq.spec.annotations)
         ).with_role_ref(RoleRefView::default()
             .with_api_group("rbac.authorization.k8s.io"@)
             .with_kind("Role"@)
-            .with_name(rabbitmq.metadata.name.get_Some_0() + "-peer-discovery"@)
+            .with_name(rabbitmq.metadata.name->0 + "-peer-discovery"@)
         ).with_subjects(seq![SubjectView::default()
             .with_kind("ServiceAccount"@)
-            .with_name(rabbitmq.metadata.name.get_Some_0() + "-server"@)
-            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_name(rabbitmq.metadata.name->0 + "-server"@)
+            .with_namespace(rabbitmq.metadata.namespace->0)
         ])
 }
 

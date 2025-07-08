@@ -33,8 +33,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fbc
             let key = M::make_secret_key(fbc);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& SecretView::unmarshal(obj).is_Ok()
-            &&& SecretView::unmarshal(obj).get_Ok_0().data == M::make_secret(fbc).data
+            &&& SecretView::unmarshal(obj) is Ok
+            &&& SecretView::unmarshal(obj)->Ok_0.data == M::make_secret(fbc).data
         }
     }
 }

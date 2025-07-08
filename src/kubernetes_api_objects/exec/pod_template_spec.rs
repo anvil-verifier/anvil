@@ -40,8 +40,8 @@ impl PodTemplateSpec {
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: Option<ObjectMeta>)
         ensures
-            self@.metadata.is_Some() == metadata.is_Some(),
-            metadata.is_Some() ==> metadata.get_Some_0()@ == self@.metadata.get_Some_0(),
+            self@.metadata is Some == metadata is Some,
+            metadata is Some ==> metadata->0@ == self@.metadata->0,
     {
         match &self.inner.metadata {
             Some(m) => Some(ObjectMeta::from_kube(m.clone())),
@@ -52,8 +52,8 @@ impl PodTemplateSpec {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<PodSpec>)
         ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+            self@.spec is Some == spec is Some,
+            spec is Some ==> spec->0@ == self@.spec->0,
     {
         match &self.inner.spec {
             Some(s) => Some(PodSpec::from_kube(s.clone())),

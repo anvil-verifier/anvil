@@ -33,8 +33,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let role = RoleView::unmarshal(obj);
-        if role.is_Ok() {
-            Ok(update_role(rabbitmq, role.get_Ok_0()).marshal())
+        if role is Ok {
+            Ok(update_role(rabbitmq, role->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -42,7 +42,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let role = RoleView::unmarshal(obj);
-        if role.is_Ok() {
+        if role is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
                 ..state
@@ -56,7 +56,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let role = RoleView::unmarshal(obj);
-        if role.is_Ok() {
+        if role is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
                 ..state
@@ -69,13 +69,13 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for RoleBuilde
     }
 }
 
-pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-peer-discovery"@ }
+pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-peer-discovery"@ }
 
 pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: RoleView::kind(),
         name: make_role_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
@@ -98,7 +98,7 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView {
     RoleView::default()
         .with_metadata(ObjectMetaView::default()
             .with_name(make_role_name(rabbitmq))
-            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_namespace(rabbitmq.metadata.namespace->0)
             .with_owner_references(make_owner_references(rabbitmq))
             .with_labels(make_labels(rabbitmq))
             .with_annotations(rabbitmq.spec.annotations)

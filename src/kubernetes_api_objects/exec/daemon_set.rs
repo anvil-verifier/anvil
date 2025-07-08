@@ -32,8 +32,8 @@ impl DaemonSet {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<DaemonSetSpec>)
         ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+            self@.spec is Some == spec is Some,
+            spec is Some ==> spec->0@ == self@.spec->0,
     {
         if self.inner.spec.is_none() { None } else { Some(DaemonSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone())) }
     }

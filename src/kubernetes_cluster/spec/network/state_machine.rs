@@ -9,12 +9,12 @@ verus! {
 pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
     Action {
         precondition: |msg_ops: MessageOps, s: NetworkState| {
-            msg_ops.recv.is_Some() ==> s.in_flight.contains(msg_ops.recv.get_Some_0())
+            msg_ops.recv is Some ==> s.in_flight.contains(msg_ops.recv->0)
         },
         transition: |msg_ops: MessageOps, s: NetworkState| {
-            if msg_ops.recv.is_Some() {
+            if msg_ops.recv is Some {
                 let s_prime = NetworkState {
-                    in_flight: s.in_flight.remove(msg_ops.recv.get_Some_0()).add(msg_ops.send)
+                    in_flight: s.in_flight.remove(msg_ops.recv->0).add(msg_ops.send)
                 };
                 (s_prime, ())
             } else {

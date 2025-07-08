@@ -270,7 +270,7 @@ pub proof fn lemma_always_vrs_reconcile_request_only_interferes_with_itself(
                 }
             }
             Step::ControllerStep((id, _, cr_key_opt)) => {
-                let cr_key = cr_key_opt.get_Some_0();
+                let cr_key = cr_key_opt->0;
                 assert forall |msg| {
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)
@@ -496,8 +496,8 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
         ({
             let req = msg.content.get_delete_request();
             &&& msg.content.is_delete_request()
-            &&& req.preconditions.is_Some()
-            &&& req.preconditions.unwrap().uid.is_Some()
+            &&& req.preconditions is Some
+            &&& req.preconditions.unwrap().uid is Some
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
@@ -544,7 +544,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vrs_pods(
                     if (!s.in_flight().contains(msg) && requirements_antecedent(msg, s_prime)) {
                         let key = msg.content.get_delete_request().key;
                         let obj = s.resources()[key];
-                        let owner_references = obj.metadata.owner_references.get_Some_0();
+                        let owner_references = obj.metadata.owner_references->0;
                         assert(forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {
                             // the referred owner object does not exist in the cluster state
                             ||| !s.resources().contains_key(owner_reference_to_object_reference(owner_references[i], key.namespace))
@@ -701,7 +701,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
         let filtered_pods = state.filtered_pods.unwrap();
         &&& triggering_cr.object_ref() == key
         &&& triggering_cr.metadata().well_formed_for_namespaced()
-        &&& state.filtered_pods.is_Some() ==>
+        &&& state.filtered_pods is Some ==>
             forall |i| #![trigger filtered_pods[i]] 0 <= i < filtered_pods.len() ==>
             (
                 filtered_pods[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
@@ -717,8 +717,8 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                     < s.api_server.resource_version_counter
             )
         &&& state.reconcile_step.is_AfterListPods() ==> {
-            let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
-            &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+            let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+            &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
             &&& req_msg.dst.is_APIServer()
             &&& req_msg.content.is_list_request()
             &&& req_msg.content.get_list_request() == ListRequest {
@@ -726,16 +726,16 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                 namespace: triggering_cr.metadata.namespace.unwrap(),
             }
             &&& forall |msg| {
-                let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                 &&& #[trigger] s.in_flight().contains(msg)
-                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                 &&& msg.src.is_APIServer()
                 &&& resp_msg_matches_req_msg(msg, req_msg)
                 &&& is_ok_resp(msg.content.get_APIResponse_0())
             } ==> {
                 let resp_objs = msg.content.get_list_response().res.unwrap();
                 &&& msg.content.is_list_response()
-                &&& msg.content.get_list_response().res.is_Ok()
+                &&& msg.content.get_list_response().res is Ok
                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                 &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                 (
@@ -817,17 +817,17 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                 let step = choose |step| cluster.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep((id, _, cr_key_opt)) => {
-                        let cr_key = cr_key_opt.get_Some_0();
+                        let cr_key = cr_key_opt->0;
                         if id == controller_id && cr_key == key {
                             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].local_state).unwrap();
                             let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
 
                             let reconcile_step = state.reconcile_step;
-                            let cr_msg = step.get_ControllerStep_0().1.get_Some_0();
+                            let cr_msg = step.get_ControllerStep_0().1->0;
                             if reconcile_step.is_AfterListPods()
                                && is_ok_resp(cr_msg.content.get_APIResponse_0()) {
                                 let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
-                                let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg.get_Some_0();
+                                let req_msg = s.ongoing_reconciles(controller_id)[cr_key].pending_req_msg->0;
                                 let objs = cr_msg.content.get_list_response().res.unwrap();
                                 let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
                                 let pods_or_none = objects_to_pods(objs);
@@ -852,9 +852,9 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                         < s_prime.api_server.resource_version_counter) by {
 
                                     assert({
-                                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                         &&& s.in_flight().contains(cr_msg)
-                                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                                         &&& cr_msg.src.is_APIServer()
                                         &&& resp_msg_matches_req_msg(cr_msg, req_msg)});
 
@@ -863,7 +863,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                         |pod: PodView|
                                         pod.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
                                         && triggering_cr.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                                        && pod.metadata.deletion_timestamp.is_None(),
+                                        && pod.metadata.deletion_timestamp is None,
                                         filtered_pods[i]
                                     );
 
@@ -889,8 +889,8 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             }
 
                             // prove that the newly sent message has no response.
-                            if s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
-                                let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                            if s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some {
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                                 assert(forall |msg| #[trigger] s.in_flight().contains(msg) ==> msg.rpc_id != req_msg.rpc_id);
                                 assert(s_prime.in_flight().sub(s.in_flight()) == Multiset::singleton(req_msg));
                                 assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
@@ -909,11 +909,11 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             let triggering_cr = VReplicaSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                             let filtered_pods = state.filtered_pods.unwrap();
                             if state.reconcile_step.is_AfterListPods() {
-                                let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                                 assert forall |msg| {
-                                    let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                    let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                     &&& #[trigger] s_prime.in_flight().contains(msg)
-                                    &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                    &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                                     &&& msg.src.is_APIServer()
                                     &&& resp_msg_matches_req_msg(msg, req_msg)
                                     &&& is_ok_resp(msg.content.get_APIResponse_0())
@@ -922,7 +922,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 } implies {
                                     let resp_objs = msg.content.get_list_response().res.unwrap();
                                     &&& msg.content.is_list_response()
-                                    &&& msg.content.get_list_response().res.is_Ok()
+                                    &&& msg.content.get_list_response().res is Ok
                                     &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                     &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                     (
@@ -952,12 +952,12 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                         let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[key].local_state).unwrap();
                         let new_msgs = s_prime.in_flight().sub(s.in_flight());
                         if state.reconcile_step.is_AfterListPods() {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                             let triggering_cr = VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                             assert forall |msg| {
-                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                                 &&& msg.src.is_APIServer()
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                                 &&& is_ok_resp(msg.content.get_APIResponse_0())
@@ -966,7 +966,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             } implies {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& msg.content.get_list_response().res is Ok
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (
@@ -1042,7 +1042,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 } else {
                                     let msg_antecedent = {
                                         &&& s.in_flight().contains(msg)
-                                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                                         &&& msg.src.is_APIServer()
                                         &&& resp_msg_matches_req_msg(msg, req_msg)
                                     };
@@ -1050,7 +1050,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
                                         assert({
                                             &&& msg.content.is_list_response()
-                                            &&& msg.content.get_list_response().res.is_Ok()
+                                            &&& msg.content.get_list_response().res is Ok
                                             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                         });
                                         assert(forall |i| #![auto] 0 <= i < resp_objs.len() ==>
@@ -1078,11 +1078,11 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                         let triggering_cr = VReplicaSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                         let filtered_pods = state.filtered_pods.unwrap();
                         if state.reconcile_step.is_AfterListPods() {
-                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                            let req_msg = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                             assert forall |msg| {
-                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                                 &&& msg.src.is_APIServer()
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                                 &&& is_ok_resp(msg.content.get_APIResponse_0())
@@ -1091,7 +1091,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             } implies {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& msg.content.get_list_response().res is Ok
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (
@@ -1119,18 +1119,18 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                         let triggering_cr = VReplicaSetView::unmarshal(s_prime.ongoing_reconciles(controller_id)[key].triggering_cr).unwrap();
                         if state.reconcile_step.is_AfterListPods() {
                             assert forall |msg| {
-                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                                let req_msg = s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                                 &&& invariant_matrix(key, s)
                                 &&& stronger_next(s, s_prime)
                                 &&& #[trigger] s_prime.in_flight().contains(msg)
-                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                                &&& s_prime.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                                 &&& msg.src.is_APIServer()
                                 &&& resp_msg_matches_req_msg(msg, req_msg)
                                 &&& is_ok_resp(msg.content.get_APIResponse_0())
                             } implies {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& msg.content.get_list_response().res is Ok
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (

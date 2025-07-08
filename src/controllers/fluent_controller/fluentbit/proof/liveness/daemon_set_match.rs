@@ -125,7 +125,7 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
         assert_by(tla_exists(pre1) == daemon_set_not_matches, {
             assert forall |ex| #[trigger] daemon_set_not_matches.satisfied_by(ex)
             implies tla_exists(pre1).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg->0;
                 assert(pre1(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre1), daemon_set_not_matches);
@@ -148,9 +148,9 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
             implies tla_exists(pre2).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0())
-                    &&& resp_msg.content.get_get_response().res.is_Ok()
-                    &&& resp_msg.content.get_get_response().res.get_Ok_0() == ex.head().resources()[ds_key]
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg->0)
+                    &&& resp_msg.content.get_get_response().res is Ok
+                    &&& resp_msg.content.get_get_response().res->Ok_0 == ex.head().resources()[ds_key]
                 };
                 assert(pre2(resp_msg).satisfied_by(ex));
             }
@@ -168,7 +168,7 @@ proof fn lemma_from_after_get_daemon_set_step_and_key_exists_to_daemon_set_match
         assert_by(tla_exists(pre3) == post2, {
             assert forall |ex| #[trigger] post2.satisfied_by(ex)
             implies tla_exists(pre3).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[fb.object_ref()].pending_req_msg->0;
                 assert(pre3(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre3), post2);
@@ -235,7 +235,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
@@ -244,8 +244,8 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_get_response().res.is_Ok()
-                        &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+                        &&& resp_msg.content.get_get_response().res is Ok
+                        &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
                     });
                     assert(post(s_prime));
                 }
@@ -260,8 +260,8 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_daemon_set_step(
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
-            &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+            &&& resp_msg.content.get_get_response().res is Ok
+            &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
         });
     }
 
@@ -341,7 +341,7 @@ proof fn lemma_from_after_get_daemon_set_step_to_after_update_daemon_set_step(sp
         let resource_key = get_request(SubResource::DaemonSet, fb).key;
         match step {
             Step::ApiServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
@@ -422,7 +422,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
 
     assert forall |s, s_prime: FBCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && FBCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let pending_msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+        let pending_msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg->0;
         let resp = FBCluster::handle_update_request_msg(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         DaemonSetView::marshal_preserves_integrity();
@@ -432,7 +432,7 @@ proof fn lemma_daemon_set_state_matches_at_after_update_daemon_set_step(spec: Te
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 assert(!resource_update_status_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}
@@ -475,7 +475,7 @@ pub proof fn lemma_daemon_set_is_stable(spec: TempPred<FBCluster>, fb: FluentBit
         let step = choose |step| FBCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                let req = input.get_Some_0();
+                let req = input->0;
                 assert(!resource_delete_request_msg(resource_key)(req));
                 if resource_update_request_msg(resource_key)(req) {} else {}
             },

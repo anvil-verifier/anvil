@@ -33,8 +33,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let secret = SecretView::unmarshal(obj);
-        if secret.is_Ok() {
-            Ok(update_default_user_secret(rabbitmq, secret.get_Ok_0()).marshal())
+        if secret is Ok {
+            Ok(update_default_user_secret(rabbitmq, secret->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -42,7 +42,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let sts = SecretView::unmarshal(obj);
-        if sts.is_Ok() {
+        if sts is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::PluginsConfigMap),
                 ..state
@@ -56,7 +56,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let secret = SecretView::unmarshal(obj);
-        if secret.is_Ok() {
+        if secret is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::PluginsConfigMap),
                 ..state
@@ -69,13 +69,13 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for DefaultUse
     }
 }
 
-pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-default-user"@ }
+pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-default-user"@ }
 
 pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
         name: make_default_user_secret_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
@@ -100,7 +100,7 @@ pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) ->
         .insert("password"@, "changeme"@)
         .insert("type"@, "rabbitmq"@)
         .insert("host"@,
-            rabbitmq.metadata.name.get_Some_0() + "."@ + rabbitmq.metadata.namespace.get_Some_0() + ".svc"@,
+            rabbitmq.metadata.name->0 + "."@ + rabbitmq.metadata.namespace->0 + ".svc"@,
         )
         .insert("provider"@, "rabbitmq"@)
         .insert("default_user.conf"@, "default_user = user\ndefault_pass = changeme"@)

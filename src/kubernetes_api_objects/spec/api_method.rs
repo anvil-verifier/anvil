@@ -60,7 +60,7 @@ pub struct CreateRequest {
 impl CreateRequest {
     pub open spec fn key(self) -> ObjectRef {
         ObjectRef {
-            name: self.obj.metadata.name.get_Some_0(),
+            name: self.obj.metadata.name->0,
             namespace: self.namespace,
             kind: self.obj.kind,
         }
@@ -134,8 +134,8 @@ impl GetThenDeleteRequest {
     }
 
     pub open spec fn well_formed(self) -> bool {
-        self.owner_ref.controller.is_Some()
-        && self.owner_ref.controller.get_Some_0()
+        self.owner_ref.controller is Some
+        && self.owner_ref.controller->0
     }
 }
 
@@ -161,8 +161,8 @@ impl GetThenUpdateRequest {
     }
 
     pub open spec fn well_formed(self) -> bool {
-        self.owner_ref.controller.is_Some()
-        && self.owner_ref.controller.get_Some_0()
+        self.owner_ref.controller is Some
+        && self.owner_ref.controller->0
     }
 }
 

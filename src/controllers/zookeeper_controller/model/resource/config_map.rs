@@ -31,7 +31,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() {
-            Ok(update_config_map(zk, cm.get_Ok_0()).marshal())
+            Ok(update_config_map(zk, cm->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -39,10 +39,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
 
     open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterExistsStatefulSet,
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
@@ -54,10 +54,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
 
     open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterExistsStatefulSet,
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
@@ -72,11 +72,11 @@ pub open spec fn make_config_map_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: ConfigMapView::kind(),
         name: make_config_map_name(zk),
-        namespace: zk.metadata.namespace.get_Some_0(),
+        namespace: zk.metadata.namespace->0,
     }
 }
 
-pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() + "-configmap"@ }
+pub open spec fn make_config_map_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name->0 + "-configmap"@ }
 
 pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView {
     ConfigMapView {
@@ -130,8 +130,8 @@ pub open spec fn make_log4j_quiet_config() -> StringView {
 }
 
 pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView {
-    let name = zk.metadata.name.get_Some_0();
-    let namespace = zk.metadata.namespace.get_Some_0();
+    let name = zk.metadata.name->0;
+    let namespace = zk.metadata.namespace->0;
     let client_port = int_to_string_view(zk.spec.ports.client);
     let quorum_port = int_to_string_view(zk.spec.ports.quorum);
     let leader_election_port = int_to_string_view(zk.spec.ports.leader_election);

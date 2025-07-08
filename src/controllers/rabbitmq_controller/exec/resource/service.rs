@@ -81,7 +81,7 @@ impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, model_resource::Se
 pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Service) -> (service: Service)
     requires
         rabbitmq@.well_formed(),
-        found_main_service@.spec.is_Some(),
+        found_main_service@.spec is Some,
     ensures service@ == model_resource::update_main_service(rabbitmq@, found_main_service@),
 {
     let mut main_service = found_main_service.clone();
@@ -140,7 +140,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            model_resource::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+            model_resource::make_main_service(rabbitmq@).spec->0.ports->0
         );
     }
     make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)

@@ -21,7 +21,7 @@ pub open spec fn liveness<M: Maker>(fb:FluentBitView) -> TempPred<FBCluster> {
 pub open spec fn desired_secret_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: SecretView::kind(),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
         name: fb.spec.fluentbit_config_name,
     }
 }
@@ -45,8 +45,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
             let key = M::make_service_account_key(fb);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& ServiceAccountView::unmarshal(obj).is_Ok()
-            &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == M::make_service_account(fb).automount_service_account_token
+            &&& ServiceAccountView::unmarshal(obj) is Ok
+            &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == M::make_service_account(fb).automount_service_account_token
             &&& obj.metadata.labels == M::make_service_account(fb).metadata.labels
             &&& obj.metadata.annotations == M::make_service_account(fb).metadata.annotations
         },
@@ -54,8 +54,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
             let key = M::make_role_key(fb);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& RoleView::unmarshal(obj).is_Ok()
-            &&& RoleView::unmarshal(obj).get_Ok_0().policy_rules == M::make_role(fb).policy_rules
+            &&& RoleView::unmarshal(obj) is Ok
+            &&& RoleView::unmarshal(obj)->Ok_0.policy_rules == M::make_role(fb).policy_rules
             &&& obj.metadata.labels == M::make_role(fb).metadata.labels
             &&& obj.metadata.annotations == M::make_role(fb).metadata.annotations
         },
@@ -63,20 +63,20 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
             let key = M::make_role_binding_key(fb);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& RoleBindingView::unmarshal(obj).is_Ok()
-            &&& RoleBindingView::unmarshal(obj).get_Ok_0().role_ref == M::make_role_binding(fb).role_ref
-            &&& RoleBindingView::unmarshal(obj).get_Ok_0().subjects == M::make_role_binding(fb).subjects
+            &&& RoleBindingView::unmarshal(obj) is Ok
+            &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == M::make_role_binding(fb).role_ref
+            &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == M::make_role_binding(fb).subjects
             &&& obj.metadata.labels == M::make_role_binding(fb).metadata.labels
             &&& obj.metadata.annotations == M::make_role_binding(fb).metadata.annotations
         },
         SubResource::Service => {
             let key = M::make_service_key(fb);
             let obj = resources[key];
-            let made_spec = M::make_service(fb).spec.get_Some_0();
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            let made_spec = M::make_service(fb).spec->0;
+            let spec = ServiceView::unmarshal(obj)->Ok_0.spec->0;
             &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& ServiceView::unmarshal(obj) is Ok
+            &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -89,8 +89,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, fb:
             let obj = resources[key];
             let made_ds = M::make_daemon_set(fb);
             &&& resources.contains_key(key)
-            &&& DaemonSetView::unmarshal(obj).is_Ok()
-            &&& DaemonSetView::unmarshal(obj).get_Ok_0().spec == made_ds.spec
+            &&& DaemonSetView::unmarshal(obj) is Ok
+            &&& DaemonSetView::unmarshal(obj)->Ok_0.spec == made_ds.spec
             &&& obj.metadata.labels == made_ds.metadata.labels
             &&& obj.metadata.annotations == made_ds.metadata.annotations
         },

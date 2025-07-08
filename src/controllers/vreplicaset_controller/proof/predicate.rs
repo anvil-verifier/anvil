@@ -109,7 +109,7 @@ pub open spec fn pending_req_in_flight_at_after_list_pods_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterListPods;
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
@@ -138,7 +138,7 @@ pub open spec fn exists_resp_in_flight_at_after_list_pods_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterListPods;
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
@@ -156,7 +156,7 @@ pub open spec fn resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterListPods;
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& msg.src == HostId::Controller(controller_id, vrs.object_ref())
@@ -186,14 +186,14 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matching_pods(
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
     &&& resp_msg.content.is_list_response()
-    &&& resp_msg.content.get_list_response().res.is_Ok()
+    &&& resp_msg.content.get_list_response().res is Ok
     &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
-    &&& objects_to_pods(resp_objs).is_Some()
+    &&& objects_to_pods(resp_objs) is Some
     &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
     &&& resp_objs.no_duplicates()
     &&& resp_obj_keys.no_duplicates()
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace.is_Some()
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
 }
 
@@ -204,7 +204,7 @@ pub open spec fn pending_req_in_flight_at_after_create_pod_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterCreatePod(diff);
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
@@ -233,7 +233,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_create_pod_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterCreatePod(diff);
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
@@ -242,7 +242,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_create_pod_step(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_create_response().res.is_Ok()
+            &&& resp_msg.content.get_create_response().res is Ok
         }
     }
 }
@@ -252,7 +252,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterCreatePod(diff);
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
@@ -260,7 +260,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
         &&& req_msg_is_create_matching_pod_req(vrs, msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_create_response().res.is_Ok()
+        &&& resp_msg.content.get_create_response().res is Ok
     }
 }
 
@@ -284,7 +284,7 @@ pub open spec fn new_obj_in_etcd(
     let meta = ObjectMetaView {
         // Set name for new object if name is not provided, here we generate
         // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
-        name: if obj_temp.metadata.name.is_Some() {
+        name: if obj_temp.metadata.name is Some {
             obj_temp.metadata.name
         } else {
             Some(generate_name(s.api_server))
@@ -309,7 +309,7 @@ pub open spec fn pending_req_in_flight_at_after_delete_pod_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterDeletePod(diff);
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::pending_req_msg_is(controller_id, s, vrs.object_ref(), msg)
         &&& s.in_flight().contains(msg)
@@ -336,7 +336,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterDeletePod(diff);
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
@@ -347,7 +347,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+            &&& resp_msg.content.get_get_then_delete_response().res is Ok
         }
     }
 }
@@ -357,7 +357,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let step = VReplicaSetRecStepView::AfterDeletePod(diff);
-        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_vrs_step_with_vrs(vrs, controller_id, step)(s)
         &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vrs.object_ref())
@@ -367,7 +367,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
         &&& request.is_GetThenDeleteRequest()
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+        &&& resp_msg.content.get_get_then_delete_response().res is Ok
     }
 }
 
@@ -410,13 +410,13 @@ pub open spec fn filtered_pods_in_vrs_matching_pods(
         &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
         &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
         &&& state.reconcile_step.is_AfterDeletePod()
-        &&& state.filtered_pods.is_Some()
+        &&& state.filtered_pods is Some
         &&& filtered_pod_keys.no_duplicates()
         &&& diff < filtered_pods.len()
         &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
             &&& s.resources().contains_key(filtered_pod_keys[i])
             &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
-            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
         }
     }
 }

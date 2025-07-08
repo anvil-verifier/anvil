@@ -119,7 +119,7 @@ pub fn make_role_ref(fb: &FluentBit) -> (role_ref: RoleRef)
 
 pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
     requires fb@.well_formed(),
-    ensures subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(fb@).subjects.get_Some_0(),
+    ensures subjects@.map_values(|s: Subject| s@) == model_resource::make_role_binding(fb@).subjects->0,
 {
     let mut subjects = Vec::new();
     subjects.push({
@@ -132,7 +132,7 @@ pub fn make_subjects(fb: &FluentBit) -> (subjects: Vec<Subject>)
     proof{
         assert_seqs_equal!(
             subjects@.map_values(|p: Subject| p@),
-            model_resource::make_role_binding(fb@).subjects.get_Some_0()
+            model_resource::make_role_binding(fb@).subjects->0
         );
     }
     subjects

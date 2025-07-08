@@ -227,7 +227,7 @@ pub fn create_new_vrs(old_vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res:
 requires
     vd@.well_formed(),
 ensures
-    res.1@.is_Some() && model_reconciler::create_new_vrs(old_vrs_list.deep_view(), vd@).1.is_Some(),
+    res.1@ is Some && model_reconciler::create_new_vrs(old_vrs_list.deep_view(), vd@).1 is Some,
     (res.0@, res.1.deep_view()) == model_reconciler::create_new_vrs(old_vrs_list.deep_view(), vd@),
 {
     let new_vrs = make_replica_set(vd);
@@ -250,7 +250,7 @@ requires
     vd@.well_formed(),
     new_vrs@.well_formed(),
 ensures
-    res.1@.is_Some() && model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@).1.is_Some(),
+    res.1@ is Some && model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@).1 is Some,
     (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@),
 {
     let mut new_spec = new_vrs.spec();

@@ -16,7 +16,7 @@ fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_s
 {
     let mut r = Vec::new();
     let mut i = 0;
-    proof { lemma_seq_properties::<V>(); }
+    broadcast use group_seq_properties;
     for i in 0..v.len()
         invariant
             forall|v: V| #[trigger] f.requires((&v,)),
@@ -24,6 +24,8 @@ fn vec_filter<V: VerusClone + View + Sized>(v: Vec<V>, f: impl Fn(&V)->bool, f_s
             r@.to_multiset() =~= v@.subrange(0, i as int).to_multiset().filter(f_spec),
             forall |v:V,r:bool| f.ensures((&v,), r) ==> f_spec(v) == r,
     {
+        // This deprecated lemma_seq_properties cannot be replaced by
+        // broadcast use group_seq_properties;
         proof { lemma_seq_properties::<V>(); }
         let ghost pre_r = r@.to_multiset();
         assert(

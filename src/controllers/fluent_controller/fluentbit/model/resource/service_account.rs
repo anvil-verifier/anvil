@@ -28,8 +28,8 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sa = ServiceAccountView::unmarshal(obj);
-        if sa.is_Ok() {
-            Ok(update_service_account(fb, sa.get_Ok_0()).marshal())
+        if sa is Ok {
+            Ok(update_service_account(fb, sa->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -37,7 +37,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
 
     open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let sa = ServiceAccountView::unmarshal(obj);
-        if sa.is_Ok() {
+        if sa is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state
@@ -51,7 +51,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
 
     open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let sa = ServiceAccountView::unmarshal(obj);
-        if sa.is_Ok() {
+        if sa is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state
@@ -64,13 +64,13 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceAccountB
     }
 }
 
-pub open spec fn make_service_account_name(fb: FluentBitView) -> StringView { fb.metadata.name.get_Some_0() }
+pub open spec fn make_service_account_name(fb: FluentBitView) -> StringView { fb.metadata.name->0 }
 
 pub open spec fn make_service_account_key(fb: FluentBitView) -> ObjectRef {
     ObjectRef {
         kind: ServiceAccountView::kind(),
         name: make_service_account_name(fb),
-        namespace: fb.metadata.namespace.get_Some_0(),
+        namespace: fb.metadata.namespace->0,
     }
 }
 

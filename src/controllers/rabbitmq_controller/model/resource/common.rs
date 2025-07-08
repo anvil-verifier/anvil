@@ -17,7 +17,7 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> { rabbitmq.spec.labels.insert("app"@, rabbitmq.metadata.name.get_Some_0()) }
+pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> { rabbitmq.spec.labels.insert("app"@, rabbitmq.metadata.name->0) }
 
 pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<OwnerReferenceView> { seq![rabbitmq.controller_owner_ref()] }
 
@@ -25,7 +25,7 @@ pub open spec fn make_secret(rabbitmq: RabbitmqClusterView, name: StringView, da
     SecretView::default()
         .with_metadata(ObjectMetaView::default()
             .with_name(name)
-            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_namespace(rabbitmq.metadata.namespace->0)
             .with_owner_references(make_owner_references(rabbitmq))
             .with_labels(make_labels(rabbitmq))
             .with_annotations(rabbitmq.spec.annotations)
@@ -36,7 +36,7 @@ pub open spec fn make_service(rabbitmq: RabbitmqClusterView, name: StringView, p
     ServiceView::default()
         .with_metadata(ObjectMetaView::default()
             .with_name(name)
-            .with_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .with_namespace(rabbitmq.metadata.namespace->0)
             .with_owner_references(make_owner_references(rabbitmq))
             .with_labels(make_labels(rabbitmq))
             .with_annotations(rabbitmq.spec.annotations)
@@ -44,7 +44,7 @@ pub open spec fn make_service(rabbitmq: RabbitmqClusterView, name: StringView, p
             let spec = ServiceSpecView::default()
                 .with_ports(ports)
                 .with_selector(Map::empty()
-                    .insert("app"@, rabbitmq.metadata.name.get_Some_0())
+                    .insert("app"@, rabbitmq.metadata.name->0)
                 ).with_publish_not_ready_addresses(true);
             if !cluster_ip {
                 spec.with_cluster_ip("None"@)

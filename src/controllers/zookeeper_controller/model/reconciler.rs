@@ -66,9 +66,9 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
 
 pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) {
     let step = state.reconcile_step;
-    let resp = resp_o.get_Some_0();
-    let zk_name = zk.metadata.name.get_Some_0();
-    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let resp = resp_o->0;
+    let zk_name = zk.metadata.name->0;
+    let zk_namespace = zk.metadata.namespace->0;
     let client_port = zk.spec.ports.client;
     match step {
         ZookeeperReconcileStep::Init => {
@@ -89,9 +89,9 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
             }
         },
         ZookeeperReconcileStep::AfterExistsStatefulSet => {
-            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+            if resp_o is Some && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
                 let get_stateful_set_resp = resp.get_KResponse_0().get_GetResponse_0().res;
-                if get_stateful_set_resp.is_Ok() {
+                if get_stateful_set_resp is Ok {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
                         ..state
@@ -121,14 +121,14 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
         },
         ZookeeperReconcileStep::AfterExistsZKNode => {
             let exists_resp = resp.get_ExternalResponse_0().get_ExistsResponse_0().res;
-            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_ExistsResponse()
-            && exists_resp.is_Ok() {
-                if exists_resp.get_Ok_0().is_Some() {
+            if resp_o is Some && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_ExistsResponse()
+            && exists_resp is Ok {
+                if exists_resp->Ok_0 is Some {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
                         ..state
                     };
-                    (state_prime, Some(RequestView::ExternalRequest(zk_set_data_request(zk, exists_resp.get_Ok_0().get_Some_0()))))
+                    (state_prime, Some(RequestView::ExternalRequest(zk_set_data_request(zk, exists_resp->Ok_0->0))))
                 } else {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
@@ -146,8 +146,8 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
         },
         ZookeeperReconcileStep::AfterCreateZKParentNode => {
             let create_resp = resp.get_ExternalResponse_0().get_CreateResponse_0().res;
-            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
-            && (create_resp.is_Ok() || create_resp.get_Err_0().is_ZKNodeCreateAlreadyExists()) {
+            if resp_o is Some && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
+            && (create_resp is Ok || create_resp.get_Err_0().is_ZKNodeCreateAlreadyExists()) {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                     ..state
@@ -162,8 +162,8 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
             }
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
-            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
-            && resp.get_ExternalResponse_0().get_CreateResponse_0().res.is_Ok() {
+            if resp_o is Some && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
+            && resp.get_ExternalResponse_0().get_CreateResponse_0().res is Ok {
                 let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
@@ -179,8 +179,8 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
             }
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
-            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_SetDataResponse()
-            && resp.get_ExternalResponse_0().get_SetDataResponse_0().res.is_Ok() {
+            if resp_o is Some && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_SetDataResponse()
+            && resp.get_ExternalResponse_0().get_SetDataResponse_0().res is Ok {
                 let req_o = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
@@ -197,8 +197,8 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
         },
         ZookeeperReconcileStep::AfterUpdateStatus => {
             let update_status_resp = resp.get_KResponse_0().get_UpdateStatusResponse_0().res;
-            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateStatusResponse()
-            && update_status_resp.is_Ok() {
+            if resp_o is Some && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateStatusResponse()
+            && update_status_resp is Ok {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Done,
                     ..state
@@ -223,7 +223,7 @@ pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<Respons
 }
 
 pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView> {
-    seq!["zookeeper-operator"@, zk.metadata.name.get_Some_0()]
+    seq!["zookeeper-operator"@, zk.metadata.name->0]
 }
 
 pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView> {
@@ -235,16 +235,16 @@ pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView {
 }
 
 pub open spec fn zk_exists_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
-    let zk_name = zk.metadata.name.get_Some_0();
-    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let zk_name = zk.metadata.name->0;
+    let zk_namespace = zk.metadata.namespace->0;
     let client_port = zk.spec.ports.client;
     let node_path = zk_node_path(zk);
     ZKAPIInputView::ExistsRequest(zk_name, zk_namespace, client_port, node_path)
 }
 
 pub open spec fn zk_set_data_request(zk: ZookeeperClusterView, version: int) -> ZKAPIInputView {
-    let zk_name = zk.metadata.name.get_Some_0();
-    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let zk_name = zk.metadata.name->0;
+    let zk_namespace = zk.metadata.namespace->0;
     let client_port = zk.spec.ports.client;
     let node_path = zk_node_path(zk);
     let data = zk_node_data(zk);
@@ -252,8 +252,8 @@ pub open spec fn zk_set_data_request(zk: ZookeeperClusterView, version: int) -> 
 }
 
 pub open spec fn zk_create_parent_node_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
-    let zk_name = zk.metadata.name.get_Some_0();
-    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let zk_name = zk.metadata.name->0;
+    let zk_namespace = zk.metadata.namespace->0;
     let client_port = zk.spec.ports.client;
     let node_path = zk_parent_node_path(zk);
     let data = ""@;
@@ -261,8 +261,8 @@ pub open spec fn zk_create_parent_node_request(zk: ZookeeperClusterView) -> ZKAP
 }
 
 pub open spec fn zk_create_node_request(zk: ZookeeperClusterView) -> ZKAPIInputView {
-    let zk_name = zk.metadata.name.get_Some_0();
-    let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let zk_name = zk.metadata.name->0;
+    let zk_namespace = zk.metadata.namespace->0;
     let client_port = zk.spec.ports.client;
     let node_path = zk_node_path(zk);
     let data = zk_node_data(zk);
@@ -277,15 +277,15 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView,
         ZookeeperReconcileStep::AfterKRequestStep(action, resource) => {
             match action {
                 ActionKind::Get => {
-                    if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
-                        let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
-                        if get_resp.is_Ok() {
+                    if resp_o is Some && resp_o->0.is_KResponse() && resp_o->0.get_KResponse_0().is_GetResponse() {
+                        let get_resp = resp_o->0.get_KResponse_0().get_GetResponse_0().res;
+                        if get_resp is Ok {
                             // update
-                            let new_obj = Builder::update(zk, state, get_resp.get_Ok_0());
-                            if new_obj.is_Ok() {
-                                let updated_obj = new_obj.get_Ok_0();
+                            let new_obj = Builder::update(zk, state, get_resp->Ok_0);
+                            if new_obj is Ok {
+                                let updated_obj = new_obj->Ok_0;
                                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                                    namespace: zk.metadata.namespace.get_Some_0(),
+                                    namespace: zk.metadata.namespace->0,
                                     name: Builder::get_request(zk).key.name,
                                     obj: updated_obj,
                                 });
@@ -303,10 +303,10 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView,
                             }
                         } else if get_resp.get_Err_0().is_ObjectNotFound() {
                             let new_obj = Builder::make(zk, state);
-                            if new_obj.is_Ok() {
+                            if new_obj is Ok {
                                 let req_o = APIRequest::CreateRequest(CreateRequest {
-                                    namespace: zk.metadata.namespace.get_Some_0(),
-                                    obj: new_obj.get_Ok_0(),
+                                    namespace: zk.metadata.namespace->0,
+                                    obj: new_obj->Ok_0,
                                 });
                                 let state_prime = ZookeeperReconcileState {
                                     reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Create, resource),
@@ -337,13 +337,13 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView,
                     }
                 },
                 ActionKind::Create => {
-                    let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
-                    if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
-                    && create_resp.is_Ok() {
-                        let next_state = Builder::state_after_create(zk, create_resp.get_Ok_0(), state);
-                        if next_state.is_Ok() {
-                            let (state_prime, req) = next_state.get_Ok_0();
-                            let req_o = if req.is_Some() { Some(RequestView::KRequest(req.get_Some_0())) } else { None };
+                    let create_resp = resp_o->0.get_KResponse_0().get_CreateResponse_0().res;
+                    if resp_o is Some && resp_o->0.is_KResponse() && resp_o->0.get_KResponse_0().is_CreateResponse()
+                    && create_resp is Ok {
+                        let next_state = Builder::state_after_create(zk, create_resp->Ok_0, state);
+                        if next_state is Ok {
+                            let (state_prime, req) = next_state->Ok_0;
+                            let req_o = if req is Some { Some(RequestView::KRequest(req->0)) } else { None };
                             (state_prime, req_o)
                         } else {
                             let state_prime = ZookeeperReconcileState {
@@ -362,13 +362,13 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder<ZookeeperClusterView,
                     }
                 },
                 ActionKind::Update => {
-                    let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
-                    if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
-                    && update_resp.is_Ok() {
-                        let next_state = Builder::state_after_update(zk, update_resp.get_Ok_0(), state);
-                        if next_state.is_Ok() {
-                            let (state_prime, req) = next_state.get_Ok_0();
-                            let req_o = if req.is_Some() { Some(RequestView::KRequest(req.get_Some_0())) } else { None };
+                    let update_resp = resp_o->0.get_KResponse_0().get_UpdateResponse_0().res;
+                    if resp_o is Some && resp_o->0.is_KResponse() && resp_o->0.get_KResponse_0().is_UpdateResponse()
+                    && update_resp is Ok {
+                        let next_state = Builder::state_after_update(zk, update_resp->Ok_0, state);
+                        if next_state is Ok {
+                            let (state_prime, req) = next_state->Ok_0;
+                            let req_o = if req is Some { Some(RequestView::KRequest(req->0)) } else { None };
                             (state_prime, req_o)
                         } else {
                             let state_prime = ZookeeperReconcileState {

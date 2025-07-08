@@ -77,20 +77,20 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             (state_prime, Some(RequestView::KRequest(req)))
         },
         VDeploymentReconcileStepView::AfterListVRS => {
-            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
                 let vrs_list_or_none = objects_to_vrs_list(objs);
-                if vrs_list_or_none.is_None() {
+                if vrs_list_or_none is None {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
-                    if new_vrs.is_None() {
+                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
+                    if new_vrs is None {
                         // create the new vrs
                         create_new_vrs(old_vrs_list, vd)
                     } else {
-                        let new_vrs = new_vrs.get_Some_0();
+                        let new_vrs = new_vrs->0;
                         if !match_replicas(vd, new_vrs) {
                             // scale new vrs to desired replicas
                             scale_new_vrs(new_vrs, old_vrs_list, vd)
@@ -107,14 +107,14 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             }
         },
         VDeploymentReconcileStepView::AfterCreateNewVRS => {
-            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 (new_vrs_ensured_state(state), None)
             }
         },
         VDeploymentReconcileStepView::AfterScaleNewVRS => {
-            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 (new_vrs_ensured_state(state), None)
@@ -133,7 +133,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             }
         }
         VDeploymentReconcileStepView::AfterScaleDownOldVRS => {
-            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 if state.old_vrs_list.len() > 0 {

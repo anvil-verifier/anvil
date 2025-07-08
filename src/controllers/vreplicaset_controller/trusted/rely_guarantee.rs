@@ -12,8 +12,8 @@ verus! {
 pub open spec fn vrs_rely_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.obj.kind == Kind::PodKind ==> !{
-            let owner_references = req.obj.metadata.owner_references.get_Some_0();
-            &&& req.obj.metadata.owner_references.is_Some()
+            let owner_references = req.obj.metadata.owner_references->0;
+            &&& req.obj.metadata.owner_references is Some
             &&& exists |vrs: VReplicaSetView| 
                 #[trigger] owner_references.contains(vrs.controller_owner_ref())
         }
@@ -27,24 +27,24 @@ pub open spec fn vrs_rely_create_req(req: CreateRequest) -> StatePred<ClusterSta
 pub open spec fn vrs_rely_update_req(req: UpdateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.obj.kind == Kind::PodKind ==>
-            req.obj.metadata.resource_version.is_Some()
+            req.obj.metadata.resource_version is Some
             // Prevents 1): where other controllers update pods already owned
             // by a VReplicaSet.
             && !{
                 let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                let owner_references = etcd_obj.metadata.owner_references->0;
                 &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version is Some
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& etcd_obj.metadata.owner_references is Some
                 &&& exists |vrs: VReplicaSetView| 
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             }
             // Prevents 2): where other controllers update pods so they become
             // owned by a VReplicaSet.
-            && (req.obj.metadata.owner_references.is_Some() ==>
+            && (req.obj.metadata.owner_references is Some ==>
                     forall |vrs: VReplicaSetView| 
-                        ! #[trigger] req.obj.metadata.owner_references.get_Some_0().contains(vrs.controller_owner_ref()))
+                        ! #[trigger] req.obj.metadata.owner_references->0.contains(vrs.controller_owner_ref()))
     }
 }
 
@@ -60,14 +60,14 @@ pub open spec fn vrs_rely_get_then_update_req(req: GetThenUpdateRequest) -> Stat
             // We force requests from other controllers to carry the controller owner reference
             // to achieve exclusive ownerships
             // TODO: add type invariant
-            &&& req.owner_ref.controller.is_Some()
-            &&& req.owner_ref.controller.get_Some_0()
+            &&& req.owner_ref.controller is Some
+            &&& req.owner_ref.controller->0
             &&& req.owner_ref.kind != VReplicaSetView::kind()
             // Prevents 2): where other controllers update pods so they become
             // owned by a VReplicaSet.
-            &&& (req.obj.metadata.owner_references.is_Some() ==>
+            &&& (req.obj.metadata.owner_references is Some ==>
                 forall |vrs: VReplicaSetView| 
-                    ! req.obj.metadata.owner_references.get_Some_0().contains(#[trigger] vrs.controller_owner_ref()))
+                    ! req.obj.metadata.owner_references->0.contains(#[trigger] vrs.controller_owner_ref()))
         }
     }
 }
@@ -79,14 +79,14 @@ pub open spec fn vrs_rely_get_then_update_req(req: GetThenUpdateRequest) -> Stat
 pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.obj.kind == Kind::PodKind ==> 
-            req.obj.metadata.resource_version.is_Some()
+            req.obj.metadata.resource_version is Some
             && !{
                 let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                let owner_references = etcd_obj.metadata.owner_references->0;
                 &&& s.resources().contains_key(req.key())
-                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version is Some
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& etcd_obj.metadata.owner_references is Some
                 &&& exists |vrs: VReplicaSetView| 
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             }
@@ -98,16 +98,16 @@ pub open spec fn vrs_rely_update_status_req(req: UpdateStatusRequest) -> StatePr
 pub open spec fn vrs_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.key.kind == Kind::PodKind ==>
-            req.preconditions.is_Some()
-            && req.preconditions.get_Some_0().resource_version.is_Some()
+            req.preconditions is Some
+            && req.preconditions->0.resource_version is Some
             && !{
                 let etcd_obj = s.resources()[req.key];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                let owner_references = etcd_obj.metadata.owner_references->0;
                 &&& s.resources().contains_key(req.key)
-                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version is Some
                 &&& etcd_obj.metadata.resource_version
-                    == req.preconditions.get_Some_0().resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
+                    == req.preconditions->0.resource_version
+                &&& etcd_obj.metadata.owner_references is Some
                 &&& exists |vrs: VReplicaSetView| 
                     #[trigger] owner_references.contains(vrs.controller_owner_ref())
             }
@@ -118,8 +118,8 @@ pub open spec fn vrs_rely_delete_req(req: DeleteRequest) -> StatePred<ClusterSta
 pub open spec fn vrs_rely_get_then_delete_req(req: GetThenDeleteRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
         req.key.kind == Kind::PodKind ==> {
-            &&& req.owner_ref.controller.is_Some()
-            &&& req.owner_ref.controller.get_Some_0()
+            &&& req.owner_ref.controller is Some
+            &&& req.owner_ref.controller->0
             &&& req.owner_ref.kind != VReplicaSetView::kind()
         }
     }
@@ -148,9 +148,9 @@ pub open spec fn vrs_rely(other_id: int) -> StatePred<ClusterState> {
 // VRS only creates pods owned by a VReplicaSet.
 pub open spec fn vrs_guarantee_create_req(req: CreateRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let owner_references = req.obj.metadata.owner_references.get_Some_0();
+        let owner_references = req.obj.metadata.owner_references->0;
         &&& req.obj.kind == Kind::PodKind
-        &&& req.obj.metadata.owner_references.is_Some()
+        &&& req.obj.metadata.owner_references is Some
         &&& exists |vrs: VReplicaSetView| 
             owner_references == seq![#[trigger] vrs.controller_owner_ref()]
     }

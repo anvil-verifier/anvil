@@ -77,7 +77,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                 }
             }
             Step::ControllerStep((id, _, cr_key_opt)) => {
-                let cr_key = cr_key_opt.get_Some_0();
+                let cr_key = cr_key_opt->0;
                 assert forall |msg| {
                     &&& invariant(s)
                     &&& stronger_next(s, s_prime)

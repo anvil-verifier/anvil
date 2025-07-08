@@ -225,7 +225,7 @@ proof fn lemma_from_init_step_to_after_get_secret_step(spec: TempPred<FBCCluster
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.1.get_Some_0() != fbc.object_ref() {
+                if input.1->0 != fbc.object_ref() {
                     assert(pre(s_prime));
                 } else {
                     assert(post(s_prime));

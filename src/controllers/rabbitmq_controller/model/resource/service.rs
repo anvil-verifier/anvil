@@ -33,8 +33,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        let found_service = service.get_Ok_0();
-        if service.is_Ok() && found_service.spec.is_Some() {
+        let found_service = service->Ok_0;
+        if service is Ok && found_service.spec is Some {
             Ok(update_main_service(rabbitmq, found_service).marshal())
         } else {
             Err(())
@@ -43,7 +43,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state
@@ -57,7 +57,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state
@@ -71,14 +71,14 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 }
 
 pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView {
-    rabbitmq.metadata.name.get_Some_0() + "-client"@
+    rabbitmq.metadata.name->0 + "-client"@
 }
 
 pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ServiceView::kind(),
         name: make_main_service_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
@@ -93,10 +93,10 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
             ..found_main_service.metadata
         },
         spec: Some(ServiceSpecView {
-            ports: made_main_service.spec.get_Some_0().ports,
-            selector: made_main_service.spec.get_Some_0().selector,
-            publish_not_ready_addresses: made_main_service.spec.get_Some_0().publish_not_ready_addresses,
-            ..found_main_service.spec.get_Some_0()
+            ports: made_main_service.spec->0.ports,
+            selector: made_main_service.spec->0.selector,
+            publish_not_ready_addresses: made_main_service.spec->0.publish_not_ready_addresses,
+            ..found_main_service.spec->0
         }),
         ..found_main_service
     }

@@ -17,14 +17,14 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
         precondition: |input: BuiltinControllersActionInput, s: ()| {
             let resources = input.resources;
             let key = input.key;
-            let owner_references = resources[key].metadata.owner_references.get_Some_0();
+            let owner_references = resources[key].metadata.owner_references->0;
             // The garbage collector is chosen by the top level state machine
             &&& input.choice.is_GarbageCollector()
             // The object exists in the cluster state
             &&& resources.contains_key(input.key)
             // and it has at least one owner reference
-            &&& resources[key].metadata.owner_references.is_Some()
-            &&& resources[key].metadata.owner_references.get_Some_0().len() > 0
+            &&& resources[key].metadata.owner_references is Some
+            &&& resources[key].metadata.owner_references->0.len() > 0
             // The garbage collector decides whether to delete an object by checking its owner references,
             // it deletes the object if for each owner reference...
             &&& forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {

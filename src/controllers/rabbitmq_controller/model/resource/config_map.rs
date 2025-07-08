@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() {
-            Ok(update_server_config_map(rabbitmq, cm.get_Ok_0()).marshal())
+            Ok(update_server_config_map(rabbitmq, cm->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -42,10 +42,10 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
@@ -57,10 +57,10 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
@@ -85,13 +85,13 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     }
 }
 
-pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name.get_Some_0() + "-server-conf"@ }
+pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView { rabbitmq.metadata.name->0 + "-server-conf"@ }
 
 pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef {
     ObjectRef {
         kind: ConfigMapView::kind(),
         name: make_server_config_map_name(rabbitmq),
-        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+        namespace: rabbitmq.metadata.namespace->0,
     }
 }
 
@@ -110,26 +110,26 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
                         .insert("operatorDefaults.conf"@, default_rbmq_config(rabbitmq))
                         .insert("userDefinedConfiguration.conf"@,
                         {
-                            if rabbitmq.spec.rabbitmq_config.is_Some()
-                            && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
+                            if rabbitmq.spec.rabbitmq_config is Some
+                            && rabbitmq.spec.rabbitmq_config->0.additional_config is Some
                             {   // check if there are rabbitmq-related customized configurations
-                                "total_memory_available_override_value = 1717986919\n"@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                                "total_memory_available_override_value = 1717986919\n"@ + rabbitmq.spec.rabbitmq_config->0.additional_config->0
                             } else {
                                 "total_memory_available_override_value = 1717986919\n"@
                             }
                         });
-            if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != ""@
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != ""@ {
-                data.insert("advanced.config"@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
-                    .insert("rabbitmq-env.conf"@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
-            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != ""@ {
-                data.insert("advanced.config"@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
-            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != ""@ {
-                data.insert("rabbitmq-env.conf"@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.advanced_config is Some
+            && rabbitmq.spec.rabbitmq_config->0.advanced_config->0 != ""@
+            && rabbitmq.spec.rabbitmq_config->0.env_config is Some
+            && rabbitmq.spec.rabbitmq_config->0.env_config->0 != ""@ {
+                data.insert("advanced.config"@, rabbitmq.spec.rabbitmq_config->0.advanced_config->0)
+                    .insert("rabbitmq-env.conf"@, rabbitmq.spec.rabbitmq_config->0.env_config->0)
+            } else if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.advanced_config is Some
+            && rabbitmq.spec.rabbitmq_config->0.advanced_config->0 != ""@ {
+                data.insert("advanced.config"@, rabbitmq.spec.rabbitmq_config->0.advanced_config->0)
+            } else if rabbitmq.spec.rabbitmq_config is Some && rabbitmq.spec.rabbitmq_config->0.env_config is Some
+            && rabbitmq.spec.rabbitmq_config->0.env_config->0 != ""@ {
+                data.insert("rabbitmq-env.conf"@, rabbitmq.spec.rabbitmq_config->0.env_config->0)
             } else {
                 data
             }
@@ -139,7 +139,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
 }
 
 pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView {
-    let name = rabbitmq.metadata.name.get_Some_0();
+    let name = rabbitmq.metadata.name->0;
 
     "queue_master_locator = min-masters\n\
     disk_free_limit.absolute = 2GB\n\

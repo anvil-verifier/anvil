@@ -125,9 +125,9 @@ pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> 
 }
 
 pub open spec fn validate_config_map_object(object: DynamicObjectView) -> bool {
-    &&& ConfigMapView::unmarshal(object).is_Ok()
-    &&& ConfigMapView::unmarshal(object).get_Ok_0().data.is_Some()
-    &&& validate_config_map_data(ConfigMapView::unmarshal(object).get_Ok_0().data.get_Some_0())
+    &&& ConfigMapView::unmarshal(object) is Ok
+    &&& ConfigMapView::unmarshal(object)->Ok_0.data is Some
+    &&& validate_config_map_data(ConfigMapView::unmarshal(object)->Ok_0.data->0)
 }
 
 pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
@@ -146,14 +146,14 @@ pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, 
         namespace: namespace,
         name: name,
     };
-    let sts_spec = StatefulSetView::unmarshal(resources[sts_key]).get_Ok_0().spec;
+    let sts_spec = StatefulSetView::unmarshal(resources[sts_key])->Ok_0.spec;
     // The stateful set object exists
     &&& resources.contains_key(sts_key)
-    &&& StatefulSetView::unmarshal(resources[sts_key]).is_Ok()
-    &&& sts_spec.is_Some()
-    &&& sts_spec.get_Some_0().replicas.is_Some()
+    &&& StatefulSetView::unmarshal(resources[sts_key]) is Ok
+    &&& sts_spec is Some
+    &&& sts_spec->0.replicas is Some
     // and it has at least one replica to handle the request
-    &&& sts_spec.get_Some_0().replicas.get_Some_0() > 0
+    &&& sts_spec->0.replicas->0 > 0
 }
 
 // validate checks the stateful set object (the end point that the client connects to in the exec implementation)
@@ -178,7 +178,7 @@ pub open spec fn handle_exists(name: StringView, namespace: StringView, port: in
     if !validate(name, namespace, port, path, resources) {
         (state, ZKAPIExistsResultView{res: Err(ZKAPIError::ZKNodeExistsFailed)})
     } else {
-        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
+        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid->0, path);
         if !state.data.contains_key(addr) {
             (state, ZKAPIExistsResultView{res: Ok(None)})
         } else {
@@ -195,7 +195,7 @@ pub open spec fn handle_create(name: StringView, namespace: StringView, port: in
     if !validate(name, namespace, port, path, resources) {
         (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateFailed)})
     } else {
-        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
+        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid->0, path);
         if !state.data.contains_key(addr) {
             if path.len() > 1 && !state.data.contains_key(addr.parent_addr()) {
                 (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateFailed)})
@@ -216,7 +216,7 @@ pub open spec fn handle_set_data(name: StringView, namespace: StringView, port: 
     if !validate(name, namespace, port, path, resources) {
         (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
     } else {
-        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
+        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid->0, path);
         if !state.data.contains_key(addr) {
             (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
         } else {

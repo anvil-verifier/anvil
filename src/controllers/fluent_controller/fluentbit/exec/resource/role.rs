@@ -106,7 +106,7 @@ pub fn make_role_name(fb: &FluentBit) -> (name: String)
 
 pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
     requires fb@.well_formed(),
-    ensures rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(fb@).policy_rules.get_Some_0(),
+    ensures rules@.map_values(|r: PolicyRule| r@) == model_resource::make_role(fb@).policy_rules->0,
 {
     let mut rules = Vec::new();
     rules.push({
@@ -117,7 +117,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     api_groups@.map_values(|p: String| p@),
-                    model_resource::make_role(fb@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                    model_resource::make_role(fb@).policy_rules->0[0].api_groups->0
                 );
             }
             api_groups
@@ -128,7 +128,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     resources@.map_values(|p: String| p@),
-                    model_resource::make_role(fb@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                    model_resource::make_role(fb@).policy_rules->0[0].resources->0
                 );
             }
             resources
@@ -139,7 +139,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
             proof{
                 assert_seqs_equal!(
                     verbs@.map_values(|p: String| p@),
-                    model_resource::make_role(fb@).policy_rules.get_Some_0()[0].verbs
+                    model_resource::make_role(fb@).policy_rules->0[0].verbs
                 );
             }
             verbs
@@ -149,7 +149,7 @@ pub fn make_rules(fb: &FluentBit) -> (rules: Vec<PolicyRule>)
     proof{
         assert_seqs_equal!(
             rules@.map_values(|p: PolicyRule| p@),
-            model_resource::make_role(fb@).policy_rules.get_Some_0()
+            model_resource::make_role(fb@).policy_rules->0
         );
     }
     rules

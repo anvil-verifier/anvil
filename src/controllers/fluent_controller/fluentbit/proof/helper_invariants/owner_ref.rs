@@ -30,9 +30,9 @@ verus! {
 // Valid owner_references field satisfies that every owner reference in it valid uid, i.e., it points to some existing objects.
 // We don't test custom resource object here because we don't care about whether it's owner_references is valid.
 pub open spec fn owner_references_is_valid(obj: DynamicObjectView, s: FBCluster) -> bool {
-    let owner_refs = obj.metadata.owner_references.get_Some_0();
+    let owner_refs = obj.metadata.owner_references->0;
 
-    &&& obj.metadata.owner_references.is_Some()
+    &&& obj.metadata.owner_references is Some
     &&& owner_refs.len() == 1
     &&& owner_refs[0].uid < s.kubernetes_api_state.uid_counter
 }
@@ -89,19 +89,19 @@ pub proof fn lemma_always_object_in_every_resource_create_or_update_request_msg_
                 let step = choose |step| FBCluster::next_step(s, s_prime, step);
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fb, s, s_prime, msg, step);
                 let input = step.get_ControllerStep_0();
-                let cr = s.ongoing_reconciles()[input.1.get_Some_0()].triggering_cr;
+                let cr = s.ongoing_reconciles()[input.1->0].triggering_cr;
                 if resource_create_request_msg(resource_key)(msg) {
                     let owner_refs = msg.content.get_create_request().obj.metadata.owner_references;
                     assert(owner_refs == Some(seq![cr.controller_owner_ref()]));
-                    assert(owner_refs.is_Some());
-                    assert(owner_refs.get_Some_0().len() == 1);
-                    assert(owner_refs.get_Some_0()[0].uid < s.kubernetes_api_state.uid_counter);
+                    assert(owner_refs is Some);
+                    assert(owner_refs->0.len() == 1);
+                    assert(owner_refs->0[0].uid < s.kubernetes_api_state.uid_counter);
                 } else if resource_update_request_msg(resource_key)(msg) {
                     let owner_refs = msg.content.get_update_request().obj.metadata.owner_references;
                     assert(owner_refs == Some(seq![cr.controller_owner_ref()]));
-                    assert(owner_refs.is_Some());
-                    assert(owner_refs.get_Some_0().len() == 1);
-                    assert(owner_refs.get_Some_0()[0].uid < s.kubernetes_api_state.uid_counter);
+                    assert(owner_refs is Some);
+                    assert(owner_refs->0.len() == 1);
+                    assert(owner_refs->0[0].uid < s.kubernetes_api_state.uid_counter);
                 }
             }
         }
@@ -146,7 +146,7 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
             let step = choose |step| FBCluster::next_step(s, s_prime, step);
             match step {
                 Step::ApiServerStep(input) => {
-                    assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input.get_Some_0()));
+                    assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(input->0));
                     if !s.resources().contains_key(resource_key) || s.resources()[resource_key].metadata.owner_references != s_prime.resources()[resource_key].metadata.owner_references {} else {}
                 },
                 _ => {}

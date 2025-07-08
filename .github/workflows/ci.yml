@@ -12,7 +12,7 @@ on:
   merge_group:
   workflow_dispatch:
 env:
-  verus_commit: 3b6b805ac86cd6640d59468341055c7fa14cff07
+  verus_commit: 8bd7c3292aad57d3926ed8024cde13ca53d6e1a7
   kind_version: 0.23.0
   go_version: "^1.20"
   home_dir: /home/runner

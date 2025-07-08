@@ -88,8 +88,8 @@ impl VStatefulSet {
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<VStatefulSet, UnmarshalError>)
         ensures
-            res.is_Ok() == spec_types::VStatefulSetView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == spec_types::VStatefulSetView::unmarshal(obj@).get_Ok_0(),
+            res is Ok == spec_types::VStatefulSetView::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == spec_types::VStatefulSetView::unmarshal(obj@)->Ok_0,
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::VStatefulSet>();
         if parse_result.is_ok() {
@@ -162,8 +162,8 @@ impl VStatefulSet {
                     0 <= idx <= vct.len(),
                     forall |i: int| 0 <= i < idx ==> #[trigger] vct[i]@.state_validation(),
                     vct@.map_values(|pvc: PersistentVolumeClaim| pvc@) == vct_view,
-                    self@.spec.volume_claim_templates.is_Some(),
-                    vct_view == self@.spec.volume_claim_templates.get_Some_0(),
+                    self@.spec.volume_claim_templates is Some,
+                    vct_view == self@.spec.volume_claim_templates->0,
             {
                 let pvc_sv = vct[idx].state_validation();
                 assert(pvc_sv == vct_view[idx as int].state_validation());
@@ -246,8 +246,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
-            replicas.is_Some() == self@.replicas.is_Some(),
-            replicas.is_Some() ==> replicas.get_Some_0() as int == self@.replicas.get_Some_0(),
+            replicas is Some == self@.replicas is Some,
+            replicas is Some ==> replicas->0 as int == self@.replicas->0,
     {
         self.inner.replicas
     }
@@ -270,8 +270,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn update_strategy(&self) -> (update_strategy: Option<StatefulSetUpdateStrategy>)
         ensures
-            update_strategy.is_Some() == self@.update_strategy.is_Some(),
-            update_strategy.is_Some() ==> update_strategy.get_Some_0()@ == self@.update_strategy.get_Some_0(),
+            update_strategy is Some == self@.update_strategy is Some,
+            update_strategy is Some ==> update_strategy->0@ == self@.update_strategy->0,
     {
         match &self.inner.update_strategy {
             Some(us) => Some(StatefulSetUpdateStrategy::from_kube(us.clone())),
@@ -282,8 +282,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn pod_management_policy(&self) -> (pod_management_policy: Option<String>)
         ensures
-            pod_management_policy.is_Some() == self@.pod_management_policy.is_Some(),
-            pod_management_policy.is_Some() ==> pod_management_policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+            pod_management_policy is Some == self@.pod_management_policy is Some,
+            pod_management_policy is Some ==> pod_management_policy->0@ == self@.pod_management_policy->0,
     {
         self.inner.pod_management_policy.clone()
     }
@@ -291,8 +291,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn volume_claim_templates(&self) -> (volume_claim_templates: Option<Vec<PersistentVolumeClaim>>)
         ensures
-            volume_claim_templates.is_Some() == self@.volume_claim_templates.is_Some(),
-            volume_claim_templates.is_Some() ==> volume_claim_templates.get_Some_0()@.map_values(|pvc: PersistentVolumeClaim| pvc@) == self@.volume_claim_templates.get_Some_0()
+            volume_claim_templates is Some == self@.volume_claim_templates is Some,
+            volume_claim_templates is Some ==> volume_claim_templates->0@.map_values(|pvc: PersistentVolumeClaim| pvc@) == self@.volume_claim_templates->0
     {
         match &self.inner.volume_claim_templates {
             Some(vct) => Some(vct.iter().map(|v| PersistentVolumeClaim::from_kube(v.clone())).collect()),
@@ -303,8 +303,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn min_ready_seconds(&self) -> (min_ready_seconds: Option<i32>)
         ensures
-            min_ready_seconds.is_Some() == self@.min_ready_seconds.is_Some(),
-            min_ready_seconds.is_Some() ==> min_ready_seconds.get_Some_0() as int == self@.min_ready_seconds.get_Some_0(),
+            min_ready_seconds is Some == self@.min_ready_seconds is Some,
+            min_ready_seconds is Some ==> min_ready_seconds->0 as int == self@.min_ready_seconds->0,
     {
         self.inner.min_ready_seconds
     }
@@ -312,8 +312,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn persistent_volume_claim_retention_policy(&self) -> (retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
         ensures
-            retention_policy.is_Some() == self@.persistent_volume_claim_retention_policy.is_Some(),
-            retention_policy.is_Some() ==> retention_policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+            retention_policy is Some == self@.persistent_volume_claim_retention_policy is Some,
+            retention_policy is Some ==> retention_policy->0@ == self@.persistent_volume_claim_retention_policy->0,
     {
         match &self.inner.persistent_volume_claim_retention_policy {
             Some(pvcrp) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(pvcrp.clone())),
@@ -324,8 +324,8 @@ impl VStatefulSetSpec {
     #[verifier(external_body)]
     pub fn ordinals(&self) -> (ordinals: Option<StatefulSetOrdinals>)
         ensures
-            ordinals.is_Some() == self@.ordinals.is_Some(),
-            ordinals.is_Some() ==> ordinals.get_Some_0()@ == self@.ordinals.get_Some_0(),
+            ordinals is Some == self@.ordinals is Some,
+            ordinals is Some ==> ordinals->0@ == self@.ordinals->0,
     {
         match &self.inner.ordinals {
             Some(o) => Some(StatefulSetOrdinals::from_kube(o.clone())),
@@ -363,8 +363,8 @@ impl StatefulSetUpdateStrategy {
     #[verifier(external_body)]
     pub fn type_(&self) -> (type_: Option<String>)
         ensures
-            self@.type_.is_Some() == type_.is_Some(),
-            type_.is_Some() ==> type_.get_Some_0()@ == self@.type_.get_Some_0(),
+            self@.type_ is Some == type_ is Some,
+            type_ is Some ==> type_->0@ == self@.type_->0,
     {
         self.inner.type_.clone()
     }
@@ -372,8 +372,8 @@ impl StatefulSetUpdateStrategy {
     #[verifier(external_body)]
     pub fn rolling_update(&self) -> (rolling_update: Option<RollingUpdateStatefulSetStrategy>)
         ensures
-            self@.rolling_update.is_Some() == rolling_update.is_Some(),
-            rolling_update.is_Some() ==> rolling_update.get_Some_0()@ == self@.rolling_update.get_Some_0(),
+            self@.rolling_update is Some == rolling_update is Some,
+            rolling_update is Some ==> rolling_update->0@ == self@.rolling_update->0,
     {
         match &self.inner.rolling_update {
             Some(ru) => Some(RollingUpdateStatefulSetStrategy::from_kube(ru.clone())),
@@ -424,8 +424,8 @@ impl RollingUpdateStatefulSetStrategy {
     #[verifier(external_body)]
     pub fn partition(&self) -> (partition: Option<i32>)
         ensures
-            self@.partition.is_Some() == partition.is_Some(),
-            partition.is_Some() ==> partition.get_Some_0() as int == self@.partition.get_Some_0(),
+            self@.partition is Some == partition is Some,
+            partition is Some ==> partition->0 as int == self@.partition->0,
     {
         self.inner.partition
     }
@@ -433,8 +433,8 @@ impl RollingUpdateStatefulSetStrategy {
     #[verifier(external_body)]
     pub fn max_unavailable(&self) -> (max_unavailable: Option<i32>)
         ensures
-            self@.max_unavailable.is_Some() == max_unavailable.is_Some(),
-            max_unavailable.is_Some() ==> max_unavailable.get_Some_0() as int == self@.max_unavailable.get_Some_0(),
+            self@.max_unavailable is Some == max_unavailable is Some,
+            max_unavailable is Some ==> max_unavailable->0 as int == self@.max_unavailable->0,
     {
         match &self.inner.max_unavailable {
             Some(mu) => match mu {
@@ -491,8 +491,8 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     #[verifier(external_body)]
     pub fn when_deleted(&self) -> (when_deleted: Option<String>)
         ensures
-            self@.when_deleted.is_Some() == when_deleted.is_Some(),
-            when_deleted.is_Some() ==> when_deleted.get_Some_0()@ == self@.when_deleted.get_Some_0(),
+            self@.when_deleted is Some == when_deleted is Some,
+            when_deleted is Some ==> when_deleted->0@ == self@.when_deleted->0,
     {
         self.inner.when_deleted.clone()
     }
@@ -500,8 +500,8 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     #[verifier(external_body)]
     pub fn when_scaled(&self) -> (when_scaled: Option<String>)
         ensures
-            self@.when_scaled.is_Some() == when_scaled.is_Some(),
-            when_scaled.is_Some() ==> when_scaled.get_Some_0()@ == self@.when_scaled.get_Some_0(),
+            self@.when_scaled is Some == when_scaled is Some,
+            when_scaled is Some ==> when_scaled->0@ == self@.when_scaled->0,
     {
         self.inner.when_scaled.clone()
     }
@@ -548,8 +548,8 @@ impl StatefulSetOrdinals {
     #[verifier(external_body)]
     pub fn start(&self) -> (start: Option<i32>)
         ensures
-            self@.start.is_Some() == start.is_Some(),
-            start.is_Some() ==> start.get_Some_0() as int == self@.start.get_Some_0(),
+            self@.start is Some == start is Some,
+            start is Some ==> start->0 as int == self@.start->0,
     {
         match &self.inner.start {
             Some(s) => Some(*s),

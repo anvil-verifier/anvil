@@ -75,16 +75,16 @@ verus! {
 #[verifier(inline)]
 pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::PodKind => PodView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::RoleKind => RoleView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::SecretKind => SecretView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec) is Ok,
+        Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec) is Ok,
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_spec(obj.spec) is Ok,
+        Kind::PodKind => PodView::unmarshal_spec(obj.spec) is Ok,
+        Kind::RoleBindingKind => RoleBindingView::unmarshal_spec(obj.spec) is Ok,
+        Kind::RoleKind => RoleView::unmarshal_spec(obj.spec) is Ok,
+        Kind::SecretKind => SecretView::unmarshal_spec(obj.spec) is Ok,
+        Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec) is Ok,
+        Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec) is Ok,
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec) is Ok,
         Kind::CustomResourceKind(string) => (installed_types[string].unmarshallable_spec)(obj.spec),
     }
 }
@@ -92,16 +92,16 @@ pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: In
 #[verifier(inline)]
 pub open spec fn unmarshallable_status(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal_status(obj.status).is_Ok(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal_status(obj.status).is_Ok(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok(),
-        Kind::PodKind => PodView::unmarshal_status(obj.status).is_Ok(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal_status(obj.status).is_Ok(),
-        Kind::RoleKind => RoleView::unmarshal_status(obj.status).is_Ok(),
-        Kind::SecretKind => SecretView::unmarshal_status(obj.status).is_Ok(),
-        Kind::ServiceKind => ServiceView::unmarshal_status(obj.status).is_Ok(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status).is_Ok(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal_status(obj.status) is Ok,
+        Kind::DaemonSetKind => DaemonSetView::unmarshal_status(obj.status) is Ok,
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_status(obj.status) is Ok,
+        Kind::PodKind => PodView::unmarshal_status(obj.status) is Ok,
+        Kind::RoleBindingKind => RoleBindingView::unmarshal_status(obj.status) is Ok,
+        Kind::RoleKind => RoleView::unmarshal_status(obj.status) is Ok,
+        Kind::SecretKind => SecretView::unmarshal_status(obj.status) is Ok,
+        Kind::ServiceKind => ServiceView::unmarshal_status(obj.status) is Ok,
+        Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status) is Ok,
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status) is Ok,
         Kind::CustomResourceKind(string) => (installed_types[string].unmarshallable_status)(obj.status),
     }
 }
@@ -111,9 +111,9 @@ pub open spec fn unmarshallable_object(obj: DynamicObjectView, installed_types: 
 }
 
 pub open spec fn metadata_validity_check(obj: DynamicObjectView) -> Option<APIError> {
-    if obj.metadata.owner_references.is_Some()
-    && obj.metadata.owner_references.get_Some_0().len() > 1
-    && obj.metadata.owner_references.get_Some_0().filter(|o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()).len() > 1 {
+    if obj.metadata.owner_references is Some
+    && obj.metadata.owner_references->0.len() > 1
+    && obj.metadata.owner_references->0.filter(|o: OwnerReferenceView| o.controller is Some && o.controller->0).len() > 1 {
         Some(APIError::Invalid)
     } else {
         None
@@ -121,8 +121,8 @@ pub open spec fn metadata_validity_check(obj: DynamicObjectView) -> Option<APIEr
 }
 
 pub open spec fn metadata_transition_validity_check(obj: DynamicObjectView, old_obj: DynamicObjectView) -> Option<APIError> {
-    if old_obj.metadata.deletion_timestamp.is_Some()
-    && obj.metadata.finalizers.is_Some() // Short circuit: we don't need to reason about the set difference if the finalizers is None
+    if old_obj.metadata.deletion_timestamp is Some
+    && obj.metadata.finalizers is Some // Short circuit: we don't need to reason about the set difference if the finalizers is None
     && !obj.metadata.finalizers_as_set().subset_of(old_obj.metadata.finalizers_as_set()) {
         Some(APIError::Forbidden)
     } else {
@@ -132,16 +132,16 @@ pub open spec fn metadata_transition_validity_check(obj: DynamicObjectView, old_
 
 pub open spec fn valid_object(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::PodKind => PodView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::RoleKind => RoleView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::SecretKind => SecretView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::PodKind => PodView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::RoleKind => RoleView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::SecretKind => SecretView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::ServiceKind => ServiceView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj)->Ok_0.state_validation(),
         Kind::CustomResourceKind(string) => (installed_types[string].valid_object)(obj),
     }
 }
@@ -156,16 +156,16 @@ pub open spec fn object_validity_check(obj: DynamicObjectView, installed_types: 
 
 pub open spec fn valid_transition(obj: DynamicObjectView, old_obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0()),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0()),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().transition_validation(PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0()),
-        Kind::PodKind => PodView::unmarshal(obj).get_Ok_0().transition_validation(PodView::unmarshal(old_obj).get_Ok_0()),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj).get_Ok_0().transition_validation(RoleBindingView::unmarshal(old_obj).get_Ok_0()),
-        Kind::RoleKind => RoleView::unmarshal(obj).get_Ok_0().transition_validation(RoleView::unmarshal(old_obj).get_Ok_0()),
-        Kind::SecretKind => SecretView::unmarshal(obj).get_Ok_0().transition_validation(SecretView::unmarshal(old_obj).get_Ok_0()),
-        Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0()),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0()),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0()),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj)->Ok_0.transition_validation(ConfigMapView::unmarshal(old_obj)->Ok_0),
+        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj)->Ok_0.transition_validation(DaemonSetView::unmarshal(old_obj)->Ok_0),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj)->Ok_0.transition_validation(PersistentVolumeClaimView::unmarshal(old_obj)->Ok_0),
+        Kind::PodKind => PodView::unmarshal(obj)->Ok_0.transition_validation(PodView::unmarshal(old_obj)->Ok_0),
+        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj)->Ok_0.transition_validation(RoleBindingView::unmarshal(old_obj)->Ok_0),
+        Kind::RoleKind => RoleView::unmarshal(obj)->Ok_0.transition_validation(RoleView::unmarshal(old_obj)->Ok_0),
+        Kind::SecretKind => SecretView::unmarshal(obj)->Ok_0.transition_validation(SecretView::unmarshal(old_obj)->Ok_0),
+        Kind::ServiceKind => ServiceView::unmarshal(obj)->Ok_0.transition_validation(ServiceView::unmarshal(old_obj)->Ok_0),
+        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj)->Ok_0.transition_validation(StatefulSetView::unmarshal(old_obj)->Ok_0),
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj)->Ok_0.transition_validation(ServiceAccountView::unmarshal(old_obj)->Ok_0),
         Kind::CustomResourceKind(string) => (installed_types[string].valid_transition)(obj, old_obj),
     }
 }
@@ -217,16 +217,16 @@ pub open spec fn handle_list_request(req: ListRequest, s: APIServerState) -> Lis
 }
 
 pub open spec fn create_request_admission_check(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> Option<APIError> {
-    if req.obj.metadata.name.is_None() && req.obj.metadata.generate_name.is_None() {
+    if req.obj.metadata.name is None && req.obj.metadata.generate_name is None {
         // Creation fails because neither the name nor the generate_name of the provided object is provided
         Some(APIError::Invalid)
-    } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
+    } else if req.obj.metadata.namespace is Some && req.namespace != req.obj.metadata.namespace->0 {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
     } else if !unmarshallable_object(req.obj, installed_types) {
         // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
-    } else if req.obj.metadata.name.is_Some() && s.resources.contains_key(req.obj.with_namespace(req.namespace).object_ref()) {
+    } else if req.obj.metadata.name is Some && s.resources.contains_key(req.obj.with_namespace(req.namespace).object_ref()) {
         // Creation fails because the object has a name and it already exists
         Some(APIError::ObjectAlreadyExists)
     } else {
@@ -235,9 +235,9 @@ pub open spec fn create_request_admission_check(installed_types: InstalledTypes,
 }
 
 pub open spec fn created_object_validity_check(created_obj: DynamicObjectView, installed_types: InstalledTypes) -> Option<APIError> {
-    if metadata_validity_check(created_obj).is_Some() {
+    if metadata_validity_check(created_obj) is Some {
         metadata_validity_check(created_obj)
-    } else if object_validity_check(created_obj, installed_types).is_Some() {
+    } else if object_validity_check(created_obj, installed_types) is Some {
         object_validity_check(created_obj, installed_types)
     } else {
         None
@@ -259,16 +259,16 @@ pub proof fn generated_name_is_unique(s: APIServerState)
 
 #[verifier(inline)]
 pub open spec fn handle_create_request(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> (APIServerState, CreateResponse) {
-    if create_request_admission_check(installed_types, req, s).is_Some() {
+    if create_request_admission_check(installed_types, req, s) is Some {
         // Creation fails.
-        (s, CreateResponse{res: Err(create_request_admission_check(installed_types, req, s).get_Some_0())})
+        (s, CreateResponse{res: Err(create_request_admission_check(installed_types, req, s)->0)})
     } else {
         let created_obj = DynamicObjectView {
             kind: req.obj.kind,
             metadata: ObjectMetaView {
                 // Set name for new object if name is not provided, here we generate
                 // a unique name. The uniqueness is guaranteed by generated_name_is_unique.
-                name: if req.obj.metadata.name.is_Some() {
+                name: if req.obj.metadata.name is Some {
                     req.obj.metadata.name
                 } else {
                     Some(generate_name(s))
@@ -295,9 +295,9 @@ pub open spec fn handle_create_request(installed_types: InstalledTypes, req: Cre
             // we need to explicitly call generated_name_is_unique to show that
             // we do not fall into this branch.
             (s, CreateResponse{res: Err(APIError::ObjectAlreadyExists)})
-        } else if created_object_validity_check(created_obj, installed_types).is_Some() {
+        } else if created_object_validity_check(created_obj, installed_types) is Some {
             // Creation fails.
-            (s, CreateResponse{res: Err(created_object_validity_check(created_obj, installed_types).get_Some_0())})
+            (s, CreateResponse{res: Err(created_object_validity_check(created_obj, installed_types)->0)})
         } else {
             // Creation succeeds.
             (APIServerState {
@@ -314,12 +314,12 @@ pub open spec fn delete_request_admission_check(req: DeleteRequest, s: APIServer
     if !s.resources.contains_key(req.key) {
         // Deletion fails because the object does not exist
         Some(APIError::ObjectNotFound)
-    } else if req.preconditions.is_Some() {
-        let preconditions = req.preconditions.get_Some_0();
-        if preconditions.uid.is_Some() && preconditions.uid != s.resources[req.key].metadata.uid {
+    } else if req.preconditions is Some {
+        let preconditions = req.preconditions->0;
+        if preconditions.uid is Some && preconditions.uid != s.resources[req.key].metadata.uid {
             // Deletion fails because the uid of the object does not match the uid in the precondition
             Some(APIError::Conflict)
-        } else if preconditions.resource_version.is_Some() && preconditions.resource_version != s.resources[req.key].metadata.resource_version {
+        } else if preconditions.resource_version is Some && preconditions.resource_version != s.resources[req.key].metadata.resource_version {
             // Deletion fails because the resource version of the object does not match the resource version in the precondition
             Some(APIError::Conflict)
         } else {
@@ -346,13 +346,13 @@ pub uninterp spec fn deletion_timestamp() -> StringView;
 // This is acceptable for this project because background deletion is enough for all the reconciliation tasks
 // performed by our controllers.
 pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) -> (APIServerState, DeleteResponse) {
-    if delete_request_admission_check(req, s).is_Some() {
+    if delete_request_admission_check(req, s) is Some {
         // Deletion fails.
-        (s, DeleteResponse{res: Err(delete_request_admission_check(req, s).get_Some_0())})
+        (s, DeleteResponse{res: Err(delete_request_admission_check(req, s)->0)})
     } else {
         // Deletion succeeds.
         let obj = s.resources[req.key];
-        if obj.metadata.finalizers.is_Some() && obj.metadata.finalizers.get_Some_0().len() > 0 {
+        if obj.metadata.finalizers is Some && obj.metadata.finalizers->0.len() > 0 {
             // With the finalizer(s) in the object, we cannot immediately delete it from the key-value store.
             // Instead, we set the deletion timestamp of this object.
             // If the object already has a deletion timestamp, then skip.
@@ -365,7 +365,7 @@ pub open spec fn handle_delete_request(req: DeleteRequest, s: APIServerState) ->
             // because Pod implements CheckGracefulDelete (see https://github.com/kubernetes/kubernetes/blob/v1.30.0/pkg/registry/core/pod/strategy.go#L168).
             // This is irrelevant to application controllers that do not manage pods, and acceptable for verifying
             // low-level built-in controllers because they are supposed to treat terminating pods as non-existing pods.
-            if obj.metadata.deletion_timestamp.is_Some() {
+            if obj.metadata.deletion_timestamp is Some {
                 // A deletion timestamp is already set so no need to bother it.
                 (s, DeleteResponse{res: Ok(())})
             } else {
@@ -416,15 +416,15 @@ pub open spec fn update_request_admission_check_helper(installed_types: Installe
         namespace: namespace,
         name: name,
     };
-    if obj.metadata.name.is_None() {
+    if obj.metadata.name is None {
         // Update fails because the name of the object is not provided
         Some(APIError::BadRequest)
-    } else if name != obj.metadata.name.get_Some_0() {
+    } else if name != obj.metadata.name->0 {
         // Update fails because the name of the provided object
         // does not match the name sent on the request
         Some(APIError::BadRequest)
-    } else if obj.metadata.namespace.is_Some()
-        && namespace != obj.metadata.namespace.get_Some_0() {
+    } else if obj.metadata.namespace is Some
+        && namespace != obj.metadata.namespace->0 {
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
@@ -436,15 +436,15 @@ pub open spec fn update_request_admission_check_helper(installed_types: Installe
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
-    } else if obj.metadata.resource_version.is_None()
+    } else if obj.metadata.resource_version is None
         && !allow_unconditional_update(key.kind) {
         // Update fails because the object does not provide a rv and unconditional update is not supported
         Some(APIError::Invalid)
-    } else if obj.metadata.resource_version.is_Some()
+    } else if obj.metadata.resource_version is Some
         && obj.metadata.resource_version != s.resources[key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Some(APIError::Conflict)
-    } else if obj.metadata.uid.is_Some()
+    } else if obj.metadata.uid is Some
         && obj.metadata.uid != s.resources[key].metadata.uid {
         // Update fails because the object has a wrong uid
         Some(APIError::Conflict)
@@ -474,13 +474,13 @@ pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) 
 }
 
 pub open spec fn updated_object_validity_check(updated_obj: DynamicObjectView, old_obj: DynamicObjectView, installed_types: InstalledTypes) -> Option<APIError> {
-    if metadata_validity_check(updated_obj).is_Some() {
+    if metadata_validity_check(updated_obj) is Some {
         metadata_validity_check(updated_obj)
-    } else if metadata_transition_validity_check(updated_obj, old_obj).is_Some() {
+    } else if metadata_transition_validity_check(updated_obj, old_obj) is Some {
         metadata_transition_validity_check(updated_obj, old_obj)
-    } else if object_validity_check(updated_obj, installed_types).is_Some() {
+    } else if object_validity_check(updated_obj, installed_types) is Some {
         object_validity_check(updated_obj, installed_types)
-    } else if object_transition_validity_check(updated_obj, old_obj, installed_types).is_Some() {
+    } else if object_transition_validity_check(updated_obj, old_obj, installed_types) is Some {
         object_transition_validity_check(updated_obj, old_obj, installed_types)
     } else {
         None
@@ -489,9 +489,9 @@ pub open spec fn updated_object_validity_check(updated_obj: DynamicObjectView, o
 
 #[verifier(inline)]
 pub open spec fn handle_update_request(installed_types: InstalledTypes, req: UpdateRequest, s: APIServerState) -> (APIServerState, UpdateResponse) {
-    if update_request_admission_check(installed_types, req, s).is_Some() {
+    if update_request_admission_check(installed_types, req, s) is Some {
         // Update fails.
-        (s, UpdateResponse{res: Err(update_request_admission_check(installed_types, req, s).get_Some_0())})
+        (s, UpdateResponse{res: Err(update_request_admission_check(installed_types, req, s)->0)})
     } else {
         let old_obj = s.resources[req.key()];
         let updated_obj = updated_object(req, old_obj);
@@ -504,14 +504,14 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
             // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.with_resource_version(s.resource_version_counter);
-            if updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types).is_Some() {
+            if updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types) is Some {
                 // Update fails.
-                (s, UpdateResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types).get_Some_0())})
+                (s, UpdateResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types)->0)})
             } else {
                 // Update succeeds.
-                if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
-                    || (updated_obj_with_new_rv.metadata.finalizers.is_Some()
-                        && updated_obj_with_new_rv.metadata.finalizers.get_Some_0().len() > 0)
+                if updated_obj_with_new_rv.metadata.deletion_timestamp is None
+                    || (updated_obj_with_new_rv.metadata.finalizers is Some
+                        && updated_obj_with_new_rv.metadata.finalizers->0.len() > 0)
                 {
                     // The regular update case, where the object has no deletion timestamp set
                     // or has at least one finalizer.
@@ -571,9 +571,9 @@ pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: Dynami
 
 #[verifier(inline)]
 pub open spec fn handle_update_status_request(installed_types: InstalledTypes, req: UpdateStatusRequest, s: APIServerState) -> (APIServerState, UpdateStatusResponse) {
-    if update_status_request_admission_check(installed_types, req, s).is_Some() {
+    if update_status_request_admission_check(installed_types, req, s) is Some {
         // UpdateStatus fails.
-        (s, UpdateStatusResponse{res: Err(update_status_request_admission_check(installed_types, req, s).get_Some_0())})
+        (s, UpdateStatusResponse{res: Err(update_status_request_admission_check(installed_types, req, s)->0)})
     } else {
         let old_obj = s.resources[req.key()];
         let updated_obj = status_updated_object(req, old_obj);
@@ -586,9 +586,9 @@ pub open spec fn handle_update_status_request(installed_types: InstalledTypes, r
             // UpdateStatus changes something in the object (in status), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.with_resource_version(s.resource_version_counter);
-            if updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types).is_Some() {
+            if updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types) is Some {
                 // UpdateStatus fails.
-                (s, UpdateStatusResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types).get_Some_0())})
+                (s, UpdateStatusResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types)->0)})
             } else {
                 // UpdateStatus succeeds.
                 (APIServerState {
@@ -756,11 +756,11 @@ pub open spec fn transition_by_etcd(installed_types: InstalledTypes, msg: Messag
 pub open spec fn handle_request(installed_types: InstalledTypes) -> APIServerAction {
     Action {
         precondition: |input: APIServerActionInput, s: APIServerState| {
-            &&& input.recv.is_Some()
-            &&& input.recv.get_Some_0().content.is_APIRequest()
+            &&& input.recv is Some
+            &&& input.recv->0.content.is_APIRequest()
         },
         transition: |input: APIServerActionInput, s: APIServerState| {
-            let (s_prime, etcd_resp) = transition_by_etcd(installed_types, input.recv.get_Some_0(), s);
+            let (s_prime, etcd_resp) = transition_by_etcd(installed_types, input.recv->0, s);
             (s_prime, APIServerActionOutput {
                 send: Multiset::singleton(etcd_resp)
             })

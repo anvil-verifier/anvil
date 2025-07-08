@@ -30,8 +30,8 @@ impl Service {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<ServiceSpec>)
         ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+            self@.spec is Some == spec is Some,
+            spec is Some ==> spec->0@ == self@.spec->0,
     {
         match &self.inner.spec {
             Some(s) => Some(ServiceSpec::from_kube(s.clone())),
@@ -81,8 +81,8 @@ impl ServiceSpec {
     #[verifier(external_body)]
     pub fn ports(&self) -> (ports: Option<Vec<ServicePort>>)
         ensures
-            self@.ports.is_Some() == ports.is_Some(),
-            ports.is_Some() ==> ports.get_Some_0()@.map_values(|port: ServicePort| port@) == self@.ports.get_Some_0(),
+            self@.ports is Some == ports is Some,
+            ports is Some ==> ports->0@.map_values(|port: ServicePort| port@) == self@.ports->0,
     {
         match &self.inner.ports {
             Some(p) => Some(p.into_iter().map(|port: &deps_hack::k8s_openapi::api::core::v1::ServicePort| ServicePort::from_kube(port.clone())).collect()),
@@ -100,8 +100,8 @@ impl ServiceSpec {
     #[verifier(external_body)]
     pub fn selector(&self) -> (selector: Option<StringMap>)
         ensures
-            self@.selector.is_Some() == selector.is_Some(),
-            selector.is_Some() ==> selector.get_Some_0()@ == self@.selector.get_Some_0(),
+            self@.selector is Some == selector is Some,
+            selector is Some ==> selector->0@ == self@.selector->0,
     {
         match &self.inner.selector {
             Some(s) => Some(StringMap::from_rust_map(s.clone())),
@@ -119,8 +119,8 @@ impl ServiceSpec {
     #[verifier(external_body)]
     pub fn publish_not_ready_addresses(&self) -> (publish_not_ready_addresses: Option<bool>)
         ensures
-            self@.publish_not_ready_addresses.is_Some() == publish_not_ready_addresses.is_Some(),
-            publish_not_ready_addresses.is_Some() ==> publish_not_ready_addresses.get_Some_0() == self@.publish_not_ready_addresses.get_Some_0(),
+            self@.publish_not_ready_addresses is Some == publish_not_ready_addresses is Some,
+            publish_not_ready_addresses is Some ==> publish_not_ready_addresses->0 == self@.publish_not_ready_addresses->0,
     {
         self.inner.publish_not_ready_addresses.clone()
     }

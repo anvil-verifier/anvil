@@ -84,7 +84,7 @@ impl ResourceBuilder<FluentBit, FluentBitReconcileState, model_resource::Service
 pub fn update_service(fb: &FluentBit, found_service: Service) -> (service: Service)
     requires
         fb@.well_formed(),
-        found_service@.spec.is_Some(),
+        found_service@.spec is Some,
     ensures service@ == model_resource::update_service(fb@, found_service@),
 {
     let mut service = found_service.clone();
@@ -152,14 +152,14 @@ pub fn make_service(fb: &FluentBit) -> (service: Service)
             proof {
                 assert_seqs_equal!(
                     ports@.map_values(|port: ServicePort| port@).push(port@),
-                    model_resource::make_service(fb@).spec.get_Some_0().ports.get_Some_0()
+                    model_resource::make_service(fb@).spec->0.ports->0
                 );
             }
             ports.push(port);
             proof {
                 assert_seqs_equal!(
                     ports@.map_values(|port: ServicePort| port@),
-                    model_resource::make_service(fb@).spec.get_Some_0().ports.get_Some_0()
+                    model_resource::make_service(fb@).spec->0.ports->0
                 );
             }
             ports

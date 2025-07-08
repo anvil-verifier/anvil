@@ -31,11 +31,11 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
         SubResource::HeadlessService => {
             let key = M::make_headless_service_key(rabbitmq);
             let obj = resources[key];
-            let made_spec = M::make_headless_service(rabbitmq).spec.get_Some_0();
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            let made_spec = M::make_headless_service(rabbitmq).spec->0;
+            let spec = ServiceView::unmarshal(obj)->Ok_0.spec->0;
             &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& ServiceView::unmarshal(obj) is Ok
+            &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -46,11 +46,11 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
         SubResource::Service => {
             let key = M::make_main_service_key(rabbitmq);
             let obj = resources[key];
-            let made_spec = M::make_main_service(rabbitmq).spec.get_Some_0();
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+            let made_spec = M::make_main_service(rabbitmq).spec->0;
+            let spec = ServiceView::unmarshal(obj)->Ok_0.spec->0;
             &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& ServiceView::unmarshal(obj) is Ok
+            &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -62,8 +62,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_erlang_secret_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& SecretView::unmarshal(obj).is_Ok()
-            &&& SecretView::unmarshal(obj).get_Ok_0().data == M::make_erlang_secret(rabbitmq).data
+            &&& SecretView::unmarshal(obj) is Ok
+            &&& SecretView::unmarshal(obj)->Ok_0.data == M::make_erlang_secret(rabbitmq).data
             &&& obj.metadata.labels == M::make_erlang_secret(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_erlang_secret(rabbitmq).metadata.annotations
         },
@@ -71,8 +71,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_default_user_secret_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& SecretView::unmarshal(obj).is_Ok()
-            &&& SecretView::unmarshal(obj).get_Ok_0().data == M::make_default_user_secret(rabbitmq).data
+            &&& SecretView::unmarshal(obj) is Ok
+            &&& SecretView::unmarshal(obj)->Ok_0.data == M::make_default_user_secret(rabbitmq).data
             &&& obj.metadata.labels == M::make_default_user_secret(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_default_user_secret(rabbitmq).metadata.annotations
         },
@@ -80,8 +80,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_plugins_config_map_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& ConfigMapView::unmarshal(obj).is_Ok()
-            &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == M::make_plugins_config_map(rabbitmq).data
+            &&& ConfigMapView::unmarshal(obj) is Ok
+            &&& ConfigMapView::unmarshal(obj)->Ok_0.data == M::make_plugins_config_map(rabbitmq).data
             &&& obj.metadata.labels == M::make_plugins_config_map(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_plugins_config_map(rabbitmq).metadata.annotations
         },
@@ -89,8 +89,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_server_config_map_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& ConfigMapView::unmarshal(obj).is_Ok()
-            &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == M::make_server_config_map(rabbitmq).data
+            &&& ConfigMapView::unmarshal(obj) is Ok
+            &&& ConfigMapView::unmarshal(obj)->Ok_0.data == M::make_server_config_map(rabbitmq).data
             &&& obj.spec == ConfigMapView::marshal_spec(M::make_server_config_map(rabbitmq).data)
             &&& obj.metadata.labels == M::make_server_config_map(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_server_config_map(rabbitmq).metadata.annotations
@@ -99,8 +99,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_service_account_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& ServiceAccountView::unmarshal(obj).is_Ok()
-            &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == M::make_service_account(rabbitmq).automount_service_account_token
+            &&& ServiceAccountView::unmarshal(obj) is Ok
+            &&& ServiceAccountView::unmarshal(obj)->Ok_0.automount_service_account_token == M::make_service_account(rabbitmq).automount_service_account_token
             &&& obj.metadata.labels == M::make_service_account(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_service_account(rabbitmq).metadata.annotations
         },
@@ -108,8 +108,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_role_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& RoleView::unmarshal(obj).is_Ok()
-            &&& RoleView::unmarshal(obj).get_Ok_0().policy_rules == M::make_role(rabbitmq).policy_rules
+            &&& RoleView::unmarshal(obj) is Ok
+            &&& RoleView::unmarshal(obj)->Ok_0.policy_rules == M::make_role(rabbitmq).policy_rules
             &&& obj.metadata.labels == M::make_role(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_role(rabbitmq).metadata.annotations
         },
@@ -117,9 +117,9 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let key = M::make_role_binding_key(rabbitmq);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& RoleBindingView::unmarshal(obj).is_Ok()
-            &&& RoleBindingView::unmarshal(obj).get_Ok_0().role_ref == M::make_role_binding(rabbitmq).role_ref
-            &&& RoleBindingView::unmarshal(obj).get_Ok_0().subjects == M::make_role_binding(rabbitmq).subjects
+            &&& RoleBindingView::unmarshal(obj) is Ok
+            &&& RoleBindingView::unmarshal(obj)->Ok_0.role_ref == M::make_role_binding(rabbitmq).role_ref
+            &&& RoleBindingView::unmarshal(obj)->Ok_0.subjects == M::make_role_binding(rabbitmq).subjects
             &&& obj.metadata.labels == M::make_role_binding(rabbitmq).metadata.labels
             &&& obj.metadata.annotations == M::make_role_binding(rabbitmq).metadata.annotations
         },
@@ -128,12 +128,12 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, rab
             let obj = resources[key];
             let cm_key = M::make_server_config_map_key(rabbitmq);
             let cm_obj = resources[cm_key];
-            let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
+            let made_sts = M::make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version->0));
             &&& resources.contains_key(key)
             &&& resources.contains_key(cm_key)
-            &&& cm_obj.metadata.resource_version.is_Some()
-            &&& StatefulSetView::unmarshal(obj).is_Ok()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec == made_sts.spec
+            &&& cm_obj.metadata.resource_version is Some
+            &&& StatefulSetView::unmarshal(obj) is Ok
+            &&& StatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec
             &&& obj.metadata.labels == made_sts.metadata.labels
             &&& obj.metadata.annotations == made_sts.metadata.annotations
         },

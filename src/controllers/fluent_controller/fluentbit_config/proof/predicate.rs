@@ -86,7 +86,7 @@ pub open spec fn pending_req_in_flight_at_after_get_resource_step(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_fbc_step_with_fbc(fbc, step)(s)
         &&& FBCCluster::has_pending_k8s_api_req_msg(s, fbc.object_ref())
@@ -130,7 +130,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_fbc_step_with_fbc(fbc, step)(s)
         &&& FBCCluster::has_pending_k8s_api_req_msg(s, fbc.object_ref())
@@ -142,7 +142,7 @@ pub open spec fn at_after_get_resource_step_and_exists_not_found_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res is Err
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
     }
@@ -153,7 +153,7 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
@@ -167,8 +167,8 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
-            &&& resp_msg.content.get_get_response().res.get_Ok_0() == s.resources()[key]
+            &&& resp_msg.content.get_get_response().res is Ok
+            &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
         }
     }
 }
@@ -178,7 +178,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
@@ -191,8 +191,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         &&& s.resources().contains_key(key)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_get_response().res.is_Ok()
-        &&& resp_msg.content.get_get_response().res.get_Ok_0() == s.resources()[key]
+        &&& resp_msg.content.get_get_response().res is Ok
+        &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
     }
 }
 
@@ -201,7 +201,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_resource_step(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_get_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         &&& at_fbc_step_with_fbc(fbc, step)(s)
         &&& FBCCluster::has_pending_k8s_api_req_msg(s, fbc.object_ref())
@@ -220,7 +220,7 @@ pub open spec fn pending_req_in_flight_at_after_create_resource_step(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_create_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
         &&& FBCCluster::has_pending_k8s_api_req_msg(s, fbc.object_ref())
         &&& s.in_flight().contains(msg)
@@ -247,7 +247,7 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_create_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
@@ -257,8 +257,8 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_create_response().res.is_Ok()
-            &&& state_after_create(sub_resource, fbc, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
+            &&& resp_msg.content.get_create_response().res is Ok
+            &&& state_after_create(sub_resource, fbc, resp_msg.content.get_create_response().res->Ok_0, s.ongoing_reconciles()[fbc.object_ref()].local_state) is Ok
         }
     }
 }
@@ -268,7 +268,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_create_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
@@ -277,8 +277,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         &&& resource_create_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_create_response().res.is_Ok()
-        &&& state_after_create(sub_resource, fbc, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
+        &&& resp_msg.content.get_create_response().res is Ok
+        &&& state_after_create(sub_resource, fbc, resp_msg.content.get_create_response().res->Ok_0, s.ongoing_reconciles()[fbc.object_ref()].local_state) is Ok
     }
 }
 
@@ -287,7 +287,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_update_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let resource_key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
         &&& FBCCluster::has_pending_k8s_api_req_msg(s, fbc.object_ref())
@@ -295,7 +295,7 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, fbc).key)(msg)
         &&& s.resources().contains_key(resource_key)
-        &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
+        &&& msg.content.get_update_request().obj.metadata.resource_version is Some
         &&& msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
     }
 }
@@ -312,7 +312,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& req_msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, fbc).key)(req_msg)
         &&& s.resources().contains_key(resource_key)
-        &&& req_msg.content.get_update_request().obj.metadata.resource_version.is_Some()
+        &&& req_msg.content.get_update_request().obj.metadata.resource_version is Some
         &&& req_msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
     }
 }
@@ -322,7 +322,7 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_update_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
@@ -332,8 +332,8 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_update_response().res.is_Ok()
-            &&& state_after_update(sub_resource, fbc, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
+            &&& resp_msg.content.get_update_response().res is Ok
+            &&& state_after_update(sub_resource, fbc, resp_msg.content.get_update_response().res->Ok_0, s.ongoing_reconciles()[fbc.object_ref()].local_state) is Ok
         }
     }
 }
@@ -343,7 +343,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
 ) -> StatePred<FBCCluster> {
     |s: FBCCluster| {
         let step = after_update_k_request_step(sub_resource);
-        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg.get_Some_0();
+        let msg = s.ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0;
         let request = msg.content.get_APIRequest_0();
         let key = get_request(sub_resource, fbc).key;
         &&& at_fbc_step_with_fbc(fbc, step)(s)
@@ -352,8 +352,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& resource_update_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_update_response().res.is_Ok()
-        &&& state_after_update(sub_resource, fbc, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[fbc.object_ref()].local_state).is_Ok()
+        &&& resp_msg.content.get_update_response().res is Ok
+        &&& state_after_update(sub_resource, fbc, resp_msg.content.get_update_response().res->Ok_0, s.ongoing_reconciles()[fbc.object_ref()].local_state) is Ok
     }
 }
 

@@ -111,7 +111,7 @@ pub fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
 pub fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, rv: &String) -> (stateful_set: StatefulSet)
     requires
         zk@.well_formed(),
-        found_stateful_set@.spec.is_Some(),
+        found_stateful_set@.spec is Some,
     ensures stateful_set@ == model_resource::update_stateful_set(zk@, found_stateful_set@, rv@),
 {
     let mut stateful_set = found_stateful_set.clone();
@@ -204,8 +204,8 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                                 assert_seqs_equal!(
                                     access_modes@.map_values(|mode: String| mode@),
                                     model_resource::make_stateful_set(zk@, rv@)
-                                        .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
-                                        .spec.get_Some_0().access_modes.get_Some_0()
+                                        .spec->0.volume_claim_templates->0[0]
+                                        .spec->0.access_modes->0
                                 );
                             }
                             access_modes
@@ -227,7 +227,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                 proof {
                     assert_seqs_equal!(
                         volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        model_resource::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                        model_resource::make_stateful_set(zk@, rv@).spec->0.volume_claim_templates->0
                     );
                 }
                 volume_claim_templates
@@ -236,7 +236,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                 proof {
                     assert_seqs_equal!(
                         empty_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        model_resource::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                        model_resource::make_stateful_set(zk@, rv@).spec->0.volume_claim_templates->0
                     );
                 }
                 empty_templates
@@ -285,7 +285,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                             proof {
                                 assert_seqs_equal!(
                                     command@.map_values(|s: String| s@),
-                                    model_resource::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                    model_resource::make_zk_pod_spec(zk@).containers[0].lifecycle->0.pre_stop->0.exec_->0.command->0
                                 );
                             }
 
@@ -320,7 +320,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
-                        model_resource::make_zk_pod_spec(zk@).containers[0].volume_mounts.get_Some_0()
+                        model_resource::make_zk_pod_spec(zk@).containers[0].volume_mounts->0
                     );
                 }
 
@@ -337,7 +337,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         ports@.map_values(|port: ContainerPort| port@),
-                        model_resource::make_zk_pod_spec(zk@).containers[0].ports.get_Some_0()
+                        model_resource::make_zk_pod_spec(zk@).containers[0].ports->0
                     );
                 }
 
@@ -354,7 +354,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                         proof {
                             assert_seqs_equal!(
                                 command@.map_values(|s: String| s@),
-                                model_resource::make_zk_pod_spec(zk@).containers[0].readiness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                model_resource::make_zk_pod_spec(zk@).containers[0].readiness_probe->0.exec_->0.command->0
                             );
                         }
 
@@ -380,7 +380,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                         proof {
                             assert_seqs_equal!(
                                 command@.map_values(|s: String| s@),
-                                model_resource::make_zk_pod_spec(zk@).containers[0].liveness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                model_resource::make_zk_pod_spec(zk@).containers[0].liveness_probe->0.exec_->0.command->0
                             );
                         }
 
@@ -431,7 +431,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),
-                model_resource::make_zk_pod_spec(zk@).volumes.get_Some_0()
+                model_resource::make_zk_pod_spec(zk@).volumes->0
             );
         }
 

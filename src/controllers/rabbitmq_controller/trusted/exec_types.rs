@@ -106,8 +106,8 @@ impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<RabbitmqCluster, UnmarshalError>)
         ensures
-            res.is_Ok() == spec_types::RabbitmqClusterView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == spec_types::RabbitmqClusterView::unmarshal(obj@).get_Ok_0(),
+            res is Ok == spec_types::RabbitmqClusterView::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == spec_types::RabbitmqClusterView::unmarshal(obj@)->Ok_0,
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::RabbitmqCluster>();
         if parse_result.is_ok() {
@@ -151,8 +151,8 @@ impl RabbitmqClusterSpec {
     #[verifier(external_body)]
     pub fn rabbitmq_config(&self) -> (rabbitmq_config: Option<RabbitmqConfig>)
         ensures
-            self@.rabbitmq_config.is_Some() == rabbitmq_config.is_Some(),
-            rabbitmq_config.is_Some() ==> rabbitmq_config.get_Some_0()@ == self@.rabbitmq_config.get_Some_0(),
+            self@.rabbitmq_config is Some == rabbitmq_config is Some,
+            rabbitmq_config is Some ==> rabbitmq_config->0@ == self@.rabbitmq_config->0,
     {
         match &self.inner.rabbitmq_config {
             Some(n) => Some(RabbitmqConfig { inner: n.clone()}),
@@ -170,8 +170,8 @@ impl RabbitmqClusterSpec {
     #[verifier(external_body)]
     pub fn affinity(&self) -> (affinity: Option<Affinity>)
         ensures
-            self@.affinity.is_Some() == affinity.is_Some(),
-            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+            self@.affinity is Some == affinity is Some,
+            affinity is Some ==> affinity->0@ == self@.affinity->0,
     {
         match &self.inner.affinity {
             Some(a) => Some(Affinity::from_kube(a.clone())),
@@ -182,8 +182,8 @@ impl RabbitmqClusterSpec {
     #[verifier(external_body)]
     pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
         ensures
-            self@.tolerations.is_Some() == tolerations.is_Some(),
-            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+            self@.tolerations is Some == tolerations is Some,
+            tolerations is Some ==> tolerations->0@.map_values(|t: Toleration| t@) == self@.tolerations->0,
     {
         match &self.inner.tolerations {
             Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
@@ -208,8 +208,8 @@ impl RabbitmqClusterSpec {
     #[verifier(external_body)]
     pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
-            self@.resources.is_Some() == resources.is_Some(),
-            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
+            self@.resources is Some == resources is Some,
+            resources is Some ==> resources->0@ == self@.resources->0,
     {
         match &self.inner.resources {
             Some(res) => Some(ResourceRequirements::from_kube(res.clone())),
@@ -227,8 +227,8 @@ impl RabbitmqClusterSpec {
     #[verifier(external_body)]
     pub fn persistent_volume_claim_retention_policy(&self) -> (policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
         ensures
-            policy.is_Some() == self@.persistent_volume_claim_retention_policy.is_Some(),
-            policy.is_Some() ==> policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+            policy is Some == self@.persistent_volume_claim_retention_policy is Some,
+            policy is Some ==> policy->0@ == self@.persistent_volume_claim_retention_policy->0,
     {
         match &self.inner.persistent_volume_claim_retention_policy {
             Some(n) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(n.clone())),
@@ -248,8 +248,8 @@ impl RabbitmqConfig {
     #[verifier(external_body)]
     pub fn additional_config(&self) -> (additional_config: Option<String>)
         ensures
-            self@.additional_config.is_Some() == additional_config.is_Some(),
-            additional_config.is_Some() ==> additional_config.get_Some_0()@ == self@.additional_config.get_Some_0(),
+            self@.additional_config is Some == additional_config is Some,
+            additional_config is Some ==> additional_config->0@ == self@.additional_config->0,
     {
         self.inner.additional_config.clone()
     }
@@ -257,8 +257,8 @@ impl RabbitmqConfig {
     #[verifier(external_body)]
     pub fn advanced_config(&self) -> (advanced_config: Option<String>)
         ensures
-            self@.advanced_config.is_Some() == advanced_config.is_Some(),
-            advanced_config.is_Some() ==> advanced_config.get_Some_0()@ == self@.advanced_config.get_Some_0(),
+            self@.advanced_config is Some == advanced_config is Some,
+            advanced_config is Some ==> advanced_config->0@ == self@.advanced_config->0,
     {
         self.inner.advanced_config.clone()
     }
@@ -266,8 +266,8 @@ impl RabbitmqConfig {
     #[verifier(external_body)]
     pub fn env_config(&self) -> (env_config: Option<String>)
         ensures
-            self@.env_config.is_Some() == env_config.is_Some(),
-            env_config.is_Some() ==> env_config.get_Some_0()@ == self@.env_config.get_Some_0(),
+            self@.env_config is Some == env_config is Some,
+            env_config is Some ==> env_config->0@ == self@.env_config->0,
     {
         self.inner.env_config.clone()
     }

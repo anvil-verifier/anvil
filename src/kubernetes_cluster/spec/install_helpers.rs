@@ -13,10 +13,10 @@ impl Cluster {
 
 pub open spec fn installed_type<T: CustomResourceView>() -> InstalledType {
     InstalledType {
-        unmarshallable_spec: |v: Value| T::unmarshal_spec(v).is_Ok(),
-        unmarshallable_status: |v: Value| T::unmarshal_status(v).is_Ok(),
-        valid_object: |obj: DynamicObjectView| T::unmarshal(obj).get_Ok_0().state_validation(),
-        valid_transition: |obj, old_obj: DynamicObjectView| T::unmarshal(obj).get_Ok_0().transition_validation(T::unmarshal(old_obj).get_Ok_0()),
+        unmarshallable_spec: |v: Value| T::unmarshal_spec(v) is Ok,
+        unmarshallable_status: |v: Value| T::unmarshal_status(v) is Ok,
+        valid_object: |obj: DynamicObjectView| T::unmarshal(obj)->Ok_0.state_validation(),
+        valid_transition: |obj, old_obj: DynamicObjectView| T::unmarshal(obj)->Ok_0.transition_validation(T::unmarshal(old_obj)->Ok_0),
         marshalled_default_status: || T::marshal_status(T::default().status()),
     }
 }
@@ -39,15 +39,15 @@ pub open spec fn installed_reconcile_model<R, S, K, EReq, EResp>() -> ReconcileM
         kind: K::kind(),
         init: || R::reconcile_init_state().marshal(),
         transition: |obj, resp_o, s| {
-            let obj_um = K::unmarshal(obj).get_Ok_0();
+            let obj_um = K::unmarshal(obj)->Ok_0;
             let resp_o_um = match resp_o {
                 None => None,
                 Some(resp) => Some(match resp {
                     ResponseContent::KubernetesResponse(api_resp) => ResponseView::<EResp>::KResponse(api_resp),
-                    ResponseContent::ExternalResponse(ext_resp) => ResponseView::<EResp>::ExternalResponse(EResp::unmarshal(ext_resp).get_Ok_0()),
+                    ResponseContent::ExternalResponse(ext_resp) => ResponseView::<EResp>::ExternalResponse(EResp::unmarshal(ext_resp)->Ok_0),
                 })
             };
-            let s_um = S::unmarshal(s).get_Ok_0();
+            let s_um = S::unmarshal(s)->Ok_0;
             let (s_prime_um, req_o_um) = R::reconcile_core(obj_um, resp_o_um, s_um);
             (s_prime_um.marshal(), match req_o_um {
                 None => None,
@@ -57,8 +57,8 @@ pub open spec fn installed_reconcile_model<R, S, K, EReq, EResp>() -> ReconcileM
                 })
             })
         },
-        done: |s| R::reconcile_done(S::unmarshal(s).get_Ok_0()),
-        error: |s| R::reconcile_error(S::unmarshal(s).get_Ok_0()),
+        done: |s| R::reconcile_done(S::unmarshal(s)->Ok_0),
+        error: |s| R::reconcile_error(S::unmarshal(s)->Ok_0),
     }
 }
 

@@ -25,8 +25,8 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
     }
 
     open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
-        if state.latest_config_map_rv_opt.is_Some() {
-            Ok(make_stateful_set(zk, state.latest_config_map_rv_opt.get_Some_0()).marshal())
+        if state.latest_config_map_rv_opt is Some {
+            Ok(make_stateful_set(zk, state.latest_config_map_rv_opt->0).marshal())
         } else {
             Err(())
         }
@@ -34,10 +34,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sts = StatefulSetView::unmarshal(obj);
-        let found_sts = sts.get_Ok_0();
-        if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(zk.controller_owner_ref())
-        && state.latest_config_map_rv_opt.is_Some() && found_sts.spec.is_Some() {
-            Ok(update_stateful_set(zk, found_sts, state.latest_config_map_rv_opt.get_Some_0()).marshal())
+        let found_sts = sts->Ok_0;
+        if sts is Ok && found_sts.metadata.owner_references_only_contains(zk.controller_owner_ref())
+        && state.latest_config_map_rv_opt is Some && found_sts.spec is Some {
+            Ok(update_stateful_set(zk, found_sts, state.latest_config_map_rv_opt->0).marshal())
         } else {
             Err(())
         }
@@ -45,10 +45,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
 
     open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let sts_obj = StatefulSetView::unmarshal(obj);
-        if sts_obj.is_Ok() {
+        if sts_obj is Ok {
             let req = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
-                namespace: zk.metadata.namespace.get_Some_0(),
-                name: zk.metadata.name.get_Some_0(),
+                namespace: zk.metadata.namespace->0,
+                name: zk.metadata.name->0,
                 obj: update_zk_status(zk, 0).marshal(),
             });
             let state_prime = ZookeeperReconcileState {
@@ -63,16 +63,16 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
 
     open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let sts_obj = StatefulSetView::unmarshal(obj);
-        if sts_obj.is_Ok() {
-            let stateful_set = sts_obj.get_Ok_0();
-            let ready_replicas = if stateful_set.status.is_Some() && stateful_set.status.get_Some_0().ready_replicas.is_Some() {
-                stateful_set.status.get_Some_0().ready_replicas.get_Some_0()
+        if sts_obj is Ok {
+            let stateful_set = sts_obj->Ok_0;
+            let ready_replicas = if stateful_set.status is Some && stateful_set.status->0.ready_replicas is Some {
+                stateful_set.status->0.ready_replicas->0
             } else {
                 0
             };
             let req = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
-                namespace: zk.metadata.namespace.get_Some_0(),
-                name: zk.metadata.name.get_Some_0(),
+                namespace: zk.metadata.namespace->0,
+                name: zk.metadata.name->0,
                 obj: update_zk_status(zk, ready_replicas).marshal(),
             });
             let state_prime = ZookeeperReconcileState {
@@ -90,11 +90,11 @@ pub open spec fn make_stateful_set_key(zk: ZookeeperClusterView) -> ObjectRef {
     ObjectRef {
         kind: StatefulSetView::kind(),
         name: make_stateful_set_name(zk),
-        namespace: zk.metadata.namespace.get_Some_0(),
+        namespace: zk.metadata.namespace->0,
     }
 }
 
-pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name.get_Some_0() }
+pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView { zk.metadata.name->0 }
 
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView, rv: StringView) -> StatefulSetView {
     StatefulSetView {
@@ -106,10 +106,10 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
             ..found_stateful_set.metadata
         },
         spec: Some(StatefulSetSpecView {
-            replicas: make_stateful_set(zk, rv).spec.get_Some_0().replicas,
-            template: make_stateful_set(zk, rv).spec.get_Some_0().template,
-            persistent_volume_claim_retention_policy: make_stateful_set(zk, rv).spec.get_Some_0().persistent_volume_claim_retention_policy,
-            ..found_stateful_set.spec.get_Some_0()
+            replicas: make_stateful_set(zk, rv).spec->0.replicas,
+            template: make_stateful_set(zk, rv).spec->0.template,
+            persistent_volume_claim_retention_policy: make_stateful_set(zk, rv).spec->0.persistent_volume_claim_retention_policy,
+            ..found_stateful_set.spec->0
         }),
         ..found_stateful_set
     }
@@ -117,7 +117,7 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
 
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> StatefulSetView {
     let name = make_stateful_set_name(zk);
-    let namespace = zk.metadata.namespace.get_Some_0();
+    let namespace = zk.metadata.namespace->0;
 
     let metadata = ObjectMetaView::default()
         .with_name(name)
@@ -227,7 +227,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView {
         volumes: Some({
             let volumes = seq![
                 VolumeView::default().with_name("conf"@).with_config_map(
-                    ConfigMapVolumeSourceView::default().with_name(zk.metadata.name.get_Some_0() + "-configmap"@)
+                    ConfigMapVolumeSourceView::default().with_name(zk.metadata.name->0 + "-configmap"@)
                 )
             ];
             if zk.spec.persistence.enabled {

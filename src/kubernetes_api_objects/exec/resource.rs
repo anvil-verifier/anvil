@@ -62,8 +62,8 @@ macro_rules! implement_object_wrapper_type {
             #[verifier(external_body)]
             pub fn unmarshal(obj: DynamicObject) -> (res: Result<$t, UnmarshalError>)
                 ensures
-                    res.is_Ok() == $vt::unmarshal(obj@).is_Ok(),
-                    res.is_Ok() ==> res.get_Ok_0()@ == $vt::unmarshal(obj@).get_Ok_0(),
+                    res is Ok == $vt::unmarshal(obj@) is Ok,
+                    res is Ok ==> res->Ok_0@ == $vt::unmarshal(obj@)->Ok_0,
             {
                 let parse_result = obj.into_kube().try_parse::<$it>();
                 if parse_result.is_ok() {

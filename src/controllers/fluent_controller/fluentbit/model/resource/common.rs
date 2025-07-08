@@ -13,7 +13,7 @@ use vstd::string::*;
 
 verus! {
 
-pub open spec fn make_base_labels(fb: FluentBitView) -> Map<StringView, StringView> { map!["app"@ => fb.metadata.name.get_Some_0()] }
+pub open spec fn make_base_labels(fb: FluentBitView) -> Map<StringView, StringView> { map!["app"@ => fb.metadata.name->0] }
 
 pub open spec fn make_labels(fb: FluentBitView) -> Map<StringView, StringView> { fb.spec.labels.union_prefer_right(make_base_labels(fb)) }
 

@@ -57,8 +57,8 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(self, 
                 match step {
                     Step::ControllerStep(_) => {},
                     Step::APIServerStep(input) => {
-                        assert(s.in_flight().contains(input.get_Some_0()));
-                        assert(msg.rpc_id == input.get_Some_0().rpc_id);
+                        assert(s.in_flight().contains(input->0));
+                        assert(msg.rpc_id == input->0.rpc_id);
                     },
                     Step::DropReqStep(input) => {
                         assert(s.in_flight().contains(input.0));
@@ -77,8 +77,8 @@ pub open spec fn every_pending_req_msg_has_lower_id_than_allocator(controller_id
     |s: ClusterState| {
         forall |key: ObjectRef|
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
-            ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().rpc_id < s.rpc_id_allocator.rpc_id_counter
+            && s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
+            ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.rpc_id < s.rpc_id_allocator.rpc_id_counter
     }
 }
 
@@ -104,14 +104,14 @@ pub proof fn lemma_always_every_pending_req_msg_has_lower_id_than_allocator(self
 pub open spec fn pending_req_of_key_is_unique_with_unique_id(controller_id: int, key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.ongoing_reconciles(controller_id).contains_key(key)
-        && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
+        && s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
         ==> (
             forall |other_key: ObjectRef|
                 #[trigger] s.ongoing_reconciles(controller_id).contains_key(other_key)
                 && key != other_key
-                && s.ongoing_reconciles(controller_id)[other_key].pending_req_msg.is_Some()
-                ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().rpc_id
-                    != s.ongoing_reconciles(controller_id)[other_key].pending_req_msg.get_Some_0().rpc_id
+                && s.ongoing_reconciles(controller_id)[other_key].pending_req_msg is Some
+                ==> s.ongoing_reconciles(controller_id)[key].pending_req_msg->0.rpc_id
+                    != s.ongoing_reconciles(controller_id)[other_key].pending_req_msg->0.rpc_id
         )
     }
 }
@@ -136,26 +136,26 @@ pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(self, spec
         lift_action(self.next()), lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id)), lift_state(Self::there_is_the_controller_state(controller_id))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        if s_prime.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
+        if s_prime.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some {
             assert forall |other_key: ObjectRef|
-            #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(other_key) && s_prime.ongoing_reconciles(controller_id)[other_key].pending_req_msg.is_Some() && key != other_key
+            #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(other_key) && s_prime.ongoing_reconciles(controller_id)[other_key].pending_req_msg is Some && key != other_key
             implies
-                s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().rpc_id != s_prime.ongoing_reconciles(controller_id)[other_key].pending_req_msg.get_Some_0().rpc_id
+                s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0.rpc_id != s_prime.ongoing_reconciles(controller_id)[other_key].pending_req_msg->0.rpc_id
             by {
                 let step = choose |step| self.next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
                         let input_controller_id = input.0;
-                        let input_key = input.2.get_Some_0();
+                        let input_key = input.2->0;
                         if input_controller_id == controller_id {
                             if input_key == key {
-                                assert(s.ongoing_reconciles(controller_id).contains_key(other_key) && s.ongoing_reconciles(controller_id)[other_key].pending_req_msg.is_Some());
-                                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0().rpc_id == s.rpc_id_allocator.rpc_id_counter);
+                                assert(s.ongoing_reconciles(controller_id).contains_key(other_key) && s.ongoing_reconciles(controller_id)[other_key].pending_req_msg is Some);
+                                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0.rpc_id == s.rpc_id_allocator.rpc_id_counter);
                             } else {
-                                assert(s.ongoing_reconciles(controller_id).contains_key(key) && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some());
-                                if s_prime.ongoing_reconciles(controller_id).contains_key(input_key) && s_prime.ongoing_reconciles(controller_id)[input_key].pending_req_msg.is_Some() {
+                                assert(s.ongoing_reconciles(controller_id).contains_key(key) && s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some);
+                                if s_prime.ongoing_reconciles(controller_id).contains_key(input_key) && s_prime.ongoing_reconciles(controller_id)[input_key].pending_req_msg is Some {
                                     assert(s.ongoing_reconciles(controller_id).contains_key(input_key));
-                                    assert(s_prime.ongoing_reconciles(controller_id)[input_key].pending_req_msg.get_Some_0().rpc_id == s.rpc_id_allocator.rpc_id_counter);
+                                    assert(s_prime.ongoing_reconciles(controller_id)[input_key].pending_req_msg->0.rpc_id == s.rpc_id_allocator.rpc_id_counter);
                                 }
                             }
                         }
@@ -170,9 +170,9 @@ pub proof fn lemma_always_pending_req_of_key_is_unique_with_unique_id(self, spec
 
 pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id: int, key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+        let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
         s.ongoing_reconciles(controller_id).contains_key(key)
-        && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
+        && s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
         ==> {
             forall |msg: Message|
                 #[trigger] s.in_flight().contains(msg)
@@ -209,8 +209,8 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
         lift_state(Self::every_pending_req_msg_has_lower_id_than_allocator(controller_id))
     );
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if s_prime.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some() {
-            let pending_req = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+        if s_prime.ongoing_reconciles(controller_id).contains_key(key) && s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is Some {
+            let pending_req = s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
             assert forall |msg: Message|
                 #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_APIRequest() && msg != pending_req
             implies
@@ -220,7 +220,7 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
                 match step {
                     Step::ControllerStep(input) => {
                         let input_controller_id = input.0;
-                        let input_key = input.2.get_Some_0();
+                        let input_key = input.2->0;
                         if input_controller_id == controller_id {
                             if input_key == key {
                                 assert(pending_req.rpc_id == s.rpc_id_allocator.rpc_id_counter);
@@ -254,9 +254,9 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
 pub open spec fn every_in_flight_req_msg_has_different_id_from_pending_req_msg_of_every_ongoing_reconcile(controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |key: ObjectRef| {
-            let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+            let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-            && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
+            && s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
             ==> {
                 forall |msg: Message|
                     #[trigger] s.in_flight().contains(msg)
@@ -288,9 +288,9 @@ pub proof fn lemma_always_every_in_flight_req_msg_has_different_id_from_pending_
         assert forall |key: ObjectRef| tla_forall(|key: ObjectRef| lift_state(Self::every_in_flight_req_msg_has_different_id_from_pending_req_msg_of(controller_id, key))).satisfied_by(ex)
             implies 
             {
-                let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
+                let pending_req = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
                 #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
-                && s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_Some()
+                && s.ongoing_reconciles(controller_id)[key].pending_req_msg is Some
                 ==> {
                     forall |msg: Message|
                         #[trigger] s.in_flight().contains(msg)
@@ -422,7 +422,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_no_replicas_and_has_unique_id(
                 s_prime.in_flight().count(msg) == 1, {
                     match step {
                         Step::APIServerStep(input) => {
-                            let req = input.get_Some_0();
+                            let req = input->0;
                             let (_, resp) = transition_by_etcd(self.installed_types, req, s.api_server);
                             assert(resp.rpc_id == req.rpc_id);
                             assert(s.in_flight().contains(req));
@@ -487,7 +487,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(self, s: ClusterSt
         let next_step = choose |step| self.next_step(s, s_prime, step);
         match next_step {
             Step::APIServerStep(input) => {
-                let req_msg = input.get_Some_0();
+                let req_msg = input->0;
                 assert(s.network.in_flight.count(req_msg) <= 1);
                 assert(msg_1.rpc_id != msg_2.rpc_id);
             }
@@ -502,7 +502,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(self, s: ClusterSt
         let next_step = choose |step| self.next_step(s, s_prime, step);
         match next_step {
             Step::ExternalStep(input) => {
-                let req_msg = input.1.get_Some_0();
+                let req_msg = input.1->0;
                 assert(s.network.in_flight.count(req_msg) <= 1);
                 assert(msg_1.rpc_id != msg_2.rpc_id);
             }

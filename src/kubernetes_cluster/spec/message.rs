@@ -69,14 +69,14 @@ pub enum MessageContent {
 
 pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     match resp {
-        APIResponse::GetResponse(get_resp) => get_resp.res.is_Ok(),
-        APIResponse::ListResponse(list_resp) => list_resp.res.is_Ok(),
-        APIResponse::CreateResponse(create_resp) => create_resp.res.is_Ok(),
-        APIResponse::DeleteResponse(delete_resp) => delete_resp.res.is_Ok(),
-        APIResponse::UpdateResponse(update_resp) => update_resp.res.is_Ok(),
-        APIResponse::UpdateStatusResponse(update_status_resp) => update_status_resp.res.is_Ok(),
-        APIResponse::GetThenDeleteResponse(resp) => resp.res.is_Ok(),
-        APIResponse::GetThenUpdateResponse(resp) => resp.res.is_Ok(),
+        APIResponse::GetResponse(get_resp) => get_resp.res is Ok,
+        APIResponse::ListResponse(list_resp) => list_resp.res is Ok,
+        APIResponse::CreateResponse(create_resp) => create_resp.res is Ok,
+        APIResponse::DeleteResponse(delete_resp) => delete_resp.res is Ok,
+        APIResponse::UpdateResponse(update_resp) => update_resp.res is Ok,
+        APIResponse::UpdateStatusResponse(update_status_resp) => update_status_resp.res is Ok,
+        APIResponse::GetThenDeleteResponse(resp) => resp.res is Ok,
+        APIResponse::GetThenUpdateResponse(resp) => resp.res is Ok,
     }
 }
 
@@ -221,8 +221,8 @@ pub open spec fn api_request_msg_before(rpc_id: RPCId) -> spec_fn(Message) -> bo
 }
 
 pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
-    if recv.is_Some() {
-        recv.get_Some_0().dst == host_id
+    if recv is Some {
+        recv->0.dst == host_id
     } else {
         true
     }
@@ -508,7 +508,7 @@ pub open spec fn resource_create_request_msg(key: ObjectRef) -> spec_fn(Message)
     |msg: Message|
         msg.dst.is_APIServer()
         && msg.content.is_create_request()
-        && msg.content.get_create_request().obj.metadata.name.is_Some()
+        && msg.content.get_create_request().obj.metadata.name is Some
         && msg.content.get_create_request().key() == key
 }
 
@@ -518,8 +518,8 @@ pub open spec fn resource_create_request_msg_without_name(kind: Kind, namespace:
         msg.dst.is_APIServer()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == namespace
-        && msg.content.get_create_request().obj.metadata.name.is_None()
-        && msg.content.get_create_request().obj.metadata.generate_name.is_Some()
+        && msg.content.get_create_request().obj.metadata.name is None
+        && msg.content.get_create_request().obj.metadata.generate_name is Some
         && msg.content.get_create_request().obj.kind == kind
 }
 
@@ -530,12 +530,12 @@ macro_rules! declare_is_ok_resp_msg_functions {
         verus! {
         pub open spec fn $is_ok_fun() -> spec_fn(Message) -> bool {
             |msg: Message|
-                msg.src.is_APIServer() && msg.content.$is_resp() && msg.content.$get_resp().res.is_Ok()
+                msg.src.is_APIServer() && msg.content.$is_resp() && msg.content.$get_resp().res is Ok
         }
 
         pub open spec fn $is_ok_for_fun(key: ObjectRef) -> spec_fn(Message) -> bool {
             |msg: Message|
-                $is_ok_fun()(msg) && msg.content.$get_resp().res.get_Ok_0().object_ref() == key
+                $is_ok_fun()(msg) && msg.content.$get_resp().res->Ok_0.object_ref() == key
         }
         }
     };

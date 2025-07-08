@@ -120,10 +120,10 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
             let step = choose |step| FBCCluster::next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
+                    let cr_key = input.1->0;
                     if cr_key == key {
-                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg is Some);
+                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg->0));
                     } else {
                         assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
                     }
@@ -195,14 +195,14 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         resource_update_request_msg(resource_key)(msg) ==> {
             &&& at_fbc_step(key, FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& FBCCluster::pending_req_msg_is(s, key, msg)
-            &&& msg.content.get_update_request().obj.metadata.resource_version.is_Some()
-            &&& msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+            &&& msg.content.get_update_request().obj.metadata.resource_version is Some
+            &&& msg.content.get_update_request().obj.metadata.resource_version->0 < s.kubernetes_api_state.resource_version_counter
             &&& (
                 s.resources().contains_key(resource_key)
                 && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
             ) ==> (
-                update(sub_resource, fbc, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).is_Ok()
-                && msg.content.get_update_request().obj == update(sub_resource, fbc, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).get_Ok_0()
+                update(sub_resource, fbc, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]) is Ok
+                && msg.content.get_update_request().obj == update(sub_resource, fbc, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key])->Ok_0
             )
         }
     };
@@ -229,12 +229,12 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                 let step = choose |step| FBCCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fbc, s, s_prime, msg, step);
-                    let resp = step.get_ControllerStep_0().0.get_Some_0();
+                    let resp = step.get_ControllerStep_0().0->0;
                     assert(FBCCluster::is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
-                    assert(resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
-                    if s.resources().contains_key(resource_key) && resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
-                        assert(resp.content.get_get_response().res.get_Ok_0() == s.resources()[resource_key]);
+                    assert(resp.content.get_get_response().res->Ok_0.metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
+                    if s.resources().contains_key(resource_key) && resp.content.get_get_response().res->Ok_0.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
+                        assert(resp.content.get_get_response().res->Ok_0 == s.resources()[resource_key]);
                         assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                     }
                 } else {
@@ -392,8 +392,8 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         resource_create_request_msg(resource_key)(msg) ==> {
             &&& at_fbc_step(key, FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& FBCCluster::pending_req_msg_is(s, key, msg)
-            &&& make(sub_resource, fbc, s.ongoing_reconciles()[key].local_state).is_Ok()
-            &&& msg.content.get_create_request().obj == make(sub_resource, fbc, s.ongoing_reconciles()[key].local_state).get_Ok_0()
+            &&& make(sub_resource, fbc, s.ongoing_reconciles()[key].local_state) is Ok
+            &&& msg.content.get_create_request().obj == make(sub_resource, fbc, s.ongoing_reconciles()[key].local_state)->Ok_0
         }
     };
     let stronger_next = |s: FBCCluster, s_prime: FBCCluster| {
@@ -465,8 +465,8 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight(spec: TempPred<
                 let step = choose |step: FBCStep| FBCCluster::next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
-                        if input.1.is_Some() {
-                            let cr_key = input.1.get_Some_0();
+                        if input.1 is Some {
+                            let cr_key = input.1->0;
                             if s.ongoing_reconciles().contains_key(cr_key) {
                                 match s.ongoing_reconciles()[cr_key].local_state.reconcile_step {
                                     FluentBitConfigReconcileStep::Init => {},
@@ -547,7 +547,7 @@ pub proof fn lemma_always_resource_object_has_no_finalizers_or_timestamp_and_onl
         let step = choose |step| FBCCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                let req_msg = input.get_Some_0();
+                let req_msg = input->0;
                 assert(!resource_create_request_msg_without_name(resource_key.kind, resource_key.namespace)(req_msg));
             }
             _ => {}
@@ -565,13 +565,13 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
         forall |msg: FBCMessage| {
             #[trigger] s.in_flight().contains(msg) ==> {
                 &&& resource_update_request_msg(resource_key)(msg)
-                    ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
+                    ==> msg.content.get_update_request().obj.metadata.finalizers is None
                         && exists |uid: Uid| #![auto]
                             msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                                 make_owner_references_with_name_and_uid(key.name, uid)
                             ])
                 &&& resource_create_request_msg(resource_key)(msg)
-                    ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
+                    ==> msg.content.get_create_request().obj.metadata.finalizers is None
                         && exists |uid: Uid| #![auto]
                             msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                                 make_owner_references_with_name_and_uid(key.name, uid)
@@ -603,7 +603,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     );
     let create_msg_pred = |msg: FBCMessage| {
         resource_create_request_msg(resource_key)(msg)
-        ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
+        ==> msg.content.get_create_request().obj.metadata.finalizers is None
             && exists |uid: Uid| #![auto]
                 msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, uid)
@@ -611,7 +611,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     };
     let update_msg_pred = |msg: FBCMessage| {
         resource_update_request_msg(resource_key)(msg)
-        ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
+        ==> msg.content.get_update_request().obj.metadata.finalizers is None
             && exists |uid: Uid| #![auto]
                 msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, uid)
@@ -624,23 +624,23 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fbc, s, s_prime, msg, step);
                 let cr = s.ongoing_reconciles()[key].triggering_cr;
                 if resource_create_request_msg(resource_key)(msg) {
-                    assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state).get_Ok_0());
-                    assert(msg.content.get_create_request().obj.metadata.finalizers.is_None());
+                    assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state)->Ok_0);
+                    assert(msg.content.get_create_request().obj.metadata.finalizers is None);
                     assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
-                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
+                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
                     ]));
                 }
                 if resource_update_request_msg(resource_key)(msg) {
-                    assert(step.get_ControllerStep_0().0.get_Some_0().content.is_get_response());
-                    assert(step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.is_Ok());
+                    assert(step.get_ControllerStep_0().0->0.content.is_get_response());
+                    assert(step.get_ControllerStep_0().0->0.content.get_get_response().res is Ok);
                     assert(update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.get_Ok_0()
-                    ).is_Ok());
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res->Ok_0
+                    ) is Ok);
                     assert(msg.content.get_update_request().obj == update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0.get_Some_0().content.get_get_response().res.get_Ok_0()
-                    ).get_Ok_0());
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res->Ok_0
+                    )->Ok_0);
                     assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
-                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
+                        make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
                     ]));
                 }
 
@@ -664,12 +664,12 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
         FBCCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         resource_create_request_msg(get_request(sub_resource, fbc).key)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == fbc.object_ref()
+        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1->0 == fbc.object_ref()
             && at_fbc_step(fbc.object_ref(), FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
             && at_fbc_step(fbc.object_ref(), FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime)
             && FBCCluster::pending_req_msg_is(s_prime, fbc.object_ref(), msg),
         resource_update_request_msg(get_request(sub_resource, fbc).key)(msg)
-        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == fbc.object_ref()
+        ==> step.is_ControllerStep() && step.get_ControllerStep_0().1->0 == fbc.object_ref()
             && at_fbc_step(fbc.object_ref(), FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
             && at_fbc_step(fbc.object_ref(), FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)
             && FBCCluster::pending_req_msg_is(s_prime, fbc.object_ref(), msg),
@@ -677,7 +677,7 @@ pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcil
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
-    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1->0;
     let key = fbc.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, fbc).key;
@@ -765,14 +765,14 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(sp
                         if s.resources().contains_key(resource_key) {
                             let owner_refs = s.resources()[resource_key].metadata.owner_references;
                             assert(owner_refs == Some(seq![fbc.controller_owner_ref()]));
-                            assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
+                            assert(owner_reference_to_object_reference(owner_refs->0[0], key.namespace) == key);
                         }
                     },
                     Step::ControllerStep(input) => {
-                        let cr_key = input.1.get_Some_0();
-                        if s_prime.ongoing_reconciles()[cr_key].pending_req_msg.is_Some() {
-                            assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0());
-                            assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.is_delete_request());
+                        let cr_key = input.1->0;
+                        if s_prime.ongoing_reconciles()[cr_key].pending_req_msg is Some {
+                            assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg->0);
+                            assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg->0.content.is_delete_request());
                         }
                     },
                     Step::ClientStep() => {

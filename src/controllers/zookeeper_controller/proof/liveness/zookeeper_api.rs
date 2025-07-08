@@ -108,7 +108,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_g
     let pre_and_resp_in_flight = |resp_msg| lift_state(|s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
         &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
-        &&& resp_msg.content.get_get_response().res.is_Err()
+        &&& resp_msg.content.get_get_response().res is Err
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     });
 
@@ -119,7 +119,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_g
         leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
         assert_by(tla_exists(pre_and_req_in_flight) == pre, {
             assert forall |ex| #[trigger] pre.satisfied_by(ex) implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
@@ -133,8 +133,8 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_not_exists_to_after_g
             assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex) implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
-                    &&& resp_msg.content.get_get_response().res.is_Err()
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
+                    &&& resp_msg.content.get_get_response().res is Err
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
@@ -204,7 +204,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
         leads_to_exists_intro(spec, after_exists_stateful_set_step_req_msg, after_exists_stateful_set_step_waiting);
         assert_by(tla_exists(after_exists_stateful_set_step_req_msg) == pre, {
             assert forall |ex| #[trigger] pre.satisfied_by(ex) implies tla_exists(after_exists_stateful_set_step_req_msg).satisfied_by(ex) by {
-                let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                 assert(after_exists_stateful_set_step_req_msg(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(after_exists_stateful_set_step_req_msg), pre);
@@ -222,8 +222,8 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             assert forall |ex| #[trigger] after_exists_stateful_set_step_waiting.satisfied_by(ex) implies tla_exists(after_exists_stateful_set_step_resp_msg).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
-                    &&& resp_msg.content.get_get_response().res.is_Ok()
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
+                    &&& resp_msg.content.get_get_response().res is Ok
                 };
                 assert(after_exists_stateful_set_step_resp_msg(resp_msg).satisfied_by(ex));
             }
@@ -262,7 +262,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             leads_to_exists_intro(spec, after_exists_zk_node_step_req_msg, after_exists_zk_node_step_waiting);
             assert_by(tla_exists(after_exists_zk_node_step_req_msg) == addr_exists_and_after_exists_zk_node_step_pending, {
                 assert forall |ex| #[trigger] addr_exists_and_after_exists_zk_node_step_pending.satisfied_by(ex) implies tla_exists(after_exists_zk_node_step_req_msg).satisfied_by(ex) by {
-                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                     assert(after_exists_zk_node_step_req_msg(req_msg).satisfied_by(ex));
                 }
                 temp_pred_equality(tla_exists(after_exists_zk_node_step_req_msg), addr_exists_and_after_exists_zk_node_step_pending);
@@ -287,7 +287,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
                     let addr = zk_node_addr(ex.head(), zookeeper);
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
                         &&& resp_msg.content.get_ExternalAPIResponse_0() == ZKAPIOutputView::ExistsResponse(ZKAPIExistsResultView{res: Ok(Some(ex.head().external_state().data[addr].1))})
                     };
                     assert(after_exists_zk_node_step_resp_msg(resp_msg).satisfied_by(ex));
@@ -307,7 +307,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             leads_to_exists_intro(spec, after_update_zk_node_step_req_msg, after_update_zk_node_step_waiting);
             assert_by(tla_exists(after_update_zk_node_step_req_msg) == after_update_zk_node_step_pending, {
                 assert forall |ex| #[trigger] after_update_zk_node_step_pending.satisfied_by(ex) implies tla_exists(after_update_zk_node_step_req_msg).satisfied_by(ex) by {
-                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                     assert(after_update_zk_node_step_req_msg(req_msg).satisfied_by(ex));
                 }
                 temp_pred_equality(tla_exists(after_update_zk_node_step_req_msg), after_update_zk_node_step_pending);
@@ -322,7 +322,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
                 assert forall |ex| #[trigger] after_update_zk_node_step_waiting.satisfied_by(ex) implies tla_exists(after_update_zk_node_step_resp_msg).satisfied_by(ex) by {
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
                         &&& resp_msg.content.get_ExternalAPIResponse_0() == ZKAPIOutputView::SetDataResponse(ZKAPISetDataResultView{res: Ok(())})
                     };
                     assert(after_update_zk_node_step_resp_msg(resp_msg).satisfied_by(ex));
@@ -353,7 +353,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             leads_to_exists_intro(spec, after_exists_zk_node_step_req_msg, after_exists_zk_node_step_waiting);
             assert_by(tla_exists(after_exists_zk_node_step_req_msg) == addr_not_exists_and_after_exists_zk_node_step_pending, {
                 assert forall |ex| #[trigger] addr_not_exists_and_after_exists_zk_node_step_pending.satisfied_by(ex) implies tla_exists(after_exists_zk_node_step_req_msg).satisfied_by(ex) by {
-                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                     assert(after_exists_zk_node_step_req_msg(req_msg).satisfied_by(ex));
                 }
                 temp_pred_equality(tla_exists(after_exists_zk_node_step_req_msg), addr_not_exists_and_after_exists_zk_node_step_pending);
@@ -378,7 +378,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
                     let addr = zk_node_addr(ex.head(), zookeeper);
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
                         &&& resp_msg.content.get_ExternalAPIResponse_0() == ZKAPIOutputView::ExistsResponse(ZKAPIExistsResultView{res: Ok(None)})
                     };
                     assert(after_exists_zk_node_step_resp_msg(resp_msg).satisfied_by(ex));
@@ -403,7 +403,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             leads_to_exists_intro(spec, after_create_zk_parent_node_step_req_msg, after_create_zk_parent_node_step_waiting);
             assert_by(tla_exists(after_create_zk_parent_node_step_req_msg) == after_create_zk_parent_node_step_pending, {
                 assert forall |ex| #[trigger] after_create_zk_parent_node_step_pending.satisfied_by(ex) implies tla_exists(after_create_zk_parent_node_step_req_msg).satisfied_by(ex) by {
-                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                     assert(after_create_zk_parent_node_step_req_msg(req_msg).satisfied_by(ex));
                 }
                 temp_pred_equality(tla_exists(after_create_zk_parent_node_step_req_msg), after_create_zk_parent_node_step_pending);
@@ -430,7 +430,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
                     let addr = zk_node_addr(ex.head(), zookeeper);
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
                         &&& (resp_msg.content.get_ExternalAPIResponse_0() == ZKAPIOutputView::CreateResponse(ZKAPICreateResultView{res: Ok(())})
                             || resp_msg.content.get_ExternalAPIResponse_0() == ZKAPIOutputView::CreateResponse(ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateAlreadyExists)}))
                     };
@@ -452,7 +452,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
             leads_to_exists_intro(spec, after_create_zk_node_step_req_msg, after_create_zk_node_step_waiting);
             assert_by(tla_exists(after_create_zk_node_step_req_msg) == after_create_zk_node_step_pending, {
                 assert forall |ex| #[trigger] after_create_zk_node_step_pending.satisfied_by(ex) implies tla_exists(after_create_zk_node_step_req_msg).satisfied_by(ex) by {
-                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0();
+                    let req_msg = ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0;
                     assert(after_create_zk_node_step_req_msg(req_msg).satisfied_by(ex));
                 }
                 temp_pred_equality(tla_exists(after_create_zk_node_step_req_msg), after_create_zk_node_step_pending);
@@ -468,7 +468,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
                     let addr = zk_node_addr(ex.head(), zookeeper);
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] ex.head().in_flight().contains(resp_msg)
-                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg.get_Some_0())
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
                         &&& resp_msg.content.get_ExternalAPIResponse_0() == ZKAPIOutputView::CreateResponse(ZKAPICreateResultView{res: Ok(())})
                     };
                     assert(after_create_zk_node_step_resp_msg(resp_msg).satisfied_by(ex));
@@ -542,14 +542,14 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_create_request_msg(key)(input.get_Some_0()));
-                assert(!resource_create_request_msg_without_name(key.kind, key.namespace)(input.get_Some_0()));
-                if input.get_Some_0() == req_msg {
+                assert(!resource_create_request_msg(key)(input->0));
+                assert(!resource_create_request_msg_without_name(key.kind, key.namespace)(input->0));
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_get_response().res.is_Err()
+                        &&& resp_msg.content.get_get_response().res is Err
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                     });
                 }
@@ -564,7 +564,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_state
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res is Err
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });
     }
@@ -588,7 +588,7 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
             lift_state(|s: ZKCluster| {
                 &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
                 &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
-                &&& resp_msg.content.get_get_response().res.is_Err()
+                &&& resp_msg.content.get_get_response().res is Err
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             })
                 .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper)))
@@ -597,7 +597,7 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
     let pre = |s: ZKCluster| {
         &&& !s.resources().contains_key(get_request(SubResource::StatefulSet, zookeeper).key)
         &&& resp_msg_is_the_in_flight_resp_at_after_exists_stateful_set_step(zookeeper, resp_msg)(s)
-        &&& resp_msg.content.get_get_response().res.is_Err()
+        &&& resp_msg.content.get_get_response().res is Err
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
     let post = pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, zookeeper);
@@ -632,8 +632,8 @@ proof fn lemma_from_at_after_exists_stateful_set_step_to_after_get_stateful_set_
         match step {
             Step::ApiServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
-                assert(!resource_create_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(input.get_Some_0()));
+                assert(!resource_create_request_msg(sts_key)(input->0));
+                assert(!resource_create_request_msg_without_name(sts_key.kind, sts_key.namespace)(input->0));
             },
             _ => {}
         }
@@ -696,15 +696,15 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
-                if input.get_Some_0() == req_msg {
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_get_request_msg(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_get_response().res.is_Ok()
-                        &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+                        &&& resp_msg.content.get_get_response().res is Ok
+                        &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
                     });
                     assert(post(s_prime));
                 }
@@ -719,8 +719,8 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
-            &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+            &&& resp_msg.content.get_get_response().res is Ok
+            &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
         });
     }
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);
@@ -789,8 +789,8 @@ proof fn lemma_from_after_exists_stateful_set_step_to_after_exists_zk_node_step(
         match step {
             Step::ApiServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }
@@ -865,7 +865,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::ExternalAPIStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_external_request_helper(req_msg, s.external_api_state, s.resources()).1;
                     let addr = zk_node_addr(s_prime, zookeeper);
                     assert({
@@ -878,8 +878,8 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_zk_node_step
                 }
             },
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(resource_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(resource_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(resource_key)(input->0));
+                assert(!resource_update_request_msg(resource_key)(input->0));
             },
             _ => {}
         }
@@ -970,8 +970,8 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_update_zk_node_step(spec:
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }
@@ -1042,7 +1042,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
             Step::ExternalAPIStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_external_request_helper(req_msg, s.external_api_state, s.resources()).1;
                     let addr = zk_node_addr(s_prime, zookeeper);
                     assert({
@@ -1055,8 +1055,8 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_update_zk_node_step
                 }
             },
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }
@@ -1196,7 +1196,7 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
             Step::ExternalAPIStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_external_request_helper(req_msg, s.external_api_state, s.resources()).1;
                     let addr = zk_node_addr(s_prime, zookeeper);
                     assert({
@@ -1209,8 +1209,8 @@ proof fn lemma_from_pending_req_to_receives_not_found_resp_at_after_exists_zk_no
                 }
             },
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }
@@ -1301,8 +1301,8 @@ proof fn lemma_from_after_exists_zk_node_step_to_after_create_zk_parent_node_ste
         match step {
             Step::ApiServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }
@@ -1382,7 +1382,7 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::ExternalAPIStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_external_request_helper(req_msg, s.external_api_state, s.resources()).1;
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -1396,8 +1396,8 @@ proof fn lemma_from_pending_req_to_receives_ok_or_already_exists_resp_at_after_c
             },
             Step::ApiServerStep(input) => {
                 let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             }
             _ => {}
         }
@@ -1492,8 +1492,8 @@ proof fn lemma_from_after_create_zk_parent_node_step_to_after_create_zk_node_ste
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }
@@ -1564,7 +1564,7 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
         let sts_key = get_request(SubResource::StatefulSet, zookeeper).key;
         match step {
             Step::ExternalAPIStep(input) => {
-                if input.get_Some_0() == req_msg {
+                if input->0 == req_msg {
                     let resp_msg = ZKCluster::handle_external_request_helper(req_msg, s.external_api_state, s.resources()).1;
                     assert(zk_parent_node_addr(s, zookeeper).path =~= zk_node_addr(s, zookeeper).parent_addr().path);
                     assert({
@@ -1577,8 +1577,8 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_create_zk_node_step
                 }
             },
             Step::ApiServerStep(input) => {
-                assert(!resource_delete_request_msg(sts_key)(input.get_Some_0()));
-                assert(!resource_update_request_msg(sts_key)(input.get_Some_0()));
+                assert(!resource_delete_request_msg(sts_key)(input->0));
+                assert(!resource_update_request_msg(sts_key)(input->0));
             },
             _ => {}
         }

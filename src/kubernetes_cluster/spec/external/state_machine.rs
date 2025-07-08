@@ -21,11 +21,11 @@ pub open spec fn transition_by_external(model: ExternalModel, req_msg: Message, 
 pub open spec fn handle_external_request(model: ExternalModel) -> ExternalAction {
     Action {
         precondition: |input: ExternalActionInput, s: ExternalState| {
-            &&& input.recv.is_Some()
-            &&& input.recv.get_Some_0().content.is_ExternalRequest()
+            &&& input.recv is Some
+            &&& input.recv->0.content.is_ExternalRequest()
         },
         transition: |input: ExternalActionInput, s: ExternalState| {
-            let req_msg = input.recv.get_Some_0();
+            let req_msg = input.recv->0;
             let resources = input.resources;
             let (s_prime, resp_msg) = transition_by_external(model, req_msg, resources, s);
             (s_prime, ExternalActionOutput {

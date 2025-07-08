@@ -34,8 +34,8 @@ pub open spec fn no_other_pending_create_request_interferes_with_vd_reconcile(
     |s: ClusterState| {
         (req.obj.kind == VReplicaSetView::kind()
             && req.key().namespace == vd.metadata.namespace.unwrap()) ==> !{
-            let owner_references = req.obj.metadata.owner_references.get_Some_0();
-            &&& req.obj.metadata.owner_references.is_Some()
+            let owner_references = req.obj.metadata.owner_references->0;
+            &&& req.obj.metadata.owner_references is Some
             &&& owner_references.contains(vd.controller_owner_ref())
         }
     }
@@ -48,23 +48,23 @@ pub open spec fn no_other_pending_update_request_interferes_with_vd_reconcile(
     |s: ClusterState| {
         (req.obj.kind == VReplicaSetView::kind()
             && req.key().namespace == vd.metadata.namespace.unwrap()) ==>
-            req.obj.metadata.resource_version.is_Some()
+            req.obj.metadata.resource_version is Some
             // Prevents 1): where a message not from our specific vd updates
             // a vd-owned vrs.
             && !{
                 let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                let owner_references = etcd_obj.metadata.owner_references->0;
                 &&& s.resources().contains_key(req.key())
                 &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version is Some
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& etcd_obj.metadata.owner_references is Some
                 &&& owner_references.contains(vd.controller_owner_ref())
             }
             // Prevents 2): where any message not from our specific vd updates 
             // vrs objects so they become owned by another VDeployment.
-            && (req.obj.metadata.owner_references.is_Some() ==>
-                        ! req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
+            && (req.obj.metadata.owner_references is Some ==>
+                        ! req.obj.metadata.owner_references->0.contains(vd.controller_owner_ref()))
     }
 }
 
@@ -75,15 +75,15 @@ pub open spec fn no_other_pending_update_status_request_interferes_with_vd_recon
     |s: ClusterState| {
         (req.obj.kind == VReplicaSetView::kind()
             && req.key().namespace == vd.metadata.namespace.unwrap()) ==> 
-            req.obj.metadata.resource_version.is_Some()
+            req.obj.metadata.resource_version is Some
             && !{
                 let etcd_obj = s.resources()[req.key()];
-                let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                let owner_references = etcd_obj.metadata.owner_references->0;
                 &&& s.resources().contains_key(req.key())
                 &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-                &&& etcd_obj.metadata.resource_version.is_Some()
+                &&& etcd_obj.metadata.resource_version is Some
                 &&& etcd_obj.metadata.resource_version == req.obj.metadata.resource_version
-                &&& etcd_obj.metadata.owner_references.is_Some()
+                &&& etcd_obj.metadata.owner_references is Some
                 &&& owner_references.contains(vd.controller_owner_ref())
             }
     }
@@ -98,14 +98,14 @@ pub open spec fn no_other_pending_get_then_update_request_interferes_with_vd_rec
             // Prevents 1): where a message not from our specific vd updates
             // a vd-owned vrs.
             &&& (req.key().namespace == vd.metadata.namespace.unwrap() ==> {
-                &&& req.owner_ref.controller.is_Some()
-                &&& req.owner_ref.controller.get_Some_0()
+                &&& req.owner_ref.controller is Some
+                &&& req.owner_ref.controller->0
                 &&& req.owner_ref != vd.controller_owner_ref()
             })
             // Prevents 2): where any message not from our specific vd updates 
             // vrs objects so they become owned by another VDeployment.
-            &&& (req.obj.metadata.owner_references.is_Some() ==>
-                    ! req.obj.metadata.owner_references.get_Some_0().contains(vd.controller_owner_ref()))
+            &&& (req.obj.metadata.owner_references is Some ==>
+                    ! req.obj.metadata.owner_references->0.contains(vd.controller_owner_ref()))
         }
     }
 }
@@ -117,24 +117,24 @@ pub open spec fn no_other_pending_delete_request_interferes_with_vd_reconcile(
     |s: ClusterState| {
         (req.key.kind == VReplicaSetView::kind()
             && req.key.namespace == vd.metadata.namespace.unwrap()) ==>
-            req.preconditions.is_Some()
+            req.preconditions is Some
             && {
                 ||| {
-                    req.preconditions.get_Some_0().resource_version.is_Some()
+                    req.preconditions->0.resource_version is Some
                     && !{
                         let etcd_obj = s.resources()[req.key];
-                        let owner_references = etcd_obj.metadata.owner_references.get_Some_0();
+                        let owner_references = etcd_obj.metadata.owner_references->0;
                         &&& s.resources().contains_key(req.key)
                         &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-                        &&& etcd_obj.metadata.resource_version.is_Some()
+                        &&& etcd_obj.metadata.resource_version is Some
                         &&& etcd_obj.metadata.resource_version
-                            == req.preconditions.get_Some_0().resource_version
-                        &&& etcd_obj.metadata.owner_references.is_Some()
+                            == req.preconditions->0.resource_version
+                        &&& etcd_obj.metadata.owner_references is Some
                         &&& owner_references.contains(vd.controller_owner_ref())
                     }
                 }
                 ||| { // required to handle garbage collector's messages.
-                    &&& req.preconditions.unwrap().uid.is_Some()
+                    &&& req.preconditions.unwrap().uid is Some
                     &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
                     &&& s.resources().contains_key(req.key) ==> {
                         let obj = s.resources()[req.key];
@@ -155,8 +155,8 @@ pub open spec fn no_other_pending_get_then_delete_request_interferes_with_vd_rec
     |s: ClusterState| {
         (req.key.kind == VReplicaSetView::kind()
             && req.key.namespace == vd.metadata.namespace.unwrap()) ==> {
-            &&& req.owner_ref.controller.is_Some()
-            &&& req.owner_ref.controller.get_Some_0()
+            &&& req.owner_ref.controller is Some
+            &&& req.owner_ref.controller->0
             &&& req.owner_ref != vd.controller_owner_ref()
         }
     }
@@ -194,15 +194,15 @@ pub open spec fn vd_reconcile_create_request_only_interferes_with_itself(
     vd: VDeploymentView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let owner_references = req.obj.metadata.owner_references.get_Some_0();
+        let owner_references = req.obj.metadata.owner_references->0;
         &&& req.obj.kind == VReplicaSetView::kind()
         &&& req.key().namespace == vd.metadata.namespace.unwrap()
-        &&& req.obj.metadata.owner_references.is_Some()
+        &&& req.obj.metadata.owner_references is Some
         &&& exists |owner_ref: OwnerReferenceView| {
             // using the macro messes up the trigger.
             &&& owner_references == #[trigger] Seq::empty().push(owner_ref)
-            &&& owner_ref.controller.is_Some()
-            &&& owner_ref.controller.get_Some_0()
+            &&& owner_ref.controller is Some
+            &&& owner_ref.controller->0
             &&& owner_ref.kind == VDeploymentView::kind()
             &&& owner_ref.name == vd.object_ref().name
         }
@@ -216,8 +216,8 @@ pub open spec fn vd_reconcile_get_then_update_request_only_interferes_with_itsel
     |s: ClusterState| {
         &&& req.key().kind == VReplicaSetView::kind()
         &&& req.key().namespace == vd.metadata.namespace.unwrap()
-        &&& req.owner_ref.controller.is_Some()
-        &&& req.owner_ref.controller.get_Some_0()
+        &&& req.owner_ref.controller is Some
+        &&& req.owner_ref.controller->0
         &&& req.owner_ref.kind == VDeploymentView::kind()
         &&& req.owner_ref.name == vd.object_ref().name
         &&& req.obj.metadata.owner_references_contains(vd.controller_owner_ref())
@@ -267,8 +267,8 @@ pub open spec fn garbage_collector_does_not_delete_vd_vrs_objects(vd: VDeploymen
         } ==> {
             let req = msg.content.get_delete_request(); 
             &&& msg.content.is_delete_request()
-            &&& req.preconditions.is_Some()
-            &&& req.preconditions.unwrap().uid.is_Some()
+            &&& req.preconditions is Some
+            &&& req.preconditions.unwrap().uid is Some
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
@@ -318,15 +318,15 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                             triggering_cr.controller_owner_ref()
                         )
                     )
-                &&& state.new_vrs.is_Some()
+                &&& state.new_vrs is Some
                     ==> (new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
                         && new_vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref()))
                 // Special case: a stronger property implying the above property
                 // after filtering holds on a list response to the
                 // appropriate request. 
                 &&& state.reconcile_step == VDeploymentReconcileStepView::AfterListVRS ==> {
-                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg.get_Some_0();
-                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                     &&& req_msg.dst.is_APIServer()
                     &&& req_msg.content.is_list_request()
                     &&& req_msg.content.get_list_request() == ListRequest {
@@ -334,16 +334,16 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         namespace: triggering_cr.metadata.namespace.unwrap(),
                     }
                     &&& forall |msg| {
-                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.get_Some_0();
+                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
                         &&& #[trigger] s.in_flight().contains(msg)
-                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg.is_Some()
+                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
                         &&& msg.src.is_APIServer()
                         &&& resp_msg_matches_req_msg(msg, req_msg)
                         &&& is_ok_resp(msg.content.get_APIResponse_0())
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.is_list_response()
-                        &&& msg.content.get_list_response().res.is_Ok()
+                        &&& msg.content.get_list_response().res is Ok
                         &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
                         &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                         (
@@ -388,8 +388,8 @@ pub open spec fn vd_in_etcd_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.resources().contains_key(vd.object_ref()) ==> {
-        &&& s.resources()[vd.object_ref()].metadata.deletion_timestamp.is_None()
-        &&& VDeploymentView::unmarshal(s.resources()[vd.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.resources()[vd.object_ref()].metadata.deletion_timestamp is None
+        &&& VDeploymentView::unmarshal(s.resources()[vd.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -397,8 +397,8 @@ pub open spec fn vd_in_schedule_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-        &&& s.scheduled_reconciles(controller_id)[vd.object_ref()].metadata.deletion_timestamp.is_None()
-        &&& VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.scheduled_reconciles(controller_id)[vd.object_ref()].metadata.deletion_timestamp is None
+        &&& VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -406,8 +406,8 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-        &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr.metadata.deletion_timestamp.is_None()
-        &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr.metadata.deletion_timestamp is None
+        &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp is None
     }
 }
 

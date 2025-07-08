@@ -33,9 +33,9 @@ pub struct ZookeeperClusterView {
 
 impl ZookeeperClusterView {
     pub open spec fn well_formed(self) -> bool {
-        &&& self.metadata.name.is_Some()
-        &&& self.metadata.namespace.is_Some()
-        &&& self.metadata.uid.is_Some()
+        &&& self.metadata.name is Some
+        &&& self.metadata.namespace is Some
+        &&& self.metadata.uid is Some
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
@@ -43,8 +43,8 @@ impl ZookeeperClusterView {
             block_owner_deletion: None,
             controller: Some(true),
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            uid: self.metadata.uid.get_Some_0(),
+            name: self.metadata.name->0,
+            uid: self.metadata.uid->0,
         }
     }
 
@@ -75,8 +75,8 @@ impl ResourceView for ZookeeperClusterView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -98,15 +98,15 @@ impl ResourceView for ZookeeperClusterView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<ZookeeperClusterView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(ZookeeperClusterView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !ZookeeperClusterView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(ZookeeperClusterView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(ZookeeperClusterView {
                 metadata: obj.metadata,
-                spec: ZookeeperClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: ZookeeperClusterView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: ZookeeperClusterView::unmarshal_spec(obj.spec)->Ok_0,
+                status: ZookeeperClusterView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }
