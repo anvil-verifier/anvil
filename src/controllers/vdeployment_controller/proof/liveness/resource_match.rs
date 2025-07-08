@@ -274,6 +274,7 @@ ensures
         // need to prove (\A |a| (a_to_p(a) ~> a_to_q(a))) && (r ~> \E |a| a_to_p(a)) ==> r ~> \E |a| a_to_q(a)
         assert(spec.entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))
             .leads_to(tla_exists(|n: nat| after_ensure_vrs(n))))) by {
+            // TODO: prove it
             leads_to_exists_intro_pred(spec, |n: nat| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n)), |n: nat| after_ensure_vrs(n));
             assume(false);
             temp_pred_equality(
