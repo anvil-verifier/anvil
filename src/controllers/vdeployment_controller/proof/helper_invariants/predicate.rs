@@ -102,7 +102,8 @@ pub open spec fn no_other_pending_get_then_update_request_interferes_with_vd_rec
                 &&& req.owner_ref.controller->0
                 &&& req.owner_ref != vd.controller_owner_ref()
             })
-            // Prevents 2): where any message not from our specific vd updates 
+            // Prevents 2): where any message not from our specific vd (but in 
+            // the same namespace) updates 
             // vrs objects so they become owned by another VDeployment.
             &&& ((req.obj.metadata.owner_references is Some
                     && req.key().namespace == vd.object_ref().namespace) ==>
@@ -317,16 +318,25 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                 let old_vrs_list = state.old_vrs_list;
                 &&& triggering_cr.object_ref() == key
                 &&& triggering_cr.metadata().well_formed_for_namespaced()
-                &&& forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() ==>
-                    (
-                        old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                        && old_vrs_list[i].metadata.owner_references_contains(
-                            triggering_cr.controller_owner_ref()
-                        )
-                    )
-                &&& state.new_vrs is Some
-                    ==> (new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
-                        && new_vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref()))
+                &&& forall |i| #![trigger old_vrs_list[i]] 0 <= i < old_vrs_list.len() ==> {
+                    let owners = old_vrs_list[i].metadata.owner_references->0;
+                    let controller_owners = owners.filter(
+                        |o: OwnerReferenceView| o.controller is Some && o.controller->0
+                    );
+                    &&& old_vrs_list[i].metadata.owner_references is Some
+                    &&& old_vrs_list[i].object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                    &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+                }
+                &&& state.new_vrs is Some ==> {
+                    let new_vrs = state.new_vrs->0;
+                    let owners = new_vrs.metadata.owner_references->0;
+                    let controller_owners = owners.filter(
+                        |o: OwnerReferenceView| o.controller is Some && o.controller->0
+                    );
+                    &&& new_vrs.metadata.owner_references is Some
+                    &&& new_vrs.object_ref().namespace == triggering_cr.metadata.namespace.unwrap()
+                    &&& controller_owners == seq![triggering_cr.controller_owner_ref()]
+                }
                 // Special case: a stronger property implying the above property
                 // after filtering holds on a list response to the
                 // appropriate request. 
@@ -351,12 +361,16 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         &&& msg.content.is_list_response()
                         &&& msg.content.get_list_response().res is Ok
                         &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
-                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
-                        (
-                            resp_objs[i].metadata.namespace.is_some()
-                            && resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
-                            && resp_objs[i].kind == VReplicaSetView::kind()
-                        )
+                        &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
+                            let owners = resp_objs[i].metadata.owner_references.get_Some_0();
+                            let controller_owners = owners.filter(
+                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                            );
+                            &&& resp_objs[i].metadata.namespace.is_some()
+                            &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                            &&& resp_objs[i].kind == VReplicaSetView::kind()
+                            &&& resp_objs[i].metadata.owner_references.is_Some() ==> controller_owners.len() <= 1
+                        }
                     }
                 }
             }

@@ -25,6 +25,8 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
         spec.entails(always(lift_action(cluster.next()))),
         // The vd type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        // The vrs type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vd controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     ensures
@@ -124,6 +126,17 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                                 }
                             }
                             assert(req.owner_ref == triggering_cr.controller_owner_ref());
+                            let owners = req.obj.metadata.owner_references.get_Some_0();
+                            let controller_owners = owners.filter(
+                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                            );
+                            assert(controller_owners[0] == triggering_cr.controller_owner_ref());
+                            assert(controller_owners.contains(triggering_cr.controller_owner_ref()));
+                            seq_filter_contains_implies_seq_contains(
+                                owners,
+                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0(),
+                                triggering_cr.controller_owner_ref(),
+                            );
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
                         }
                     }
