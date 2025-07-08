@@ -19,17 +19,6 @@ use vstd::prelude::*;
 
 verus! {
 
-// just to make Verus happy
-uninterp spec fn dummy_trigger_n(n: nat) -> bool;
-
-uninterp spec fn dummy_trigger_ex(ex: Execution<ClusterState>) -> bool;
-
-uninterp spec fn dummy_trigger_transition(input: DynamicObjectView, resp_o: Option<ResponseContent>, s: ReconcileLocalState) -> bool;
-
-pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
-    |vds: VDeploymentReconcileState| vds.old_vrs_list.len() == n
-}
-
 // serve as trigger to make Verus happy
 pub open spec fn scale_down_old_vrs_rank_n(n: nat) -> spec_fn(ReconcileLocalState) -> bool {
     at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(n)), Error]
@@ -100,7 +89,7 @@ ensures
         spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(zero)
     );
     // 0 ~> Done | Error ~> idle
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)] at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero))](s)
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))] at_step_or![(AfterScaleDownOldVRS, old_vrs_list_len(zero))](s)
         ==> at_step_or![Error, Done]((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, controller_id, vd.marshal(),
@@ -179,10 +168,7 @@ ensures
                     .satisfied_by(ex) by {
                 let s_marshalled = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].local_state;
                 let witness_n = VDeploymentReconcileState::unmarshal(s_marshalled).unwrap().old_vrs_list.len();
-                tla_exists_proved_by_witness(
-                    ex, |n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
-                    witness_n
-                );
+                assert((|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))(witness_n).satisfied_by(ex));
             }
         assert(spec.entails(p.leads_to(lift_state(reconcile_idle)))) by {
             // p ~> p(n)
@@ -204,7 +190,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![Done]));
         lift_state(reconcile_idle)
     );
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
         at_step_or![AfterEnsureNewVRS](s) ==> at_step_or![AfterScaleDownOldVRS, Error, Done]
                                              ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     // AfterEnsureNewVRS is similar to init on no pending req/resp is needed for the transition to next step
@@ -221,7 +207,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![Error]));
         lift_state(reconcile_idle)
     );
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)] 
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))] 
         at_step_or![AfterScaleNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                              ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
@@ -230,7 +216,7 @@ ensures
         at_step_or![AfterEnsureNewVRS, Error]
     );
     // 5, AfterCreateNewVRS ~> idle
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
         at_step_or![AfterCreateNewVRS](s) ==> at_step_or![AfterEnsureNewVRS, Error]
                                               ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
@@ -246,7 +232,7 @@ ensures
         lift_state(lift_local(controller_id, vd, at_step_or![AfterEnsureNewVRS, Error]));
         lift_state(reconcile_idle)
     );
-    assert(forall |input_cr, resp_o, s| #![trigger dummy_trigger_transition(input_cr, resp_o, s)]
+    assert(forall |input_cr, resp_o, s| #![trigger dummy((input_cr, resp_o, s))]
         at_step_or![AfterListVRS](s) ==> at_step_or![AfterCreateNewVRS, AfterScaleNewVRS, AfterEnsureNewVRS, Error]
                                          ((cluster.reconcile_model(controller_id).transition)(input_cr, resp_o, s).0));
     cluster.lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
