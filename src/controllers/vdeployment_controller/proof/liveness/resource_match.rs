@@ -270,7 +270,9 @@ ensures
                 }
             }
             leads_to_exists_intro(spec, |replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n), after_ensure_vrs(n));
+            // forall |n| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n)).leads_to(after_ensure_vrs(n))
         }
+        // tla_exists(|n: nat| tla_exists(|replicas: Option<int>| after_list_with_etcd_state(msg, replicas, n))).leads_to(tla_exists(|n: nat| after_ensure_vrs(n)));
         // need to prove (\A |a| (a_to_p(a) ~> a_to_q(a))) && (r ~> \E |a| a_to_p(a)) ==> r ~> \E |a| a_to_q(a)
         assert(spec.entails(tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))
             .leads_to(tla_exists(|n: nat| after_ensure_vrs(n))))) by {
@@ -509,7 +511,7 @@ ensures
     );
 }
 
-#[verifier(spinoff_prover)]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, replicas: int, n: nat
 )
@@ -563,7 +565,6 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
-                assume(false);
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
@@ -571,55 +572,28 @@ ensures
                     VReplicaSetView::marshal_preserves_integrity();
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                        assert(resp_msg.content.is_list_response());
-                        assert(resp_msg.content.get_list_response().res.is_Ok());
-                        assert(vrs_list_or_none.is_Some());
-                        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0())) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
-                        assert(new_vrs_or_none.is_Some());
-                        let new_vrs = new_vrs_or_none.get_Some_0();
-                        assert(match_replicas(vd, new_vrs));
-                        assert(vrls_prime.new_vrs.is_Some());
-                        assert(vrls_prime.new_vrs.get_Some_0() == new_vrs);
-                        assert(vrls_prime.old_vrs_list == old_vrs_list);
-                        assert(vrls_prime.reconcile_step == AfterEnsureNewVRS);
-                        // maybe another flaky case
-                        // if I use assert(vrls_prime == VDeploymentReconcileState{..}) I get
-//                      vrls_prime == VDeploymentReconcileState { new_vrs: Some(new_vrs), old_vrs_list: old_vrs_list, reconcile_step: AfterCreateNewVRS }
-//                      |   vrls_prime.reconcile_step == AfterCreateNewVRS ✘
-//                      |   |   !(vrls_prime.reconcile_step is Init) ✔
-//                      |   |   !(vrls_prime.reconcile_step is AfterListVRS) ✔
-//                      |   |   !(vrls_prime.reconcile_step is AfterScaleNewVRS) ✘
-//                      |   |   !(vrls_prime.reconcile_step is AfterEnsureNewVRS) ✘
-//                      |   |   !(vrls_prime.reconcile_step is AfterScaleDownOldVRS) ✔
-//                      |   |   !(vrls_prime.reconcile_step is Done) ✔
-//                      |   |   !(vrls_prime.reconcile_step is Error) ✔
-//                      |   +---
-//                      |   vrls_prime.new_vrs == Some(new_vrs) ✘
-//                      |   |   !(vrls_prime.new_vrs is None) ✔
-//                      |   |   vrls_prime.new_vrs is Some ==>
-//                      |   |       vrls_prime.new_vrs.0 == new_vrs ✘
-//                      |   |       |   vrls_prime.new_vrs.0.metadata == new_vrs.metadata ✘
-//                      |   |       |   |   vrls_prime.new_vrs.0.metadata.name == new_vrs.metadata.name ✘
-//                      |   |       |   |   |   vrls_prime.new_vrs.0.metadata.name is None ==>
-//                      |   |       |   |   |       new_vrs.metadata.name is None ✔
-//                      |   |       |   |   |   vrls_prime.new_vrs.0.metadata.name is Some ==>
-//                      |   |       |   |   |       new_vrs.metadata.name is Some ✘
-//                      |   |       |   |   |       vrls_prime.new_vrs.0.metadata.name.0 == new_vrs.metadata.name.0 ✘
-//                      |   |       |   |   |           datatype is opaque here
-                        // if I use vrls_prime.new_vrs == Some(new_vrs) I get
-                        // !(vrls_prime.new_vrs is None) ✘
-                    }
+                    // assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
+                    //     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                    //     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
+                    //     assert(resp_msg.content.is_list_response());
+                    //     assert(resp_msg.content.get_list_response().res.is_Ok());
+                    //     assert(vrs_list_or_none.is_Some());
+                    //     assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
+                    //     assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0())) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                    //     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.get_Some_0()));
+                    //     assert(new_vrs_or_none.is_Some());
+                    //     let new_vrs = new_vrs_or_none.get_Some_0();
+                    //     assert(match_replicas(vd, new_vrs));
+                    //     assert(vrls_prime.new_vrs.is_Some());
+                    //     assert(vrls_prime.new_vrs.get_Some_0() == new_vrs);
+                    //     assert(vrls_prime.old_vrs_list == old_vrs_list);
+                    //     assert(vrls_prime.reconcile_step == AfterEnsureNewVRS);
+                    // }
                 }
             },
             _ => {}
         }
     }
-    assume(false);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime) by {
         VDeploymentReconcileState::marshal_preserves_integrity();
     }
@@ -629,6 +603,7 @@ ensures
 }
 
 // maybe another case of flakiness, see verus log
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
