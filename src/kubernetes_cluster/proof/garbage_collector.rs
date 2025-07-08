@@ -68,7 +68,7 @@ pub open spec fn objects_owner_references_violates(key: ObjectRef, requirements:
 pub open spec fn object_has_no_finalizers(key: ObjectRef) -> StatePred<ClusterState> {
     |s: ClusterState| {
         s.resources().contains_key(key)
-        ==> s.resources()[key].metadata.finalizers.is_None()
+        ==> s.resources()[key].metadata.finalizers is None
     }
 }
 
@@ -79,7 +79,7 @@ spec fn effective_delete_request_msg_for_key(key: ObjectRef, msg: Message) -> St
         && msg.dst.is_APIServer()
         && msg.content.is_delete_request_with_key(key)
         && msg.content.get_delete_request().preconditions->0.uid == s.api_server.resources[key].metadata.uid
-        && msg.content.get_delete_request().preconditions->0.resource_version.is_None()
+        && msg.content.get_delete_request().preconditions->0.resource_version is None
     }
 }
 
@@ -304,7 +304,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                             &&& msg.dst.is_APIServer()
                             &&& msg.content.is_delete_request_with_key(key)
                             &&& msg.content.get_delete_request().preconditions->0.uid == ex.head().api_server.resources[key].metadata.uid
-                            &&& msg.content.get_delete_request().preconditions->0.resource_version.is_None()
+                            &&& msg.content.get_delete_request().preconditions->0.resource_version is None
                         };
                         assert(msg_to_p(msg).satisfied_by(ex));
                     }

@@ -219,7 +219,7 @@ pub open spec fn filter_pods(pods: Seq<PodView>, v_replica_set: VReplicaSetView)
     pods.filter(|pod: PodView|
         pod.metadata.owner_references_contains(v_replica_set.controller_owner_ref())
         && v_replica_set.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-        && pod.metadata.deletion_timestamp.is_None())
+        && pod.metadata.deletion_timestamp is None)
 }
 
 pub open spec fn make_pod(v_replica_set: VReplicaSetView) -> (pod: PodView) {

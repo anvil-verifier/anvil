@@ -332,7 +332,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
                         let etcd_cr = RabbitmqClusterView::unmarshal(s_prime.resources()[key])->Ok_0;
                         assert(msg.content.get_create_request().obj.metadata.owner_references_only_contains(triggering_cr.controller_owner_ref()));
                         assert(certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, triggering_cr));
-                        if triggering_cr.metadata.uid.is_None() || triggering_cr.metadata.uid->0 != etcd_cr.metadata.uid->0 {
+                        if triggering_cr.metadata.uid is None || triggering_cr.metadata.uid->0 != etcd_cr.metadata.uid->0 {
                             assert(!msg.content.get_create_request().obj.metadata.owner_references_only_contains(etcd_cr.controller_owner_ref()));
                         } else {
                             assert(etcd_cr.transition_validation(triggering_cr));

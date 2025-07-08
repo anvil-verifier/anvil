@@ -518,7 +518,7 @@ pub open spec fn resource_create_request_msg_without_name(kind: Kind, namespace:
         msg.dst.is_APIServer()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == namespace
-        && msg.content.get_create_request().obj.metadata.name.is_None()
+        && msg.content.get_create_request().obj.metadata.name is None
         && msg.content.get_create_request().obj.metadata.generate_name is Some
         && msg.content.get_create_request().obj.kind == kind
 }

@@ -414,7 +414,7 @@ pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(self, spec: Temp
         self.controller_models.contains_key(controller_id),
         spec.entails(lift_state(self.init())),
         spec.entails(always(lift_action(self.next()))),
-        forall |cr, resp_o, pre_state| #[trigger] state((self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0) ==> (self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1.is_None(),
+        forall |cr, resp_o, pre_state| #[trigger] state((self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).0) ==> (self.controller_models[controller_id].reconcile_model.transition)(cr, resp_o, pre_state).1 is None,
     ensures spec.entails(always(lift_state(Self::no_pending_req_msg_at_reconcile_state(controller_id, key, state)))),
 {
     let invariant = Self::no_pending_req_msg_at_reconcile_state(controller_id, key, state);
@@ -425,10 +425,10 @@ pub proof fn lemma_always_no_pending_req_msg_at_reconcile_state(self, spec: Temp
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         if s_prime.ongoing_reconciles(controller_id).contains_key(key) && state(s_prime.ongoing_reconciles(controller_id)[key].local_state) {
             if s.controller_and_externals[controller_id] == s_prime.controller_and_externals[controller_id] {
-                assert(s.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
-                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
+                assert(s.ongoing_reconciles(controller_id)[key].pending_req_msg is None);
+                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is None);
             } else {
-                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg.is_None());
+                assert(s_prime.ongoing_reconciles(controller_id)[key].pending_req_msg is None);
             }
         }
     }

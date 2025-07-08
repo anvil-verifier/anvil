@@ -291,7 +291,7 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
         }
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
         // new vrs
-        &&& vds.new_vrs.is_None() ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0.is_None()
+        &&& vds.new_vrs is None ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is None
         &&& vds.new_vrs is Some ==> {
             let new_vrs = vds.new_vrs->0;
             // the get-then-update request can succeed
@@ -329,7 +329,7 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_
                 &&& match_template_without_hash(vd, new_vrs->0)
             },
             None => {
-                new_vrs.is_None()
+                new_vrs is None
             }
         }
     }
@@ -342,7 +342,7 @@ pub open spec fn local_state_is(new_vrs_replicas: Option<int>, old_vrs_list_len:
                 &&& vds.new_vrs is Some
                 &&& vds.new_vrs->0.spec.replicas.unwrap_or(1) == n
             }
-            None => vds.new_vrs.is_None()
+            None => vds.new_vrs is None
         }
         &&& vds.old_vrs_list.len() == old_vrs_list_len
     }

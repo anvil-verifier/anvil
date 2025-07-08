@@ -145,7 +145,7 @@ impl ResourceView for VDeploymentView {
                     (
                         self.spec.strategy->0.type_->0 == "Recreate"@
                         // rollingUpdate block only appear when type == "RollingUpdate"
-                        && self.spec.strategy->0.rolling_update.is_None()
+                        && self.spec.strategy->0.rolling_update is None
                     )
                     || (
                         // maxSurge and maxUnavailable cannot both exist and be 0

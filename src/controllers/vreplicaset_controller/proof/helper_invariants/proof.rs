@@ -863,7 +863,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                         |pod: PodView|
                                         pod.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
                                         && triggering_cr.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                                        && pod.metadata.deletion_timestamp.is_None(),
+                                        && pod.metadata.deletion_timestamp is None,
                                         filtered_pods[i]
                                     );
 

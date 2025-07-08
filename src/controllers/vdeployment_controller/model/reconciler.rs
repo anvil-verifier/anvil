@@ -82,11 +82,11 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             } else {
                 let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
                 let vrs_list_or_none = objects_to_vrs_list(objs);
-                if vrs_list_or_none.is_None() {
+                if vrs_list_or_none is None {
                     (error_state(state), None)
                 } else {
                     let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
-                    if new_vrs.is_None() {
+                    if new_vrs is None {
                         // create the new vrs
                         create_new_vrs(old_vrs_list, vd)
                     } else {

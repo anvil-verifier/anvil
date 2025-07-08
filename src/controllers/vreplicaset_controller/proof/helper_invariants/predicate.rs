@@ -273,8 +273,8 @@ pub open spec fn every_create_request_is_well_formed(cluster: Cluster, controlle
                 spec: req.obj.spec,
                 status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
             };
-            &&& obj.metadata.name.is_None()
-            &&& obj.metadata.deletion_timestamp.is_None()
+            &&& obj.metadata.name is None
+            &&& obj.metadata.deletion_timestamp is None
             &&& created_obj.metadata.namespace is Some
             &&& content.get_create_request().namespace == created_obj.metadata.namespace.unwrap()
             &&& unmarshallable_object(obj, cluster.installed_types)
@@ -437,8 +437,8 @@ pub open spec fn vrs_in_etcd_does_not_have_deletion_timestamp(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.resources().contains_key(vrs.object_ref()) ==> {
-        &&& s.resources()[vrs.object_ref()].metadata.deletion_timestamp.is_None()
-        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.resources()[vrs.object_ref()].metadata.deletion_timestamp is None
+        &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -446,8 +446,8 @@ pub open spec fn vrs_in_schedule_does_not_have_deletion_timestamp(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
-        &&& s.scheduled_reconciles(controller_id)[vrs.object_ref()].metadata.deletion_timestamp.is_None()
-        &&& VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.scheduled_reconciles(controller_id)[vrs.object_ref()].metadata.deletion_timestamp is None
+        &&& VReplicaSetView::unmarshal(s.scheduled_reconciles(controller_id)[vrs.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -455,8 +455,8 @@ pub open spec fn vrs_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     vrs: VReplicaSetView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref()) ==> {
-        &&& s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr.metadata.deletion_timestamp.is_None()
-        &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr.metadata.deletion_timestamp is None
+        &&& VReplicaSetView::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp is None
     }
 }
 

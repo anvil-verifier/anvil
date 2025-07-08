@@ -2681,7 +2681,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                 }
             }
             &&& !at_vrs_step_with_vrs(vrs, controller_id, VReplicaSetRecStepView::AfterListPods)(s) ==> {
-                s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg.is_None()
+                s.ongoing_reconciles(controller_id)[vrs.object_ref()].pending_req_msg is None
             }
         }
     };
@@ -2828,7 +2828,7 @@ pub proof fn lemma_current_state_matches_is_stable(
                         let filter_pods_pred = |pod: PodView| 
                             pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                             && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                            && pod.metadata.deletion_timestamp.is_None();
+                            && pod.metadata.deletion_timestamp is None;
                         assert(filtered_pods.no_duplicates()) by {
                             assert(objects_to_pods(resp_objs).unwrap().no_duplicates());
                             seq_filter_preserves_no_duplicates(objects_to_pods(resp_objs).unwrap(), filter_pods_pred);

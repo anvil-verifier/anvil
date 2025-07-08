@@ -236,7 +236,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     let filter_pods_pred = |pod: PodView| 
         pod.metadata.owner_references_contains(vrs.controller_owner_ref())
         && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-        && pod.metadata.deletion_timestamp.is_None();
+        && pod.metadata.deletion_timestamp is None;
     assert(filtered_pods.no_duplicates()) by {
         assert(objects_to_pods(resp_objs).unwrap().no_duplicates());
         seq_filter_preserves_no_duplicates(objects_to_pods(resp_objs).unwrap(), filter_pods_pred);
@@ -315,7 +315,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             |pod: PodView|
                 pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                 && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp.is_None(),
+                && pod.metadata.deletion_timestamp is None,
             filtered_pods[i]
         );
         seq_filter_contains_implies_seq_contains(
@@ -323,7 +323,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             |pod: PodView|
                 pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                 && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                && pod.metadata.deletion_timestamp.is_None(),
+                && pod.metadata.deletion_timestamp is None,
             filtered_pods[j]
         );
 
@@ -353,7 +353,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
                 |pod: PodView|
                     pod.metadata.owner_references_contains(vrs.controller_owner_ref())
                     && vrs.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
-                    && pod.metadata.deletion_timestamp.is_None(),
+                    && pod.metadata.deletion_timestamp is None,
             );
         } else {
             assert(resp_obj_keys[idxi] == resp_objs[idxi].object_ref());

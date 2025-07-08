@@ -81,7 +81,7 @@ impl ObjectMetaView {
     }
 
     pub open spec fn add_label(self, key: StringView, value: StringView) -> ObjectMetaView {
-        let old_map = if self.labels.is_None() {
+        let old_map = if self.labels is None {
             Map::empty()
         } else {
             self.labels->0
@@ -111,7 +111,7 @@ impl ObjectMetaView {
     }
 
     pub open spec fn add_annotation(self, key: StringView, value: StringView) -> ObjectMetaView {
-        let old_map = if self.annotations.is_None() {
+        let old_map = if self.annotations is None {
             Map::empty()
         } else {
             self.annotations->0
@@ -151,7 +151,7 @@ impl ObjectMetaView {
     }
 
     pub open spec fn finalizers_as_set(self) -> Set<StringView> {
-        if self.finalizers.is_None() {
+        if self.finalizers is None {
             Set::empty()
         } else {
             self.finalizers->0.to_set()

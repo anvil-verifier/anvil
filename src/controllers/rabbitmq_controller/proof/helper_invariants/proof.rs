@@ -1129,13 +1129,13 @@ spec fn resource_object_create_or_update_request_msg_has_one_controller_ref_and_
         forall |msg: RMQMessage| {
             #[trigger] s.in_flight().contains(msg) ==> {
                 &&& resource_update_request_msg(resource_key)(msg)
-                    ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
+                    ==> msg.content.get_update_request().obj.metadata.finalizers is None
                         && exists |uid: Uid| #![auto]
                             msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                                 make_owner_references_with_name_and_uid(key.name, uid)
                             ])
                 &&& resource_create_request_msg(resource_key)(msg)
-                    ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
+                    ==> msg.content.get_create_request().obj.metadata.finalizers is None
                         && exists |uid: Uid| #![auto]
                             msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                                 make_owner_references_with_name_and_uid(key.name, uid)
@@ -1167,7 +1167,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     );
     let create_msg_pred = |msg: RMQMessage| {
         resource_create_request_msg(resource_key)(msg)
-        ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
+        ==> msg.content.get_create_request().obj.metadata.finalizers is None
             && exists |uid: Uid| #![auto]
                 msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, uid)
@@ -1175,7 +1175,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
     };
     let update_msg_pred = |msg: RMQMessage| {
         resource_update_request_msg(resource_key)(msg)
-        ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
+        ==> msg.content.get_update_request().obj.metadata.finalizers is None
             && exists |uid: Uid| #![auto]
                 msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, uid)
@@ -1189,7 +1189,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                 if resource_create_request_msg(resource_key)(msg) {
                     lemma_resource_create_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
                     assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state)->Ok_0);
-                    assert(msg.content.get_create_request().obj.metadata.finalizers.is_None());
+                    assert(msg.content.get_create_request().obj.metadata.finalizers is None);
                     assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
                     ]));

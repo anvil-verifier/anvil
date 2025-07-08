@@ -12,7 +12,7 @@ pub open spec fn run_scheduled_reconcile(model: ReconcileModel) -> ControllerAct
             &&& input.scheduled_cr_key is Some
             &&& input.scheduled_cr_key->0.kind == model.kind
             &&& s.scheduled_reconciles.contains_key(input.scheduled_cr_key->0)
-            &&& input.recv.is_None()
+            &&& input.recv is None
             &&& !s.ongoing_reconciles.contains_key(input.scheduled_cr_key->0)
         },
         transition: |input: ControllerActionInput, s: ControllerState| {
@@ -54,7 +54,7 @@ pub open spec fn continue_reconcile(model: ReconcileModel, controller_id: int) -
                     &&& (input.recv->0.content.is_APIResponse() || input.recv->0.content.is_ExternalResponse())
                     &&& resp_msg_matches_req_msg(input.recv->0, s.ongoing_reconciles[cr_key].pending_req_msg->0)
                 } else {
-                    input.recv.is_None()
+                    input.recv is None
                 }
             } else {
                 false
@@ -114,7 +114,7 @@ pub open spec fn end_reconcile(model: ReconcileModel) -> ControllerAction {
                 &&& cr_key.kind == model.kind
                 &&& s.ongoing_reconciles.contains_key(cr_key)
                 &&& (model.done)(s.ongoing_reconciles[cr_key].local_state) || (model.error)(s.ongoing_reconciles[cr_key].local_state)
-                &&& input.recv.is_None()
+                &&& input.recv is None
             } else {
                 false
             }

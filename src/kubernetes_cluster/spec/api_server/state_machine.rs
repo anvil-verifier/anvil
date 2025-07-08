@@ -217,7 +217,7 @@ pub open spec fn handle_list_request(req: ListRequest, s: APIServerState) -> Lis
 }
 
 pub open spec fn create_request_admission_check(installed_types: InstalledTypes, req: CreateRequest, s: APIServerState) -> Option<APIError> {
-    if req.obj.metadata.name.is_None() && req.obj.metadata.generate_name.is_None() {
+    if req.obj.metadata.name is None && req.obj.metadata.generate_name is None {
         // Creation fails because neither the name nor the generate_name of the provided object is provided
         Some(APIError::Invalid)
     } else if req.obj.metadata.namespace is Some && req.namespace != req.obj.metadata.namespace->0 {
@@ -416,7 +416,7 @@ pub open spec fn update_request_admission_check_helper(installed_types: Installe
         namespace: namespace,
         name: name,
     };
-    if obj.metadata.name.is_None() {
+    if obj.metadata.name is None {
         // Update fails because the name of the object is not provided
         Some(APIError::BadRequest)
     } else if name != obj.metadata.name->0 {
@@ -436,7 +436,7 @@ pub open spec fn update_request_admission_check_helper(installed_types: Installe
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
-    } else if obj.metadata.resource_version.is_None()
+    } else if obj.metadata.resource_version is None
         && !allow_unconditional_update(key.kind) {
         // Update fails because the object does not provide a rv and unconditional update is not supported
         Some(APIError::Invalid)
@@ -509,7 +509,7 @@ pub open spec fn handle_update_request(installed_types: InstalledTypes, req: Upd
                 (s, UpdateResponse{res: Err(updated_object_validity_check(updated_obj_with_new_rv, old_obj, installed_types)->0)})
             } else {
                 // Update succeeds.
-                if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
+                if updated_obj_with_new_rv.metadata.deletion_timestamp is None
                     || (updated_obj_with_new_rv.metadata.finalizers is Some
                         && updated_obj_with_new_rv.metadata.finalizers->0.len() > 0)
                 {

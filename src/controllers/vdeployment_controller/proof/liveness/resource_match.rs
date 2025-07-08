@@ -121,7 +121,7 @@ ensures
         assert forall |i: (Option<int>, nat)| #![trigger after_list_with_etcd_state(msg, i.0, i.1)] spec.entails(after_list_with_etcd_state(msg, i.0, i.1).leads_to(tla_exists(|n| after_ensure_vrs(n)))) by {
             let (replicas, n) = i;
             // new vrs does not exists. Here the existance is encoded as is_Some, and replicas is get_Some_0
-            if replicas.is_None() {
+            if replicas is None {
                 // AfterListVRS ~> AfterCreateNewVRS
                 let create_vrs_req = lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -660,7 +660,7 @@ ensures
                         assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
                         assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
                         let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
-                        assert(new_vrs_or_none.is_None());
+                        assert(new_vrs_or_none is None);
                         // try comment out the next line
                         assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
                         assert(vrls_prime == create_new_vrs(old_vrs_list, vd).0);

@@ -388,8 +388,8 @@ pub open spec fn vd_in_etcd_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.resources().contains_key(vd.object_ref()) ==> {
-        &&& s.resources()[vd.object_ref()].metadata.deletion_timestamp.is_None()
-        &&& VDeploymentView::unmarshal(s.resources()[vd.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.resources()[vd.object_ref()].metadata.deletion_timestamp is None
+        &&& VDeploymentView::unmarshal(s.resources()[vd.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -397,8 +397,8 @@ pub open spec fn vd_in_schedule_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-        &&& s.scheduled_reconciles(controller_id)[vd.object_ref()].metadata.deletion_timestamp.is_None()
-        &&& VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.scheduled_reconciles(controller_id)[vd.object_ref()].metadata.deletion_timestamp is None
+        &&& VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap().metadata().deletion_timestamp is None
     }
 }
 
@@ -406,8 +406,8 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     vd: VDeploymentView, controller_id: int,
 ) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
-        &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr.metadata.deletion_timestamp.is_None()
-        &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp.is_None()
+        &&& s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr.metadata.deletion_timestamp is None
+        &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap().metadata().deletion_timestamp is None
     }
 }
 

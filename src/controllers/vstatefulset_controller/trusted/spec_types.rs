@@ -133,7 +133,7 @@ impl ResourceView for VStatefulSetView {
                     (
                         self.spec.update_strategy->0.type_->0 == "OnDelete"@
                         // rollingUpdate block only appear when type == "RollingUpdate"
-                        && self.spec.update_strategy->0.rolling_update.is_None()
+                        && self.spec.update_strategy->0.rolling_update is None
                     )
                     || (
                         self.spec.update_strategy->0.type_->0 == "RollingUpdate"@
