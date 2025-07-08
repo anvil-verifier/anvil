@@ -168,10 +168,7 @@ ensures
                     .satisfied_by(ex) by {
                 let s_marshalled = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].local_state;
                 let witness_n = VDeploymentReconcileState::unmarshal(s_marshalled).unwrap().old_vrs_list.len();
-                tla_exists_proved_by_witness(
-                    ex, |n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))),
-                    witness_n
-                );
+                assert((|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))(witness_n).satisfied_by(ex));
             }
         assert(spec.entails(p.leads_to(lift_state(reconcile_idle)))) by {
             // p ~> p(n)
