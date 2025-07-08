@@ -377,7 +377,7 @@ pub open spec fn garbage_collector_does_not_delete_vd_pods(vd: VDeploymentView) 
             &&& s.resources().contains_key(req_msg.key) ==> {
                 let etcd_obj = s.resources()[req_msg.key];
                 let owner_references = etcd_obj.metadata.owner_references->0;
-                ||| (!etcd_obj.metadata.owner_references is Some && owner_references.contains(vd.controller_owner_ref()))
+                ||| (!(etcd_obj.metadata.owner_references is Some) && owner_references.contains(vd.controller_owner_ref()))
                 ||| etcd_obj.metadata.uid.unwrap() > req_msg.preconditions.unwrap().uid.unwrap()
             }
         }
