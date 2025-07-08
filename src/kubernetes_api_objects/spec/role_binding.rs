@@ -91,15 +91,15 @@ impl ResourceView for RoleBindingView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleBindingView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(RoleBindingView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !RoleBindingView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(RoleBindingView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(RoleBindingView {
                 metadata: obj.metadata,
-                role_ref: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().0,
-                subjects: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().1,
+                role_ref: RoleBindingView::unmarshal_spec(obj.spec)->Ok_0.0,
+                subjects: RoleBindingView::unmarshal_spec(obj.spec)->Ok_0.1,
             })
         }
     }

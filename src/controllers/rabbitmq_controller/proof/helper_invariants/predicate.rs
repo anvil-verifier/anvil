@@ -54,8 +54,8 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<RMQC
         #[trigger] s.resources().contains_key(key)
         && key.kind.is_CustomResourceKind()
         && key.kind == RabbitmqClusterView::kind()
-        ==> RabbitmqClusterView::unmarshal(s.resources()[key]).is_Ok()
-            && RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
+        ==> RabbitmqClusterView::unmarshal(s.resources()[key]) is Ok
+            && RabbitmqClusterView::unmarshal(s.resources()[key])->Ok_0.state_validation()
     }
 }
 
@@ -81,8 +81,8 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> spec_fn(RMQMessage
         msg.src.is_ApiServer()
         && msg.content.is_get_response()
         && (
-            msg.content.get_get_response().res.is_Ok()
-            ==> msg.content.get_get_response().res.get_Ok_0().object_ref() == key
+            msg.content.get_get_response().res is Ok
+            ==> msg.content.get_get_response().res->Ok_0.object_ref() == key
         )
 }
 
@@ -91,10 +91,10 @@ pub open spec fn resource_update_response_msg(key: ObjectRef, s: RMQCluster) -> 
         msg.src.is_ApiServer()
         && msg.content.is_update_response()
         && (
-            msg.content.get_update_response().res.is_Ok()
+            msg.content.get_update_response().res is Ok
             ==> (
                 s.resources().contains_key(key)
-                && msg.content.get_update_response().res.get_Ok_0() == s.resources()[key]
+                && msg.content.get_update_response().res->Ok_0 == s.resources()[key]
             )
         )
 }
@@ -104,10 +104,10 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: RMQCluster) -> 
         msg.src.is_ApiServer()
         && msg.content.is_create_response()
         && (
-            msg.content.get_create_response().res.is_Ok()
+            msg.content.get_create_response().res is Ok
             ==> (
                 s.resources().contains_key(key)
-                && msg.content.get_create_response().res.get_Ok_0() == s.resources()[key]
+                && msg.content.get_create_response().res->Ok_0 == s.resources()[key]
             )
         )
 }
@@ -211,8 +211,8 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& RMQCluster::pending_req_msg_is(s, key, msg)
-            &&& make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state).is_Ok()
-            &&& msg.content.get_create_request().obj == make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state).get_Ok_0()
+            &&& make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state) is Ok
+            &&& msg.content.get_create_request().obj == make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state)->Ok_0
         }
     }
 }
@@ -233,8 +233,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
                 s.resources().contains_key(resource_key)
                 && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
             ) ==> (
-                update(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).is_Ok()
-                && msg.content.get_update_request().obj == update(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).get_Ok_0()
+                update(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]) is Ok
+                && msg.content.get_update_request().obj == update(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key])->Ok_0
             )
         }
     }

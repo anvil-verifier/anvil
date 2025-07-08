@@ -30,8 +30,8 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let ds = DaemonSetView::unmarshal(obj);
-        let found_ds = ds.get_Ok_0();
-        if ds.is_Ok() && found_ds.metadata.owner_references_only_contains(fb.controller_owner_ref()) && found_ds.spec is Some {
+        let found_ds = ds->Ok_0;
+        if ds is Ok && found_ds.metadata.owner_references_only_contains(fb.controller_owner_ref()) && found_ds.spec is Some {
             Ok(update_daemon_set(fb, found_ds).marshal())
         } else {
             Err(())
@@ -40,7 +40,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
 
     open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let ds = DaemonSetView::unmarshal(obj);
-        if ds.is_Ok() {
+        if ds is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::Done,
                 ..state
@@ -53,7 +53,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for DaemonSetBuilde
 
     open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let ds = DaemonSetView::unmarshal(obj);
-        if ds.is_Ok() {
+        if ds is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::Done,
                 ..state

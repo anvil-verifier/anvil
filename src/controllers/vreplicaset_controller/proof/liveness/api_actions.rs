@@ -296,7 +296,7 @@ pub proof fn lemma_create_matching_pod_request_adds_matching_pod_and_returns_ok(
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     ensures
         resp_msg == handle_create_request_msg(cluster.installed_types, msg, s.api_server).1,
-        resp_msg.content.get_create_response().res.is_Ok(),
+        resp_msg.content.get_create_response().res is Ok,
         matching_pods(vrs, s.resources()).insert(
             new_obj_in_etcd(
                 s, cluster, 
@@ -379,7 +379,7 @@ pub proof fn lemma_get_then_delete_matching_pod_request_deletes_matching_pod_and
         cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     ensures
         resp_msg == handle_get_then_delete_request_msg(msg, s.api_server).1,
-        resp_msg.content.get_get_then_delete_response().res.is_Ok(),
+        resp_msg.content.get_get_then_delete_response().res is Ok,
         // identifies specific pod deleted.
         ({
             let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();

@@ -225,8 +225,8 @@ pub open spec fn at_after_get_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
-            &&& resp_msg.content.get_get_response().res.get_Ok_0() == s.resources()[key]
+            &&& resp_msg.content.get_get_response().res is Ok
+            &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
         }
     }
 }
@@ -247,7 +247,7 @@ pub open spec fn at_after_exists_stateful_set_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
+            &&& resp_msg.content.get_get_response().res is Ok
         }
     }
 }
@@ -271,8 +271,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(
         &&& s.resources().contains_key(key)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_get_response().res.is_Ok()
-        &&& resp_msg.content.get_get_response().res.get_Ok_0() == s.resources()[key]
+        &&& resp_msg.content.get_get_response().res is Ok
+        &&& resp_msg.content.get_get_response().res->Ok_0 == s.resources()[key]
     }
 }
 
@@ -291,7 +291,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_exists_stateful_set_
         &&& request.get_GetRequest_0() == get_request(SubResource::StatefulSet, zk)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_get_response().res.is_Ok()
+        &&& resp_msg.content.get_get_response().res is Ok
     }
 }
 
@@ -394,8 +394,8 @@ pub open spec fn at_after_create_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_create_response().res.is_Ok()
-            &&& state_after_create(sub_resource, zk, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[zk.object_ref()].local_state).is_Ok()
+            &&& resp_msg.content.get_create_response().res is Ok
+            &&& state_after_create(sub_resource, zk, resp_msg.content.get_create_response().res->Ok_0, s.ongoing_reconciles()[zk.object_ref()].local_state) is Ok
         }
     }
 }
@@ -414,8 +414,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_resource_step
         &&& resource_create_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_create_response().res.is_Ok()
-        &&& state_after_create(sub_resource, zk, resp_msg.content.get_create_response().res.get_Ok_0(), s.ongoing_reconciles()[zk.object_ref()].local_state).is_Ok()
+        &&& resp_msg.content.get_create_response().res is Ok
+        &&& state_after_create(sub_resource, zk, resp_msg.content.get_create_response().res->Ok_0, s.ongoing_reconciles()[zk.object_ref()].local_state) is Ok
     }
 }
 
@@ -469,8 +469,8 @@ pub open spec fn at_after_update_resource_step_and_exists_ok_resp_in_flight(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_update_response().res.is_Ok()
-            &&& state_after_update(sub_resource, zk, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[zk.object_ref()].local_state).is_Ok()
+            &&& resp_msg.content.get_update_response().res is Ok
+            &&& state_after_update(sub_resource, zk, resp_msg.content.get_update_response().res->Ok_0, s.ongoing_reconciles()[zk.object_ref()].local_state) is Ok
         }
     }
 }
@@ -489,8 +489,8 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_update_resource_step
         &&& resource_update_request_msg(key)(msg)
         &&& s.in_flight().contains(resp_msg)
         &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_update_response().res.is_Ok()
-        &&& state_after_update(sub_resource, zk, resp_msg.content.get_update_response().res.get_Ok_0(), s.ongoing_reconciles()[zk.object_ref()].local_state).is_Ok()
+        &&& resp_msg.content.get_update_response().res is Ok
+        &&& state_after_update(sub_resource, zk, resp_msg.content.get_update_response().res->Ok_0, s.ongoing_reconciles()[zk.object_ref()].local_state) is Ok
     }
 }
 

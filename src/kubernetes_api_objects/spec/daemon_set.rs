@@ -83,15 +83,15 @@ impl ResourceView for DaemonSetView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(DaemonSetView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !DaemonSetView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(DaemonSetView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(DaemonSetView {
                 metadata: obj.metadata,
-                spec: DaemonSetView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: DaemonSetView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: DaemonSetView::unmarshal_spec(obj.spec)->Ok_0,
+                status: DaemonSetView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

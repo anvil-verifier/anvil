@@ -33,8 +33,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        let found_service = service.get_Ok_0();
-        if service.is_Ok() && found_service.spec is Some {
+        let found_service = service->Ok_0;
+        if service is Ok && found_service.spec is Some {
             Ok(update_main_service(rabbitmq, found_service).marshal())
         } else {
             Err(())
@@ -43,7 +43,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state
@@ -57,7 +57,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceBui
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state

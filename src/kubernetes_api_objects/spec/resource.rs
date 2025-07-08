@@ -15,7 +15,7 @@ pub trait Marshallable: Sized {
     spec fn unmarshal(v: Value) -> Result<Self, UnmarshalError>;
 
     proof fn marshal_preserves_integrity()
-        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
+        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()) is Ok && o == Self::unmarshal(o.marshal())->Ok_0;
 }
 
 // This trait defines the methods that each ghost type of Kubernetes resource object should implement
@@ -67,13 +67,13 @@ pub trait ResourceView: Sized {
     // Check if the data integrity is preserved after converting to and back from dynamic object
 
     proof fn marshal_preserves_integrity()
-        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
+        ensures forall |o: Self| Self::unmarshal(#[trigger] o.marshal()) is Ok && o == Self::unmarshal(o.marshal())->Ok_0;
 
     proof fn marshal_preserves_metadata()
-        ensures forall |d: DynamicObjectView| #[trigger] Self::unmarshal(d).is_Ok() ==> d.metadata == Self::unmarshal(d).get_Ok_0().metadata();
+        ensures forall |d: DynamicObjectView| #[trigger] Self::unmarshal(d) is Ok ==> d.metadata == Self::unmarshal(d)->Ok_0.metadata();
 
     proof fn marshal_preserves_kind()
-        ensures forall |d: DynamicObjectView| #[trigger] Self::unmarshal(d).is_Ok() ==> d.kind == Self::kind();
+        ensures forall |d: DynamicObjectView| #[trigger] Self::unmarshal(d) is Ok ==> d.kind == Self::kind();
 
     spec fn marshal_spec(s: Self::Spec) -> Value;
 
@@ -84,20 +84,20 @@ pub trait ResourceView: Sized {
     spec fn unmarshal_status(v: Value) -> Result<Self::Status, UnmarshalError>;
 
     proof fn marshal_spec_preserves_integrity()
-        ensures forall |s: Self::Spec| Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok() && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
+        ensures forall |s: Self::Spec| Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)) is Ok && s == Self::unmarshal_spec(Self::marshal_spec(s))->Ok_0;
 
     proof fn marshal_status_preserves_integrity()
-        ensures forall |s: Self::Status| Self::unmarshal_status(#[trigger] Self::marshal_status(s)).is_Ok() && s == Self::unmarshal_status(Self::marshal_status(s)).get_Ok_0();
+        ensures forall |s: Self::Status| Self::unmarshal_status(#[trigger] Self::marshal_status(s)) is Ok && s == Self::unmarshal_status(Self::marshal_status(s))->Ok_0;
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status()
         ensures
             // unmarshal is OK iff unmarshal_spec and unmarshaml_status are OK
             forall |obj: DynamicObjectView| obj.kind == Self::kind()
-                ==> #[trigger] Self::unmarshal(obj).is_Ok() == (Self::unmarshal_spec(obj.spec).is_Ok() && Self::unmarshal_status(obj.status).is_Ok()),
+                ==> #[trigger] Self::unmarshal(obj) is Ok == (Self::unmarshal_spec(obj.spec) is Ok && Self::unmarshal_status(obj.status) is Ok),
             // if unmarshal is OK then unmarshalling the spec (status) gives you the spec (status) of the unmarshalled object
-            forall |obj: DynamicObjectView| #[trigger] Self::unmarshal(obj).is_Ok()
-                ==> Self::unmarshal_spec(obj.spec).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().spec()
-                    && Self::unmarshal_status(obj.status).get_Ok_0() == Self::unmarshal(obj).get_Ok_0().status();
+            forall |obj: DynamicObjectView| #[trigger] Self::unmarshal(obj) is Ok
+                ==> Self::unmarshal_spec(obj.spec)->Ok_0 == Self::unmarshal(obj)->Ok_0.spec()
+                    && Self::unmarshal_status(obj.status)->Ok_0 == Self::unmarshal(obj)->Ok_0.status();
 
     // This method specifies the validation rule that only checks the new object.
     spec fn state_validation(self) -> bool;

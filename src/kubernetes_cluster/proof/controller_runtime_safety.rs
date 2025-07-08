@@ -448,7 +448,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation<T: CustomResourceVi
             #[trigger] s.resources().contains_key(key)
             && key.kind.is_CustomResourceKind()
             && key.kind == T::kind()
-            ==> unmarshal_result.is_Ok()
+            ==> unmarshal_result is Ok
                 && unmarshal_result.unwrap().state_validation()
         }
     }
@@ -494,7 +494,7 @@ pub open spec fn cr_objects_in_schedule_satisfy_state_validation<T: CustomResour
             #[trigger] s.scheduled_reconciles(controller_id).contains_key(key)
             && key.kind.is_CustomResourceKind()
             && key.kind == T::kind()
-            ==> unmarshal_result.is_Ok()
+            ==> unmarshal_result is Ok
                 && unmarshal_result.unwrap().state_validation()
         }
     }
@@ -537,7 +537,7 @@ pub open spec fn cr_objects_in_reconcile_satisfy_state_validation<T: CustomResou
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
             && key.kind.is_CustomResourceKind()
             && key.kind == T::kind()
-            ==> unmarshal_result.is_Ok()
+            ==> unmarshal_result is Ok
                 && unmarshal_result.unwrap().state_validation()
         }
     }
@@ -583,7 +583,7 @@ pub open spec fn cr_states_are_unmarshallable<S: Marshallable, K: CustomResource
             #[trigger] s.ongoing_reconciles(controller_id).contains_key(key)
             && key.kind.is_CustomResourceKind()
             && key.kind == K::kind()
-            ==> unmarshal_result.is_Ok()
+            ==> unmarshal_result is Ok
         }
     }
 }

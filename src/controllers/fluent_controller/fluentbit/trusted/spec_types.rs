@@ -94,15 +94,15 @@ impl ResourceView for FluentBitView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<FluentBitView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !FluentBitView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(FluentBitView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !FluentBitView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(FluentBitView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(FluentBitView {
                 metadata: obj.metadata,
-                spec: FluentBitView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: FluentBitView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: FluentBitView::unmarshal_spec(obj.spec)->Ok_0,
+                status: FluentBitView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

@@ -125,9 +125,9 @@ pub open spec fn validate_config_map_data(data: Map<StringView, StringView>) -> 
 }
 
 pub open spec fn validate_config_map_object(object: DynamicObjectView) -> bool {
-    &&& ConfigMapView::unmarshal(object).is_Ok()
-    &&& ConfigMapView::unmarshal(object).get_Ok_0().data is Some
-    &&& validate_config_map_data(ConfigMapView::unmarshal(object).get_Ok_0().data->0)
+    &&& ConfigMapView::unmarshal(object) is Ok
+    &&& ConfigMapView::unmarshal(object)->Ok_0.data is Some
+    &&& validate_config_map_data(ConfigMapView::unmarshal(object)->Ok_0.data->0)
 }
 
 pub open spec fn validate_config_map(name: StringView, namespace: StringView, resources: StoredState) -> bool {
@@ -146,10 +146,10 @@ pub open spec fn validate_stateful_set(name: StringView, namespace: StringView, 
         namespace: namespace,
         name: name,
     };
-    let sts_spec = StatefulSetView::unmarshal(resources[sts_key]).get_Ok_0().spec;
+    let sts_spec = StatefulSetView::unmarshal(resources[sts_key])->Ok_0.spec;
     // The stateful set object exists
     &&& resources.contains_key(sts_key)
-    &&& StatefulSetView::unmarshal(resources[sts_key]).is_Ok()
+    &&& StatefulSetView::unmarshal(resources[sts_key]) is Ok
     &&& sts_spec is Some
     &&& sts_spec->0.replicas is Some
     // and it has at least one replica to handle the request

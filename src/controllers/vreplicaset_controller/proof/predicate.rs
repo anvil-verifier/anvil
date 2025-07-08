@@ -186,13 +186,13 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matching_pods(
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
     &&& resp_msg.content.is_list_response()
-    &&& resp_msg.content.get_list_response().res.is_Ok()
+    &&& resp_msg.content.get_list_response().res is Ok
     &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
     &&& objects_to_pods(resp_objs) is Some
     &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
     &&& resp_objs.no_duplicates()
     &&& resp_obj_keys.no_duplicates()
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
 }
@@ -242,7 +242,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_create_pod_step(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_create_response().res.is_Ok()
+            &&& resp_msg.content.get_create_response().res is Ok
         }
     }
 }
@@ -260,7 +260,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_create_pod_step(
         &&& req_msg_is_create_matching_pod_req(vrs, msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_create_response().res.is_Ok()
+        &&& resp_msg.content.get_create_response().res is Ok
     }
 }
 
@@ -347,7 +347,7 @@ pub open spec fn exists_ok_resp_in_flight_at_after_delete_pod_step(
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+            &&& resp_msg.content.get_get_then_delete_response().res is Ok
         }
     }
 }
@@ -367,7 +367,7 @@ pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_delete_pod_step(
         &&& request.is_GetThenDeleteRequest()
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
-        &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+        &&& resp_msg.content.get_get_then_delete_response().res is Ok
     }
 }
 
@@ -416,7 +416,7 @@ pub open spec fn filtered_pods_in_vrs_matching_pods(
         &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
             &&& s.resources().contains_key(filtered_pod_keys[i])
             &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
-            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
         }
     }
 }

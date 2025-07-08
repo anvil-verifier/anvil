@@ -172,7 +172,7 @@ ensures
                             &&& #[trigger] s.in_flight().contains(resp_msg)
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                             &&& resp_msg.content.is_create_response()
-                            &&& resp_msg.content.get_create_response().res.is_Ok()
+                            &&& resp_msg.content.get_create_response().res is Ok
                         };
                         assert((|msg| create_vrs_resp_msg(msg))(resp_msg).satisfied_by(ex));
                     }
@@ -243,7 +243,7 @@ ensures
                                 &&& #[trigger] s.in_flight().contains(resp_msg)
                                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                                 &&& resp_msg.content.is_get_then_update_response()
-                                &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+                                &&& resp_msg.content.get_get_then_update_response().res is Ok
                             };
                             assert((|msg| scale_new_vrs_resp_msg(msg))(resp_msg).satisfied_by(ex));
                         }
@@ -363,7 +363,7 @@ ensures
                         &&& #[trigger] s.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.is_get_then_update_response()
-                        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+                        &&& resp_msg.content.get_get_then_update_response().res is Ok
                     };
                     assert((|msg| scale_down_resp_msg_zero(msg))(resp_msg).satisfied_by(ex));
                 }
@@ -564,7 +564,7 @@ ensures
                     //     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                     //     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
                     //     assert(resp_msg.content.is_list_response());
-                    //     assert(resp_msg.content.get_list_response().res.is_Ok());
+                    //     assert(resp_msg.content.get_list_response().res is Ok);
                     //     assert(vrs_list_or_none is Some);
                     //     assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
                     //     assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
@@ -655,7 +655,7 @@ ensures
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         let vrs_list_or_none = objects_to_vrs_list(resp_objs);
                         assert(resp_msg.content.is_list_response());
-                        assert(resp_msg.content.get_list_response().res.is_Ok());
+                        assert(resp_msg.content.get_list_response().res is Ok);
                         assert(vrs_list_or_none is Some);
                         assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
                         assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
@@ -1367,7 +1367,7 @@ ensures
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                 &&& resp_msg.content.is_get_then_update_response()
-                &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+                &&& resp_msg.content.get_get_then_update_response().res is Ok
             };
             assert((|msg: Message| scale_resp_msg(msg, n))(resp_msg).satisfied_by(ex));
         }

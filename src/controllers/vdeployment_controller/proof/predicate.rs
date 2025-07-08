@@ -108,12 +108,12 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
     &&& resp_msg.content.is_list_response()
-    &&& resp_msg.content.get_list_response().res.is_Ok()
+    &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.no_duplicates()
     &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()
     &&& filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list)) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
-    // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).is_Ok()
+    // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj) is Ok
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace is Some
     // &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace
 }
@@ -163,7 +163,7 @@ pub open spec fn resp_msg_is_ok_create_new_vrs_resp(
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_create_response()
-        &&& resp_msg.content.get_create_response().res.is_Ok()
+        &&& resp_msg.content.get_create_response().res is Ok
     }
 }
 
@@ -180,7 +180,7 @@ pub open spec fn exists_resp_msg_is_ok_create_new_vrs_resp(
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             // we don't need info on content of the response at the moment
             &&& resp_msg.content.is_create_response()
-            &&& resp_msg.content.get_create_response().res.is_Ok()
+            &&& resp_msg.content.get_create_response().res is Ok
         }
     }
 }
@@ -196,7 +196,7 @@ pub open spec fn resp_msg_is_ok_get_then_update_resp_with_replicas(
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_get_then_update_response()
-        &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+        &&& resp_msg.content.get_get_then_update_response().res is Ok
     }
 }
 
@@ -213,7 +213,7 @@ pub open spec fn exists_resp_msg_is_ok_get_then_update_resp_with_replicas(
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             // we don't need info on content of the response at the moment
             &&& resp_msg.content.is_get_then_update_response()
-            &&& resp_msg.content.get_get_then_update_response().res.is_Ok()
+            &&& resp_msg.content.get_get_then_update_response().res is Ok
         }
     }
 }

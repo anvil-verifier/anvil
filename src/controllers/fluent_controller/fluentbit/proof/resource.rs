@@ -73,19 +73,19 @@ pub open spec fn state_after_update(sub_resource: SubResource, fb: FluentBitView
 pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, fb: FluentBitView) -> bool {
     match sub_resource {
         SubResource::ServiceAccount => {
-            &&& ServiceAccountView::unmarshal(object).is_Ok()
-            &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(fb).automount_service_account_token
+            &&& ServiceAccountView::unmarshal(object) is Ok
+            &&& ServiceAccountView::unmarshal(object)->Ok_0.automount_service_account_token == make_service_account(fb).automount_service_account_token
         },
         SubResource::RoleBinding => {
-            let rb = RoleBindingView::unmarshal(object).get_Ok_0();
-            &&& RoleBindingView::unmarshal(object).is_Ok()
+            let rb = RoleBindingView::unmarshal(object)->Ok_0;
+            &&& RoleBindingView::unmarshal(object) is Ok
             &&& rb.role_ref == make_role_binding(fb).role_ref
         },
         SubResource::Service => {
             let service = ServiceView::unmarshal(object);
-            &&& service.is_Ok()
-            &&& service.get_Ok_0().spec is Some
-            &&& service.get_Ok_0().spec->0.publish_not_ready_addresses.is_None()
+            &&& service is Ok
+            &&& service->Ok_0.spec is Some
+            &&& service->Ok_0.spec->0.publish_not_ready_addresses.is_None()
         },
         _ => true,
     }

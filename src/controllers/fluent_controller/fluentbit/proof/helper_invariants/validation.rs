@@ -37,7 +37,7 @@ verus! {
 // object (except the key of fb); and (2) these fields won't be updated during update.
 pub open spec fn certain_fields_of_daemon_set_stay_unchanged(obj: DynamicObjectView, fb: FluentBitView) -> bool {
     let made_spec = make_daemon_set(fb).spec->0;
-    let ds = DaemonSetView::unmarshal(obj).get_Ok_0();
+    let ds = DaemonSetView::unmarshal(obj)->Ok_0;
 
     obj.metadata.owner_references_only_contains(fb.controller_owner_ref()) ==> made_spec == DaemonSetSpecView {
         template: made_spec.template,
@@ -51,7 +51,7 @@ pub open spec fn daemon_set_in_etcd_satisfies_unchangeable(fb: FluentBitView) ->
     |s: FBCluster| {
         s.resources().contains_key(key)
         && s.resources().contains_key(ds_key)
-        ==> certain_fields_of_daemon_set_stay_unchanged(s.resources()[ds_key], FluentBitView::unmarshal(s.resources()[key]).get_Ok_0())
+        ==> certain_fields_of_daemon_set_stay_unchanged(s.resources()[ds_key], FluentBitView::unmarshal(s.resources()[key])->Ok_0)
     }
 }
 
@@ -100,15 +100,15 @@ pub proof fn lemma_always_daemon_set_in_etcd_satisfies_unchangeable(spec: TempPr
                     let owner_refs = s.resources()[ds_key].metadata.owner_references;
                     if owner_refs is Some && owner_refs->0.len() == 1 {
                         assert(owner_refs->0[0].uid != s.kubernetes_api_state.uid_counter);
-                        assert(owner_refs->0[0] != FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                        assert(owner_refs->0[0] != FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
                     }
                 } else if s.resources()[key] != s_prime.resources()[key] {
                     assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
-                    assert(FluentBitView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref() == FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
-                    assert(FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()
-                        .transition_validation(FluentBitView::unmarshal(s.resources()[key]).get_Ok_0()));
+                    assert(FluentBitView::unmarshal(s.resources()[key])->Ok_0.controller_owner_ref() == FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
+                    assert(FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0
+                        .transition_validation(FluentBitView::unmarshal(s.resources()[key])->Ok_0));
                 }
-                assert(certain_fields_of_daemon_set_stay_unchanged(s_prime.resources()[ds_key], FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                assert(certain_fields_of_daemon_set_stay_unchanged(s_prime.resources()[ds_key], FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0));
             } else {
                 let step = choose |step| FBCluster::next_step(s, s_prime, step);
                 match step {
@@ -261,7 +261,7 @@ pub open spec fn daemon_set_in_create_request_msg_satisfies_unchangeable(fb: Flu
             s.in_flight().contains(msg)
             && s.resources().contains_key(key)
             && #[trigger] resource_create_request_msg(DaemonSetBuilder::get_request(fb).key)(msg)
-            ==> certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s.resources()[key]).get_Ok_0())
+            ==> certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s.resources()[key])->Ok_0)
     }
 }
 
@@ -300,23 +300,23 @@ proof fn lemma_always_daemon_set_in_create_request_msg_satisfies_unchangeable(sp
         let key = fb.object_ref();
         let ds_key = make_daemon_set_key(fb);
         assert forall |msg| s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && #[trigger] resource_create_request_msg(ds_key)(msg)
-        implies certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
+        implies certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0) by {
             let step = choose |step| FBCluster::next_step(s, s_prime, step);
             match step {
                 Step::ApiServerStep(input) => {
                     assert(s.controller_state == s_prime.controller_state);
                     assert(s.in_flight().contains(msg));
                     if s.resources().contains_key(key) {
-                        assert(FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()
-                        .transition_validation(FluentBitView::unmarshal(s.resources()[key]).get_Ok_0()));
+                        assert(FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0
+                        .transition_validation(FluentBitView::unmarshal(s.resources()[key])->Ok_0));
                     } else {
                         assert(s_prime.resources()[key].metadata.uid is Some);
                         assert(s_prime.resources()[key].metadata.uid->0 == s.kubernetes_api_state.uid_counter);
                         let owner_refs = msg.content.get_create_request().obj.metadata.owner_references;
                         assert(owner_refs is Some && owner_refs->0.len() == 1);
                         assert(owner_refs->0[0].uid != s.kubernetes_api_state.uid_counter);
-                        assert(owner_refs->0[0] != FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
-                        assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                        assert(owner_refs->0[0] != FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0.controller_owner_ref());
+                        assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0));
                     }
                 },
                 Step::ControllerStep(input) => {
@@ -325,7 +325,7 @@ proof fn lemma_always_daemon_set_in_create_request_msg_satisfies_unchangeable(sp
                         DaemonSetView::marshal_spec_preserves_integrity();
                         lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(ds_res, fb, s, s_prime, msg, step);
                         let triggering_cr = s.ongoing_reconciles()[key].triggering_cr;
-                        let etcd_cr = FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0();
+                        let etcd_cr = FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0;
                         assert(msg.content.get_create_request().obj.metadata.owner_references_only_contains(triggering_cr.controller_owner_ref()));
                         assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, triggering_cr));
                         if triggering_cr.metadata.uid.is_None() || triggering_cr.metadata.uid->0 != etcd_cr.metadata.uid->0 {
@@ -333,9 +333,9 @@ proof fn lemma_always_daemon_set_in_create_request_msg_satisfies_unchangeable(sp
                         } else {
                             assert(etcd_cr.transition_validation(triggering_cr));
                         }
-                        assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                        assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0));
                     }
-                    assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                    assert(certain_fields_of_daemon_set_stay_unchanged(msg.content.get_create_request().obj, FluentBitView::unmarshal(s_prime.resources()[key])->Ok_0));
                 },
                 Step::BuiltinControllersStep(_) => {
                     assert(s.in_flight().contains(msg));

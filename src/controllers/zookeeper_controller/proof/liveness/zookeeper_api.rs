@@ -223,7 +223,7 @@ proof fn lemma_from_after_exists_stateful_set_step_and_key_exists_to_after_get_s
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zookeeper.object_ref()].pending_req_msg->0)
-                    &&& resp_msg.content.get_get_response().res.is_Ok()
+                    &&& resp_msg.content.get_get_response().res is Ok
                 };
                 assert(after_exists_stateful_set_step_resp_msg(resp_msg).satisfied_by(ex));
             }
@@ -703,8 +703,8 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_get_response().res.is_Ok()
-                        &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+                        &&& resp_msg.content.get_get_response().res is Ok
+                        &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
                     });
                     assert(post(s_prime));
                 }
@@ -719,8 +719,8 @@ proof fn lemma_from_pending_req_to_receives_ok_resp_at_after_exists_stateful_set
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
-            &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+            &&& resp_msg.content.get_get_response().res is Ok
+            &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
         });
     }
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, ZKCluster::handle_request(), pre, post);

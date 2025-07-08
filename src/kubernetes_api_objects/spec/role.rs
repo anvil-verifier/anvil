@@ -82,14 +82,14 @@ impl ResourceView for RoleView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !RoleView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(RoleView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !RoleView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(RoleView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(RoleView {
                 metadata: obj.metadata,
-                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0(),
+                policy_rules: RoleView::unmarshal_spec(obj.spec)->Ok_0,
             })
         }
     }

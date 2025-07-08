@@ -30,8 +30,8 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() && service.get_Ok_0().spec is Some {
-            Ok(update_admin_server_service(zk, service.get_Ok_0()).marshal())
+        if service is Ok && service->Ok_0.spec is Some {
+            Ok(update_admin_server_service(zk, service->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -39,7 +39,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
 
     open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ConfigMap),
                 ..state
@@ -53,7 +53,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
 
     open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ConfigMap),
                 ..state

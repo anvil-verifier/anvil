@@ -79,10 +79,10 @@ pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectVi
             validate_config_map_object(object)
         },
         SubResource::StatefulSet => {
-            &&& StatefulSetView::unmarshal(object).is_Ok()
-            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec is Some
-            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec->0.replicas is Some
-            &&& StatefulSetView::unmarshal(object).get_Ok_0().spec->0.replicas->0 > 0
+            &&& StatefulSetView::unmarshal(object) is Ok
+            &&& StatefulSetView::unmarshal(object)->Ok_0.spec is Some
+            &&& StatefulSetView::unmarshal(object)->Ok_0.spec->0.replicas is Some
+            &&& StatefulSetView::unmarshal(object)->Ok_0.spec->0.replicas->0 > 0
         },
         _ => true,
     }

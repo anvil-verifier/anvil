@@ -74,15 +74,15 @@ impl ResourceView for VStatefulSetView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<VStatefulSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !VStatefulSetView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(VStatefulSetView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !VStatefulSetView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(VStatefulSetView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(VStatefulSetView {
                 metadata: obj.metadata,
-                spec: VStatefulSetView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: VStatefulSetView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: VStatefulSetView::unmarshal_spec(obj.spec)->Ok_0,
+                status: VStatefulSetView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

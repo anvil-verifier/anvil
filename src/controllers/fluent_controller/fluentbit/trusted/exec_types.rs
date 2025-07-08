@@ -90,8 +90,8 @@ impl FluentBit {
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<FluentBit, UnmarshalError>)
         ensures
-            res.is_Ok() == FluentBitView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == FluentBitView::unmarshal(obj@).get_Ok_0(),
+            res is Ok == FluentBitView::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == FluentBitView::unmarshal(obj@)->Ok_0,
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::FluentBit>();
         if parse_result.is_ok() {

@@ -34,8 +34,8 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
 
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sts = StatefulSetView::unmarshal(obj);
-        let found_sts = sts.get_Ok_0();
-        if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(zk.controller_owner_ref())
+        let found_sts = sts->Ok_0;
+        if sts is Ok && found_sts.metadata.owner_references_only_contains(zk.controller_owner_ref())
         && state.latest_config_map_rv_opt is Some && found_sts.spec is Some {
             Ok(update_stateful_set(zk, found_sts, state.latest_config_map_rv_opt->0).marshal())
         } else {
@@ -45,7 +45,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
 
     open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let sts_obj = StatefulSetView::unmarshal(obj);
-        if sts_obj.is_Ok() {
+        if sts_obj is Ok {
             let req = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
                 namespace: zk.metadata.namespace->0,
                 name: zk.metadata.name->0,
@@ -63,8 +63,8 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
 
     open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let sts_obj = StatefulSetView::unmarshal(obj);
-        if sts_obj.is_Ok() {
-            let stateful_set = sts_obj.get_Ok_0();
+        if sts_obj is Ok {
+            let stateful_set = sts_obj->Ok_0;
             let ready_replicas = if stateful_set.status is Some && stateful_set.status->0.ready_replicas is Some {
                 stateful_set.status->0.ready_replicas->0
             } else {

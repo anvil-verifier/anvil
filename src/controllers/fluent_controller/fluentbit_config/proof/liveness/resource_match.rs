@@ -215,8 +215,8 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().in_flight().contains(resp_msg)
                     &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[fbc.object_ref()].pending_req_msg->0)
-                    &&& resp_msg.content.get_get_response().res.is_Ok()
-                    &&& resp_msg.content.get_get_response().res.get_Ok_0() == ex.head().resources()[resource_key]
+                    &&& resp_msg.content.get_get_response().res is Ok
+                    &&& resp_msg.content.get_get_response().res->Ok_0 == ex.head().resources()[resource_key]
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
             }
@@ -530,8 +530,8 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg.content.get_get_response().res.is_Ok()
-                        &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+                        &&& resp_msg.content.get_get_response().res is Ok
+                        &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
                     });
                     assert(post(s_prime));
                 }
@@ -546,8 +546,8 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(sp
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg.content.get_get_response().res.is_Ok()
-            &&& resp_msg.content.get_get_response().res.get_Ok_0() == s_prime.resources()[resource_key]
+            &&& resp_msg.content.get_get_response().res is Ok
+            &&& resp_msg.content.get_get_response().res->Ok_0 == s_prime.resources()[resource_key]
         });
     }
 

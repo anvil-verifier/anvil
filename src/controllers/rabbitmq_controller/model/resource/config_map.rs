@@ -34,7 +34,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() {
-            Ok(update_server_config_map(rabbitmq, cm.get_Ok_0()).marshal())
+            Ok(update_server_config_map(rabbitmq, cm->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -42,10 +42,10 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version is Some {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version->0)),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));
@@ -57,10 +57,10 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServerConf
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version is Some {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version->0)),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(ServiceAccountBuilder::get_request(rabbitmq));

@@ -32,10 +32,10 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             let key = M::make_headless_service_key(zookeeper);
             let obj = resources[key];
             let made_spec = M::make_headless_service(zookeeper).spec->0;
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec->0;
+            let spec = ServiceView::unmarshal(obj)->Ok_0.spec->0;
             &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec is Some
+            &&& ServiceView::unmarshal(obj) is Ok
+            &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -47,10 +47,10 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             let key = M::make_client_service_key(zookeeper);
             let obj = resources[key];
             let made_spec = M::make_client_service(zookeeper).spec->0;
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec->0;
+            let spec = ServiceView::unmarshal(obj)->Ok_0.spec->0;
             &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec is Some
+            &&& ServiceView::unmarshal(obj) is Ok
+            &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -62,10 +62,10 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             let key = M::make_admin_server_service_key(zookeeper);
             let obj = resources[key];
             let made_spec = M::make_admin_server_service(zookeeper).spec->0;
-            let spec = ServiceView::unmarshal(obj).get_Ok_0().spec->0;
+            let spec = ServiceView::unmarshal(obj)->Ok_0.spec->0;
             &&& resources.contains_key(key)
-            &&& ServiceView::unmarshal(obj).is_Ok()
-            &&& ServiceView::unmarshal(obj).get_Ok_0().spec is Some
+            &&& ServiceView::unmarshal(obj) is Ok
+            &&& ServiceView::unmarshal(obj)->Ok_0.spec is Some
             &&& made_spec == ServiceSpecView {
                 cluster_ip: made_spec.cluster_ip,
                 ..spec
@@ -77,8 +77,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             let key = M::make_config_map_key(zookeeper);
             let obj = resources[key];
             &&& resources.contains_key(key)
-            &&& ConfigMapView::unmarshal(obj).is_Ok()
-            &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == M::make_config_map(zookeeper).data
+            &&& ConfigMapView::unmarshal(obj) is Ok
+            &&& ConfigMapView::unmarshal(obj)->Ok_0.data == M::make_config_map(zookeeper).data
             &&& obj.spec == ConfigMapView::marshal_spec(M::make_config_map(zookeeper).data)
             &&& obj.metadata.labels == M::make_config_map(zookeeper).metadata.labels
             &&& obj.metadata.annotations == M::make_config_map(zookeeper).metadata.annotations
@@ -92,8 +92,8 @@ pub open spec fn resource_state_matches<M: Maker>(sub_resource: SubResource, zoo
             &&& resources.contains_key(key)
             &&& resources.contains_key(cm_key)
             &&& cm_obj.metadata.resource_version is Some
-            &&& StatefulSetView::unmarshal(obj).is_Ok()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec == made_sts.spec
+            &&& StatefulSetView::unmarshal(obj) is Ok
+            &&& StatefulSetView::unmarshal(obj)->Ok_0.spec == made_sts.spec
             &&& obj.metadata.labels == made_sts.metadata.labels
             &&& obj.metadata.annotations == made_sts.metadata.annotations
         },

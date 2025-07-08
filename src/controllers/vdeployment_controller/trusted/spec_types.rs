@@ -84,15 +84,15 @@ impl ResourceView for VDeploymentView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<VDeploymentView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !VDeploymentView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(VDeploymentView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !VDeploymentView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(VDeploymentView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(VDeploymentView {
                 metadata: obj.metadata,
-                spec: VDeploymentView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: VDeploymentView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: VDeploymentView::unmarshal_spec(obj.spec)->Ok_0,
+                status: VDeploymentView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

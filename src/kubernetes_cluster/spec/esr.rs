@@ -16,7 +16,7 @@ impl Cluster {
 // One way to interpret always(desired_state_is) is that the object that describes the desired state
 // of the custom controller always exists in etcd, and its spec never changes (always the same as the input cr's spec).
 //
-// You might wonder why not just say that T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0() == cr?
+// You might wonder why not just say that T::unmarshal(s.resources()[cr.object_ref()])->Ok_0 == cr?
 // However, in this way, always(desired_state_is) then implies that the cr object never gets updated
 // and its resource version remains unchanged, which is unnecessarily strong for most cases.
 // We require the cr object's spec field to remain unchanged, but other fields, like status, could change.
@@ -31,9 +31,9 @@ pub open spec fn desired_state_is<T: CustomResourceView>(cr: T) -> StatePred<Clu
         // and it has no deletion timestamp
         &&& s.resources()[cr.object_ref()].metadata.deletion_timestamp.is_None()
         // and can be unmarshalled to T...
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).is_Ok()
+        &&& T::unmarshal(s.resources()[cr.object_ref()]) is Ok
         // and its spec is the same as cr.
-        &&& T::unmarshal(s.resources()[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
+        &&& T::unmarshal(s.resources()[cr.object_ref()])->Ok_0.spec() == cr.spec()
     }
 }
 

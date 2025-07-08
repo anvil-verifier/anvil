@@ -86,15 +86,15 @@ impl ResourceView for PersistentVolumeClaimView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<PersistentVolumeClaimView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(PersistentVolumeClaimView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(PersistentVolumeClaimView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(PersistentVolumeClaimView {
                 metadata: obj.metadata,
-                spec: PersistentVolumeClaimView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: PersistentVolumeClaimView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: PersistentVolumeClaimView::unmarshal_spec(obj.spec)->Ok_0,
+                status: PersistentVolumeClaimView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

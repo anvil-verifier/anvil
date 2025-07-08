@@ -31,8 +31,8 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let rb = RoleBindingView::unmarshal(obj);
-        if rb.is_Ok() {
-            Ok(update_role_binding(fb, rb.get_Ok_0()).marshal())
+        if rb is Ok {
+            Ok(update_role_binding(fb, rb->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -40,7 +40,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
 
     open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
-        if rb.is_Ok() {
+        if rb is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
                 ..state
@@ -54,7 +54,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for RoleBindingBuil
 
     open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let rb = RoleBindingView::unmarshal(obj);
-        if rb.is_Ok() {
+        if rb is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
                 ..state

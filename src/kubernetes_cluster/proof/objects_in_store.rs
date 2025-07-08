@@ -164,7 +164,7 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                             APIRequest::CreateRequest(_) => {}
                             APIRequest::DeleteRequest(_) => {
                                 let obj = s.resources()[key];
-                                let t_obj = T::unmarshal(obj).get_Ok_0();
+                                let t_obj = T::unmarshal(obj)->Ok_0;
                                 T::unmarshal_result_determined_by_unmarshal_spec_and_status();
                                 T::validation_result_determined_by_spec_and_status();
                                 assert(t_obj.state_validation() == T::spec_status_validation(t_obj.spec(), t_obj.status()));
@@ -174,7 +174,7 @@ pub proof fn lemma_always_each_custom_object_in_etcd_is_well_formed<T: CustomRes
                             APIRequest::UpdateStatusRequest(_) => {}
                             APIRequest::GetThenDeleteRequest(_) => {
                                 let obj = s.resources()[key];
-                                let t_obj = T::unmarshal(obj).get_Ok_0();
+                                let t_obj = T::unmarshal(obj)->Ok_0;
                                 T::unmarshal_result_determined_by_unmarshal_spec_and_status();
                                 T::validation_result_determined_by_spec_and_status();
                                 assert(t_obj.state_validation() == T::spec_status_validation(t_obj.spec(), t_obj.status()));

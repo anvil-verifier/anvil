@@ -33,8 +33,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sa = ServiceAccountView::unmarshal(obj);
-        if sa.is_Ok() {
-            Ok(update_service_account(rabbitmq, sa.get_Ok_0()).marshal())
+        if sa is Ok {
+            Ok(update_service_account(rabbitmq, sa->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -42,7 +42,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
 
     open spec fn state_after_create(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let sa = ServiceAccountView::unmarshal(obj);
-        if sa.is_Ok() {
+        if sa is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state
@@ -56,7 +56,7 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for ServiceAcc
 
     open spec fn state_after_update(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<(RabbitmqReconcileState, Option<APIRequest>), ()>) {
         let sa = ServiceAccountView::unmarshal(obj);
-        if sa.is_Ok() {
+        if sa is Ok {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state

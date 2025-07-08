@@ -94,15 +94,15 @@ impl ResourceView for RabbitmqClusterView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<RabbitmqClusterView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !RabbitmqClusterView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(RabbitmqClusterView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !RabbitmqClusterView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(RabbitmqClusterView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(RabbitmqClusterView {
                 metadata: obj.metadata,
-                spec: RabbitmqClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: RabbitmqClusterView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: RabbitmqClusterView::unmarshal_spec(obj.spec)->Ok_0,
+                status: RabbitmqClusterView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

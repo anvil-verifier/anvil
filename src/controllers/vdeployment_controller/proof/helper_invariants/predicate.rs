@@ -343,7 +343,7 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                     } ==> {
                         let resp_objs = msg.content.get_list_response().res.unwrap();
                         &&& msg.content.is_list_response()
-                        &&& msg.content.get_list_response().res.is_Ok()
+                        &&& msg.content.get_list_response().res is Ok
                         &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
                         &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                         (

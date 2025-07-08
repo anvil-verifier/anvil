@@ -98,15 +98,15 @@ impl ResourceView for ZookeeperClusterView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<ZookeeperClusterView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(ZookeeperClusterView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !ZookeeperClusterView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(ZookeeperClusterView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(ZookeeperClusterView {
                 metadata: obj.metadata,
-                spec: ZookeeperClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: ZookeeperClusterView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: ZookeeperClusterView::unmarshal_spec(obj.spec)->Ok_0,
+                status: ZookeeperClusterView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

@@ -218,8 +218,8 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                 s.resources().contains_key(resource_key)
                 && msg.content.get_update_request().obj.metadata.resource_version == s.resources()[resource_key].metadata.resource_version
             ) ==> (
-                update(sub_resource, fb, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).is_Ok()
-                && msg.content.get_update_request().obj == update(sub_resource, fb, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).get_Ok_0()
+                update(sub_resource, fb, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]) is Ok
+                && msg.content.get_update_request().obj == update(sub_resource, fb, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key])->Ok_0
             )
         }
     };
@@ -255,9 +255,9 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                     let resp = step.get_ControllerStep_0().0->0;
                     assert(FBCluster::is_ok_get_response_msg()(resp));
                     assert(s.in_flight().contains(resp));
-                    assert(resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
-                    if s.resources().contains_key(resource_key) && resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
-                        assert(resp.content.get_get_response().res.get_Ok_0() == s.resources()[resource_key]);
+                    assert(resp.content.get_get_response().res->Ok_0.metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
+                    if s.resources().contains_key(resource_key) && resp.content.get_get_response().res->Ok_0.metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
+                        assert(resp.content.get_get_response().res->Ok_0 == s.resources()[resource_key]);
                         assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
                     }
                 } else {
@@ -414,8 +414,8 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         resource_create_request_msg(resource_key)(msg) ==> {
             &&& at_fb_step(key, FluentBitReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& FBCluster::pending_req_msg_is(s, key, msg)
-            &&& make(sub_resource, fb, s.ongoing_reconciles()[key].local_state).is_Ok()
-            &&& msg.content.get_create_request().obj == make(sub_resource, fb, s.ongoing_reconciles()[key].local_state).get_Ok_0()
+            &&& make(sub_resource, fb, s.ongoing_reconciles()[key].local_state) is Ok
+            &&& msg.content.get_create_request().obj == make(sub_resource, fb, s.ongoing_reconciles()[key].local_state)->Ok_0
         }
     };
     let stronger_next = |s: FBCluster, s_prime: FBCluster| {
@@ -714,7 +714,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                 lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, fb, s, s_prime, msg, step);
                 let cr = s.ongoing_reconciles()[key].triggering_cr;
                 if resource_create_request_msg(resource_key)(msg) {
-                    assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state).get_Ok_0());
+                    assert(msg.content.get_create_request().obj == make(sub_resource, cr, s.ongoing_reconciles()[key].local_state)->Ok_0);
                     assert(msg.content.get_create_request().obj.metadata.finalizers.is_None());
                     assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
@@ -722,13 +722,13 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
                 }
                 if resource_update_request_msg(resource_key)(msg) {
                     assert(step.get_ControllerStep_0().0->0.content.is_get_response());
-                    assert(step.get_ControllerStep_0().0->0.content.get_get_response().res.is_Ok());
+                    assert(step.get_ControllerStep_0().0->0.content.get_get_response().res is Ok);
                     assert(update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res.get_Ok_0()
-                    ).is_Ok());
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res->Ok_0
+                    ) is Ok);
                     assert(msg.content.get_update_request().obj == update(
-                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res.get_Ok_0()
-                    ).get_Ok_0());
+                        sub_resource, cr, s.ongoing_reconciles()[key].local_state, step.get_ControllerStep_0().0->0.content.get_get_response().res->Ok_0
+                    )->Ok_0);
                     assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, cr.metadata.uid->0)
                     ]));

@@ -216,7 +216,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         Cluster::each_object_in_etcd_is_weakly_well_formed()(s),
         Cluster::etcd_is_finite()(s),
         resp_msg_is_the_in_flight_list_resp_at_after_list_pods_step(vrs, controller_id, resp_msg)(s),
-        forall |obj: DynamicObjectView| #[trigger] matching_pods(vrs, s.resources()).contains(obj) ==> PodView::unmarshal(obj).is_Ok(),
+        forall |obj: DynamicObjectView| #[trigger] matching_pods(vrs, s.resources()).contains(obj) ==> PodView::unmarshal(obj) is Ok,
     ensures
         ({
             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
@@ -224,7 +224,7 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
             let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
             &&& filtered_pods.no_duplicates()
             &&& filtered_pods.len() == matching_pods(vrs, s.resources()).len()
-            &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).values()
+            &&& filtered_pods.to_set() == matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).values()
             &&& filtered_pod_keys.no_duplicates()
         }),
 {
@@ -248,12 +248,12 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
     // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
     // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
     assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
-    map_values_to_set_eq_to_set_mk_map_values(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0());
-    assert(matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).values() == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).to_set());
-    assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) == filtered_pods) by {
+    map_values_to_set_eq_to_set_mk_map_values(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
+    assert(matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).values() == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
+    assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
         // get rid of objects_to_pods
-        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
-        assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]).is_Ok());
+        true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
+        assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]) is Ok);
         PodView::marshal_preserves_integrity();
         PodView::marshal_preserves_metadata();
         assert(resp_pods.len() == resp_objs.len());
@@ -267,28 +267,28 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         assert(forall |i: int| 0 <= i < resp_objs.len() ==>
             #[trigger] owned_selector_match_is(vrs, resp_objs[i]) == #[trigger] filter_pods_pred(resp_pods[i]));
         PodView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) =~= filtered_pods) by {
-            assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i] == resp_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())[i] by {
+        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) =~= filtered_pods) by {
+            assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i] == resp_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
                 // spec and status are encoded nestedly
-                assert(PodView::unmarshal(resp_objs[i]).is_Ok());
-                assert(PodView::unmarshal(resp_objs[i]).get_Ok_0() == resp_pods[i]);
+                assert(PodView::unmarshal(resp_objs[i]) is Ok);
+                assert(PodView::unmarshal(resp_objs[i])->Ok_0 == resp_pods[i]);
             }
-            assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())) by {
-                commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0());
+            assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)) by {
+                commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
             }
             assert(filtered_objs.len() == filtered_pods.len());
-            assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())[i] by {
+            assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
                 assert(filtered_pods == resp_pods.filter(filter_pods_pred));
-                assert(PodView::unmarshal(filtered_objs[i]).is_Ok()) by {
-                    assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj).is_Ok()) by {
-                        true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok(), |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
+                assert(PodView::unmarshal(filtered_objs[i]) is Ok) by {
+                    assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj) is Ok) by {
+                        true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
                     }
-                    true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
+                    true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
                 }
-                assert(PodView::unmarshal(filtered_objs[i]).get_Ok_0() == filtered_pods[i]);
+                assert(PodView::unmarshal(filtered_objs[i])->Ok_0 == filtered_pods[i]);
             }
             assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
-            assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()));
+            assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0));
         }
     }
     assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len()) by {
@@ -298,8 +298,8 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         assert(filtered_objs.no_duplicates());
         filtered_objs.unique_seq_to_set();
         assert(matching_pods(vrs, s.resources()).len() == filtered_objs.len());
-        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) == filtered_pods);
-        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).len() == filtered_pods.len());
+        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods);
+        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).len() == filtered_pods.len());
         assert(filtered_pods.len() == filtered_pods.len());
     }
     let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
@@ -338,11 +338,11 @@ pub proof fn lemma_filtered_pods_set_equals_matching_pods(
         );
         assert(resp_objs.contains(resp_objs[idxi]));
         assert(resp_objs.contains(resp_objs[idxj]));
-        assert(PodView::unmarshal(resp_objs[idxi]).is_Ok());
-        assert(PodView::unmarshal(resp_objs[idxj]).is_Ok());
+        assert(PodView::unmarshal(resp_objs[idxi]) is Ok);
+        assert(PodView::unmarshal(resp_objs[idxj]) is Ok);
 
-        assert(resp_pods[idxi] == PodView::unmarshal(resp_objs[idxi]).get_Ok_0());
-        assert(resp_pods[idxj] == PodView::unmarshal(resp_objs[idxj]).get_Ok_0());
+        assert(resp_pods[idxi] == PodView::unmarshal(resp_objs[idxi])->Ok_0);
+        assert(resp_pods[idxj] == PodView::unmarshal(resp_objs[idxj])->Ok_0);
 
         assert(resp_pods[idxi].object_ref() == resp_objs[idxi].object_ref());
         assert(resp_pods[idxj].object_ref() == resp_objs[idxj].object_ref());

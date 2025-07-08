@@ -88,15 +88,15 @@ impl ResourceView for VReplicaSetView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<VReplicaSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !VReplicaSetView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(VReplicaSetView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !VReplicaSetView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(VReplicaSetView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(VReplicaSetView {
                 metadata: obj.metadata,
-                spec: VReplicaSetView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: VReplicaSetView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: VReplicaSetView::unmarshal_spec(obj.spec)->Ok_0,
+                status: VReplicaSetView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

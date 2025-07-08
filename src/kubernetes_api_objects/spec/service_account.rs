@@ -74,14 +74,14 @@ impl ResourceView for ServiceAccountView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceAccountView, UnmarshalError> {
             if obj.kind != Self::kind() {
                 Err(())
-            } else if !ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() {
+            } else if !(ServiceAccountView::unmarshal_spec(obj.spec) is Ok) {
                 Err(())
-            } else if !ServiceAccountView::unmarshal_status(obj.status).is_Ok() {
+            } else if !(ServiceAccountView::unmarshal_status(obj.status) is Ok) {
                 Err(())
             } else {
                 Ok(ServiceAccountView {
                     metadata: obj.metadata,
-                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0(),
+                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec)->Ok_0,
                 })
             }
     }

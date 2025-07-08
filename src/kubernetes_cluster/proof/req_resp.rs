@@ -18,8 +18,8 @@ pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePr
         forall |msg: Message|
             s.in_flight().contains(msg)
             && #[trigger] is_ok_get_response_msg()(msg)
-            ==> msg.content.get_get_response().res.get_Ok_0().metadata.resource_version is Some
-                && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version->0 < s.api_server.resource_version_counter
+            ==> msg.content.get_get_response().res->Ok_0.metadata.resource_version is Some
+                && msg.content.get_get_response().res->Ok_0.metadata.resource_version->0 < s.api_server.resource_version_counter
     }
 }
 
@@ -44,8 +44,8 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(sel
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| s_prime.in_flight().contains(msg) && #[trigger] is_ok_get_response_msg()(msg)
         implies
-            msg.content.get_get_response().res.get_Ok_0().metadata.resource_version is Some
-            && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version->0 < s_prime.api_server.resource_version_counter
+            msg.content.get_get_response().res->Ok_0.metadata.resource_version is Some
+            && msg.content.get_get_response().res->Ok_0.metadata.resource_version->0 < s_prime.api_server.resource_version_counter
         by {
             let step = choose |step| self.next_step(s, s_prime, step);
             if s.in_flight().contains(msg) {
@@ -57,7 +57,7 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(sel
                         if is_ok_get_response_msg()(msg) {
                             let req_key = req.key;
                             assert(s.resources().contains_key(req_key));
-                            assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version->0 == s.resources()[req_key].metadata.resource_version->0);
+                            assert(msg.content.get_get_response().res->Ok_0.metadata.resource_version->0 == s.resources()[req_key].metadata.resource_version->0);
                             assert(s.resources()[req_key].metadata.resource_version->0 < s_prime.api_server.resource_version_counter);
                         } else {}
                     }
@@ -75,8 +75,8 @@ pub open spec fn object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key: ObjectR
             #[trigger] s.in_flight().contains(msg)
             && is_ok_get_response_msg_and_matches_key(key)(msg)
             && s.resources().contains_key(key)
-            && s.resources()[key].metadata.resource_version->0 == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version->0
-            ==> s.resources()[key] == msg.content.get_get_response().res.get_Ok_0()
+            && s.resources()[key].metadata.resource_version->0 == msg.content.get_get_response().res->Ok_0.metadata.resource_version->0
+            ==> s.resources()[key] == msg.content.get_get_response().res->Ok_0
     }
 }
 
@@ -102,12 +102,12 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sel
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg)
             && is_ok_get_response_msg_and_matches_key(key)(msg)
             && s_prime.resources().contains_key(key)
-            && s_prime.resources()[key].metadata.resource_version->0 == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version->0
-        implies s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0() by {
+            && s_prime.resources()[key].metadata.resource_version->0 == msg.content.get_get_response().res->Ok_0.metadata.resource_version->0
+        implies s_prime.resources()[key] == msg.content.get_get_response().res->Ok_0 by {
             assert(is_ok_get_response_msg()(msg));
             if s.in_flight().contains(msg) {
                 if !s.resources().contains_key(key) || s.resources()[key] != s_prime.resources()[key] {
-                    assert(s_prime.resources()[key].metadata.resource_version->0 != msg.content.get_get_response().res.get_Ok_0().metadata.resource_version->0)
+                    assert(s_prime.resources()[key].metadata.resource_version->0 != msg.content.get_get_response().res->Ok_0.metadata.resource_version->0)
                 }
             } else {
                 let step = choose |step| self.next_step(s, s_prime, step);
@@ -125,10 +125,10 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sel
                 }
                 assert(msg == handle_get_request_msg(req, s.api_server).1);
                 assert(s.resources().contains_key(req.content.get_get_request().key));
-                assert(msg.content.get_get_response().res.get_Ok_0() == s.resources()[req.content.get_get_request().key]);
-                assert(req.content.get_get_request().key == msg.content.get_get_response().res.get_Ok_0().object_ref());
+                assert(msg.content.get_get_response().res->Ok_0 == s.resources()[req.content.get_get_request().key]);
+                assert(req.content.get_get_request().key == msg.content.get_get_response().res->Ok_0.object_ref());
                 assert(s.api_server == s_prime.api_server);
-                assert(s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0());
+                assert(s_prime.resources()[key] == msg.content.get_get_response().res->Ok_0);
             }
         }
     }
@@ -209,7 +209,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                         assert(msg.content.is_get_response());
                         assert(msg == handle_get_request_msg(s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
                         assert(msg.src.is_APIServer() && msg.content.is_get_response());
-                        if msg.content.get_get_response().res.is_Ok() {
+                        if msg.content.get_get_response().res is Ok {
                             assert(s.resources().contains_key(req_key));
                             assert(s.resources()[req_key].object_ref() == req_key);
                         }
@@ -314,7 +314,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_update_resp_message_is_sam
                         assert(msg.content.is_update_response());
                         assert(msg == handle_update_request_msg(self.installed_types, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
                         assert(msg.src.is_APIServer() && msg.content.is_update_response());
-                        if msg.content.get_update_response().res.is_Ok() {
+                        if msg.content.get_update_response().res is Ok {
                             assert(s.resources().contains_key(req_key));
                             assert(s.resources()[req_key].object_ref() == req_key);
                         }
@@ -422,7 +422,7 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_create_resp_message_is_sam
                         assert(msg.content.is_create_response());
                         assert(msg == handle_create_request_msg(self.installed_types, s.ongoing_reconciles(controller_id)[key].pending_req_msg->0, s.api_server).1);
                         assert(msg.src.is_APIServer() && msg.content.is_create_response());
-                        if msg.content.get_create_response().res.is_Ok() {
+                        if msg.content.get_create_response().res is Ok {
                             assert(s_prime.resources()[req_key].object_ref() == req_key);
                         }
                         assert(is_ok_create_response_msg_and_matches_key(req_key)(msg));

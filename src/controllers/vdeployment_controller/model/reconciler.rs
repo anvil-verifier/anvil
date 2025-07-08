@@ -77,7 +77,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             (state_prime, Some(RequestView::KRequest(req)))
         },
         VDeploymentReconcileStepView::AfterListVRS => {
-            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_list_resp_view!(resp_o) && extract_some_k_list_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 let objs = extract_some_k_list_resp_view!(resp_o).unwrap();
@@ -107,14 +107,14 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             }
         },
         VDeploymentReconcileStepView::AfterCreateNewVRS => {
-            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 (new_vrs_ensured_state(state), None)
             }
         },
         VDeploymentReconcileStepView::AfterScaleNewVRS => {
-            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 (new_vrs_ensured_state(state), None)
@@ -133,7 +133,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             }
         }
         VDeploymentReconcileStepView::AfterScaleDownOldVRS => {
-            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o).is_Ok()) {
+            if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
                 if state.old_vrs_list.len() > 0 {

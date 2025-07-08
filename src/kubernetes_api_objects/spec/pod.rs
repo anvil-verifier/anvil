@@ -87,15 +87,15 @@ impl ResourceView for PodView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<PodView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !PodView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(PodView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !PodView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(PodView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(PodView {
                 metadata: obj.metadata,
-                spec: PodView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: PodView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: PodView::unmarshal_spec(obj.spec)->Ok_0,
+                status: PodView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }

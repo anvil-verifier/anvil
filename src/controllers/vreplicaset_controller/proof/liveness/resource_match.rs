@@ -195,7 +195,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                         let resp_msg = choose |resp_msg| {
                             &&& #[trigger] s.in_flight().contains(resp_msg)
                             &&& resp_msg_matches_req_msg(resp_msg, msg)
-                            &&& resp_msg.content.get_create_response().res.is_Ok()
+                            &&& resp_msg.content.get_create_response().res is Ok
                         };
                         assert((|resp_msg: Message| create_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                     };
@@ -264,7 +264,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] s.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
-                        &&& resp_msg.content.get_create_response().res.is_Ok()
+                        &&& resp_msg.content.get_create_response().res is Ok
                     };
                     assert((|resp_msg: Message| create_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                 };
@@ -325,7 +325,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                         let resp_msg = choose |resp_msg| {
                             &&& #[trigger] s.in_flight().contains(resp_msg)
                             &&& resp_msg_matches_req_msg(resp_msg, msg)
-                            &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+                            &&& resp_msg.content.get_get_then_delete_response().res is Ok
                         };
                         assert((|resp_msg: Message| delete_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                     };
@@ -391,7 +391,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] s.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
-                        &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+                        &&& resp_msg.content.get_get_then_delete_response().res is Ok
                     };
                     assert((|resp_msg: Message| delete_resp_msg(resp_msg, 0))(resp_msg).satisfied_by(ex));
                 };
@@ -427,7 +427,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                     let resp_msg = choose |resp_msg| {
                         &&& #[trigger] s.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
-                        &&& resp_msg.content.get_list_response().res.is_Ok()
+                        &&& resp_msg.content.get_list_response().res is Ok
                         &&& {
                             let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                             let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
@@ -438,7 +438,7 @@ pub proof fn lemma_from_diff_and_init_to_current_state_matches(
                             &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                             &&& resp_objs.no_duplicates()
                             &&& resp_obj_keys.no_duplicates()
-                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                            &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
                             &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                         }
@@ -568,7 +568,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, msg)
-                    &&& resp_msg.content.get_list_response().res.is_Ok()
+                    &&& resp_msg.content.get_list_response().res is Ok
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
@@ -579,7 +579,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_create_pod_resp(
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                         &&& resp_objs.no_duplicates()
                         &&& resp_obj_keys.no_duplicates()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                     }
@@ -714,7 +714,7 @@ pub proof fn lemma_from_after_receive_create_pod_resp_to_receive_create_pod_resp
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, msg)
-                    &&& resp_msg.content.get_create_response().res.is_Ok()
+                    &&& resp_msg.content.get_create_response().res is Ok
                 };
                 assert((|resp_msg: Message| create_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
             };
@@ -846,7 +846,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, msg)
-                    &&& resp_msg.content.get_list_response().res.is_Ok()
+                    &&& resp_msg.content.get_list_response().res is Ok
                     &&& {
                         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                         let resp_obj_keys = resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref());
@@ -854,7 +854,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_receive_delete_pod_resp(
                         &&& objects_to_pods(resp_objs).unwrap().no_duplicates()
                         &&& resp_objs.no_duplicates()
                         &&& resp_obj_keys.no_duplicates()
-                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).is_Ok()
+                        &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj) is Ok
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace is Some
                         &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] PodView::unmarshal(obj).unwrap().metadata.namespace == vrs.metadata.namespace
                         &&& matching_pods(vrs, s.resources()) == resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)).to_set()
@@ -996,7 +996,7 @@ pub proof fn lemma_from_after_receive_delete_pod_resp_to_receive_delete_pod_resp
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] s.in_flight().contains(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, msg)
-                    &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+                    &&& resp_msg.content.get_get_then_delete_response().res is Ok
                 };
                 assert((|resp_msg: Message| delete_resp_msg(resp_msg, diff))(resp_msg).satisfied_by(ex));
             };
@@ -1650,7 +1650,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
-                        &&& resp_msg.content.get_create_response().res.is_Ok()
+                        &&& resp_msg.content.get_create_response().res is Ok
                     });
                 } else {
                     lemma_api_request_other_than_pending_req_msg_maintains_matching_pods(
@@ -1670,7 +1670,7 @@ pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_create_response().res.is_Ok()
+            &&& resp_msg.content.get_create_response().res is Ok
         });
     }
 
@@ -2075,7 +2075,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                     } implies {
                         &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
                         assert(filtered_pods.to_set().contains(filtered_pods[i]));
                     }
@@ -2097,7 +2097,7 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                         &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
                             &&& s.resources().contains_key(filtered_pod_keys[i])
                             &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
-                            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                         }
                     });
                 }
@@ -2235,7 +2235,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, msg)
-                        &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+                        &&& resp_msg.content.get_get_then_delete_response().res is Ok
                     });
 
                     // maintain quantified 'invariant', which doesn't
@@ -2247,7 +2247,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                     } implies {
                         &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
                         if s.resources().contains_key(filtered_pod_keys[i]) {}
                     }
@@ -2264,7 +2264,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
                     } implies {
                         &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
                         &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
                     } by {
                         if s.resources().contains_key(filtered_pod_keys[i]) {}
                     }
@@ -2287,7 +2287,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg.content.get_get_then_delete_response().res.is_Ok()
+            &&& resp_msg.content.get_get_then_delete_response().res is Ok
         });
 
         // maintain quantified 'invariant', which doesn't
@@ -2299,7 +2299,7 @@ pub proof fn lemma_from_after_send_delete_pod_req_to_receive_ok_resp(
         } implies {
             &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
             &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
         } by {
             if s.resources().contains_key(filtered_pod_keys[i]) {}
         }
@@ -2444,7 +2444,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         } implies {
             &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
             &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
         } by {
             if s.resources().contains_key(filtered_pod_keys[i]) {}
         }
@@ -2466,7 +2466,7 @@ pub proof fn lemma_from_after_receive_ok_resp_to_send_delete_pod_req(
         } implies {
             &&& #[trigger] s_prime.resources().contains_key(filtered_pod_keys[i])
             &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]]).get_Ok_0() == filtered_pods[i]
+            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
         } by {
             if s.resources().contains_key(filtered_pod_keys[i]) {}
         }
@@ -2840,12 +2840,12 @@ pub proof fn lemma_current_state_matches_is_stable(
                         // resp_objs.filter(|obj| owned_selector_match_is(vrs, obj)) == 
                         // filter_pods(objects_to_pods(resp_objs).unwrap(), vrs).map_values(|p: PodView| p.marshal())
                         assert(matching_pods(vrs, s.resources()) == filtered_objs.to_set());
-                        map_values_to_set_eq_to_set_mk_map_values(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0());
-                        assert(matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).values() == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).to_set());
-                        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) == filtered_pods) by {
+                        map_values_to_set_eq_to_set_mk_map_values(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
+                        assert(matching_pods(vrs, s.resources()).mk_map(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).values() == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).to_set());
+                        assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods) by {
                             // get rid of objects_to_pods
-                            true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
-                            assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]).is_Ok());
+                            true_pred_on_all_element_equal_to_pred_on_all_index(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
+                            assert(forall |i: int| 0 <= i < resp_objs.len() ==> #[trigger] resp_objs[i].kind == PodView::kind() && PodView::unmarshal(resp_objs[i]) is Ok);
                             PodView::marshal_preserves_integrity();
                             PodView::marshal_preserves_metadata();
                             assert(resp_pods.len() == resp_objs.len());
@@ -2859,28 +2859,28 @@ pub proof fn lemma_current_state_matches_is_stable(
                             assert(forall |i: int| 0 <= i < resp_objs.len() ==>
                                 #[trigger] owned_selector_match_is(vrs, resp_objs[i]) == #[trigger] filter_pods_pred(resp_pods[i]));
                             PodView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) =~= filtered_pods) by {
-                                assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i] == resp_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())[i] by {
+                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) =~= filtered_pods) by {
+                                assert forall |i: int| 0 <= i < resp_objs.len() implies #[trigger] resp_pods[i] == resp_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
                                     // spec and status are encoded nestedly
-                                    assert(PodView::unmarshal(resp_objs[i]).is_Ok());
-                                    assert(PodView::unmarshal(resp_objs[i]).get_Ok_0() == resp_pods[i]);
+                                    assert(PodView::unmarshal(resp_objs[i]) is Ok);
+                                    assert(PodView::unmarshal(resp_objs[i])->Ok_0 == resp_pods[i]);
                                 }
-                                assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())) by {
-                                    commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0());
+                                assert(resp_pods.filter(filter_pods_pred) == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)) by {
+                                    commutativity_of_seq_map_and_filter(resp_objs, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj), filter_pods_pred, |obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0);
                                 }
                                 assert(filtered_objs.len() == filtered_pods.len());
-                                assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0())[i] by {
+                                assert forall |i: int| 0 <= i < filtered_pods.len() implies filtered_pods[i] == filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0)[i] by {
                                     assert(filtered_pods == resp_pods.filter(filter_pods_pred));
-                                    assert(PodView::unmarshal(filtered_objs[i]).is_Ok()) by {
-                                        assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj).is_Ok()) by {
-                                            true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok(), |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
+                                    assert(PodView::unmarshal(filtered_objs[i]) is Ok) by {
+                                        assert(forall |obj: DynamicObjectView| #[trigger] filtered_objs.contains(obj) ==> PodView::unmarshal(obj) is Ok) by {
+                                            true_pred_on_seq_implies_true_pred_on_filtered_seq(resp_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok, |obj: DynamicObjectView| owned_selector_match_is(vrs, obj));
                                         }
-                                        true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj).is_Ok());
+                                        true_pred_on_all_element_equal_to_pred_on_all_index(filtered_objs, |obj: DynamicObjectView| PodView::unmarshal(obj) is Ok);
                                     }
-                                    assert(PodView::unmarshal(filtered_objs[i]).get_Ok_0() == filtered_pods[i]);
+                                    assert(PodView::unmarshal(filtered_objs[i])->Ok_0 == filtered_pods[i]);
                                 }
                                 assert(filtered_pods.len() == filtered_pods.map_values(|p: PodView| p.marshal()).len());
-                                assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()));
+                                assert_seqs_equal!(filtered_pods, filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0));
                             }
                         }
                         assert(filtered_pods.len() == matching_pods(vrs, s.resources()).len()) by {
@@ -2890,8 +2890,8 @@ pub proof fn lemma_current_state_matches_is_stable(
                             assert(filtered_objs.no_duplicates());
                             filtered_objs.unique_seq_to_set();
                             assert(matching_pods(vrs, s.resources()).len() == filtered_objs.len());
-                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()) == filtered_pods);
-                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj).get_Ok_0()).len() == filtered_pods.len());
+                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0) == filtered_pods);
+                            assert(filtered_objs.map_values(|obj: DynamicObjectView| PodView::unmarshal(obj)->Ok_0).len() == filtered_pods.len());
                             assert(filtered_pods.len() == filtered_pods.len());
                         }
                     }

@@ -501,8 +501,8 @@ where Self::V: CustomResourceView, Self: std::marker::Sized
 {
     fn unmarshal(obj: DynamicObject) -> (res: Result<Self, UnmarshalError>)
         ensures
-            res.is_Ok() == Self::V::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == Self::V::unmarshal(obj@).get_Ok_0();
+            res is Ok == Self::V::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == Self::V::unmarshal(obj@)->Ok_0;
 
     fn state_validation(&self) -> (ret: bool)
         ensures ret == self@.state_validation();
@@ -566,15 +566,15 @@ impl ResourceView for SimpleCRView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(SimpleCRView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !SimpleCRView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(SimpleCRView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(SimpleCRView {
                 metadata: obj.metadata,
-                spec: SimpleCRView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: SimpleCRView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: SimpleCRView::unmarshal_spec(obj.spec)->Ok_0,
+                status: SimpleCRView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }
@@ -632,8 +632,8 @@ impl CustomResource for SimpleCR {
     #[verifier(external_body)]
     fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, UnmarshalError>)
         ensures
-            res.is_Ok() == SimpleCRView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::unmarshal(obj@).get_Ok_0(),
+            res is Ok == SimpleCRView::unmarshal(obj@) is Ok,
+            res is Ok ==> res->Ok_0@ == SimpleCRView::unmarshal(obj@)->Ok_0,
     {
         Ok(SimpleCR {})
     }

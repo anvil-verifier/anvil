@@ -75,16 +75,16 @@ verus! {
 #[verifier(inline)]
 pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::PodKind => PodView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::RoleKind => RoleView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::SecretKind => SecretView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec).is_Ok(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec).is_Ok(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal_spec(obj.spec) is Ok,
+        Kind::DaemonSetKind => DaemonSetView::unmarshal_spec(obj.spec) is Ok,
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_spec(obj.spec) is Ok,
+        Kind::PodKind => PodView::unmarshal_spec(obj.spec) is Ok,
+        Kind::RoleBindingKind => RoleBindingView::unmarshal_spec(obj.spec) is Ok,
+        Kind::RoleKind => RoleView::unmarshal_spec(obj.spec) is Ok,
+        Kind::SecretKind => SecretView::unmarshal_spec(obj.spec) is Ok,
+        Kind::ServiceKind => ServiceView::unmarshal_spec(obj.spec) is Ok,
+        Kind::StatefulSetKind => StatefulSetView::unmarshal_spec(obj.spec) is Ok,
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_spec(obj.spec) is Ok,
         Kind::CustomResourceKind(string) => (installed_types[string].unmarshallable_spec)(obj.spec),
     }
 }
@@ -92,16 +92,16 @@ pub open spec fn unmarshallable_spec(obj: DynamicObjectView, installed_types: In
 #[verifier(inline)]
 pub open spec fn unmarshallable_status(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal_status(obj.status).is_Ok(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal_status(obj.status).is_Ok(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok(),
-        Kind::PodKind => PodView::unmarshal_status(obj.status).is_Ok(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal_status(obj.status).is_Ok(),
-        Kind::RoleKind => RoleView::unmarshal_status(obj.status).is_Ok(),
-        Kind::SecretKind => SecretView::unmarshal_status(obj.status).is_Ok(),
-        Kind::ServiceKind => ServiceView::unmarshal_status(obj.status).is_Ok(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status).is_Ok(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status).is_Ok(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal_status(obj.status) is Ok,
+        Kind::DaemonSetKind => DaemonSetView::unmarshal_status(obj.status) is Ok,
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal_status(obj.status) is Ok,
+        Kind::PodKind => PodView::unmarshal_status(obj.status) is Ok,
+        Kind::RoleBindingKind => RoleBindingView::unmarshal_status(obj.status) is Ok,
+        Kind::RoleKind => RoleView::unmarshal_status(obj.status) is Ok,
+        Kind::SecretKind => SecretView::unmarshal_status(obj.status) is Ok,
+        Kind::ServiceKind => ServiceView::unmarshal_status(obj.status) is Ok,
+        Kind::StatefulSetKind => StatefulSetView::unmarshal_status(obj.status) is Ok,
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal_status(obj.status) is Ok,
         Kind::CustomResourceKind(string) => (installed_types[string].unmarshallable_status)(obj.status),
     }
 }
@@ -132,16 +132,16 @@ pub open spec fn metadata_transition_validity_check(obj: DynamicObjectView, old_
 
 pub open spec fn valid_object(obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::PodKind => PodView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::RoleKind => RoleView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::SecretKind => SecretView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().state_validation(),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation(),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::PodKind => PodView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::RoleKind => RoleView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::SecretKind => SecretView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::ServiceKind => ServiceView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj)->Ok_0.state_validation(),
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj)->Ok_0.state_validation(),
         Kind::CustomResourceKind(string) => (installed_types[string].valid_object)(obj),
     }
 }
@@ -156,16 +156,16 @@ pub open spec fn object_validity_check(obj: DynamicObjectView, installed_types: 
 
 pub open spec fn valid_transition(obj: DynamicObjectView, old_obj: DynamicObjectView, installed_types: InstalledTypes) -> bool {
     match obj.kind {
-        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0()),
-        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0()),
-        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().transition_validation(PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0()),
-        Kind::PodKind => PodView::unmarshal(obj).get_Ok_0().transition_validation(PodView::unmarshal(old_obj).get_Ok_0()),
-        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj).get_Ok_0().transition_validation(RoleBindingView::unmarshal(old_obj).get_Ok_0()),
-        Kind::RoleKind => RoleView::unmarshal(obj).get_Ok_0().transition_validation(RoleView::unmarshal(old_obj).get_Ok_0()),
-        Kind::SecretKind => SecretView::unmarshal(obj).get_Ok_0().transition_validation(SecretView::unmarshal(old_obj).get_Ok_0()),
-        Kind::ServiceKind => ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0()),
-        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0()),
-        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0()),
+        Kind::ConfigMapKind => ConfigMapView::unmarshal(obj)->Ok_0.transition_validation(ConfigMapView::unmarshal(old_obj)->Ok_0),
+        Kind::DaemonSetKind => DaemonSetView::unmarshal(obj)->Ok_0.transition_validation(DaemonSetView::unmarshal(old_obj)->Ok_0),
+        Kind::PersistentVolumeClaimKind => PersistentVolumeClaimView::unmarshal(obj)->Ok_0.transition_validation(PersistentVolumeClaimView::unmarshal(old_obj)->Ok_0),
+        Kind::PodKind => PodView::unmarshal(obj)->Ok_0.transition_validation(PodView::unmarshal(old_obj)->Ok_0),
+        Kind::RoleBindingKind => RoleBindingView::unmarshal(obj)->Ok_0.transition_validation(RoleBindingView::unmarshal(old_obj)->Ok_0),
+        Kind::RoleKind => RoleView::unmarshal(obj)->Ok_0.transition_validation(RoleView::unmarshal(old_obj)->Ok_0),
+        Kind::SecretKind => SecretView::unmarshal(obj)->Ok_0.transition_validation(SecretView::unmarshal(old_obj)->Ok_0),
+        Kind::ServiceKind => ServiceView::unmarshal(obj)->Ok_0.transition_validation(ServiceView::unmarshal(old_obj)->Ok_0),
+        Kind::StatefulSetKind => StatefulSetView::unmarshal(obj)->Ok_0.transition_validation(StatefulSetView::unmarshal(old_obj)->Ok_0),
+        Kind::ServiceAccountKind => ServiceAccountView::unmarshal(obj)->Ok_0.transition_validation(ServiceAccountView::unmarshal(old_obj)->Ok_0),
         Kind::CustomResourceKind(string) => (installed_types[string].valid_transition)(obj, old_obj),
     }
 }

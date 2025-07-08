@@ -735,7 +735,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
             } ==> {
                 let resp_objs = msg.content.get_list_response().res.unwrap();
                 &&& msg.content.is_list_response()
-                &&& msg.content.get_list_response().res.is_Ok()
+                &&& msg.content.get_list_response().res is Ok
                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                 &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==>
                 (
@@ -922,7 +922,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                 } implies {
                                     let resp_objs = msg.content.get_list_response().res.unwrap();
                                     &&& msg.content.is_list_response()
-                                    &&& msg.content.get_list_response().res.is_Ok()
+                                    &&& msg.content.get_list_response().res is Ok
                                     &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                     &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                     (
@@ -966,7 +966,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             } implies {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& msg.content.get_list_response().res is Ok
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (
@@ -1050,7 +1050,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                                         let resp_objs = msg.content.get_list_response().res.unwrap();
                                         assert({
                                             &&& msg.content.is_list_response()
-                                            &&& msg.content.get_list_response().res.is_Ok()
+                                            &&& msg.content.get_list_response().res is Ok
                                             &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                         });
                                         assert(forall |i| #![auto] 0 <= i < resp_objs.len() ==>
@@ -1091,7 +1091,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             } implies {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& msg.content.get_list_response().res is Ok
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (
@@ -1130,7 +1130,7 @@ pub proof fn lemma_always_each_vrs_in_reconcile_implies_filtered_pods_owned_by_v
                             } implies {
                                 let resp_objs = msg.content.get_list_response().res.unwrap();
                                 &&& msg.content.is_list_response()
-                                &&& msg.content.get_list_response().res.is_Ok()
+                                &&& msg.content.get_list_response().res is Ok
                                 &&& resp_objs.filter(|o: DynamicObjectView| PodView::unmarshal(o).is_err()).len() == 0
                                 &&& forall |i| #![auto] 0 <= i < resp_objs.len() ==>
                                 (

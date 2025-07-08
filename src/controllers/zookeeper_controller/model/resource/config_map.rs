@@ -31,7 +31,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
     open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() {
-            Ok(update_config_map(zk, cm.get_Ok_0()).marshal())
+            Ok(update_config_map(zk, cm->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -39,10 +39,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
 
     open spec fn state_after_create(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version is Some {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterExistsStatefulSet,
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version->0)),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));
@@ -54,10 +54,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
 
     open spec fn state_after_update(zk: ZookeeperClusterView, obj: DynamicObjectView, state: ZookeeperReconcileState) -> (res: Result<(ZookeeperReconcileState, Option<APIRequest>), ()>) {
         let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version is Some {
+        if cm.is_ok() && cm->Ok_0.metadata.resource_version is Some {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterExistsStatefulSet,
-                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version->0)),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm->Ok_0.metadata.resource_version->0)),
                 ..state
             };
             let req = APIRequest::GetRequest(StatefulSetBuilder::get_request(zk));

@@ -632,8 +632,8 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_in_flight_resp_ma
 pub open spec fn the_object_in_schedule_has_spec_and_uid_as<T: CustomResourceView>(controller_id: int, cr: T) -> StatePred<ClusterState> {
     |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(cr.object_ref())
         ==> s.scheduled_reconciles(controller_id)[cr.object_ref()].metadata.uid == cr.metadata().uid
-        && T::unmarshal(s.scheduled_reconciles(controller_id)[cr.object_ref()]).is_Ok()
-        && T::unmarshal(s.scheduled_reconciles(controller_id)[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
+        && T::unmarshal(s.scheduled_reconciles(controller_id)[cr.object_ref()]) is Ok
+        && T::unmarshal(s.scheduled_reconciles(controller_id)[cr.object_ref()])->Ok_0.spec() == cr.spec()
 }
 
 // This lemma says that under the spec where []desired_state_is(cr), it will eventually reach a state where any object
@@ -674,8 +674,8 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
 pub open spec fn the_object_in_reconcile_has_spec_and_uid_as<T: CustomResourceView>(controller_id: int, cr: T) -> StatePred<ClusterState> {
     |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(cr.object_ref())
         ==> s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr.metadata.uid == cr.metadata().uid
-        && T::unmarshal(s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr).is_Ok()
-        && T::unmarshal(s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr).get_Ok_0().spec() == cr.spec()
+        && T::unmarshal(s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr) is Ok
+        && T::unmarshal(s.ongoing_reconciles(controller_id)[cr.object_ref()].triggering_cr)->Ok_0.spec() == cr.spec()
 }
 
 // This lemma says that under the spec where []desired_state_is(cr), it will eventually reach a state where any object

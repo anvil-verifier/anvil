@@ -30,8 +30,8 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
 
     open spec fn update(fb: FluentBitView, state: FluentBitReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() && service.get_Ok_0().spec is Some {
-            Ok(update_service(fb, service.get_Ok_0()).marshal())
+        if service is Ok && service->Ok_0.spec is Some {
+            Ok(update_service(fb, service->Ok_0).marshal())
         } else {
             Err(())
         }
@@ -39,7 +39,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
 
     open spec fn state_after_create(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
                 ..state
@@ -53,7 +53,7 @@ impl ResourceBuilder<FluentBitView, FluentBitReconcileState> for ServiceBuilder 
 
     open spec fn state_after_update(fb: FluentBitView, obj: DynamicObjectView, state: FluentBitReconcileState) -> (res: Result<(FluentBitReconcileState, Option<APIRequest>), ()>) {
         let service = ServiceView::unmarshal(obj);
-        if service.is_Ok() {
+        if service is Ok {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DaemonSet),
                 ..state
