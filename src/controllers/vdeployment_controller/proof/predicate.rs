@@ -31,7 +31,14 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
         &&& triggering_cr.object_ref() == vd.object_ref()
         &&& triggering_cr.spec() == vd.spec()
-        &&& triggering_cr.metadata().uid == vd.metadata().uid
+        &&& triggering_cr.metadata() == vd.metadata()
+        // &&& triggering_cr.metadata().uid == vd.metadata().uid
+        // &&& triggering_cr.metadata().namespace == vd.metadata().namespace
+        // &&& triggering_cr.metadata().name == vd.metadata().name
+        // &&& triggering_cr.metadata().labels == vd.metadata().labels
+        // &&& triggering_cr.metadata().resource_version == vd.metadata().resource_version
+        &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
+        &&& triggering_cr.well_formed() == vd.well_formed()
         &&& step_pred(local_state)
     }
 }
