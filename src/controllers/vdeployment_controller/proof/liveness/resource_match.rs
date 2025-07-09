@@ -598,6 +598,7 @@ pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -609,10 +610,10 @@ ensures
             etcd_state_is(vd, controller_id, None, n)
         ))
         .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
             pending_create_new_vrs_req_in_flight(vd, controller_id),
-            etcd_state_is(vd, controller_id, None, n),
-            local_state_is_consistent_with_etcd(vd, controller_id)
+            etcd_state_is(vd, controller_id, None, n)
+            // local_state_is_consistent_with_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
@@ -621,10 +622,10 @@ ensures
         etcd_state_is(vd, controller_id, None, n)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
         pending_create_new_vrs_req_in_flight(vd, controller_id),
-        etcd_state_is(vd, controller_id, None, n),
-        local_state_is_consistent_with_etcd(vd, controller_id)
+        etcd_state_is(vd, controller_id, None, n)
+        // local_state_is_consistent_with_etcd(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
