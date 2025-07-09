@@ -277,17 +277,14 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
             &&& ({
-                let etcd_obj = s.resources()[vds.old_vrs_list[i].object_ref()];
-                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
-                // can pass list_vrs_obj_filter
-                &&& etcd_obj.kind == VReplicaSetView::kind()
-                &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-                // can pass objects_to_vrs_list
-                &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
-                // can pass filter_old_and_new_vrs_on_etcd
+                // other well_formed constrains are included in cluster.each_custom_object_in_etcd_is_well_formed
+                // and can be inferred by s.resources()[etcd_obj.object_ref()] == etcd_obj
+                let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap();
+                // the corresponding object in etcd is an old vrs
                 &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
             })
         }
+        // vds.old_vrs_list.no_duplicates() can be inferred by
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
         // new vrs
         &&& vds.new_vrs is None ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is None
@@ -388,6 +385,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::each_object_in_etcd_is_weakly_well_formed(),
         cluster.each_builtin_object_in_etcd_is_well_formed(),
         cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(),
+        cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(),
         Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
         Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),
