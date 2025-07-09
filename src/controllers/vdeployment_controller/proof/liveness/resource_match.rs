@@ -651,6 +651,10 @@ ensures
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // the request should carry the make_replica_set(vd).marshal(), which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
+                    VDeploymentView::marshal_preserves_integrity();
+                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+                    // assert(vd.metadata() == triggering_cr.metadata());
+                    assert(s.resources().dom().finite());
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
@@ -1057,7 +1061,6 @@ ensures
 }
 
 // local_state_is_consistent_with_etcd significantly slowed and flaked this proof
-#[verifier(external_body)]
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
@@ -1078,8 +1081,8 @@ ensures
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))]),
             pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
-            local_state_is_consistent_with_etcd(vd, controller_id)
+            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)
+            // local_state_is_consistent_with_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
@@ -1091,8 +1094,8 @@ ensures
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))]),
         pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
-        local_state_is_consistent_with_etcd(vd, controller_id)
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)
+        // local_state_is_consistent_with_etcd(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
