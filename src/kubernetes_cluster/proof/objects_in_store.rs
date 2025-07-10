@@ -67,6 +67,7 @@ pub open spec fn each_builtin_object_in_etcd_is_well_formed(self) -> StatePred<C
     }
 }
 
+#[verifier(rlimit(100))]
 pub proof fn lemma_always_each_builtin_object_in_etcd_is_well_formed(self, spec: TempPred<ClusterState>)
     requires
         spec.entails(lift_state(self.init())),

@@ -216,9 +216,9 @@ pub open spec fn vd_reconcile_get_then_update_request_only_interferes_with_itsel
     vd: VDeploymentView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let owners = req.obj.metadata.owner_references.get_Some_0();
+        let owners = req.obj.metadata.owner_references->0;
         let controller_owners = owners.filter(
-            |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+            |o: OwnerReferenceView| o.controller is Some && o.controller->0
         );
         &&& req.key().kind == VReplicaSetView::kind()
         &&& req.key().namespace == vd.metadata.namespace.unwrap()
@@ -226,7 +226,7 @@ pub open spec fn vd_reconcile_get_then_update_request_only_interferes_with_itsel
         &&& req.owner_ref.controller->0
         &&& req.owner_ref.kind == VDeploymentView::kind()
         &&& req.owner_ref.name == vd.object_ref().name
-        &&& req.obj.metadata.owner_references.is_Some()
+        &&& req.obj.metadata.owner_references is Some
         // We can't prove controller_owners == seq![vd.controller_owner_ref()]
         // directly since owner references carry a uid...
         &&& controller_owners.len() == 1
@@ -366,14 +366,14 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         &&& msg.content.get_list_response().res is Ok
                         &&& resp_objs.filter(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err()).len() == 0 
                         &&& forall |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() ==> {
-                            let owners = resp_objs[i].metadata.owner_references.get_Some_0();
+                            let owners = resp_objs[i].metadata.owner_references->0;
                             let controller_owners = owners.filter(
-                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                                |o: OwnerReferenceView| o.controller is Some && o.controller->0
                             );
                             &&& resp_objs[i].metadata.namespace.is_some()
                             &&& resp_objs[i].metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
                             &&& resp_objs[i].kind == VReplicaSetView::kind()
-                            &&& resp_objs[i].metadata.owner_references.is_Some() ==> controller_owners.len() <= 1
+                            &&& resp_objs[i].metadata.owner_references is Some ==> controller_owners.len() <= 1
                         }
                     }
                 }

@@ -87,7 +87,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                     if s.in_flight().contains(msg) {} // used to instantiate invariant's trigger.
                 }
             }
-            Step::ControllerStep((id, _, cr_key_opt)) => {
+            Step::ControllerStep((id, resp_msg_opt, cr_key_opt)) => {
                 let cr_key = cr_key_opt->0;
                 assert forall |msg| {
                     &&& invariant(s)
@@ -126,15 +126,15 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                                 }
                             }
                             assert(req.owner_ref == triggering_cr.controller_owner_ref());
-                            let owners = req.obj.metadata.owner_references.get_Some_0();
+                            let owners = req.obj.metadata.owner_references->0;
                             let controller_owners = owners.filter(
-                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0()
+                                |o: OwnerReferenceView| o.controller is Some && o.controller->0
                             );
                             assert(controller_owners[0] == triggering_cr.controller_owner_ref());
                             assert(controller_owners.contains(triggering_cr.controller_owner_ref()));
                             seq_filter_contains_implies_seq_contains(
                                 owners,
-                                |o: OwnerReferenceView| o.controller.is_Some() && o.controller.get_Some_0(),
+                                |o: OwnerReferenceView| o.controller is Some && o.controller->0,
                                 triggering_cr.controller_owner_ref(),
                             );
                             assert(req.obj.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
