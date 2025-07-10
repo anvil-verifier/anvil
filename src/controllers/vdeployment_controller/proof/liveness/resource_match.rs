@@ -657,16 +657,12 @@ ensures
                     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
                     // assert(vd.metadata() == triggering_cr.metadata());
                     assert(s.resources().dom().finite());
+                    assert(vd.metadata() == triggering_cr.metadata());
+                    assert((|vrs: VReplicaSetView| match_template_without_hash(triggering_cr, vrs)) == (|vrs: VReplicaSetView| match_template_without_hash(vd, vrs)));
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                    let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                    let vrs_list = vrs_list_or_none->0;
-                    assert(resp_msg.content.is_list_response());
-                    assert(resp_msg.content.get_list_response().res is Ok);
-                    assert(vrs_list_or_none is Some);
-                    assert(vd.metadata.namespace == triggering_cr.metadata.namespace);
-                    assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
+                    let vrs_list = objects_to_vrs_list(resp_objs)->0;
                     let vd_owner_filter = |vrs: VReplicaSetView| {
                         &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
                         &&& vrs.metadata.deletion_timestamp is None
