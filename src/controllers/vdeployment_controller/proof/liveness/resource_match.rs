@@ -15,6 +15,7 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::seq_lib::*;
+use vstd::seq_lib::*;
 use vstd::prelude::*;
 
 verus !{
@@ -652,24 +653,83 @@ ensures
                     // the request should carry the make_replica_set(vd).marshal(), which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
                     VDeploymentView::marshal_preserves_integrity();
+                    broadcast use group_seq_properties;
                     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
                     // assert(vd.metadata() == triggering_cr.metadata());
                     assert(s.resources().dom().finite());
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                        assert(resp_msg.content.is_list_response());
-                        assert(resp_msg.content.get_list_response().res is Ok);
-                        assert(vrs_list_or_none is Some);
-                        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                        assert(filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd)));
-                        assert(new_vrs_or_none is None);
-                        // try comment out the next line
-                        assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
-                        assert(vrls_prime == create_new_vrs(old_vrs_list, vd).0);
+                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                    let vrs_list_or_none = objects_to_vrs_list(resp_objs);
+                    let vrs_list = vrs_list_or_none->0;
+                    assert(resp_msg.content.is_list_response());
+                    assert(resp_msg.content.get_list_response().res is Ok);
+                    assert(vrs_list_or_none is Some);
+                    assert(vd.metadata.namespace == triggering_cr.metadata.namespace);
+                    assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
+                    let vd_owner_filter = |vrs: VReplicaSetView| {
+                        &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
+                        &&& vrs.metadata.deletion_timestamp is None
+                        &&& vrs.well_formed()
+                    };
+                    let filtered_vrs_list = vrs_list.filter(vd_owner_filter);
+                    assert(filtered_vrs_list == filter_vrs_list(vd, vrs_list));
+                    assert(filter_old_and_new_vrs(vd, filtered_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                    let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
+                    assert(new_vrs_or_none is None);
+                    let old_vrs_list_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas->0 > 0;
+                    assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter)) by {
+                        let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
+                            &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
+                            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+                        };
+                        assert(old_vrs_list_filter_with_new_vrs == old_vrs_list_filter);
+                        assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
+                    }
+                    assert(old_vrs_list.len() == n);
+                    assert forall |vrs| old_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && vd_owner_filter(vrs) by {
+                        seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
+                        assert forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && vd_owner_filter(vrs) by {
+                            seq_filter_is_a_subset_of_original_seq(vrs_list, vd_owner_filter);
+                            assert forall |vrs| vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace by {
+                                assert(forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace);
+                            }
+                            assert(forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vd_owner_filter(vrs));
+                        }
+                    }
+                    assert(forall |i| 0 <= i < n ==> {
+                        // trigger local_state_is_consistent_with_etcd
+                        &&& #[trigger] old_vrs_list[i].well_formed()
+                        &&& #[trigger] old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+                        &&& #[trigger] old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
+                    });
+                    let step = vrls_prime.reconcile_step;
+                    assert(step == AfterCreateNewVRS);
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))])(s_prime));
+                    assert(pending_create_new_vrs_req_in_flight(triggering_cr, controller_id)(s_prime));
+                    assert(etcd_state_is(triggering_cr, controller_id, None, n)(s_prime));
+                    assert(pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime));
+                    assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
+                    assert(local_state_is_consistent_with_etcd(vd, controller_id)(s_prime)) by {
+                        assert(make_replica_set(triggering_cr) == make_replica_set(vd));
+                        let new_vrs = vrls_prime.new_vrs.unwrap();
+                        assert(vrls_prime.new_vrs is Some);
+                        assert(new_vrs == make_replica_set(triggering_cr));
+                        // need a version of well_formed without resource_version
+                        assume(new_vrs.metadata.resource_version is Some);
+                        assert({
+                            &&& new_vrs.well_formed()
+                            &&& new_vrs.metadata.namespace == vd.metadata.namespace
+                            &&& new_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
+                        });
+                        assert(vrls_prime.old_vrs_list == old_vrs_list);
+                        assert(forall |i| 0 <= i < n ==> {
+                            // trigger local_state_is_consistent_with_etcd
+                            &&& #[trigger] vrls_prime.old_vrs_list[i].well_formed()
+                            &&& #[trigger] vrls_prime.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
+                            &&& #[trigger] vrls_prime.old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
+                        });
+                        assert(pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime));
                     }
                 }
             },
