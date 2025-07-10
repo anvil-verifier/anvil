@@ -19,11 +19,18 @@ pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list:
     }
 }
 
-pub open spec fn filter_vrs_list(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (filtered_vrs_list: Seq<VReplicaSetView>) {
-    vrs_list.filter(|vrs: VReplicaSetView|
-        vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-        && vrs.metadata.deletion_timestamp is None
-        && vrs.well_formed())
+pub open spec fn weakly_well_formed(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
+    // weaker version of well_formed, only need the key to be in etcd
+    // and corresponding objects can pass the filter
+    &&& vrs.metadata.name is Some
+    // if I include the namespace check, we will see
+    // error: The verifier does not yet support the following Rust feature: ==/!= for non smt equality types
+    //    --> src/controllers/vdeployment_controller/exec/reconciler.rs:419:12
+    //     |
+    // 419 |         && vrs.metadata().namespace().unwrap() == vd.metadata().namespace().unwrap() 
+    // It's ok to go ahead without that because the namespace is ensured on API server side
+    &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
+    &&& vrs.state_validation()
 }
 
 pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))

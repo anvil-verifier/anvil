@@ -85,7 +85,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none is None {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
+                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs: VReplicaSetView| weakly_well_formed(vrs, vd)));
                     if new_vrs is None {
                         // create the new vrs
                         create_new_vrs(old_vrs_list, vd)
@@ -123,7 +123,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
         // a response-free barrier step
         VDeploymentReconcileStepView::AfterEnsureNewVRS => {
             if state.old_vrs_list.len() > 0 {
-                if !state.old_vrs_list.last().well_formed() {
+                if !weakly_well_formed(state.old_vrs_list.last(), vd) {
                     (error_state(state), None)
                 } else {
                     scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
@@ -137,7 +137,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 (error_state(state), None)
             } else {
                 if state.old_vrs_list.len() > 0 {
-                    if !state.old_vrs_list.last().well_formed() {
+                    if !weakly_well_formed(state.old_vrs_list.last(), vd) {
                         (error_state(state), None)
                     } else {
                         scale_down_old_vrs(state.new_vrs, state.old_vrs_list, vd)
