@@ -563,23 +563,6 @@ ensures
                     VReplicaSetView::marshal_preserves_integrity();
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    // assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
-                    //     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                    //     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                    //     assert(resp_msg.content.is_list_response());
-                    //     assert(resp_msg.content.get_list_response().res is Ok);
-                    //     assert(vrs_list_or_none is Some);
-                    //     assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                    //     assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                    //     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
-                    //     assert(new_vrs_or_none is Some);
-                    //     let new_vrs = new_vrs_or_none->0;
-                    //     assert(match_replicas(vd, new_vrs));
-                    //     assert(vrls_prime.new_vrs is Some);
-                    //     assert(vrls_prime.new_vrs->0 == new_vrs);
-                    //     assert(vrls_prime.old_vrs_list == old_vrs_list);
-                    //     assert(vrls_prime.reconcile_step == AfterEnsureNewVRS);
-                    // }
                 }
             },
             _ => {}
@@ -663,13 +646,8 @@ ensures
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                     let vrs_list = objects_to_vrs_list(resp_objs)->0;
-                    let vd_owner_filter = |vrs: VReplicaSetView| {
-                        &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-                        &&& vrs.metadata.deletion_timestamp is None
-                        &&& vrs.well_formed()
-                    };
-                    let filtered_vrs_list = vrs_list.filter(vd_owner_filter);
-                    assert(filtered_vrs_list == filter_vrs_list(vd, vrs_list));
+                    let weakly_well_formed_filter = |vrs: VReplicaSetView| weakly_well_formed(vrs, vd);
+                    let filtered_vrs_list = vrs_list.filter(weakly_well_formed_filter);
                     assert(filter_old_and_new_vrs(vd, filtered_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
                     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
                     assert(new_vrs_or_none is None);
@@ -683,14 +661,14 @@ ensures
                         assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
                     }
                     assert(old_vrs_list.len() == n);
-                    assert forall |vrs| old_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && vd_owner_filter(vrs) by {
+                    assert forall |vrs| old_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && weakly_well_formed_filter(vrs) by {
                         seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
-                        assert forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && vd_owner_filter(vrs) by {
-                            seq_filter_is_a_subset_of_original_seq(vrs_list, vd_owner_filter);
+                        assert forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && weakly_well_formed_filter(vrs) by {
+                            seq_filter_is_a_subset_of_original_seq(vrs_list, weakly_well_formed_filter);
                             assert forall |vrs| vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace by {
                                 assert(forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace);
                             }
-                            assert(forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vd_owner_filter(vrs));
+                            assert(forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] weakly_well_formed_filter(vrs));
                         }
                     }
                     assert(forall |i| 0 <= i < n ==> {
