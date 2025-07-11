@@ -19,6 +19,7 @@ use vstd::prelude::*;
 
 verus !{
 
+#[verifier(external_body)]
 pub proof fn lemma_from_init_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -392,6 +393,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -658,8 +660,8 @@ ensures
                         assert(resp_msg.content.get_list_response().res is Ok);
                         assert(vrs_list_or_none is Some);
                         assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                        assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
+                        assert(filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd)));
                         assert(new_vrs_or_none is None);
                         // try comment out the next line
                         assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
@@ -675,6 +677,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )

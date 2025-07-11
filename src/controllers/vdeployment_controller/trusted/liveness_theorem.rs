@@ -35,12 +35,8 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
 }
 
 pub open spec fn filter_old_and_new_vrs_on_etcd(vd: VDeploymentView, resources: StoredState) -> (Option<VReplicaSetView>, Seq<VReplicaSetView>) {
-    let objs = resources.values().filter(|obj: DynamicObjectView| {
-        &&& obj.kind == VReplicaSetView::kind()
-        &&& obj.metadata.namespace == vd.metadata.namespace
-    }).to_seq();
-    let vrs_list = objects_to_vrs_list(objs);
-    let filtered_vrs_list = filter_vrs_list(vd, vrs_list.unwrap());
+    let objs = resources.values().filter(list_vrs_obj_filter(vd)).to_seq();
+    let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
     filter_old_and_new_vrs(vd, filtered_vrs_list)
 }
 

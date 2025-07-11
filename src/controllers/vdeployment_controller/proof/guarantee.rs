@@ -114,7 +114,7 @@ pub proof fn guarantee_condition_holds(spec: TempPred<ClusterState>, cluster: Cl
                                 let list_resp = resp_msg_opt.unwrap().content.get_list_response();
                                 let objs = list_resp.res.unwrap();
                                 let vrs_list_or_none = objects_to_vrs_list(objs);
-                                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, filter_vrs_list(triggering_cr, vrs_list_or_none->0));
+                                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, triggering_cr)));
 
                                 // idea: sidestep an explicit proof that the message we send is owned by triggering_cr
                                 // by applying the invariant `vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd`
