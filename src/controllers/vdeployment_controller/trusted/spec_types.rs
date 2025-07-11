@@ -166,11 +166,14 @@ impl ResourceView for VDeploymentView {
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels is Some
+        // labels are finite
+        &&& self.spec.selector.match_labels->0.dom().finite()
         &&& self.spec.selector.match_labels->0.len() > 0
         // template and its metadata ane spec exists
         &&& self.spec.template.metadata is Some
         // can be derived from selector match labels
         &&& self.spec.template.metadata->0.labels is Some
+        &&& self.spec.template.metadata->0.labels->0.dom().finite()
         &&& self.spec.template.spec is Some
         // selector matches template's metadata's labels
         &&& self.spec.selector.matches(self.spec.template.metadata->0.labels->0)

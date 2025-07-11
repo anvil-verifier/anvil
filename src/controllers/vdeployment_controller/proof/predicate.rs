@@ -31,7 +31,14 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
         &&& triggering_cr.object_ref() == vd.object_ref()
         &&& triggering_cr.spec() == vd.spec()
-        &&& triggering_cr.metadata().uid == vd.metadata().uid
+        &&& triggering_cr.metadata() == vd.metadata()
+        // &&& triggering_cr.metadata().uid == vd.metadata().uid
+        // &&& triggering_cr.metadata().namespace == vd.metadata().namespace
+        // &&& triggering_cr.metadata().name == vd.metadata().name
+        // &&& triggering_cr.metadata().labels == vd.metadata().labels
+        // &&& triggering_cr.metadata().resource_version == vd.metadata().resource_version
+        &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
+        &&& triggering_cr.well_formed() == vd.well_formed()
         &&& step_pred(local_state)
     }
 }
@@ -277,17 +284,14 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
             &&& ({
-                let etcd_obj = s.resources()[vds.old_vrs_list[i].object_ref()];
-                let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
-                // can pass list_vrs_obj_filter
-                &&& etcd_obj.kind == VReplicaSetView::kind()
-                &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-                // can pass objects_to_vrs_list
-                &&& VReplicaSetView::unmarshal(etcd_obj).is_ok()
-                // can pass filter_old_and_new_vrs_on_etcd
+                // other well_formed constrains are included in cluster.each_custom_object_in_etcd_is_well_formed
+                // and can be inferred by s.resources()[etcd_obj.object_ref()] == etcd_obj
+                let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap();
+                // the corresponding object in etcd is an old vrs
                 &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
             })
         }
+        // vds.old_vrs_list.no_duplicates() can be inferred by
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
         // new vrs
         &&& vds.new_vrs is None ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is None
@@ -388,6 +392,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::each_object_in_etcd_is_weakly_well_formed(),
         cluster.each_builtin_object_in_etcd_is_well_formed(),
         cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>(),
+        cluster.each_custom_object_in_etcd_is_well_formed::<VReplicaSetView>(),
         Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id),
         cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id(),
         Cluster::each_object_in_etcd_has_at_most_one_controller_owner(),

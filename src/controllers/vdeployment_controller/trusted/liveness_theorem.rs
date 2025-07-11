@@ -26,7 +26,6 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
         // this step may return None so we need to check here
         &&& objects_to_vrs_list(objs) is Some
         &&& old_vrs_list.len() == 0
-        // TODO: add requirements on owner_ref
         &&& new_vrs is Some
         &&& match_template_without_hash(vd, new_vrs->0)
         &&& match_replicas(vd, new_vrs->0)

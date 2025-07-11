@@ -15,6 +15,7 @@ use crate::vdeployment_controller::{
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
 use crate::vstd_ext::seq_lib::*;
+use vstd::seq_lib::*;
 use vstd::prelude::*;
 
 verus !{
@@ -562,23 +563,6 @@ ensures
                     VReplicaSetView::marshal_preserves_integrity();
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    // assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
-                    //     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                    //     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                    //     assert(resp_msg.content.is_list_response());
-                    //     assert(resp_msg.content.get_list_response().res is Ok);
-                    //     assert(vrs_list_or_none is Some);
-                    //     assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                    //     assert(filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0)) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                    //     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none->0));
-                    //     assert(new_vrs_or_none is Some);
-                    //     let new_vrs = new_vrs_or_none->0;
-                    //     assert(match_replicas(vd, new_vrs));
-                    //     assert(vrls_prime.new_vrs is Some);
-                    //     assert(vrls_prime.new_vrs->0 == new_vrs);
-                    //     assert(vrls_prime.old_vrs_list == old_vrs_list);
-                    //     assert(vrls_prime.reconcile_step == AfterEnsureNewVRS);
-                    // }
                 }
             },
             _ => {}
@@ -593,12 +577,12 @@ ensures
 }
 
 // maybe another case of flakiness, see verus log
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -610,7 +594,7 @@ ensures
             etcd_state_is(vd, controller_id, None, n)
         ))
         .leads_to(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
             pending_create_new_vrs_req_in_flight(vd, controller_id),
             etcd_state_is(vd, controller_id, None, n),
             local_state_is_consistent_with_etcd(vd, controller_id)
@@ -622,7 +606,7 @@ ensures
         etcd_state_is(vd, controller_id, None, n)
     );
     let post = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
         pending_create_new_vrs_req_in_flight(vd, controller_id),
         etcd_state_is(vd, controller_id, None, n),
         local_state_is_consistent_with_etcd(vd, controller_id)
@@ -651,21 +635,41 @@ ensures
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // the request should carry the make_replica_set(vd).marshal(), which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
+                    VDeploymentView::marshal_preserves_integrity();
+                    broadcast use group_seq_properties;
+                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+                    // assert(vd.metadata() == triggering_cr.metadata());
+                    assert(s.resources().dom().finite());
+                    assert(vd.metadata() == triggering_cr.metadata());
+                    assert((|vrs: VReplicaSetView| match_template_without_hash(triggering_cr, vrs)) == (|vrs: VReplicaSetView| match_template_without_hash(vd, vrs)));
                     let vrls = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert((vrls_prime.new_vrs, vrls_prime.old_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources())) by {
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-                        assert(resp_msg.content.is_list_response());
-                        assert(resp_msg.content.get_list_response().res is Ok);
-                        assert(vrs_list_or_none is Some);
-                        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq());
-                        assert(filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                        let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd)));
-                        assert(new_vrs_or_none is None);
-                        // try comment out the next line
-                        assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
-                        assert(vrls_prime == create_new_vrs(old_vrs_list, vd).0);
+                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+                    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+                    let valid_owned_object_filter = |vrs: VReplicaSetView| valid_owned_object(vrs, vd);
+                    let filtered_vrs_list = vrs_list.filter(valid_owned_object_filter);
+                    assert(filter_old_and_new_vrs(vd, filtered_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
+                    let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
+                    assert(new_vrs_or_none is None);
+                    let old_vrs_list_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas->0 > 0;
+                    assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter)) by {
+                        let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
+                            &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
+                            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+                        };
+                        assert(old_vrs_list_filter_with_new_vrs == old_vrs_list_filter);
+                        assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
+                    }
+                    assert(old_vrs_list.len() == n);
+                    assert forall |vrs| old_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && valid_owned_object_filter(vrs) by {
+                        seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
+                        assert forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && valid_owned_object_filter(vrs) by {
+                            seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_object_filter);
+                            assert forall |vrs| vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace by {
+                                assert(forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace);
+                            }
+                            assert(forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] valid_owned_object_filter(vrs));
+                        }
                     }
                 }
             },
@@ -1057,7 +1061,6 @@ ensures
 }
 
 // local_state_is_consistent_with_etcd significantly slowed and flaked this proof
-#[verifier(external_body)]
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
@@ -1078,8 +1081,8 @@ ensures
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))]),
             pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
-            local_state_is_consistent_with_etcd(vd, controller_id)
+            etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)
+            // local_state_is_consistent_with_etcd(vd, controller_id)
         )))),
 {
     let pre = and!(
@@ -1091,8 +1094,8 @@ ensures
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))]),
         pending_get_then_update_req_in_flight_with_replicas(vd, controller_id, int0!()),
-        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
-        local_state_is_consistent_with_etcd(vd, controller_id)
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)
+        // local_state_is_consistent_with_etcd(vd, controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)

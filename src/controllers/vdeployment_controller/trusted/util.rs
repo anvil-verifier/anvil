@@ -29,6 +29,7 @@ pub open spec fn valid_owned_object(vrs: VReplicaSetView, vd: VDeploymentView) -
     //     |
     // 419 |         && vrs.metadata().namespace().unwrap() == vd.metadata().namespace().unwrap() 
     // It's ok to go ahead without that because the namespace is ensured on API server side
+    &&& vrs.metadata.deletion_timestamp is None
     &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
     &&& vrs.state_validation()
 }
