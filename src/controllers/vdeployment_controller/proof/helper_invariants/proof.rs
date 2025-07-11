@@ -658,10 +658,7 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
                                     
                                     seq_filter_contains_implies_seq_contains(
                                         vrs_list,
-                                        |vrs: VReplicaSetView|
-                                            vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref())
-                                            && vrs.metadata.deletion_timestamp is None
-                                            && vrs.well_formed(),
+                                        |vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr),
                                         filtered_vrs_list[i]
                                     );
 
