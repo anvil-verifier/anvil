@@ -646,8 +646,8 @@ ensures
                     let vrls_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                     let vrs_list = objects_to_vrs_list(resp_objs)->0;
-                    let weakly_well_formed_filter = |vrs: VReplicaSetView| weakly_well_formed(vrs, vd);
-                    let filtered_vrs_list = vrs_list.filter(weakly_well_formed_filter);
+                    let valid_owned_object_filter = |vrs: VReplicaSetView| valid_owned_object(vrs, vd);
+                    let filtered_vrs_list = vrs_list.filter(valid_owned_object_filter);
                     assert(filter_old_and_new_vrs(vd, filtered_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
                     let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
                     assert(new_vrs_or_none is None);
@@ -661,49 +661,15 @@ ensures
                         assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
                     }
                     assert(old_vrs_list.len() == n);
-                    assert forall |vrs| old_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && weakly_well_formed_filter(vrs) by {
+                    assert forall |vrs| old_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && valid_owned_object_filter(vrs) by {
                         seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
-                        assert forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && weakly_well_formed_filter(vrs) by {
-                            seq_filter_is_a_subset_of_original_seq(vrs_list, weakly_well_formed_filter);
+                        assert forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace && valid_owned_object_filter(vrs) by {
+                            seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_object_filter);
                             assert forall |vrs| vrs_list.contains(vrs) ==> #[trigger] vrs.metadata.namespace == vd.metadata.namespace by {
                                 assert(forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj).unwrap().metadata.namespace == vd.metadata.namespace);
                             }
-                            assert(forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] weakly_well_formed_filter(vrs));
+                            assert(forall |vrs| filtered_vrs_list.contains(vrs) ==> #[trigger] valid_owned_object_filter(vrs));
                         }
-                    }
-                    assert(forall |i| 0 <= i < n ==> {
-                        // trigger local_state_is_consistent_with_etcd
-                        &&& #[trigger] old_vrs_list[i].well_formed()
-                        &&& #[trigger] old_vrs_list[i].metadata.namespace == vd.metadata.namespace
-                        &&& #[trigger] old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
-                    });
-                    let step = vrls_prime.reconcile_step;
-                    assert(step == AfterCreateNewVRS);
-                    assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))])(s_prime));
-                    assert(pending_create_new_vrs_req_in_flight(triggering_cr, controller_id)(s_prime));
-                    assert(etcd_state_is(triggering_cr, controller_id, None, n)(s_prime));
-                    assert(pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime));
-                    assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
-                    assert(local_state_is_consistent_with_etcd(vd, controller_id)(s_prime)) by {
-                        assert(make_replica_set(triggering_cr) == make_replica_set(vd));
-                        let new_vrs = vrls_prime.new_vrs.unwrap();
-                        assert(vrls_prime.new_vrs is Some);
-                        assert(new_vrs == make_replica_set(triggering_cr));
-                        // need a version of well_formed without resource_version
-                        assume(new_vrs.metadata.resource_version is Some);
-                        assert({
-                            &&& new_vrs.well_formed()
-                            &&& new_vrs.metadata.namespace == vd.metadata.namespace
-                            &&& new_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-                        });
-                        assert(vrls_prime.old_vrs_list == old_vrs_list);
-                        assert(forall |i| 0 <= i < n ==> {
-                            // trigger local_state_is_consistent_with_etcd
-                            &&& #[trigger] vrls_prime.old_vrs_list[i].well_formed()
-                            &&& #[trigger] vrls_prime.old_vrs_list[i].metadata.namespace == vd.metadata.namespace
-                            &&& #[trigger] vrls_prime.old_vrs_list[i].metadata.owner_references_contains(vd.controller_owner_ref())
-                        });
-                        assert(pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime));
                     }
                 }
             },
