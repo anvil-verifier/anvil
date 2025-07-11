@@ -3,6 +3,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vdeployment_controller::{
     trusted::{rely_guarantee::*, step::*, spec_types::*},
     model::{install::*, reconciler::*},
+    proof::helper_invariants,
 };
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
@@ -558,6 +559,13 @@ pub open spec fn lifted_vd_rely_condition_action(cluster: Cluster, controller_id
             ==> #[trigger] vd_rely(other_id)(s))
         && (forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime))
+    })
+}
+
+pub open spec fn lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id: int) -> TempPred<ClusterState> {
+    lift_action(|s, s_prime| {
+        (forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s))
+        && (forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime))
     })
 }
 

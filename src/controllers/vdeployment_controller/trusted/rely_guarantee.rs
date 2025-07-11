@@ -75,7 +75,7 @@ pub open spec fn vd_rely_get_then_update_req(req: GetThenUpdateRequest) -> State
 // similar to update requests, minus the condition on owner_references.
 pub open spec fn vd_rely_update_status_req(req: UpdateStatusRequest) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        req.obj.kind == VDeploymentView::kind() ==> 
+        req.obj.kind == VReplicaSetView::kind() ==> 
             req.obj.metadata.resource_version is Some
             && !{
                 let etcd_obj = s.resources()[req.key()];
