@@ -593,7 +593,6 @@ ensures
             assert(old_labels.dom().len() >= 0);
             assert(labels@ == old_labels.insert("pod-template-hash"@, pod_template_hash@));
             axiom_map_insert_domain(old_labels, "pod-template-hash"@, pod_template_hash@);
-            assume(old_labels.dom().finite());
             assert(labels@.dom() == old_labels.dom().insert("pod-template-hash"@));
             axiom_set_insert_len(old_labels.dom(), "pod-template-hash"@);
         }
