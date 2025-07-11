@@ -170,10 +170,9 @@ impl ObjectMetaView {
         &&& self.namespace is Some
         &&& self.resource_version is Some
         &&& self.uid is Some
-        &&& self.labels is Some ==> self.labels->0.finite()
-        &&& self.annotations is Some ==> self.annotations->0.finite()
-        &&& self.owner_references is Some ==> self.owner_references->0.finite()
-        &&& self.finalizers is Some ==> self.finalizers->0.finite()
+        // these fields are finite maps
+        &&& self.labels is Some ==> self.labels->0.dom().finite()
+        &&& self.annotations is Some ==> self.annotations->0.dom().finite()
     }
 }
 
