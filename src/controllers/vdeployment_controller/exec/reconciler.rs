@@ -167,7 +167,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
         },
         VDeploymentReconcileStep::AfterEnsureNewVRS => {
             if state.old_vrs_list.len() > 0 {
-                if !weakly_well_formed(&state.old_vrs_list[state.old_vrs_list.len() - 1], vd) {
+                if !valid_owned_object(&state.old_vrs_list[state.old_vrs_list.len() - 1], vd) {
                     return (error_state(state), None);
                 }
                 return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
@@ -180,7 +180,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (error_state(state), None);
             }
             if state.old_vrs_list.len() > 0 {
-                if !weakly_well_formed(&state.old_vrs_list[state.old_vrs_list.len() - 1], vd) {
+                if !valid_owned_object(&state.old_vrs_list[state.old_vrs_list.len() - 1], vd) {
                     return (error_state(state), None);
                 }
                 return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
@@ -249,7 +249,7 @@ ensures
 pub fn scale_new_vrs(mut new_vrs: VReplicaSet, old_vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
-    model_util::weakly_well_formed(new_vrs@, vd@),
+    model_util::valid_owned_object(new_vrs@, vd@),
 ensures
     res.1@ is Some && model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@).1 is Some,
     (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@),
@@ -277,7 +277,7 @@ pub fn scale_down_old_vrs(new_vrs: Option<VReplicaSet>, mut old_vrs_list: Vec<VR
 requires
     vd@.well_formed(),
     old_vrs_list@.len() > 0,
-    model_util::weakly_well_formed(old_vrs_list[old_vrs_list.len() - 1]@, vd@),
+    model_util::valid_owned_object(old_vrs_list[old_vrs_list.len() - 1]@, vd@),
 ensures
     (res.0@, res.1.deep_view()) == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@),
 {
@@ -307,7 +307,7 @@ ensures
 fn match_replicas(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
 requires
     vd@.well_formed(),
-    model_util::weakly_well_formed(vrs@, vd@),
+    model_util::valid_owned_object(vrs@, vd@),
 ensures res == model_util::match_replicas(vd@, vrs@),
 {
     vrs.spec().replicas().unwrap_or(1) == vd.spec().replicas().unwrap_or(1)
@@ -394,11 +394,11 @@ ensures
     Some(vrs_list)
 }
 
-fn weakly_well_formed(vrs: &VReplicaSet, vd: &VDeployment) -> (res: bool)
+fn valid_owned_object(vrs: &VReplicaSet, vd: &VDeployment) -> (res: bool)
 requires
     vd@.well_formed(),
 ensures
-    res == model_util::weakly_well_formed(vrs@, vd@),
+    res == model_util::valid_owned_object(vrs@, vd@),
 {
     vrs.metadata().name().is_some()
     && vrs.metadata().owner_references_contains(&vd.controller_owner_ref())
@@ -409,30 +409,30 @@ fn filter_vrs_list(vd: &VDeployment, vrs_list: Vec<VReplicaSet>) -> (filtered_vr
 requires
     vd@.well_formed(),
 ensures
-    filtered_vrs_list.deep_view() == vrs_list.deep_view().filter(|vrs: VReplicaSetView| model_util::weakly_well_formed(vrs, vd@)),
-    forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(filtered_vrs_list[i]@, vd@),
+    filtered_vrs_list.deep_view() == vrs_list.deep_view().filter(|vrs: VReplicaSetView| model_util::valid_owned_object(vrs, vd@)),
+    forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] model_util::valid_owned_object(filtered_vrs_list[i]@, vd@),
 {
     let mut filtered_vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;
 
     proof {
-        assert(filtered_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| model_util::weakly_well_formed(vrs, vd@)));
+        assert(filtered_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| model_util::valid_owned_object(vrs, vd@)));
     }
 
     for idx in 0..vrs_list.len()
     invariant
         vd@.well_formed(),
         idx <= vrs_list.len(),
-        filtered_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| model_util::weakly_well_formed(vrs, vd@)),
-        forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(filtered_vrs_list[i]@, vd@),
+        filtered_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| model_util::valid_owned_object(vrs, vd@)),
+        forall |i: int| 0 <= i < filtered_vrs_list.len() ==> #[trigger] model_util::valid_owned_object(filtered_vrs_list[i]@, vd@),
     {
         let vrs = &vrs_list[idx];
-        if weakly_well_formed(vrs, vd) {
+        if valid_owned_object(vrs, vd) {
             filtered_vrs_list.push(vrs.clone());
         }
 
         proof {
-            let filter = |vrs: VReplicaSetView| model_util::weakly_well_formed(vrs, vd@);
+            let filter = |vrs: VReplicaSetView| model_util::valid_owned_object(vrs, vd@);
             let pre_filtered_vrs_list = if filter(vrs@) {
                 filtered_vrs_list.deep_view().drop_last()
             } else {
@@ -454,11 +454,11 @@ requires
     vd@.well_formed(),
     // vrs.well_formed() is required because we need to update the old vrs -> old_vrs.metadata.well_formed_for_namespaced()
     // and new/old vrs has replicas -> vrs.state_validation()
-    forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(vrs_list[i]@, vd@)
+    forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::valid_owned_object(vrs_list[i]@, vd@)
 ensures
     (res.0.deep_view(), res.1.deep_view()) == model_util::filter_old_and_new_vrs(vd@, vrs_list.deep_view()),
-    res.0.is_some() ==> model_util::weakly_well_formed(res.0.unwrap()@, vd@),
-    forall |i: int| 0 <= i < res.1.len() ==> #[trigger] model_util::weakly_well_formed(res.1[i]@, vd@),
+    res.0.is_some() ==> model_util::valid_owned_object(res.0.unwrap()@, vd@),
+    forall |i: int| 0 <= i < res.1.len() ==> #[trigger] model_util::valid_owned_object(res.1[i]@, vd@),
 {
     let mut new_vrs_list = Vec::<VReplicaSet>::new();
     let mut old_vrs_list = Vec::<VReplicaSet>::new();
@@ -467,12 +467,12 @@ ensures
     for idx in 0..vrs_list.len()
     invariant
         new_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs)),
-        forall |i: int| 0 <= i < new_vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(new_vrs_list[i]@, vd@),
-        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(vrs_list[i]@, vd@),
+        forall |i: int| 0 <= i < new_vrs_list.len() ==> #[trigger] model_util::valid_owned_object(new_vrs_list[i]@, vd@),
+        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::valid_owned_object(vrs_list[i]@, vd@),
         vd@.well_formed(),
         idx <= vrs_list.len(),
     {
-        assert(model_util::weakly_well_formed(vrs_list[idx as int]@, vd@));
+        assert(model_util::valid_owned_object(vrs_list[idx as int]@, vd@));
         if match_template_without_hash(vd, &vrs_list[idx]) {
             new_vrs_list.push(vrs_list[idx].clone());
         }
@@ -497,7 +497,7 @@ ensures
     let new_vrs = if new_vrs_list.len() == 0 {
         None
     } else {
-        assert(model_util::weakly_well_formed(new_vrs_list[0]@, vd@));
+        assert(model_util::valid_owned_object(new_vrs_list[0]@, vd@));
         Some(new_vrs_list[0].clone())
     };
     assert(new_vrs.deep_view() == model_util::filter_old_and_new_vrs(vd@, vrs_list.deep_view()).0);
@@ -512,12 +512,12 @@ ensures
                 &&& (new_vrs.is_none() || vrs.metadata.uid != new_vrs.deep_view().unwrap().metadata.uid)
                 &&& (vrs.spec.replicas.is_none() || vrs.spec.replicas.unwrap() > 0)
             }),
-        forall |i: int| 0 <= i < old_vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(old_vrs_list[i]@, vd@),
-        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::weakly_well_formed(vrs_list[i]@, vd@),
+        forall |i: int| 0 <= i < old_vrs_list.len() ==> #[trigger] model_util::valid_owned_object(old_vrs_list[i]@, vd@),
+        forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::valid_owned_object(vrs_list[i]@, vd@),
         vd@.well_formed(),
         idx <= vrs_list.len(),
     {
-        assert(model_util::weakly_well_formed(vrs_list[idx as int]@, vd@));
+        assert(model_util::valid_owned_object(vrs_list[idx as int]@, vd@));
         let vrs = &vrs_list[idx];
         if (new_vrs.is_none() || !vrs.metadata().uid_eq(&new_vrs.as_ref().unwrap().metadata()))
             && (vrs.spec().replicas().is_none() || vrs.spec().replicas().unwrap() > 0) {
@@ -551,7 +551,7 @@ requires
     vd@.well_formed(),
 ensures
     vrs@ == model_reconciler::make_replica_set(vd@),
-    model_util::weakly_well_formed(vrs@, vd@),
+    model_util::valid_owned_object(vrs@, vd@),
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut vrs = VReplicaSet::default();
@@ -628,7 +628,7 @@ ensures
 pub fn match_template_without_hash(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
 requires
     vd@.well_formed(),
-    model_util::weakly_well_formed(vrs@, vd@),
+    model_util::valid_owned_object(vrs@, vd@),
 ensures res == model_util::match_template_without_hash(vd@, vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();

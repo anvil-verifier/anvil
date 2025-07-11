@@ -113,11 +113,11 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.no_duplicates()
     &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()
-    &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| weakly_well_formed(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
+    &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
     // these can be inferred from list_vrs_obj_filter and cr_in_etcd_is_well_formed
     // just to make proof easier
     &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj) is Ok
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] weakly_well_formed(VReplicaSetView::unmarshal(obj).unwrap(), vd)
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd)
 }
 
 pub open spec fn req_msg_is_create_vrs_req(
@@ -273,7 +273,7 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& forall |i| 0 <= i < vds.old_vrs_list.len() ==> {
             // the get-then-update request can succeed
-            &&& #[trigger] weakly_well_formed(vds.old_vrs_list[i], vd)
+            &&& #[trigger] valid_owned_object(vds.old_vrs_list[i], vd)
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
             &&& ({
@@ -294,7 +294,7 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
         &&& vds.new_vrs is Some ==> {
             let new_vrs = vds.new_vrs->0;
             // the get-then-update request can succeed
-            &&& weakly_well_formed(new_vrs, vd)
+            &&& valid_owned_object(new_vrs, vd)
             // if it's just created, etcd will not have it yet
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==>

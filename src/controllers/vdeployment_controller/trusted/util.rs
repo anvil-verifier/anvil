@@ -19,7 +19,7 @@ pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list:
     }
 }
 
-pub open spec fn weakly_well_formed(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
+pub open spec fn valid_owned_object(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
     // weaker version of well_formed, only need the key to be in etcd
     // and corresponding objects can pass the filter
     &&& vrs.metadata.name is Some
