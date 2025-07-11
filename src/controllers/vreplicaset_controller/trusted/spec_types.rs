@@ -133,6 +133,7 @@ impl ResourceView for VReplicaSetView {
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels is Some
+        &&& self.spec.selector.match_labels->0.finite()
         &&& self.spec.selector.match_labels->0.len() > 0
         // template, and its metadata ane spec exists
         &&& self.spec.template is Some
