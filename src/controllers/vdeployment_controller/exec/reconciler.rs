@@ -401,6 +401,7 @@ ensures
     res == model_util::valid_owned_object(vrs@, vd@),
 {
     vrs.metadata().name().is_some()
+    && !vrs.metadata().has_deletion_timestamp()
     && vrs.metadata().owner_references_contains(&vd.controller_owner_ref())
     && vrs.state_validation()
 }
