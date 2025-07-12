@@ -71,7 +71,7 @@ impl ObjectMeta {
     pub fn labels(&self) -> (labels: Option<StringMap>)
         ensures
             self@.labels is Some == labels is Some,
-            labels is Some ==> labels->0@ == self@.labels->0,
+            labels is Some ==> labels->0@ == self@.labels->0 && labels->0@.dom().finite(),
     {
         match &self.inner.labels {
             Some(l) => Some(StringMap::from_rust_map(l.clone())),
@@ -83,7 +83,7 @@ impl ObjectMeta {
     pub fn annotations(&self) -> (annotations: Option<StringMap>)
         ensures
             self@.annotations is Some == annotations is Some,
-            annotations is Some ==> annotations->0@ == self@.annotations->0,
+            annotations is Some ==> annotations->0@ == self@.annotations->0 && annotations->0@.dom().finite(),
     {
         match &self.inner.annotations {
             Some(a) => Some(StringMap::from_rust_map(a.clone())),

@@ -133,6 +133,8 @@ impl ResourceView for VReplicaSetView {
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels is Some
+        // labels are finite
+        &&& self.spec.selector.match_labels->0.dom().finite()
         &&& self.spec.selector.match_labels->0.len() > 0
         // template, and its metadata ane spec exists
         &&& self.spec.template is Some
@@ -141,6 +143,7 @@ impl ResourceView for VReplicaSetView {
         // kubernetes requires selector matches template's metadata's labels
         // and also requires selector to be non-empty, so it implicitly requires that the labels are non-empty
         &&& self.spec.template->0.metadata->0.labels is Some
+        &&& self.spec.template->0.metadata->0.labels->0.dom().finite()
         &&& self.spec.selector.matches(self.spec.template->0.metadata->0.labels->0)
     }
 
