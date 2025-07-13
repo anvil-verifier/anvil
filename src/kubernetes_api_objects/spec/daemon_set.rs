@@ -56,8 +56,8 @@ impl ResourceView for DaemonSetView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -83,15 +83,15 @@ impl ResourceView for DaemonSetView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(DaemonSetView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !DaemonSetView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(DaemonSetView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(DaemonSetView {
                 metadata: obj.metadata,
-                spec: DaemonSetView::unmarshal_spec(obj.spec).get_Ok_0(),
-                status: DaemonSetView::unmarshal_status(obj.status).get_Ok_0(),
+                spec: DaemonSetView::unmarshal_spec(obj.spec)->Ok_0,
+                status: DaemonSetView::unmarshal_status(obj.status)->Ok_0,
             })
         }
     }
@@ -122,12 +122,12 @@ impl ResourceView for DaemonSetView {
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
-        &&& self.spec.is_Some()
+        &&& self.spec is Some
     }
 
     open spec fn transition_validation(self, old_obj: DaemonSetView) -> bool {
-        let old_spec = old_obj.spec.get_Some_0();
-        let new_spec = self.spec.get_Some_0();
+        let old_spec = old_obj.spec->0;
+        let new_spec = self.spec->0;
         &&& old_spec.selector == new_spec.selector
     }
 }

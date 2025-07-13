@@ -55,8 +55,8 @@ impl ResourceView for RoleView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: Self::kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
+            name: self.metadata.name->0,
+            namespace: self.metadata.namespace->0,
         }
     }
 
@@ -82,14 +82,14 @@ impl ResourceView for RoleView {
     open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleView, UnmarshalError> {
         if obj.kind != Self::kind() {
             Err(())
-        } else if !RoleView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !(RoleView::unmarshal_spec(obj.spec) is Ok) {
             Err(())
-        } else if !RoleView::unmarshal_status(obj.status).is_Ok() {
+        } else if !(RoleView::unmarshal_status(obj.status) is Ok) {
             Err(())
         } else {
             Ok(RoleView {
                 metadata: obj.metadata,
-                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0(),
+                policy_rules: RoleView::unmarshal_spec(obj.spec)->Ok_0,
             })
         }
     }
@@ -120,8 +120,8 @@ impl ResourceView for RoleView {
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
-        &&& self.policy_rules.is_Some()
-            ==> (forall |i| 0 <= i < self.policy_rules.get_Some_0().len() ==> #[trigger] self.policy_rules.get_Some_0()[i].state_validation())
+        &&& self.policy_rules is Some
+            ==> (forall |i| 0 <= i < self.policy_rules->0.len() ==> #[trigger] self.policy_rules->0[i].state_validation())
     }
 
     open spec fn transition_validation(self, old_obj: RoleView) -> bool {
@@ -145,10 +145,10 @@ impl PolicyRuleView {
     }
 
     pub open spec fn state_validation(self) -> bool {
-        &&& self.api_groups.is_Some()
-        &&& self.api_groups.get_Some_0().len() > 0
-        &&& self.resources.is_Some()
-        &&& self.resources.get_Some_0().len() > 0
+        &&& self.api_groups is Some
+        &&& self.api_groups->0.len() > 0
+        &&& self.resources is Some
+        &&& self.resources->0.len() > 0
         &&& self.verbs.len() > 0
     }
 

@@ -12,7 +12,7 @@ on:
   merge_group:
   workflow_dispatch:
 env:
-  verus_commit: 3b6b805ac86cd6640d59468341055c7fa14cff07
+  verus_commit: 8bd7c3292aad57d3926ed8024cde13ca53d6e1a7
   kind_version: 0.23.0
   go_version: "^1.20"
   home_dir: /home/runner
@@ -129,7 +129,7 @@ jobs:
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vreplicaset_controller.rs --rlimit 50 --time
   vdeployment-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -147,7 +147,7 @@ jobs:
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vdeployment_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_controller.rs --rlimit 50 --time
   vstatefulset-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -165,7 +165,7 @@ jobs:
       - name: Verify vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vstatefulset_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vstatefulset_controller.rs --rlimit 50 --time
   vreplicaset-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -183,7 +183,7 @@ jobs:
       - name: Verify vreplicaset admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vreplicaset_admission_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vreplicaset_admission_controller.rs --rlimit 50 --time
   vstatefulset-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -201,7 +201,7 @@ jobs:
       - name: Verify vstatefulset admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vstatefulset_admission_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vstatefulset_admission_controller.rs --rlimit 50 --time
   vdeployment-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -219,8 +219,8 @@ jobs:
       - name: Verify vdeployment admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh v2_vdeployment_admission_controller.rs --rlimit 50 --time
-  framework-v2-verification:
+          VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_admission_controller.rs --rlimit 50 --time
+  framework-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
     steps:
@@ -237,7 +237,7 @@ jobs:
       - name: Verify conformance of the executable model
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh anvil_v2.rs --crate-type lib --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh anvil.rs --crate-type lib --rlimit 50 --time
   # fluent-e2e-test:
   #   needs:
   #     - build-and-cache-verus
@@ -410,9 +410,9 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vreplicaset admission controller
-        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset-admission --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh vreplicaset-admission --build
       - name: Run vreplicaset e2e tests for admission
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset-admission
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset-admission
   vstatefulset-admission-e2e-test:
     needs:
       - build-and-cache-verus
@@ -435,9 +435,9 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vstatefulset admission controller
-        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vstatefulset-admission --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh vstatefulset-admission --build
       - name: Run vstatefulset e2e tests for admission
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vstatefulset-admission
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vstatefulset-admission
   vdeployment-admission-e2e-test:
     needs:
       - build-and-cache-verus
@@ -460,9 +460,9 @@ jobs:
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
       - name: Deploy vdeployment admission controller
-        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vdeployment-admission --build
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh vdeployment-admission --build
       - name: Run vdeployment e2e tests for admission
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vdeployment-admission
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment-admission
   vreplicaset-e2e-test:
     needs:
       - build-and-cache-verus
@@ -484,10 +484,10 @@ jobs:
           go-version: ${{ env.go_version }}
       - name: Install kind
         run: go install sigs.k8s.io/kind@v$kind_version
-      - name: Deploy v2-vreplicaset controller
-        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vreplicaset --build-remote
+      - name: Deploy vreplicaset controller
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh vreplicaset --build-remote
       - name: Run vreplicaset e2e tests
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vreplicaset
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vreplicaset
   vdeployment-e2e-test:
     needs:
       - build-and-cache-verus
@@ -509,10 +509,10 @@ jobs:
           go-version: "^1.20"
       - name: Install kind
         run: go install sigs.k8s.io/kind@v0.23.0
-      - name: Deploy v2-vdeployment controller
-        run: VERUS_DIR="${HOME}/verus" ./local-test.sh v2-vdeployment --build
+      - name: Deploy vdeployment controller
+        run: VERUS_DIR="${HOME}/verus" ./local-test.sh vdeployment --build
       - name: Run vdeployment e2e tests
-        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- v2-vdeployment
+        run: . "$HOME/.cargo/env" && cd e2e && cargo run -- vdeployment
   tla-demo-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04

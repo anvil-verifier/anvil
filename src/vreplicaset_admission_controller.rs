@@ -1,38 +1,50 @@
 #![allow(unused_imports)]
 
-pub mod external_api;
+#[path = "external_shim_layer/mod.rs"]
+pub mod external_shim_layer;
 pub mod kubernetes_api_objects;
+#[path = "kubernetes_cluster/mod.rs"]
 pub mod kubernetes_cluster;
+#[path = "reconciler/mod.rs"]
 pub mod reconciler;
+#[path = "shim_layer/mod.rs"]
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
-#[path = "controller_examples/v_replica_set_controller/mod.rs"]
-pub mod v_replica_set_controller;
+#[path = "controllers/vreplicaset_controller/mod.rs"]
+pub mod vreplicaset_controller;
 pub mod vstd_ext;
 
-use crate::v_replica_set_controller::{
-    exec::validator::validate_replicas,
-    trusted::exec_types::VReplicaSet,
-};
 use crate::kubernetes_api_objects::exec::dynamic::DynamicObject;
+use crate::vreplicaset_controller::trusted::exec_types::{VReplicaSet, VReplicaSetSpec};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
 // use deps_hack::tracing::{error, info};
-use deps_hack::tracing_subscriber;
-use shim_layer::controller_runtime::run_controller;
-use std::env;
+use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use deps_hack::kube::core::{
     admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},
     DynamicObject as KubeDynamicObject, ResourceExt,
 };
-use crate::kubernetes_api_objects::exec::resource::ResourceWrapper;
 use deps_hack::tracing::*;
+use deps_hack::tracing_subscriber;
 use deps_hack::warp::*;
+use shim_layer::controller_runtime::run_controller;
+use std::env;
 // use deps_hack::warp::{reply, Filter, Reply};
 use std::convert::Infallible;
+use std::error::Error;
+
+pub fn validate_state(vrs: &VReplicaSet) -> Result<(), String> {
+    // Call executable state validation
+    if vrs.state_validation() {
+        Ok(())
+    } else {
+        Err("Invalid VReplicaset".to_string())
+    }
+}
+
 
 pub async fn validate_handler(
     body: AdmissionReview<KubeDynamicObject>,
@@ -55,7 +67,7 @@ pub async fn validate_handler(
         // Use unmarshal function to convert DynamicObject to VReplicaSet
         let vrs_result = VReplicaSet::unmarshal(local_obj);
         if let Ok(vrs) = vrs_result {
-            res = match validate_replicas(&vrs) {
+            res = match validate_state(&vrs) {
                 Ok(()) => {
                     info!("accepted: {:?} on resource {}", req.operation, name);
                     res

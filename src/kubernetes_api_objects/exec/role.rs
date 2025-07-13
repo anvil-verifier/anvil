@@ -21,8 +21,8 @@ impl Role {
     #[verifier(external_body)]
     pub fn rules(&self) -> (policy_rules: Option<Vec<PolicyRule>>)
         ensures
-            self@.policy_rules.is_Some() == policy_rules.is_Some(),
-            policy_rules.is_Some() ==> policy_rules.get_Some_0()@.map_values(|policy_rule: PolicyRule| policy_rule@) == self@.policy_rules.get_Some_0()
+            self@.policy_rules is Some == policy_rules is Some,
+            policy_rules is Some ==> policy_rules->0@.map_values(|policy_rule: PolicyRule| policy_rule@) == self@.policy_rules->0
     {
         match &self.inner.rules {
             Some(p) => Some(p.into_iter().map(|item| PolicyRule::from_kube(item.clone())).collect()),
@@ -60,8 +60,8 @@ impl PolicyRule {
     #[verifier(external_body)]
     pub fn api_groups(&self) -> (api_groups: Option<Vec<String>>)
         ensures
-            self@.api_groups.is_Some() == api_groups.is_Some(),
-            api_groups.is_Some() ==> api_groups.get_Some_0()@.map_values(|api_group: String| api_group@) == self@.api_groups.get_Some_0()
+            self@.api_groups is Some == api_groups is Some,
+            api_groups is Some ==> api_groups->0@.map_values(|api_group: String| api_group@) == self@.api_groups->0
     {
         self.inner.api_groups.clone()
     }
@@ -69,8 +69,8 @@ impl PolicyRule {
     #[verifier(external_body)]
     pub fn resources(&self) -> (resources: Option<Vec<String>>)
         ensures
-            self@.resources.is_Some() == resources.is_Some(),
-            resources.is_Some() ==> resources.get_Some_0()@.map_values(|resource: String| resource@) == self@.resources.get_Some_0()
+            self@.resources is Some == resources is Some,
+            resources is Some ==> resources->0@.map_values(|resource: String| resource@) == self@.resources->0
     {
         self.inner.resources.clone()
     }

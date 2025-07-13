@@ -50,8 +50,8 @@ impl ObjectMap {
     pub fn insert(&mut self, key: KubeObjectRef, value: DynamicObject) -> (old_v: Option<DynamicObject>)
         ensures
             self@ == old(self)@.insert(key@, value@),
-            old(self)@.contains_key(key@) == old_v.is_Some(),
-            old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
+            old(self)@.contains_key(key@) == old_v is Some,
+            old_v is Some ==> old_v->0@ == old(self)@[key@],
     {
         match self.inner.insert(key.into_external_object_ref(), value) {
             Some(old_v) => Some(old_v.clone()),
@@ -63,8 +63,8 @@ impl ObjectMap {
     pub fn remove(&mut self, key: &KubeObjectRef) -> (old_v: Option<DynamicObject>)
         ensures
             self@ == old(self)@.remove(key@),
-            old(self)@.contains_key(key@) == old_v.is_Some(),
-            old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
+            old(self)@.contains_key(key@) == old_v is Some,
+            old_v is Some ==> old_v->0@ == old(self)@[key@],
     {
         self.inner.remove(&key.clone().into_external_object_ref())
     }
@@ -72,8 +72,8 @@ impl ObjectMap {
     #[verifier(external_body)]
     pub fn get(&self, key: &KubeObjectRef) -> (v: Option<DynamicObject>)
         ensures
-            self@.contains_key(key@) == v.is_Some(),
-            v.is_Some() ==> v.get_Some_0()@ == self@[key@],
+            self@.contains_key(key@) == v is Some,
+            v is Some ==> v->0@ == self@[key@],
     {
         // I abuse clone() coz performance does not matter here
         match self.inner.get(&key.clone().into_external_object_ref()) {

@@ -41,8 +41,8 @@ impl StringMap {
     pub fn insert(&mut self, key: String, value: String) -> (old_v: Option<String>)
         ensures
             self@ == old(self)@.insert(key@, value@),
-            old(self)@.contains_key(key@) == old_v.is_Some(),
-            old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
+            old(self)@.contains_key(key@) == old_v is Some,
+            old_v is Some ==> old_v->0@ == old(self)@[key@],
     {
         self.inner.insert(key, value)
     }
@@ -51,8 +51,8 @@ impl StringMap {
     pub fn remove(&mut self, key: &String) -> (old_v: Option<String>)
         ensures
             self@ == old(self)@.remove(key@),
-            old(self)@.contains_key(key@) == old_v.is_Some(),
-            old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
+            old(self)@.contains_key(key@) == old_v is Some,
+            old_v is Some ==> old_v->0@ == old(self)@[key@],
     {
         self.inner.remove(key)
     }
@@ -60,8 +60,8 @@ impl StringMap {
     #[verifier(external_body)]
     pub fn get_uncloned(&self, key: &String) -> (v: Option<&String>)
         ensures
-            self@.contains_key(key@) == v.is_Some(),
-            v.is_Some() ==> v.get_Some_0()@ == self@[key@],
+            self@.contains_key(key@) == v is Some,
+            v is Some ==> v->0@ == self@[key@],
     {
         self.inner.get(key)
     }
@@ -69,8 +69,8 @@ impl StringMap {
     #[verifier(external_body)]
     pub fn get(&self, key: &String) -> (v: Option<String>)
         ensures
-            self@.contains_key(key@) == v.is_Some(),
-            v.is_Some() ==> v.get_Some_0()@ == self@[key@],
+            self@.contains_key(key@) == v is Some,
+            v is Some ==> v->0@ == self@[key@],
     {
         match self.inner.get(key) {
             Some(v) => Some(v.to_string()),

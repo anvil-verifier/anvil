@@ -3,24 +3,24 @@
 pub mod common;
 pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
-pub mod v2_vreplicaset_e2e;
-pub mod v2_vdeployment_e2e;
+pub mod vreplicaset_e2e;
+pub mod vdeployment_e2e;
 pub mod zookeeper_e2e;
-pub mod v2_vstatefulset_admission_e2e;
-pub mod v2_vreplicaset_admission_e2e;
-pub mod v2_vdeployment_admission_e2e;
+pub mod vstatefulset_admission_e2e;
+pub mod vreplicaset_admission_e2e;
+pub mod vdeployment_admission_e2e;
 
 use common::Error;
-use fluent_e2e::fluent_e2e_test;
-use rabbitmq_e2e::{rabbitmq_e2e_test, rabbitmq_ephemeral_e2e_test, rabbitmq_scaling_e2e_test};
 use std::str::FromStr;
 use std::{env, sync::Arc};
 use tracing::*;
-use v2_vreplicaset_e2e::v2_vreplicaset_e2e_test;
-use v2_vreplicaset_admission_e2e::v2_vreplicaset_admission_e2e_test;
-use v2_vstatefulset_admission_e2e::v2_vstatefulset_admission_e2e_test;
-use v2_vdeployment_admission_e2e::v2_vdeployment_admission_e2e_test;
-use v2_vdeployment_e2e::v2_vdeployment_e2e_test;
+use fluent_e2e::fluent_e2e_test;
+use rabbitmq_e2e::{rabbitmq_e2e_test, rabbitmq_ephemeral_e2e_test, rabbitmq_scaling_e2e_test};
+use vreplicaset_e2e::vreplicaset_e2e_test;
+use vreplicaset_admission_e2e::vreplicaset_admission_e2e_test;
+use vstatefulset_admission_e2e::vstatefulset_admission_e2e_test;
+use vdeployment_admission_e2e::vdeployment_admission_e2e_test;
+use vdeployment_e2e::vdeployment_e2e_test;
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
 
 #[tokio::main]
@@ -58,25 +58,25 @@ async fn main() -> Result<(), Error> {
             info!("Running fluent end-to-end test");
             return fluent_e2e_test().await;
         }
-        "v2-vreplicaset" => {
-            info!("Running v2-vreplicaset end-to-end test");
-            return v2_vreplicaset_e2e_test().await;
+        "vreplicaset" => {
+            info!("Running vreplicaset end-to-end test");
+            return vreplicaset_e2e_test().await;
         }
-        "v2-vreplicaset-admission" => {
-            info!("Running v2-vreplicaset-admission end-to-end test");
-            return v2_vreplicaset_admission_e2e_test().await;
+        "vreplicaset-admission" => {
+            info!("Running vreplicaset-admission end-to-end test");
+            return vreplicaset_admission_e2e_test().await;
         }
-        "v2-vstatefulset-admission" => {
-            info!("Running v2-vstatefulset-admission end-to-end test");
-            return v2_vstatefulset_admission_e2e_test().await;
+        "vstatefulset-admission" => {
+            info!("Running vstatefulset-admission end-to-end test");
+            return vstatefulset_admission_e2e_test().await;
         }
-        "v2-vdeployment-admission" => {
-            info!("Running v2-vdeployment-admission end-to-end test");
-            return v2_vdeployment_admission_e2e_test().await;
+        "vdeployment-admission" => {
+            info!("Running vdeployment-admission end-to-end test");
+            return vdeployment_admission_e2e_test().await;
         }
-        "v2-vdeployment" => {
-            info!("Running v2-vdeployment end-to-end test");
-            return v2_vdeployment_e2e_test().await;
+        "vdeployment" => {
+            info!("Running vdeployment end-to-end test");
+            return vdeployment_e2e_test().await;
         }
         _ => {
             error!("Wrong command. Please specify the correct e2e test workload.");
