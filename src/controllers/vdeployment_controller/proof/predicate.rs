@@ -118,7 +118,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
-    &&& resp_objs.no_duplicates()
+    &&& objects_to_vrs_list(resp_objs)->0.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
     &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()
     &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
     // these can be inferred from list_vrs_obj_filter and cr_in_etcd_is_well_formed

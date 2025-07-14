@@ -700,12 +700,14 @@ ensures
                             }
                         }
                     }
-
-                    assume(false);
                     assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
-                    assert(local_state_is_consistent_with_etcd(vd, controller_id)(s_prime)) by {
-                        assert(forall |i| 0 <= i < vrls_prime.old_vrs_list.len() ==> #[trigger] valid_owned_object(vrls_prime.old_vrs_list[i], vd));
+                    assert(old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()) by {
+                        assert(vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
+                        assert(filtered_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()) by {
+                            
+                        }
                     }
+                    assume(local_state_is_consistent_with_etcd(vd, controller_id)(s_prime));
                     assume(at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))])(s_prime));
                 } else {
                     assume(false);
