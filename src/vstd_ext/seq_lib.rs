@@ -192,6 +192,18 @@ pub proof fn seq_filter_preserves_no_duplicates<A>(s: Seq<A>, pred: spec_fn(A) -
     }
 }
 
+pub proof fn map_values_weakens_no_duplicates<A, B>(s: Seq<A>, map: spec_fn(A) -> B)
+    requires s.map_values(map).no_duplicates()
+    ensures s.no_duplicates()
+{
+    assert forall |i, j| 0 <= i < s.len() && 0 <= j < s.len() && i != j implies s[i] != s[j] by {
+        if s[i] == s[j] {
+            assert(s.map_values(map)[i] == s.map_values(map)[j]);
+            assert(false);
+        }
+    }
+}
+
 pub proof fn seq_filter_contains_implies_seq_contains<A>(s: Seq<A>, pred: spec_fn(A) -> bool, elt: A)
     requires s.filter(pred).contains(elt),
     ensures s.contains(elt)
