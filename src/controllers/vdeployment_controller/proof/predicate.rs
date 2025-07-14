@@ -123,8 +123,12 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
     // these can be inferred from list_vrs_obj_filter and cr_in_etcd_is_well_formed
     // just to make proof easier
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj) is Ok
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd)
+    &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
+        &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& VReplicaSetView::unmarshal(obj)->Ok_0.metadata.namespace == vd.metadata.namespace
+        &&& valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd)
+        &&& s.resources().contains_key(VReplicaSetView::unmarshal(obj).unwrap().object_ref())
+    }
 }
 
 pub open spec fn req_msg_is_create_vrs_req(
@@ -278,15 +282,16 @@ pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
 pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        &&& forall |i| 0 <= i < vds.old_vrs_list.len() ==> {
+        &&& forall |vrs: VReplicaSetView| #[trigger] vds.old_vrs_list.contains(vrs) ==> {
             // the get-then-update request can succeed
-            &&& #[trigger] valid_owned_object(vds.old_vrs_list[i], vd)
+            &&& valid_owned_object(vrs, vd)
+            &&& vrs.metadata.namespace == vd.metadata.namespace
             // obj in etcd exists and is owned by vd
-            &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
+            &&& s.resources().contains_key(vrs.object_ref())
             &&& ({
                 // other well_formed constrains are included in cluster.each_custom_object_in_etcd_is_well_formed
                 // and can be inferred by s.resources()[etcd_obj.object_ref()] == etcd_obj
-                let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vds.old_vrs_list[i].object_ref()]).unwrap();
+                let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()]).unwrap();
                 // the corresponding object in etcd is an old vrs
                 &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(etcd_vrs)
             })
