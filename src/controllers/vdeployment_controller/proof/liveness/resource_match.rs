@@ -656,6 +656,15 @@ ensures
                     assert(old_vrs_list.len() == n);
                     assert(old_vrs_list == vrls_prime.old_vrs_list);
                     // prove local_state_is_consistent_with_etcd(s_prime)
+                    let old_vrs_list_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas->0 > 0;
+                    assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter)) by {
+                        let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
+                            &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
+                            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+                        };
+                        assert(old_vrs_list_filter_with_new_vrs == old_vrs_list_filter);
+                        assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
+                    }
                     assert forall |vrs: VReplicaSetView| #[trigger] old_vrs_list.contains(vrs) implies {
                         // the get-then-update request can succeed
                         &&& valid_owned_object(vrs, vd)
@@ -676,15 +685,6 @@ ensures
                         assert(valid_owned_object(vrs, vd) && s.resources().contains_key(vrs.object_ref()) && vrs.metadata.namespace == vd.metadata.namespace) by {
                             // seq_filter_is_a_subset_of_original_seq cannot be replaced with broadcast use group_seq_properties
                             assert(filtered_vrs_list.contains(vrs)) by {
-                                let old_vrs_list_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas->0 > 0;
-                                assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter)) by {
-                                    let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
-                                        &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
-                                        &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
-                                    };
-                                    assert(old_vrs_list_filter_with_new_vrs == old_vrs_list_filter);
-                                    assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
-                                }
                                 seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
                             }
                             assert(vrs_list.contains(vrs)) by {
@@ -701,10 +701,37 @@ ensures
                         }
                     }
                     assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
-                    assert(old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()) by {
-                        assert(vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
-                        assert(filtered_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()) by {
-                            
+                    let map_key = |vrs: VReplicaSetView| vrs.object_ref();
+                    assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
+                        assert(vrs_list.map_values(map_key).no_duplicates());
+                        assert(filtered_vrs_list.map_values(map_key).no_duplicates()) by {
+                            map_values_weakens_no_duplicates(vrs_list, map_key);
+                            seq_filter_preserves_no_duplicates(vrs_list, valid_owned_object_filter);
+                            seq_filter_preserves_no_duplicates(filtered_vrs_list, old_vrs_list_filter);
+                            assert(filtered_vrs_list.no_duplicates());
+                            assert forall |i, j| 0 <= i < filtered_vrs_list.len() && 0 <= j < filtered_vrs_list.len() && i != j implies
+                                filtered_vrs_list.map_values(map_key)[i] != filtered_vrs_list.map_values(map_key)[j] by {
+                                assert(filtered_vrs_list.map_values(map_key)[i] == filtered_vrs_list[i].object_ref());
+                                assert(filtered_vrs_list.map_values(map_key)[j] == filtered_vrs_list[j].object_ref());
+                                assert(vrs_list.map_values(map_key).len() == vrs_list.len());
+                                let (m, n) = choose |m, n| 0 <= m < vrs_list.len() && 0 <= n < vrs_list.len() && vrs_list[m] == filtered_vrs_list[i] && vrs_list[n] == filtered_vrs_list[j];
+                                assert(vrs_list.map_values(map_key)[m] != vrs_list.map_values(map_key)[n]) by {
+                                    assert(vrs_list.map_values(map_key).no_duplicates());
+                                    assert(m != n) by {
+                                        if m == n {
+                                            assert(filtered_vrs_list[i] == filtered_vrs_list[j]) by {
+                                                assert(vrs_list[m] == filtered_vrs_list[i]);
+                                                assert(vrs_list[n] == filtered_vrs_list[j]);
+                                            }
+                                            assert(false);
+                                        }
+                                    }
+                                }
+                                assert(vrs_list[m].object_ref() == vrs_list.map_values(map_key)[m]);
+                                assert(vrs_list[n].object_ref() == vrs_list.map_values(map_key)[n]);
+                                assert(vrs_list[m].object_ref() == filtered_vrs_list[i].object_ref());
+                                assert(vrs_list[n].object_ref() == filtered_vrs_list[j].object_ref());
+                            }
                         }
                     }
                     assume(local_state_is_consistent_with_etcd(vd, controller_id)(s_prime));
