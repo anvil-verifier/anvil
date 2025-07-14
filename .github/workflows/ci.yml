@@ -234,7 +234,7 @@ jobs:
             ${{ env.home_dir }}/.cargo
             ${{ env.home_dir }}/.rustup
           key: verus-${{ runner.os }}-${{ env.verus_commit }}-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Verify conformance of the executable model
+      - name: Verify the Anvil framework
         run: |
           . "$HOME/.cargo/env"
           VERUS_DIR="${HOME}/verus" ./build.sh anvil.rs --crate-type lib --rlimit 50 --time
