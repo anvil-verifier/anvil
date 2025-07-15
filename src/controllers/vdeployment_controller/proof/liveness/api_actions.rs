@@ -102,10 +102,10 @@ requires
 ensures
     filter_old_and_new_vrs_on_etcd(vd, s.resources()) ==
     filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
-    s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq() ==
-    s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq(),
-    objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()) ==
-    objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()),
+    s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq() ==
+    s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq(),
+    objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()) ==
+    objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()),
 {}
 
 }

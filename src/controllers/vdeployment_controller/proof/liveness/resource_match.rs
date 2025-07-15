@@ -14,8 +14,8 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use crate::vstd_ext::seq_lib::*;
-use vstd::seq_lib::*;
+use crate::vstd_ext::{seq_lib::*, set_lib::*};
+use vstd::{seq_lib::*, map_lib::*};
 use vstd::prelude::*;
 
 verus !{
@@ -629,7 +629,6 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
-                assume(resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s_prime));
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
@@ -681,17 +680,23 @@ ensures
                         assert(filtered_vrs_list.contains(vrs)) by {
                             seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
                         }
-                        assert(vrs_list.contains(vrs)) by {
+                        assert(vrs_list.contains(vrs) && valid_owned_object(vrs, vd)) by {
                             seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_object_filter);
                         }
-                        assert(exists |obj| #[trigger] resp_objs.contains(obj) && VReplicaSetView::unmarshal(obj).unwrap() == vrs) by {
+                        assert(vrs.metadata.namespace == vd.metadata.namespace) by {
                             assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()));
                             let i = choose |i| 0 <= i < resp_objs.len() && #[trigger] VReplicaSetView::unmarshal(resp_objs[i]).unwrap() == vrs;
-                            // trigger condition in resp_msg_is_ok_list_resp_containing_matched_vrs
-                            assert(resp_objs.contains(resp_objs[i]));
-                            assert(resp_objs[i].object_ref() == vrs.object_ref());
-                            assert(resp_objs[i] == s.resources()[resp_objs[i].object_ref()]);
-                        }
+                            let resp_obj_set = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace));
+                            assert(s.resources().values().finite()) by {
+                                Cluster::etcd_is_finite()(s);
+                                lemma_values_finite(s.resources());
+                            }
+                            assert(list_vrs_obj_filter(vd.metadata.namespace)(resp_objs[i])) by {
+                                assert(resp_obj_set.contains(resp_objs[i])) by {
+                                    finite_set_to_seq_contains_all_set_elements(resp_obj_set);
+                                }
+                            }
+                        };
                     }
                     assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
                     let map_key = |vrs: VReplicaSetView| vrs.object_ref();

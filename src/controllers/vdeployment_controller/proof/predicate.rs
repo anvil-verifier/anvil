@@ -119,17 +119,10 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq()
+    &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()
     &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
-    // these can be inferred from list_vrs_obj_filter and cr_in_etcd_is_well_formed
-    // just to make proof easier
-    &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
-        &&& VReplicaSetView::unmarshal(obj) is Ok
-        &&& VReplicaSetView::unmarshal(obj)->Ok_0.metadata.namespace == vd.metadata.namespace
-        &&& valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd)
-        &&& s.resources().contains_key(obj.object_ref())
-        &&& obj == s.resources()[obj.object_ref()]
-    }
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj) is Ok
+    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj)->Ok_0.metadata.namespace == vd.metadata.namespace
 }
 
 pub open spec fn req_msg_is_create_vrs_req(
@@ -317,7 +310,7 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
 // new_vrs_replicas is Some(x) -> new vrs exists and has replicas = x; else new vrs does not exist
 pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_replicas: Option<int>, old_vrs_list_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         &&& objects_to_vrs_list(objs) is Some
         &&& old_vrs_list.len() == old_vrs_list_len

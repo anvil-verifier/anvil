@@ -4,6 +4,7 @@ use crate::temporal_logic::defs::*;
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::trusted::{spec_types::*, util::*};
 use crate::vreplicaset_controller::trusted::liveness_theorem::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus !{
@@ -21,7 +22,7 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         // make it consistent with API server's handle_list_req
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd)).to_seq();
+        let objs = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
         // this step may return None so we need to check here
         &&& objects_to_vrs_list(objs) is Some
@@ -34,15 +35,15 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
 }
 
 pub open spec fn filter_old_and_new_vrs_on_etcd(vd: VDeploymentView, resources: StoredState) -> (Option<VReplicaSetView>, Seq<VReplicaSetView>) {
-    let objs = resources.values().filter(list_vrs_obj_filter(vd)).to_seq();
+    let objs = resources.values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
     let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
     filter_old_and_new_vrs(vd, filtered_vrs_list)
 }
 
-pub open spec fn list_vrs_obj_filter(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
+pub open spec fn list_vrs_obj_filter(namespace: Option<StringView>) -> spec_fn(DynamicObjectView) -> bool {
     |obj: DynamicObjectView| {
         &&& obj.kind == VReplicaSetView::kind()
-        &&& obj.metadata.namespace == vd.metadata.namespace
+        &&& obj.metadata.namespace == namespace
     }
 }
 
