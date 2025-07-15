@@ -283,7 +283,7 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(vrs.object_ref())
             // TODO: fix it
-            // &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0)
+            &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
             &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
         }
         // vds.old_vrs_list.no_duplicates() can be inferred by
@@ -299,7 +299,7 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
                 &&& s.resources().contains_key(new_vrs.object_ref())
-                // &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(new_vrs.marshal())
+                &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(new_vrs)
                 // may needs to be weaken as the version in etcd has resource_version & uid
                 &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()])->Ok_0 == new_vrs
             }
