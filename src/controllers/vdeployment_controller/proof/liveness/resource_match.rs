@@ -1170,7 +1170,33 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
-                assume(false);
+                VReplicaSetView::marshal_preserves_integrity();
+                VDeploymentView::marshal_preserves_integrity();
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))])(s_prime));
+                assert(no_pending_req_in_cluster(vd, controller_id)(s_prime));
+                assert(etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime));
+                assert(local_state_is_consistent_with_etcd(vd, controller_id)(s_prime)) by {
+                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assume(forall |vrs: VReplicaSetView| #[trigger] vds_prime.old_vrs_list.contains(vrs) ==> s_prime.resources().contains_key(vrs.object_ref()));
+                    assume(s_prime.resources().contains_key(vds_prime.new_vrs->0.object_ref()));
+                    assert(vds.old_vrs_list == vds_prime.old_vrs_list);
+                    assert(vds.new_vrs == vds_prime.new_vrs);
+                    assert(forall |vrs| vds.old_vrs_list.contains(vrs) ==> vds_prime.old_vrs_list.contains(vrs));
+                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+                    assert((|vrs| valid_owned_object(vrs, triggering_cr)) == (|vrs| valid_owned_object(vrs, vd)));
+                    assert forall |vrs: VReplicaSetView| #[trigger] vds_prime.old_vrs_list.contains(vrs) implies {
+                        &&& valid_owned_object(vrs, vd)
+                        &&& vrs.metadata.namespace == vd.metadata.namespace
+                        &&& s_prime.resources().contains_key(vrs.object_ref())
+                        &&& filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(vrs)
+                        &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs
+                    } by {
+                        assert(vds.old_vrs_list.contains(vrs));
+                        assume(VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs);
+                    }
+                }
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
