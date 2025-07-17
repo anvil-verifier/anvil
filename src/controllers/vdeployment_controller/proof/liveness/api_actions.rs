@@ -90,7 +90,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
+pub proof fn lemma_rely_to_non_interference_for_msg(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message,
 )
@@ -106,6 +106,14 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()),
+    ({
+        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==> {
+            &&& s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref())
+            &&& VReplicaSetView::unmarshal(s_prime.resources()[vds_prime.old_vrs_list[i].object_ref()])->Ok_0 == vds_prime.old_vrs_list[i]
+        }
+        &&& 
+    })
 {}
 
 }

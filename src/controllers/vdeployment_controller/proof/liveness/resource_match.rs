@@ -1170,6 +1170,43 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_filter_old_and_new_vrs_on_etcd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
+                assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
+                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index implies {
+                        let vrs = vds_prime.old_vrs_list[i];
+                        let key = vrs.object_ref();
+                        // the get-then-update request can succeed
+                        &&& valid_owned_object(vrs, vd)
+                        &&& vrs.metadata.namespace == vd.metadata.namespace
+                        // obj in etcd exists and is owned by vd
+                        &&& s_prime.resources().contains_key(key)
+                        // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
+                        // resource version and status can change
+                        &&& filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(vrs)
+                        &&& VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0 == vrs
+                    } by {
+                        let vrs = vds_prime.old_vrs_list[i];
+                        assert(valid_owned_object(vrs, vd));
+                        assert(vrs.metadata.namespace == vd.metadata.namespace);
+                        assert(s_prime.resources().contains_key(vrs.object_ref()));
+                        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(vrs));
+                        assert(VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs);
+                    }
+                    assert(vds == vds_prime);
+                    assert(0 <= vds_prime.old_vrs_index <= vds_prime.old_vrs_list.len());
+                    assert(vds_prime.new_vrs is Some);
+                    assert({
+                        let new_vrs = vds_prime.new_vrs->0;
+                        // the get-then-update request can succeed
+                        &&& valid_owned_object(new_vrs, vd)
+                        &&& new_vrs.metadata.namespace == vd.metadata.namespace
+                        &&& s_prime.resources().contains_key(new_vrs.object_ref())
+                        &&& filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0 == Some(new_vrs)
+                        // may needs to be weaken as the version in etcd has resource_version & uid
+                        &&& VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()])->Ok_0 == new_vrs
+                    });
+                }
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
