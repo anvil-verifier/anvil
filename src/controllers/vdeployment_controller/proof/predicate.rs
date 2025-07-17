@@ -301,7 +301,7 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             &&& new_vrs.metadata.namespace == vd.metadata.namespace
             // if it's just created, etcd should not have it yet
             // otherwise obj in etcd exists and is owned by vd
-            &&& vds.reconcile_step != AfterCreateNewVRS ==> {
+            &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
                 &&& s.resources().contains_key(new_vrs.object_ref())
                 &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(new_vrs)
                 // may needs to be weaken as the version in etcd has resource_version & uid

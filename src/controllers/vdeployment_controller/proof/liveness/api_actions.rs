@@ -90,7 +90,7 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_rely_to_non_interference_for_msg(
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message,
 )
@@ -112,7 +112,12 @@ ensures
             &&& s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref())
             &&& VReplicaSetView::unmarshal(s_prime.resources()[vds_prime.old_vrs_list[i].object_ref()])->Ok_0 == vds_prime.old_vrs_list[i]
         }
-        &&& 
+        &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime) ==> {
+            let new_vrs = vds_prime.new_vrs.unwrap();
+            &&& s_prime.resources().contains_key(new_vrs.object_ref())
+            // may needs to be weaken as the version in etcd has resource_version & uid
+            &&& VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()])->Ok_0 == new_vrs
+        }
     })
 {}
 
