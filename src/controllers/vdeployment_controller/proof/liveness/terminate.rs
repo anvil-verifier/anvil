@@ -75,7 +75,7 @@ ensures
     temp_pred_equality(lift_state(lift_local(controller_id, vd, at_step_or![Done])), lift_state(reconcile_done));
     entails_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
     // 2, AfterScaleDownOldVRS ~> reconcile_idle.
-    // 2.1, AfterScaleDownOldVRS && state.old_vrs_list.len() == 0 ~> reconcile_idle.
+    // 2.1, AfterScaleDownOldVRS && state.old_vrs_index == 0 ~> reconcile_idle.
     // Done ~> idle && Error ~> idle => Done \/ Error ~> idle
     or_leads_to_combine_and_equality!(spec,
         lift_state(lift_local(controller_id, vd, at_step_or![Error, Done])),
@@ -84,7 +84,7 @@ ensures
         lift_state(reconcile_idle)
     );
     let zero = 0 as nat;
-    // AfterScaleDownOldVRS && state.old_vrs_list.len() == 0 ~> Done \/ Error ~> idle
+    // AfterScaleDownOldVRS && state.old_vrs_index == 0 ~> Done \/ Error ~> idle
     lemma_from_pending_req_in_flight_or_resp_in_flight_at_step_to_at_step_and_pred(
         spec, vd, controller_id, AfterScaleDownOldVRS, old_vrs_list_len(zero)
     );
@@ -167,7 +167,7 @@ ensures
             implies tla_exists(|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))
                     .satisfied_by(ex) by {
                 let s_marshalled = ex.head().ongoing_reconciles(controller_id)[vd.object_ref()].local_state;
-                let witness_n = VDeploymentReconcileState::unmarshal(s_marshalled).unwrap().old_vrs_list.len();
+                let witness_n = VDeploymentReconcileState::unmarshal(s_marshalled).unwrap().old_vrs_index;
                 assert((|n| lift_state(lift_local(controller_id, vd, scale_down_old_vrs_rank_n(n))))(witness_n).satisfied_by(ex));
             }
         assert(spec.entails(p.leads_to(lift_state(reconcile_idle)))) by {

@@ -276,15 +276,17 @@ pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
 pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        &&& forall |vrs: VReplicaSetView| #[trigger] vds.old_vrs_list.contains(vrs) ==> {
+        &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
+            let vrs = vds.old_vrs_list[i];
+            let key = vrs.object_ref();
             // the get-then-update request can succeed
             &&& valid_owned_object(vrs, vd)
             &&& vrs.metadata.namespace == vd.metadata.namespace
             // obj in etcd exists and is owned by vd
-            &&& s.resources().contains_key(vrs.object_ref())
+            &&& s.resources().contains_key(key)
             // TODO: fix it
             &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
-            &&& VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0 == vrs
+            &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
         }
         // vds.old_vrs_list.no_duplicates() can be inferred by
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
@@ -336,15 +338,12 @@ pub open spec fn local_state_is(new_vrs_replicas: Option<int>, old_vrs_list_len:
             }
             None => vds.new_vrs is None
         }
-        &&& vds.old_vrs_list.len() == old_vrs_list_len
+        &&& vds.old_vrs_index == old_vrs_list_len
     }
 }
 
 pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
-    |vds: VDeploymentReconcileState| {
-        let old_vrs_list = vds.old_vrs_list;
-        &&& old_vrs_list.len() == n
-    }
+    |vds: VDeploymentReconcileState| vds.old_vrs_index == n
 }
 
 pub open spec fn vd_rely_condition(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
