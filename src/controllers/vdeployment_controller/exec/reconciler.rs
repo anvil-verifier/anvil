@@ -22,6 +22,7 @@ pub struct VDeploymentReconcileState {
     pub reconcile_step: VDeploymentReconcileStep,
     pub new_vrs: Option<VReplicaSet>,
     pub old_vrs_list: Vec<VReplicaSet>,
+    pub old_vrs_index: usize,
 }
 
 impl View for VDeploymentReconcileState {
@@ -32,6 +33,7 @@ impl View for VDeploymentReconcileState {
             reconcile_step: self.reconcile_step@,
             new_vrs: self.new_vrs.deep_view(),
             old_vrs_list: self.old_vrs_list.deep_view(),
+            old_vrs_index: self.old_vrs_index@ as nat,
         }
     }
 }
@@ -71,6 +73,7 @@ pub fn reconcile_init_state() -> (state: VDeploymentReconcileState)
         reconcile_step: VDeploymentReconcileStep::Init,
         new_vrs: None,
         old_vrs_list: old_vrs_list,
+        old_vrs_index: 0,
     }
 }
 
@@ -103,7 +106,8 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
  // mask this proof before there's a solution to flakiness
  // see https://github.com/verus-lang/verus/issues/1756
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
-    requires vd@.well_formed(),
+    requires
+        vd@.well_formed(),
     ensures
         res.0@ == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0,
         res.1.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).1,
@@ -121,6 +125,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 reconcile_step: VDeploymentReconcileStep::AfterListVRS,
                 new_vrs: None,
                 old_vrs_list: old_vrs_list,
+                old_vrs_index: 0,
             };
             return (state_prime, Some(Request::KRequest(req)))
         },
@@ -136,22 +141,21 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             }
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filter_vrs_list(vd, vrs_list_or_none.clone().unwrap()));
             // no .last().cloned() in verus because "The verifier does not yet support the following Rust feature: overloaded deref"
-
+            let state_prime = VDeploymentReconcileState{
+                reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
+                new_vrs: new_vrs.clone(),
+                old_vrs_index: old_vrs_list.len(),
+                old_vrs_list: old_vrs_list
+            };
             if new_vrs.is_none() {
                 // no new vrs, create one
-                return create_new_vrs(old_vrs_list.clone(), vd);
+                return create_new_vrs(&state_prime, vd);
             }
-            let new_vrs = new_vrs.unwrap();
-            if !match_replicas(&vd, &new_vrs) {
+            if !match_replicas(&vd, &new_vrs.unwrap()) {
                 // scale new vrs to desired replicas
-                return scale_new_vrs(new_vrs, old_vrs_list, &vd);
+                return scale_new_vrs(&state_prime, &vd);
             }
-            let state = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
-                new_vrs: Some(new_vrs),
-                old_vrs_list: old_vrs_list,
-            };
-            return (state, None);
+            return (state_prime, None);
         },
         VDeploymentReconcileStep::AfterCreateNewVRS => {
             if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp_as_ref!(resp_o).is_ok()) {
@@ -166,27 +170,31 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             return (new_vrs_ensured_state(state), None);
         },
         VDeploymentReconcileStep::AfterEnsureNewVRS => {
-            if state.old_vrs_list.len() > 0 {
-                if !valid_owned_object(&state.old_vrs_list[state.old_vrs_list.len() - 1], vd) {
-                    return (error_state(state), None);
-                }
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
-            } else {
+            if state.old_vrs_index == 0 {
                 return (done_state(state), None)
             }
+            if state.old_vrs_index > state.old_vrs_list.len() {
+                return (error_state(state), None);
+            }
+            if !valid_owned_object(&state.old_vrs_list[state.old_vrs_index - 1], vd) {
+                return (error_state(state), None);
+            }
+            return scale_down_old_vrs(&state, &vd);
         },
         VDeploymentReconcileStep::AfterScaleDownOldVRS => {
             if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            if state.old_vrs_list.len() > 0 {
-                if !valid_owned_object(&state.old_vrs_list[state.old_vrs_list.len() - 1], vd) {
-                    return (error_state(state), None);
-                }
-                return scale_down_old_vrs(state.new_vrs, state.old_vrs_list, &vd);
-            } else {
+            if state.old_vrs_index == 0 {
                 return (done_state(state), None)
             }
+            if state.old_vrs_index > state.old_vrs_list.len() {
+                return (error_state(state), None);
+            }
+            if !valid_owned_object(&state.old_vrs_list[state.old_vrs_index - 1], vd) {
+                return (error_state(state), None);
+            }
+            return scale_down_old_vrs(&state, &vd);
         },
         _ => {
             return (state, None)
@@ -224,12 +232,13 @@ pub fn done_state(state: VDeploymentReconcileState) -> (state_prime: VDeployment
 // wrapper functions to avoid duplication
 
 // create new vrs
-pub fn create_new_vrs(old_vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
+pub fn create_new_vrs(state: &VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
+    state@.new_vrs is None,
 ensures
-    res.1@ is Some && model_reconciler::create_new_vrs(old_vrs_list.deep_view(), vd@).1 is Some,
-    (res.0@, res.1.deep_view()) == model_reconciler::create_new_vrs(old_vrs_list.deep_view(), vd@),
+    res.1@ is Some && model_reconciler::create_new_vrs(state@, vd@).1 is Some,
+    (res.0@, res.1.deep_view()) == model_reconciler::create_new_vrs(state@, vd@),
 {
     let new_vrs = make_replica_set(vd);
     let req = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -240,20 +249,23 @@ ensures
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterCreateNewVRS,
         new_vrs: Some(new_vrs),
-        old_vrs_list: old_vrs_list,
+        old_vrs_list: state.old_vrs_list.clone(),
+        old_vrs_index: state.old_vrs_index
     };
     return (state_prime, Some(Request::KRequest(req)))
 }
 
 // scale new vrs to desired replicas
-pub fn scale_new_vrs(mut new_vrs: VReplicaSet, old_vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
+pub fn scale_new_vrs(state: &VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
-    model_util::valid_owned_object(new_vrs@, vd@),
+    state@.new_vrs is Some,
+    model_util::valid_owned_object(state@.new_vrs->0, vd@),
 ensures
-    res.1@ is Some && model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@).1 is Some,
-    (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(new_vrs@, old_vrs_list.deep_view(), vd@),
+    res.1@ is Some && model_reconciler::scale_new_vrs(state@, vd@).1 is Some,
+    (res.0@, res.1.deep_view()) == model_reconciler::scale_new_vrs(state@, vd@),
 {
+    let mut new_vrs = state.new_vrs.clone().unwrap();
     let mut new_spec = new_vrs.spec();
     new_spec.set_replicas(vd.spec().replicas().unwrap_or(1));
     new_vrs.set_spec(new_spec);
@@ -267,25 +279,23 @@ ensures
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterScaleNewVRS,
         new_vrs: Some(new_vrs),
-        old_vrs_list: old_vrs_list,
+        old_vrs_list: state.old_vrs_list.clone(),
+        old_vrs_index: state.old_vrs_index
     };
     return (state_prime, Some(Request::KRequest(req)))
 }
 
 // scale down old vrs to 0 replicas
-pub fn scale_down_old_vrs(new_vrs: Option<VReplicaSet>, mut old_vrs_list: Vec<VReplicaSet>, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
+pub fn scale_down_old_vrs(state: &VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
-    old_vrs_list@.len() > 0,
-    model_util::valid_owned_object(old_vrs_list[old_vrs_list.len() - 1]@, vd@),
+    0 < state.old_vrs_index <= state.old_vrs_list@.len(),
+    model_util::valid_owned_object(state.old_vrs_list[state.old_vrs_index - 1]@, vd@),
 ensures
-    (res.0@, res.1.deep_view()) == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), old_vrs_list.deep_view(), vd@),
+    (res.0@, res.1.deep_view()) == model_reconciler::scale_down_old_vrs(state@, vd@),
 {
-    let tmp = old_vrs_list.clone();
-    let mut old_vrs = old_vrs_list[old_vrs_list.len() - 1].clone();
-    old_vrs_list.pop();
-    // somehow it's necessary
-    assert(old_vrs_list.deep_view() == model_reconciler::scale_down_old_vrs(new_vrs.deep_view(), tmp.deep_view(), vd@).0.old_vrs_list);
+    let old_vrs_index = state.old_vrs_index - 1;
+    let mut old_vrs = state.old_vrs_list[old_vrs_index].clone();
     let mut new_spec = old_vrs.spec();
     new_spec.set_replicas(0);
     old_vrs.set_spec(new_spec);
@@ -298,8 +308,9 @@ ensures
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterScaleDownOldVRS,
-        old_vrs_list: old_vrs_list,
-        new_vrs: new_vrs,
+        old_vrs_index: old_vrs_index,
+        old_vrs_list: state.old_vrs_list.clone(),
+        new_vrs: state.new_vrs.clone()
     };
     return (state_prime, Some(Request::KRequest(req)))
 }
