@@ -665,7 +665,7 @@ ensures
                         assert(new_vrs_or_none is None);
                         // try comment out the next line
                         assert(vrls_prime.new_vrs == Some(make_replica_set(vd)));
-                        assert(vrls_prime == create_new_vrs(old_vrs_list, vd).0);
+                        assert(vrls_prime == create_new_vrs(vrls, vd).0);
                     }
                 }
             },

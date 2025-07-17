@@ -271,7 +271,7 @@ pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
 pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        &&& forall |i| 0 <= i < vds.old_vrs_list.len() ==> {
+        &&& forall |i| 0 <= i < vds.old_vrs_index ==> {
             // the get-then-update request can succeed
             &&& #[trigger] valid_owned_object(vds.old_vrs_list[i], vd)
             // obj in etcd exists and is owned by vd
@@ -337,15 +337,12 @@ pub open spec fn local_state_is(new_vrs_replicas: Option<int>, old_vrs_list_len:
             }
             None => vds.new_vrs is None
         }
-        &&& vds.old_vrs_list.len() == old_vrs_list_len
+        &&& vds.old_vrs_index == old_vrs_list_len
     }
 }
 
 pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) -> bool {
-    |vds: VDeploymentReconcileState| {
-        let old_vrs_list = vds.old_vrs_list;
-        &&& old_vrs_list.len() == n
-    }
+    |vds: VDeploymentReconcileState| vds.old_vrs_index == n
 }
 
 pub open spec fn vd_rely_condition(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
