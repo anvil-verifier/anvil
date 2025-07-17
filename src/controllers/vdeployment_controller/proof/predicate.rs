@@ -273,9 +273,10 @@ pub open spec fn pending_get_then_update_req_in_flight_with_replicas(
 // - only need the key to be in etcd and corresponding objects can pass the filter
 // - so current_state_matches can be reached by sending get-then-update request
 // this predicate holds since AfterListVRS state
-pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        &&& 0 <= vds.old_vrs_index <= vds.old_vrs_list.len()
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
@@ -284,7 +285,8 @@ pub open spec fn local_state_is_consistent_with_etcd(vd: VDeploymentView, contro
             &&& vrs.metadata.namespace == vd.metadata.namespace
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(key)
-            // TODO: fix it
+            // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
+            // resource version and status can change
             &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
             &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
         }
