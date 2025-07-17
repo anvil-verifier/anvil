@@ -253,17 +253,37 @@ pub open spec fn vd_reconcile_request_only_interferes_with_itself(
     }
 }
 
-// TODO: rethink the below pair of invariants (which rely on each other for proof).
-pub open spec fn no_pending_interfering_update_request() -> StatePred<ClusterState> {
+pub open spec fn no_pending_interfering_update_request(
+    vd: VDeploymentView,
+    controller_id: int,
+) -> StatePred<ClusterState> {
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.dst.is_APIServer()
             &&& msg.content.is_APIRequest()
-        } ==> match msg.content.get_APIRequest_0() {
-            APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
-            APIRequest::GetThenUpdateRequest(req) => vd_rely_get_then_update_req(req)(s),
-            _ => true,
+        } ==> {
+            &&& msg.src != HostId::Controller(controller_id, vd.object_ref()) ==>
+                match msg.content.get_APIRequest_0() {
+                    APIRequest::UpdateRequest(req) => vd_rely_update_req(req)(s),
+                    APIRequest::GetThenUpdateRequest(req) => no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s),
+                    _ => true,
+                }
+            // If a get-then-update request is issued by vd, the request carried must contain vd's owner reference.
+            &&& {
+                let req = msg.content.get_get_then_update_request();
+                ({
+                    &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
+                    &&& msg.content.is_get_then_update_request()
+                }) ==> {
+                    // We can't prove req.owner_ref == vd.controller_owner_ref()
+                    // directly since owner references carry a uid...
+                    &&& req.owner_ref.controller is Some
+                    &&& req.owner_ref.controller->0
+                    &&& req.owner_ref.kind == VDeploymentView::kind()
+                    &&& req.owner_ref.name == vd.object_ref().name
+                }
+            }
         }
     }
 }
@@ -283,7 +303,7 @@ pub open spec fn garbage_collector_does_not_delete_vd_vrs_objects(vd: VDeploymen
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
-                ||| !(obj.metadata.owner_references_contains(vd.controller_owner_ref())
+                ||| !(owner_references_contains_ignoring_uid(obj.metadata, vd.controller_owner_ref())
                         && obj.kind == VReplicaSetView::kind()
                         && obj.metadata.namespace == vd.metadata.namespace)
                 ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()

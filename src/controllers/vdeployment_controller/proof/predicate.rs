@@ -561,4 +561,14 @@ pub open spec fn lifted_vd_reconcile_request_only_interferes_with_itself_action(
     })
 }
 
+pub open spec fn owner_references_contains_ignoring_uid(meta: ObjectMetaView, orig_or: OwnerReferenceView) -> bool {
+    exists |or: OwnerReferenceView| {
+        &&& #[trigger] meta.owner_references_contains(or)
+        &&& or.block_owner_deletion == orig_or.block_owner_deletion
+        &&& or.controller == orig_or.controller
+        &&& or.kind == orig_or.kind
+        &&& or.name == orig_or.name
+    }
+}
+
 }
