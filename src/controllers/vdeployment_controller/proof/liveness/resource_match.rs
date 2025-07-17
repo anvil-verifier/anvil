@@ -1189,7 +1189,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -1244,16 +1243,22 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
+                assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))])(s_prime));
+                assert(resp_msg_is_ok_get_then_update_resp_with_replicas(vd, controller_id, resp_msg, int0!())(s_prime)) by {
+                    let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                    assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
+                    assert(req_msg_is_get_then_update_req_with_replicas(vd, controller_id, req_msg, int0!())(s_prime));
+                    assert(s_prime.in_flight().contains(resp_msg));
+                    assert(resp_msg_matches_req_msg(resp_msg, req_msg));
+                    assert(resp_msg.content.is_get_then_update_response());
+                    assert(resp_msg.content.get_get_then_update_response().res is Ok);
+                }
+                assert(etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime));
+                assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime));
             },
             Step::ControllerStep(input) => {
-                if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
-                    VDeploymentReconcileState::marshal_preserves_integrity();
-                    // the request should carry the update of replicas, which requires reasoning over unmarshalling vrs
-                    VReplicaSetView::marshal_preserves_integrity();
-                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    commutativity_of_seq_drop_last_and_map(vds.old_vrs_list, |vrs: VReplicaSetView| vrs.object_ref());
-                }
+                VDeploymentReconcileState::marshal_preserves_integrity();
+                VReplicaSetView::marshal_preserves_integrity();
             },
             _ => {}
         }
