@@ -1259,7 +1259,18 @@ ensures
     );
 }
 
-#[verifier(external_body)]
+// error: assertion failed
+//     --> src/controllers/vdeployment_controller/proof/liveness/resource_match.rs:1339:36
+//      |
+// 1339 | ...                   assert(s_prime.resources().contains_key(key));
+//      |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+// 
+// error: assertion failed
+//     --> src/controllers/vdeployment_controller/proof/liveness/resource_match.rs:1340:36
+//      |
+// 1340 | ...                   assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj)->Ok_0));
+// 
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
@@ -1310,14 +1321,41 @@ ensures
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
             Step::APIServerStep(input) => {
-                let msg = input->0;
-                if msg == req_msg {
-                    let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, n);
+                if input->0 == req_msg {
+                    assume(false);
+                    let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, req_msg, n);
                     VReplicaSetView::marshal_preserves_integrity();
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
+                } else {
+                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vd, cluster, controller_id, input->0);
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))])(s_prime));
+                    assert(req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, req_msg)(s_prime)) by {
+                        assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
+                        assert(s_prime.in_flight().contains(req_msg));
+                        assert(req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s_prime)) by {
+                            let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                            let key = request.key();
+                            let obj = s_prime.resources()[key];
+                            let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
+                            let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                            assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
+                            assert(req_msg.dst == HostId::APIServer);
+                            assert(req_msg.content.is_APIRequest());
+                            assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
+                            assert(request.namespace == vd.metadata.namespace.unwrap());
+                            assert(request.owner_ref == vd.controller_owner_ref());
+                            assert(s_prime.resources().contains_key(key));
+                            assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj)->Ok_0));
+                            assert(req_vrs.metadata.owner_references_contains(vd.controller_owner_ref()));
+                            assert(req_vrs.spec.replicas == Some(int0!()));
+                            assert(key == state.old_vrs_list[state.old_vrs_index as int].object_ref());
+                        }
+                    }
+                    assert(etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime));
+                    assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime));
                 }
             },
             _ => {}

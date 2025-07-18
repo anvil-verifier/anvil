@@ -332,7 +332,7 @@ pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(
 
 // a weaker version of coherence between local cache and etcd
 // - only need the key to be in etcd and corresponding objects can pass the filter
-// - so current_state_matches can be reached by sending get-then-update request
+// - so current_state_matches canexists_resp_msg_is_ok_get_then_update_resp be reached by sending get-then-update request
 // this predicate holds since AfterListVRS state
 pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
