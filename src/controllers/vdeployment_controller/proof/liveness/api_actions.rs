@@ -65,7 +65,7 @@ requires
     etcd_state_is(vd, controller_id, Some(replicas), old_vrs_index)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
-    resp_msg_is_ok_get_then_update_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
+    resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
@@ -83,7 +83,7 @@ requires
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
-    resp_msg_is_ok_get_then_update_old_vrs_resp(vd, controller_id, resp_msg)(s_prime),
+    resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), (old_vrs_index - nat1!()) as nat)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;

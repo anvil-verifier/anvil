@@ -290,65 +290,41 @@ pub open spec fn pending_get_then_update_new_vrs_req_in_flight(
     }
 }
 
-pub open spec fn resp_msg_is_ok_get_then_update_old_vrs_resp(
+// currently controller does not distinguish between old vrs and new vrs response
+// just need it to return ok
+pub open spec fn resp_msg_is_ok_get_then_update_resp(
     vd: VDeploymentView, controller_id: int, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s)
+        let request = req_msg.content.get_APIRequest_0();
+        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg.dst == HostId::APIServer
+        &&& req_msg.content.is_APIRequest()
+        &&& request.is_GetThenUpdateRequest()
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg.content.is_get_then_update_response()
         &&& resp_msg.content.get_get_then_update_response().res is Ok
     }
 }
 
-pub open spec fn resp_msg_is_ok_get_then_update_new_vrs_resp(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s)
-        &&& s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg.content.is_get_then_update_response()
-        &&& resp_msg.content.get_get_then_update_response().res is Ok
-    }
-}
-
-pub open spec fn exists_resp_msg_is_ok_get_then_update_old_vrs_resp(
+pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(
     vd: VDeploymentView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s)
+        let request = req_msg.content.get_APIRequest_0();
+        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
+        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+        &&& req_msg.dst == HostId::APIServer
+        &&& req_msg.content.is_APIRequest()
+        &&& request.is_GetThenUpdateRequest()
         &&& exists |resp_msg| {
             // predicate on resp_msg
             &&& #[trigger] s.in_flight().contains(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             // we don't need info on content of the response at the moment
-            &&& resp_msg.content.is_get_then_update_response()
-            &&& resp_msg.content.get_get_then_update_response().res is Ok
-        }
-    }
-}
-
-pub open spec fn exists_resp_msg_is_ok_get_then_update_new_vrs_resp(
-    vd: VDeploymentView, controller_id: int
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s)
-        &&& exists |resp_msg| {
-            // predicate on resp_msg
-            &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            // we don't need info on content of the response at the moment
-            &&& resp_msg.content.is_get_then_update_response()
             &&& resp_msg.content.get_get_then_update_response().res is Ok
         }
     }
