@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, predicate::*},
-    trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*},
+    trusted::{rely_guarantee::*, spec_types::*, util::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
@@ -200,14 +200,5 @@ ensures
     assert(vrs.metadata.owner_references->0[0] == vd.controller_owner_ref());
     return vrs;
 }
-
-#[verifier(external_body)]
-pub proof fn etcd_contains_key_of_filtered_old_vrs_in_etcd(vd: VDeploymentView, resources: StoredState, obj: DynamicObjectView)
-requires
-    vd.well_formed(),
-    VReplicaSetView::unmarshal(obj) is Ok,
-ensures
-    filter_old_and_new_vrs_on_etcd(vd, resources).1.contains(VReplicaSetView::unmarshal(obj).unwrap()) ==> resources.contains_key(obj.object_ref()),
-{}
 
 }

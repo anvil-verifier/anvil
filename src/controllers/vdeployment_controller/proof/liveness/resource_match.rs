@@ -1256,8 +1256,6 @@ ensures
     );
 }
 
-#[verifier(rlimit(100))]
-#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
@@ -1317,28 +1315,6 @@ ensures
                     });
                 } else {
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vd, cluster, controller_id, input->0);
-                    assert(req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s_prime)) by {
-                        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
-                        let key = request.key();
-                        let obj = s.resources()[key];
-                        let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
-                        let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
-                        assert(req_msg.dst == HostId::APIServer);
-                        assert(req_msg.content.is_APIRequest());
-                        assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
-                        assert(request.namespace == vd.metadata.namespace.unwrap());
-                        assert(request.owner_ref == vd.controller_owner_ref());
-                        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap()));
-                        assert(s_prime.resources().contains_key(key)) by {
-                            etcd_contains_key_of_filtered_old_vrs_in_etcd(vd, s_prime.resources(), obj);
-                        }
-                        assert(valid_owned_object(req_vrs, vd));
-                        assert(req_vrs.metadata.owner_references_contains(vd.controller_owner_ref()));
-                        assert(req_vrs.spec.replicas == Some(int0!()));
-                        assert(key == state.old_vrs_list[state.old_vrs_index as int].object_ref());
-                        assert(key == req_vrs.object_ref());
-                    }
                 }
             },
             _ => {}
