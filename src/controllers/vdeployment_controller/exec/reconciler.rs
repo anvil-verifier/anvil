@@ -127,7 +127,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 old_vrs_list: old_vrs_list,
                 old_vrs_index: 0,
             };
-            return (state_prime, Some(Request::KRequest(req)))
+            return (state_prime, Some(Request::KRequest(req)));
         },
         VDeploymentReconcileStep::AfterListVRS => {
             if !(is_some_k_list_resp!(resp_o) && extract_some_k_list_resp_as_ref!(resp_o).is_ok()) {
@@ -171,7 +171,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
         },
         VDeploymentReconcileStep::AfterEnsureNewVRS => {
             if state.old_vrs_index == 0 {
-                return (done_state(state), None)
+                return (done_state(state), None);
             }
             if state.old_vrs_index > state.old_vrs_list.len() {
                 return (error_state(state), None);
@@ -186,7 +186,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (error_state(state), None);
             }
             if state.old_vrs_index == 0 {
-                return (done_state(state), None)
+                return (done_state(state), None);
             }
             if state.old_vrs_index > state.old_vrs_list.len() {
                 return (error_state(state), None);
@@ -197,7 +197,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             return scale_down_old_vrs(&state, &vd);
         },
         _ => {
-            return (state, None)
+            return (state, None);
         }
     }
 }
@@ -252,7 +252,7 @@ ensures
         old_vrs_list: state.old_vrs_list.clone(),
         old_vrs_index: state.old_vrs_index
     };
-    return (state_prime, Some(Request::KRequest(req)))
+    return (state_prime, Some(Request::KRequest(req)));
 }
 
 // scale new vrs to desired replicas
@@ -282,11 +282,11 @@ ensures
         old_vrs_list: state.old_vrs_list.clone(),
         old_vrs_index: state.old_vrs_index
     };
-    return (state_prime, Some(Request::KRequest(req)))
+    return (state_prime, Some(Request::KRequest(req)));
 }
 
 // scale down old vrs to 0 replicas
-pub fn scale_down_old_vrs(state: &VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
+pub fn scale_down_old_vrs(mut state: &VDeploymentReconcileState, vd: &VDeployment) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
 requires
     vd@.well_formed(),
     0 < state.old_vrs_index <= state.old_vrs_list@.len(),
@@ -294,25 +294,43 @@ requires
 ensures
     (res.0@, res.1.deep_view()) == model_reconciler::scale_down_old_vrs(state@, vd@),
 {
-    let old_vrs_index = state.old_vrs_index - 1;
-    let mut old_vrs = state.old_vrs_list[old_vrs_index].clone();
-    let mut new_spec = old_vrs.spec();
-    new_spec.set_replicas(0);
-    old_vrs.set_spec(new_spec);
+    assert(model_reconciler::scale_down_old_vrs(state@, vd@).0.old_vrs_list[(state.old_vrs_index - 1) as int] == model_reconciler::scale_down_vrs(state.old_vrs_list[state.old_vrs_index - 1]@));
+    let state_tmp = state.clone();
+    let old_vrs = state.old_vrs_list[state.old_vrs_index - 1].clone();
+    state.old_vrs_list[state.old_vrs_index - 1] = scale_down_vrs(&old_vrs);
+    // scaled element match
+    assert(model_reconciler::scale_down_vrs(state_tmp.old_vrs_list[state_tmp.old_vrs_index - 1]@) == state_tmp.old_vrs_list[state_tmp.old_vrs_index - 1]@);
+    // other element match
+    assert(model_reconciler::scale_down_old_vrs(state_tmp@, vd@).0.old_vrs_list.take((state_tmp.old_vrs_index - 1) as int) == state_tmp.old_vrs_list.deep_view().take((state_tmp.old_vrs_index - 1) as int));
+    assert(model_reconciler::scale_down_old_vrs(state_tmp@, vd@).0.old_vrs_list.subrange(state_tmp.old_vrs_index as int, state_tmp.old_vrs_list.len() as int) == state_tmp.old_vrs_list.deep_view().subrange(state_tmp.old_vrs_index as int, state_tmp.old_vrs_list.len() as int));
+    assert(state_tmp.old_vrs_list.deep_view() == model_reconciler::scale_down_old_vrs(state_tmp@, vd@).0.old_vrs_list);
     let req = KubeAPIRequest::GetThenUpdateRequest(KubeGetThenUpdateRequest {
         api_resource: VReplicaSet::api_resource(),
         namespace: vd.metadata().namespace().unwrap(),
-        name: old_vrs.metadata().name().unwrap(),
+        name: state.old_vrs_list[state.old_vrs_index - 1].metadata().name().unwrap(),
         owner_ref: vd.controller_owner_ref(),
-        obj: old_vrs.clone().marshal()
+        obj: state.old_vrs_list[state.old_vrs_index - 1].clone().marshal()
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterScaleDownOldVRS,
-        old_vrs_index: old_vrs_index,
-        old_vrs_list: state.old_vrs_list.clone(),
+        old_vrs_index: state.old_vrs_index - 1,
+        old_vrs_list: state.old_vrs_list,
         new_vrs: state.new_vrs.clone()
     };
-    return (state_prime, Some(Request::KRequest(req)))
+    assert(state_prime.old_vrs_list.deep_view() == model_reconciler::scale_down_old_vrs(state_tmp@, vd@).0.old_vrs_list);
+    assert(state_prime@.old_vrs_list =~= model_reconciler::scale_down_old_vrs(state_tmp@, vd@).0.old_vrs_list);
+    return (state_prime, Some(Request::KRequest(req)));
+}
+
+fn scale_down_vrs(vrs: &VReplicaSet) -> (scaled_vrs: VReplicaSet)
+ensures
+    scaled_vrs@ == model_reconciler::scale_down_vrs(vrs@),
+{
+    let mut scaled_vrs = vrs.clone();
+    let mut new_spec = scaled_vrs.spec();
+    new_spec.set_replicas(0);
+    scaled_vrs.set_spec(new_spec);;
+    return scaled_vrs;
 }
 
 fn match_replicas(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)

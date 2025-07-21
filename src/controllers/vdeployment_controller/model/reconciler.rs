@@ -269,28 +269,32 @@ pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeployment
 
 // scale down old vrs to 0 replicas
 pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
-    let old_vrs_index = (state.old_vrs_index - 1) as nat;
-    let old_vrs = state.old_vrs_list[old_vrs_index as int];
+    let old_vrs = state.old_vrs_list[state.old_vrs_index - 1];
+    state.old_vrs_list.update((state.old_vrs_index - 1) as int, scale_down_vrs(old_vrs));
     let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
-        name: old_vrs.metadata.name.unwrap(),
+        name: state.old_vrs_list[(state.old_vrs_index - 1) as int].metadata.name.unwrap(),
         namespace: vd.metadata.namespace.unwrap(),
         owner_ref: vd.controller_owner_ref(),
-        obj: VReplicaSetView {
-            spec: VReplicaSetSpecView {
-                replicas: Some(0 as int),
-                ..old_vrs.spec
-            },
-            ..old_vrs
-        }.marshal(),
+        obj: state.old_vrs_list[(state.old_vrs_index - 1) as int].marshal(),
     });
     // no need to update state.old_vrs_list as old vrs beyond index is not cared about by controller
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::AfterScaleDownOldVRS,
-        old_vrs_index: old_vrs_index,
+        old_vrs_index: (state.old_vrs_index - 1) as nat,
         old_vrs_list: state.old_vrs_list,
         new_vrs: state.new_vrs
     };
     (state_prime, Some(RequestView::KRequest(req)))
+}
+
+pub open spec fn scale_down_vrs(vrs: VReplicaSetView) -> (scaled_vrs: VReplicaSetView) {
+    VReplicaSetView {
+        spec: VReplicaSetSpecView {
+            replicas: Some(0 as int),
+            ..vrs.spec
+        },
+        ..vrs
+    }
 }
 
 }
