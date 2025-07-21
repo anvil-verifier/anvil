@@ -3,7 +3,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::vdeployment_controller::{
     trusted::{rely_guarantee::*, step::*, spec_types::*},
     model::{install::*, reconciler::*},
-    proof::helper_invariants,
+    proof::*,
 };
 use crate::kubernetes_cluster::spec::{
     controller::types::*,
@@ -470,8 +470,8 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
         Cluster::desired_state_is(vd),
-        vd_rely_condition(vd, cluster, controller_id),
-        garbage_collector_does_not_delete_vd_pods(vd)
+        helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
+        helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)
     )
 }
 
