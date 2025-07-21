@@ -413,6 +413,7 @@ ensures
 {
     vrs.metadata().name().is_some()
     && !vrs.metadata().has_deletion_timestamp()
+    && vrs.metadata().namespace_eq(&vd.metadata())
     && vrs.metadata().owner_references_contains(&vd.controller_owner_ref())
     && vrs.state_validation()
 }

@@ -669,7 +669,6 @@ ensures
                     assert forall |vrs: VReplicaSetView| #[trigger] old_vrs_list.contains(vrs) implies {
                         // the get-then-update request can succeed
                         &&& valid_owned_object(vrs, vd)
-                        &&& vrs.metadata.namespace == vd.metadata.namespace
                         // obj in etcd exists and is owned by vd
                         &&& s_prime.resources().contains_key(vrs.object_ref())
                         &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs
@@ -683,20 +682,20 @@ ensures
                         assert(vrs_list.contains(vrs) && valid_owned_object(vrs, vd)) by {
                             seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_object_filter);
                         }
-                        assert(vrs.metadata.namespace == vd.metadata.namespace) by {
-                            assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()));
-                            let i = choose |i| 0 <= i < resp_objs.len() && #[trigger] VReplicaSetView::unmarshal(resp_objs[i]).unwrap() == vrs;
-                            let resp_obj_set = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace));
-                            assert(s.resources().values().finite()) by {
-                                Cluster::etcd_is_finite()(s);
-                                lemma_values_finite(s.resources());
-                            }
-                            assert(list_vrs_obj_filter(vd.metadata.namespace)(resp_objs[i])) by {
-                                assert(resp_obj_set.contains(resp_objs[i])) by {
-                                    finite_set_to_seq_contains_all_set_elements(resp_obj_set);
-                                }
-                            }
-                        };
+                        // assert(vrs.metadata.namespace == vd.metadata.namespace) by {
+                        //     assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()));
+                        //     let i = choose |i| 0 <= i < resp_objs.len() && #[trigger] VReplicaSetView::unmarshal(resp_objs[i]).unwrap() == vrs;
+                        //     let resp_obj_set = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace));
+                        //     assert(s.resources().values().finite()) by {
+                        //         Cluster::etcd_is_finite()(s);
+                        //         lemma_values_finite(s.resources());
+                        //     }
+                        //     assert(list_vrs_obj_filter(vd.metadata.namespace)(resp_objs[i])) by {
+                        //         assert(resp_obj_set.contains(resp_objs[i])) by {
+                        //             finite_set_to_seq_contains_all_set_elements(resp_obj_set);
+                        //         }
+                        //     }
+                        // };
                     }
                     assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
                     let map_key = |vrs: VReplicaSetView| vrs.object_ref();
@@ -1320,7 +1319,6 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 if input->0 == req_msg {
-                    assume(false);
                     let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, req_msg, n);
                     VReplicaSetView::marshal_preserves_integrity();
                     assert({
@@ -1345,7 +1343,6 @@ ensures
                             assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
                             assert(request.namespace == vd.metadata.namespace.unwrap());
                             assert(request.owner_ref == vd.controller_owner_ref());
-                            assert(s_prime.resources().contains_key(key));
                             assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj)->Ok_0));
                             assert(req_vrs.metadata.owner_references_contains(vd.controller_owner_ref()));
                             assert(req_vrs.spec.replicas == Some(int0!()));

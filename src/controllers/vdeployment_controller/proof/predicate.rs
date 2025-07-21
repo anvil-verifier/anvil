@@ -338,12 +338,12 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& 0 <= vds.old_vrs_index <= vds.old_vrs_list.len()
+        // pending_get_then_update_old_vrs_req_in_flight ==> etcd is not yet updated
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
             // the get-then-update request can succeed
             &&& valid_owned_object(vrs, vd)
-            &&& vrs.metadata.namespace == vd.metadata.namespace
             // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(key)
             // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
@@ -359,7 +359,6 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             let new_vrs = vds.new_vrs->0;
             // the get-then-update request can succeed
             &&& valid_owned_object(new_vrs, vd)
-            &&& new_vrs.metadata.namespace == vd.metadata.namespace
             // if it's just created, etcd should not have it yet
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
