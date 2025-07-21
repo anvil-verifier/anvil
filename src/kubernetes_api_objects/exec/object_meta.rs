@@ -59,6 +59,13 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn namespace_eq(&self, other: &ObjectMeta) -> (b: bool)
+        ensures b == (self@.namespace == other@.namespace)
+    {
+        self.inner.namespace == other.inner.namespace
+    }
+
+    #[verifier(external_body)]
     pub fn generate_name(&self) -> (generate_name: Option<String>)
         ensures
             self@.generate_name is Some == generate_name is Some,
