@@ -202,6 +202,7 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
     |s: ClusterState| {
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         let key = request.key();
+        let obj = s.resources()[key];
         let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
@@ -212,7 +213,7 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         &&& request.owner_ref == vd.controller_owner_ref()
         &&& s.resources().contains_key(key)
         // the scaled down vrs can previously pass old vrs filter
-        &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(req_vrs)
+        &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())
         &&& valid_owned_object(req_vrs, vd)
         // step-specific update content
         &&& req_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
@@ -246,6 +247,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         // scaled down vrs should not pass old vrs filter in s_prime
         &&& req_vrs.spec.replicas == Some(vd.spec.replicas.unwrap_or(1))
         &&& key == state.new_vrs->0.object_ref()
+        &&& key == req_vrs.object_ref()
     }
 }
 

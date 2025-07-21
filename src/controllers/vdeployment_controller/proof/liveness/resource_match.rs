@@ -1256,18 +1256,6 @@ ensures
     );
 }
 
-// error: assertion failed
-//     --> src/controllers/vdeployment_controller/proof/liveness/resource_match.rs:1339:36
-//      |
-// 1339 | ...                   assert(s_prime.resources().contains_key(key));
-//      |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
-// 
-// error: assertion failed
-//     --> src/controllers/vdeployment_controller/proof/liveness/resource_match.rs:1340:36
-//      |
-// 1340 | ...                   assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(obj)->Ok_0));
-// 
-#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
