@@ -108,6 +108,8 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()),
+    forall |obj: DynamicObjectView| s.resources().values().contains(obj) && VReplicaSetView::unmarshal(obj) is Ok
+        && #[trigger] valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd) ==> s_prime.resources().values().contains(obj),
     ({
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==> {

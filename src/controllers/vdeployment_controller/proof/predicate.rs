@@ -215,6 +215,9 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         // the scaled down vrs can previously pass old vrs filter
         &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())
         &&& valid_owned_object(req_vrs, vd)
+        // etcd obj is owned by vd and should be protected by non-interference property
+        &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd)
         // step-specific update content
         &&& req_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
         // scaled down vrs should not pass old vrs filter in s_prime
