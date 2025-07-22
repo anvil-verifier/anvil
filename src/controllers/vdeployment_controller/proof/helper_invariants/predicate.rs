@@ -275,14 +275,7 @@ pub open spec fn no_pending_interfering_update_request(
                 ({
                     &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
                     &&& msg.content.is_get_then_update_request()
-                }) ==> {
-                    // We can't prove req.owner_ref == vd.controller_owner_ref()
-                    // directly since owner references carry a uid...
-                    &&& req.owner_ref.controller is Some
-                    &&& req.owner_ref.controller->0
-                    &&& req.owner_ref.kind == VDeploymentView::kind()
-                    &&& req.owner_ref.name == vd.object_ref().name
-                }
+                }) ==> req.owner_ref == vd.controller_owner_ref()
             }
         }
     }
@@ -303,7 +296,7 @@ pub open spec fn garbage_collector_does_not_delete_vd_vrs_objects(vd: VDeploymen
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
-                ||| !(owner_references_contains_ignoring_uid(obj.metadata, vd.controller_owner_ref())
+                ||| !(obj.metadata.owner_references_contains(vd.controller_owner_ref())
                         && obj.kind == VReplicaSetView::kind()
                         && obj.metadata.namespace == vd.metadata.namespace)
                 ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()

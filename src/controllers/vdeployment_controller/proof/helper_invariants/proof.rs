@@ -410,6 +410,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
+        spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid(controller_id, vd)))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
@@ -430,14 +431,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             ({
                 &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
                 &&& msg.content.is_get_then_update_request()
-            }) ==> {
-                // We can't prove req.owner_ref == vd.controller_owner_ref()
-                // directly since owner references carry a uid...
-                &&& req.owner_ref.controller is Some
-                &&& req.owner_ref.controller->0
-                &&& req.owner_ref.kind == VDeploymentView::kind()
-                &&& req.owner_ref.name == vd.object_ref().name
-            }
+            }) ==> req.owner_ref == vd.controller_owner_ref()
         }
     };
 
@@ -461,14 +455,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
                 ({
                     &&& msg.src == HostId::Controller(controller_id, vd.object_ref())
                     &&& msg.content.is_get_then_update_request()
-                }) ==> {
-                    // We can't prove req.owner_ref == vd.controller_owner_ref()
-                    // directly since owner references carry a uid...
-                    &&& req.owner_ref.controller is Some
-                    &&& req.owner_ref.controller->0
-                    &&& req.owner_ref.kind == VDeploymentView::kind()
-                    &&& req.owner_ref.name == vd.object_ref().name
-                }
+                }) ==> req.owner_ref == vd.controller_owner_ref()
             }
         }
     };
@@ -492,6 +479,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
         &&& Cluster::etcd_is_finite()(s)
+        &&& Cluster::every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid(controller_id, vd)(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
@@ -625,6 +613,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         later(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
         lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
+        lift_state(Cluster::every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid(controller_id, vd)),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
@@ -702,7 +691,7 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
             &&& req.preconditions.unwrap().uid.unwrap() < s.api_server.uid_counter
             &&& s.resources().contains_key(req.key) ==> {
                 let obj = s.resources()[req.key];
-                ||| !(owner_references_contains_ignoring_uid(obj.metadata, vd.controller_owner_ref())
+                ||| !(obj.metadata.owner_references_contains(vd.controller_owner_ref())
                         && obj.kind == VReplicaSetView::kind()
                         && obj.metadata.namespace == vd.metadata.namespace)
                 ||| obj.metadata.uid.unwrap() > req.preconditions.unwrap().uid.unwrap()
@@ -767,19 +756,10 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
                             // (which means the actual owner was deleted and another object with the same name gets created again)
                             ||| s.resources()[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
                         });
-                        if owner_references_contains_ignoring_uid(obj.metadata, vd.controller_owner_ref())
+                        if obj.metadata.owner_references_contains(vd.controller_owner_ref())
                             && obj.kind == Kind::PodKind
                             && obj.metadata.namespace == vd.metadata.namespace {
-
-                            let owner_ref_with_masked_uid = choose |or: OwnerReferenceView| {
-                                &&& #[trigger] obj.metadata.owner_references_contains(or)
-                                &&& or.block_owner_deletion == vd.controller_owner_ref().block_owner_deletion
-                                &&& or.controller == vd.controller_owner_ref().controller
-                                &&& or.kind == vd.controller_owner_ref().kind
-                                &&& or.name == vd.controller_owner_ref().name
-                            };
-                                
-                            let idx = choose |i| 0 <= i < owner_references.len() && owner_references[i] == owner_ref_with_masked_uid;
+                            let idx = choose |i| 0 <= i < owner_references.len() && owner_references[i] == vd.controller_owner_ref();
                             assert(s.resources().contains_key(vd.object_ref()));
                         }
                     }
@@ -788,19 +768,6 @@ pub proof fn lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_ob
                     let req_msg = req_msg_opt.unwrap();
 
                     if requirements_antecedent(msg, s_prime) {
-                        // deal with the fact that owner_references_contains_ignoring_uid
-                        // is quantified.
-                        let msg_req = msg.content.get_delete_request();
-                        if s.resources().contains_key(msg_req.key) && s_prime.resources().contains_key(msg_req.key) {
-                            let obj = s_prime.resources()[msg_req.key];
-                            let old_obj = s.resources()[msg_req.key];
-                            helper_lemmas::owner_references_contains_ignoring_uid_is_invariant_if_owner_references_unchanged(
-                                old_obj.metadata,
-                                obj.metadata,
-                                vd.controller_owner_ref()
-                            );
-                        }
-
                         if req_msg.content.is_APIRequest()
                             && req_msg.content.get_APIRequest_0().is_UpdateRequest() {
                             let req = msg.content.get_delete_request();
