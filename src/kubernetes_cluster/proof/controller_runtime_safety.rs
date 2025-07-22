@@ -836,18 +836,6 @@ pub proof fn lemma_always_every_ongoing_reconcile_has_unique_id(
     init_invariant::<ClusterState>(spec, self.init(), stronger_next, invariant);
 }
 
-pub open spec fn every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid<T: CustomResourceView>(
-    controller_id: int, 
-    desired_cr: T
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        s.ongoing_reconciles(controller_id).contains_key(desired_cr.object_ref()) ==> {
-            let obj = s.ongoing_reconciles(controller_id)[desired_cr.object_ref()].triggering_cr;
-            T::unmarshal(obj).unwrap().metadata().uid == desired_cr.metadata().uid
-        }
-    }
-}
-
 pub open spec fn every_msg_from_key_is_pending_req_msg_of(
     controller_id: int, key: ObjectRef
 ) -> StatePred<ClusterState> {

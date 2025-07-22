@@ -410,7 +410,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
 
         spec.entails(always(lift_state(Cluster::etcd_is_finite()))),
-        spec.entails(always(lift_state(Cluster::every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid(controller_id, vd)))),
+        spec.entails(always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))))),
         spec.entails(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)))),
         spec.entails(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()))),
@@ -479,7 +479,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
                 ==> #[trigger] vd_rely(other_id)(s_prime)
         &&& Cluster::etcd_is_finite()(s)
-        &&& Cluster::every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid(controller_id, vd)(s)
+        &&& Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)(s)
         &&& vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s)
         &&& vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)(s_prime)
@@ -613,7 +613,7 @@ pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
         later(lift_state(cluster.every_in_flight_req_msg_from_controller_has_valid_controller_id())),
         lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(Cluster::etcd_is_finite()),
-        lift_state(Cluster::every_ongoing_reconcile_with_key_of_desired_cr_has_matching_uid(controller_id, vd)),
+        lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         later(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
