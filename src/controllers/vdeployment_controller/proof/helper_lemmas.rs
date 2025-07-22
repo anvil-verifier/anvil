@@ -9,8 +9,9 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, predicate::*},
-    trusted::{rely_guarantee::*, spec_types::*},
+    trusted::{rely_guarantee::*, spec_types::*, util::*},
 };
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
 use vstd::{seq_lib::*, map_lib::*};
 use vstd::prelude::*;
@@ -187,6 +188,17 @@ pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_wi
             }
         }
     );
+}
+
+pub proof fn make_replica_set_makes_valid_owned_object(vd: VDeploymentView) -> (vrs: VReplicaSetView)
+requires vd.well_formed(),
+ensures
+    valid_owned_object(vrs, vd),
+    vrs == make_replica_set(vd),
+{
+    let vrs = make_replica_set(vd);
+    assert(vrs.metadata.owner_references->0[0] == vd.controller_owner_ref());
+    return vrs;
 }
 
 }
