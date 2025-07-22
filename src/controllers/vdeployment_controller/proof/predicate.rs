@@ -349,12 +349,13 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
             // the get-then-update request can succeed
-            &&& valid_owned_object(vrs, vd)
-            // obj in etcd exists and is owned by vd
             &&& s.resources().contains_key(key)
+            // obj in etcd exists and is owned by vd
+            &&& valid_owned_object(vrs, vd)
             // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
             // resource version and status can change
             &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
+            &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
             &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
         }
         // vds.old_vrs_list.no_duplicates() can be inferred by
@@ -363,14 +364,16 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
         &&& vds.new_vrs is None ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is None
         &&& vds.new_vrs is Some ==> {
             let new_vrs = vds.new_vrs->0;
-            // the get-then-update request can succeed
+            // obj in etcd exists and is owned by vd
             &&& valid_owned_object(new_vrs, vd)
             // if it's just created, etcd should not have it yet
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
+                // the get-then-update request can succeed
                 &&& s.resources().contains_key(new_vrs.object_ref())
                 &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(new_vrs)
                 // may needs to be weaken as the version in etcd has resource_version & uid
+                &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]) is Ok
                 &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()])->Ok_0 == new_vrs
             }
         }
