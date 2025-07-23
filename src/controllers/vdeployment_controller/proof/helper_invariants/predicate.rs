@@ -377,6 +377,36 @@ pub open spec fn vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_
                         }
                     }
                 }
+                // Special case 2: new vrs in local cache is constructed from the resp obj
+                // this stronger property implies the property in the beginning
+                &&& state.reconcile_step == VDeploymentReconcileStepView::AfterCreateNewVRS ==> {
+                    let req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
+                    &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
+                    &&& req_msg.dst.is_APIServer()
+                    &&& req_msg.content.is_create_request()
+                    &&& req_msg.content.get_create_request() == CreateRequest {
+                        namespace: triggering_cr.metadata.namespace.unwrap(),
+                        obj: make_replica_set(triggering_cr).marshal(),
+                    }
+                    &&& forall |msg| {
+                        let req_msg = s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg->0;
+                        &&& #[trigger] s.in_flight().contains(msg)
+                        &&& s.ongoing_reconciles(controller_id)[triggering_cr.object_ref()].pending_req_msg is Some
+                        &&& msg.src.is_APIServer()
+                        &&& resp_msg_matches_req_msg(msg, req_msg)
+                        &&& is_ok_resp(msg.content.get_APIResponse_0())
+                    } ==> {
+                        let resp_obj = msg.content.get_create_response().res.unwrap();
+                        &&& msg.content.is_create_response()
+                        &&& msg.content.get_create_response().res is Ok
+                        &&& VReplicaSetView::unmarshal(resp_obj).is_ok()
+                        &&& resp_obj.metadata.namespace.is_some()
+                        &&& resp_obj.metadata.namespace.unwrap() == triggering_cr.metadata.namespace.unwrap()
+                        &&& resp_obj.kind == VReplicaSetView::kind()
+                        &&& resp_obj.metadata.owner_references is Some ==> resp_objs[i].metadata.owner_references->0
+                            .filter(|o: OwnerReferenceView| o.controller is Some && o.controller->0).len() <= 1
+                    }
+                }
             }
     }
 }
