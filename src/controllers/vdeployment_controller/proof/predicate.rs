@@ -374,10 +374,20 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
                 &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(new_vrs)
                 // may needs to be weaken as the version in etcd has resource_version & uid
                 &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]) is Ok
-                &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()])->Ok_0 == new_vrs
+                // because make_replica_set(vd) does not carry resource_version & uid
+                &&& vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]).unwrap())
             }
         }
     }
+}
+
+// weaker version of == for vrs when resource version and uid are not available
+pub open spec fn vrs_eq_for_vd(lhs: VReplicaSetView, rhs: VReplicaSetView) -> bool {
+    &&& lhs.metadata.namespace == rhs.metadata.namespace
+    &&& lhs.metadata.name == rhs.metadata.name
+    &&& lhs.metadata.labels == rhs.metadata.labels
+    &&& lhs.metadata.owner_references == rhs.metadata.owner_references
+    &&& lhs.spec == rhs.spec
 }
 
 // new_vrs_replicas is Some(x) -> new vrs exists and has replicas = x; else new vrs does not exist
