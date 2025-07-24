@@ -484,6 +484,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
         Cluster::desired_state_is(vd),
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
+        helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd),
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)
     )
 }

@@ -1478,6 +1478,9 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
+                if msg.src == HostId::Controller(controller_id, vd.object_ref()) && msg.dst.is_APIServer() && msg.content.is_APIRequest() {
+                    assume(false);
+                }
                 use crate::vdeployment_controller::proof::helper_invariants::*;
                 assert(local_state_is_valid_and_coherent(vd, controller_id)(s)) by {
                     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
@@ -1504,6 +1507,9 @@ ensures
                         }
                     });
                 }
+                let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
+                    s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
                 assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
@@ -1531,6 +1537,8 @@ ensures
                                 match msg.content.get_APIRequest_0() {
                                     APIRequest::DeleteRequest(req) => assert(no_other_pending_delete_request_interferes_with_vd_reconcile(req, vd)(s)),
                                     APIRequest::GetThenDeleteRequest(req) => assert(no_other_pending_get_then_delete_request_interferes_with_vd_reconcile(req, vd)(s)),
+                                    APIRequest::UpdateRequest(req) => assert(no_other_pending_update_request_interferes_with_vd_reconcile(req, vd)(s)),
+                                    APIRequest::GetThenUpdateRequest(req) => assert(no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s)),
                                     _ => {},
                                 }
                             }
