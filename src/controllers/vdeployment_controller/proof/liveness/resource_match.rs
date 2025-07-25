@@ -1478,70 +1478,24 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
-                if msg.src == HostId::Controller(controller_id, vd.object_ref()) && msg.dst.is_APIServer() && msg.content.is_APIRequest() {
-                    assume(false);
-                }
-                use crate::vdeployment_controller::proof::helper_invariants::*;
-                assert(local_state_is_valid_and_coherent(vd, controller_id)(s)) by {
-                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert(0 <= vds.old_vrs_index <= vds.old_vrs_list.len());
-                    assert(forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
-                        let vrs = vds.old_vrs_list[i];
-                        let key = vrs.object_ref();
-                        &&& s.resources().contains_key(key)
-                        &&& valid_owned_object(vrs, vd)
-                        &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
-                        &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
-                        &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
-                    });
-                    assert(vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
-                    assert(vds.new_vrs is None ==> filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is None);
-                    assert(vds.new_vrs is Some ==> {
-                        let new_vrs = vds.new_vrs->0;
-                        &&& valid_owned_object(new_vrs, vd)
-                        &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
-                            &&& s.resources().contains_key(new_vrs.object_ref())
-                            &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 == Some(new_vrs)
-                            &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]) is Ok
-                            &&& vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]).unwrap())
-                        }
-                    });
-                }
-                let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
-                    s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
-                assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
+                // just to improve the stability
+                if msg.src.is_controller_id(controller_id) {
                     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    assert(vds_prime.new_vrs is Some ==> {
+                    assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
+                        s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
+                    assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
+                        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        // somehow this unused vds helps to speed up the proof...
+                        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                         let new_vrs = vds_prime.new_vrs->0;
-                        &&& valid_owned_object(new_vrs, vd)
-                        &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime) ==> {
-                            &&& s_prime.resources().contains_key(new_vrs.object_ref())
-                            &&& filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0 == Some(new_vrs)
-                            &&& VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()]) is Ok
-                            &&& vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()]).unwrap())
-                        }
-                    }) by {
-                        let new_vrs = vds_prime.new_vrs->0;
-                        assert(!pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime));
                         // non-interference
                         assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
-                            assert(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)(s));
                             // trigger
                             assert(s.in_flight().contains(msg));
                             let etcd_obj = s.resources()[new_vrs.object_ref()];
                             assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
-                            assert(etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref()));
-                            if msg.src != HostId::Controller(controller_id, vd.object_ref()) && msg.dst.is_APIServer() && msg.content.is_APIRequest() {
-                                match msg.content.get_APIRequest_0() {
-                                    APIRequest::DeleteRequest(req) => assert(no_other_pending_delete_request_interferes_with_vd_reconcile(req, vd)(s)),
-                                    APIRequest::GetThenDeleteRequest(req) => assert(no_other_pending_get_then_delete_request_interferes_with_vd_reconcile(req, vd)(s)),
-                                    APIRequest::UpdateRequest(req) => assert(no_other_pending_update_request_interferes_with_vd_reconcile(req, vd)(s)),
-                                    APIRequest::GetThenUpdateRequest(req) => assert(no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s)),
-                                    _ => {},
-                                }
-                            }
+                            assert(etcd_obj.metadata.owner_references is Some);
+                            assert(etcd_obj.metadata.owner_references->0 == seq![vd.controller_owner_ref()]);
                         }
                     }
                 }

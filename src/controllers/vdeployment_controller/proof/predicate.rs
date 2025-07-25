@@ -366,6 +366,10 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             let new_vrs = vds.new_vrs->0;
             // obj in etcd exists and is owned by vd
             &&& valid_owned_object(new_vrs, vd)
+            // owner_references_contains is too weak
+            // TODO: investigate why this is not required for old vrs
+            &&& new_vrs.metadata.owner_references is Some
+            &&& new_vrs.metadata.owner_references->0 == seq![vd.controller_owner_ref()]
             // if it's just created, etcd should not have it yet
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
@@ -483,6 +487,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::there_is_no_request_msg_to_external_from_controller(controller_id),
         Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id),
         Cluster::desired_state_is(vd),
+        Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()),
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
         helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd),
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd)
