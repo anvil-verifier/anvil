@@ -352,6 +352,8 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             &&& s.resources().contains_key(key)
             // obj in etcd exists and is owned by vd
             &&& valid_owned_object(vrs, vd)
+            &&& vrs.metadata.owner_references is Some
+            &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
             // resource version and status can change
             &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
@@ -369,7 +371,7 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             // owner_references_contains is too weak
             // TODO: investigate why this is not required for old vrs
             &&& new_vrs.metadata.owner_references is Some
-            &&& new_vrs.metadata.owner_references->0 == seq![vd.controller_owner_ref()]
+            &&& new_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             // if it's just created, etcd should not have it yet
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
@@ -392,6 +394,10 @@ pub open spec fn vrs_eq_for_vd(lhs: VReplicaSetView, rhs: VReplicaSetView) -> bo
     &&& lhs.metadata.labels == rhs.metadata.labels
     &&& lhs.metadata.owner_references == rhs.metadata.owner_references
     &&& lhs.spec == rhs.spec
+}
+
+pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> bool {
+    |o: OwnerReferenceView| o.controller is Some && o.controller->0
 }
 
 // new_vrs_replicas is Some(x) -> new vrs exists and has replicas = x; else new vrs does not exist

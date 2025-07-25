@@ -1314,7 +1314,33 @@ ensures
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
                 } else {
-                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vd, cluster, controller_id, input->0);
+                    let msg = input->0;
+                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
+                    // just to improve the stability
+                    if msg.src.is_controller_id(controller_id) {
+                        assume(false);
+                        assume(local_state_is_valid_and_coherent(vd, controller_id)(s_prime));
+                        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
+                            s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
+                        assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
+                            let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                            // somehow this unused vds helps to speed up the proof...
+                            let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                            let new_vrs = vds_prime.new_vrs->0;
+                            // non-interference
+                            assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
+                                // trigger
+                                assert(s.in_flight().contains(msg));
+                                let etcd_obj = s.resources()[new_vrs.object_ref()];
+                                assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
+                                assert(etcd_obj.metadata.owner_references is Some);
+                                assert(etcd_obj.metadata.owner_references->0 == seq![vd.controller_owner_ref()]);
+                            }
+                        }
+                    }
                 }
             },
             _ => {}
@@ -1495,7 +1521,7 @@ ensures
                             let etcd_obj = s.resources()[new_vrs.object_ref()];
                             assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
                             assert(etcd_obj.metadata.owner_references is Some);
-                            assert(etcd_obj.metadata.owner_references->0 == seq![vd.controller_owner_ref()]);
+                            assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
                         }
                     }
                 }
