@@ -20,8 +20,9 @@ use crate::vdeployment_controller::{
         spec_types::*, 
         step::*
     },
-    proof::{helper_lemmas::*, liveness::*, predicate::*},
+    proof::{helper_invariants::*, helper_lemmas::*, liveness::*, predicate::*},
 };
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::reconciler::spec::io::*;
 use vstd::{map::*, map_lib::*, math::*, prelude::*};
 
@@ -146,7 +147,7 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vd: VDeploym
 pub open spec fn invariants_since_phase_ii(controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState>
 {
     always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)))
-    // TODO: likely invariant: .and(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))
+    .and(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))))
 }
 
@@ -155,7 +156,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
 {
     stable_and_always_n!(
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
-        // TODO: likely invariant: lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
+        lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
     );
 }
@@ -165,24 +166,20 @@ pub open spec fn invariants_since_phase_iii(vd: VDeploymentView, cluster: Cluste
     // TODO: likely invariants
     // always(lift_state(no_pending_interfering_update_request()))
     // .and(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods())))
-    // .and(always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id))))
-    // .and( 
-        always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref())))
-    // )
+    always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))
+    .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))))
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iii(vd, cluster, controller_id))),
 {
     // TODO: likely invariants
-    // stable_and_always_n!(
+    stable_and_always_n!(
     //     lift_state(no_pending_interfering_update_request()),
     //     lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
-    //     lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
-    always_p_is_stable(
+        lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))
     );
-    // );
 
 }
 
@@ -471,7 +468,7 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
     .and(always(lift_state(Cluster::etcd_is_finite())))
     .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))))
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
-    //.and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
+    .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))))
     // TODO: likely invariants
     // .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init))))))
@@ -492,9 +489,9 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
     //     vd.object_ref(),
     //     cluster.reconcile_model(controller_id).error
     // ))))
-    // .and(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
-    // .and(always(lift_state(each_vd_in_reconcile_implies_filtered_pods_owned_by_vd(controller_id))))
-    // .and(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
+    .and(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))))
+    .and(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
@@ -519,7 +516,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     always_p_is_stable(lift_state(Cluster::etcd_is_finite()));
     always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))));
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
-    //always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
+    always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
     // TODO: likely invariants
     // always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init)))));
@@ -541,8 +538,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     //     vd.object_ref(),
     //     cluster.reconcile_model(controller_id).error
     // )));
-    // always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
-    // always_p_is_stable(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
+    always_p_is_stable(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
+    always_p_is_stable(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
 
     stable_and_n!(
         always(lift_state(Cluster::every_in_flight_msg_has_unique_id())),
@@ -564,8 +562,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         always(lift_state(Cluster::etcd_is_finite())),
         always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())))),
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
-        //always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
-        always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)))
+        always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
+        always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))),
         // TODO: likely invariants
         // always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init))))),
         // always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods))))),
@@ -585,9 +583,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         //     vd.object_ref(),
         //     cluster.reconcile_model(controller_id).error
         // ))),
-        // always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))),
-        // always(lift_state(each_vd_in_reconcile_implies_filtered_pods_owned_by_vd(controller_id))),
-        // always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))
+        always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))),
+        always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
+        always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))
     );
 }
 
@@ -596,6 +594,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         spec.entails(lift_state(cluster.init())),
         spec.entails(always(lift_action(cluster.next()))),
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     ensures spec.entails(derived_invariants_since_beginning(vd, cluster, controller_id)),
 {
@@ -621,7 +620,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     }
     spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())));
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
-    // lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
+    lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VDeploymentReconciler, VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidERespView>(spec, controller_id);
     VDeploymentReconcileState::marshal_preserves_integrity();
     // TODO: likely invariants
@@ -651,16 +650,16 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     // ))));
     // cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done);
     // cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error);
-    // assert forall |vd: VDeploymentView| spec.entails(always(lift_state(#[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))) by {
-    //     lemma_always_vd_reconcile_request_only_interferes_with_itself(
-    //         spec, cluster, controller_id, vd
-    //     );
-    // }
-    // spec_entails_always_tla_forall(
-    //     spec, |vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))
-    // );
-    // lemma_always_each_vd_in_reconcile_implies_filtered_pods_owned_by_vd(spec, cluster, controller_id);
-    // lemma_always_every_msg_from_vd_controller_carries_vd_key(spec, cluster, controller_id);
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(#[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))) by {
+        lemma_always_vd_reconcile_request_only_interferes_with_itself(
+            spec, cluster, controller_id, vd
+        );
+    }
+    spec_entails_always_tla_forall(
+        spec, |vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))
+    );
+    lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(spec, cluster, controller_id);
+    lemma_always_every_msg_from_vd_controller_carries_vd_key(spec, cluster, controller_id);
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -682,8 +681,8 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         lift_state(Cluster::etcd_is_finite()),
         tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))),
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
-        //lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
-        lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))
+        lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
+        lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
         // tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init)))),
         // tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods)))),
         // tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
@@ -702,9 +701,9 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         //     vd.object_ref(),
         //     cluster.reconcile_model(controller_id).error
         // )),
-        // tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))),
-        // lift_state(each_vd_in_reconcile_implies_filtered_pods_owned_by_vd(controller_id)),
-        // lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))
+        tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))),
+        lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
+        lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))
     );
 }
 }
