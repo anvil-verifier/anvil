@@ -36,15 +36,16 @@ pub open spec fn assumption_and_invariants_of_all_phases(vd: VDeploymentView, cl
     .and(invariants_since_phase_iii(vd, cluster, controller_id))
     .and(invariants_since_phase_iv(vd, cluster, controller_id))
     .and(invariants_since_phase_v(vd, cluster, controller_id))
+    .and(invariants_since_phase_vi(vd, cluster, controller_id))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
         valid(stable(invariants(vd, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vd, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 6 ==> valid(stable(#[trigger] spec_before_phase_n(i, vd, cluster, controller_id))),
 {
-    reveal_with_fuel(spec_before_phase_n, 5);
+    reveal_with_fuel(spec_before_phase_n, 6);
     invariants_is_stable(vd, cluster, controller_id);
     always_p_is_stable(lift_state(Cluster::desired_state_is(vd)));
     invariants_since_phase_i_is_stable(controller_id, vd);
@@ -52,6 +53,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vd: VDeploymentVi
     invariants_since_phase_iii_is_stable(vd, cluster, controller_id);
     invariants_since_phase_iv_is_stable(vd, cluster, controller_id);
     invariants_since_phase_v_is_stable(vd, cluster, controller_id);
+    invariants_since_phase_vi_is_stable(vd, cluster, controller_id);
     stable_and_n!(
         invariants(vd, cluster, controller_id),
         always(lift_state(Cluster::desired_state_is(vd))),
@@ -59,7 +61,8 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(vd: VDeploymentVi
         invariants_since_phase_ii(controller_id, vd),
         invariants_since_phase_iii(vd, cluster, controller_id),
         invariants_since_phase_iv(vd, cluster, controller_id),
-        invariants_since_phase_v(vd, cluster, controller_id)
+        invariants_since_phase_v(vd, cluster, controller_id),
+        invariants_since_phase_vi(vd, cluster, controller_id)
     );
 }
 
@@ -67,12 +70,12 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(v
     requires
         valid(stable(assumption_and_invariants_of_all_phases(vd, cluster, controller_id))),
         valid(stable(invariants(vd, cluster, controller_id))),
-        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vd, cluster, controller_id))),
+        forall |i: nat| 0 <= i <= 6 ==> valid(stable(#[trigger] spec_before_phase_n(i, vd, cluster, controller_id))),
     ensures
         valid(stable(stable_spec(cluster, controller_id))),
         valid(stable(stable_spec(cluster, controller_id).and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)))),
         valid(stable(stable_spec(cluster, controller_id).and(invariants(vd, cluster, controller_id)))),
-        forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vd, cluster, controller_id)))),
+        forall |i: nat| 0 <= i <= 6 ==> valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vd, cluster, controller_id)))),
 {
     stable_spec_is_stable(cluster, controller_id);
     stable_and_n!(
@@ -84,9 +87,9 @@ pub proof fn stable_spec_and_assumption_and_invariants_of_all_phases_is_stable(v
         invariants(vd, cluster, controller_id)
     );
     assert forall |i: nat| 
-        0 <= i <= 5
+        0 <= i <= 6
         && valid(stable(stable_spec(cluster, controller_id)))
-        && forall |i: nat| 0 <= i <= 5 ==> valid(stable(#[trigger] spec_before_phase_n(i, vd, cluster, controller_id)))
+        && forall |i: nat| 0 <= i <= 6 ==> valid(stable(#[trigger] spec_before_phase_n(i, vd, cluster, controller_id)))
         implies valid(stable(#[trigger] stable_spec(cluster, controller_id).and(spec_before_phase_n(i, vd, cluster, controller_id)))) by {
         stable_and_n!(
             stable_spec(cluster, controller_id),
@@ -109,6 +112,8 @@ pub open spec fn invariants_since_phase_n(n: nat, vd: VDeploymentView, cluster: 
         invariants_since_phase_iv(vd, cluster, controller_id)
     } else if n == 5 {
         invariants_since_phase_v(vd, cluster, controller_id)
+    } else if n == 6 {
+        invariants_since_phase_vi(vd, cluster, controller_id)
     } else {
         true_pred()
     }
@@ -119,7 +124,7 @@ pub open spec fn spec_before_phase_n(n: nat, vd: VDeploymentView, cluster: Clust
 {
     if n == 1 {
         invariants(vd, cluster, controller_id).and(always(lift_state(Cluster::desired_state_is(vd))))
-    } else if 2 <= n <= 6 {
+    } else if 2 <= n <= 7 {
         spec_before_phase_n((n-1) as nat, vd, cluster, controller_id).and(invariants_since_phase_n((n-1) as nat, vd, cluster, controller_id))
     } else {
         true_pred()
@@ -147,6 +152,7 @@ pub proof fn invariants_since_phase_i_is_stable(controller_id: int, vd: VDeploym
 pub open spec fn invariants_since_phase_ii(controller_id: int, vd: VDeploymentView) -> TempPred<ClusterState>
 {
     always(lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)))
+    .and(always(lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects())))
     .and(always(lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id))))
     .and(always(lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))))
 }
@@ -156,6 +162,7 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
 {
     stable_and_always_n!(
         lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
+        lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
         lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
     );
@@ -163,9 +170,6 @@ pub proof fn invariants_since_phase_ii_is_stable(controller_id: int, vd: VDeploy
 
 pub open spec fn invariants_since_phase_iii(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    // TODO: likely invariants
-    // always(lift_state(no_pending_interfering_update_request()))
-    // .and(always(lift_state(no_pending_mutation_request_not_from_controller_on_pods())))
     always(lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)))
     .and(always(lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))))
 }
@@ -173,10 +177,7 @@ pub open spec fn invariants_since_phase_iii(vd: VDeploymentView, cluster: Cluste
 pub proof fn invariants_since_phase_iii_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iii(vd, cluster, controller_id))),
 {
-    // TODO: likely invariants
     stable_and_always_n!(
-    //     lift_state(no_pending_interfering_update_request()),
-    //     lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
         lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
         lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))
     );
@@ -185,35 +186,43 @@ pub proof fn invariants_since_phase_iii_is_stable(vd: VDeploymentView, cluster: 
 
 pub open spec fn invariants_since_phase_iv(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    // TODO: likely invariant: always(lift_state(garbage_collector_does_not_delete_vd_pods(vd)))
-    always(true_pred())
+    always(lift_state(no_pending_interfering_update_request(vd, controller_id)))
 }
 
 pub proof fn invariants_since_phase_iv_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_iv(vd, cluster, controller_id))),
 {
-    // TODO: likely invariant: always_p_is_stable(lift_state(garbage_collector_does_not_delete_vd_pods(vd)));
-    always_p_is_stable(true_pred::<ClusterState>());
+    always_p_is_stable(lift_state(no_pending_interfering_update_request(vd, controller_id)));
 }
 
 pub open spec fn invariants_since_phase_v(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
 {
-    // TODO: likely invariant: always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)))
-    always(true_pred())
+    always(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)))
 }
 
 pub proof fn invariants_since_phase_v_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
     ensures valid(stable(invariants_since_phase_v(vd, cluster, controller_id))),
 {
-    // TODO: likely invariant: always_p_is_stable(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)));
-    always_p_is_stable(true_pred::<ClusterState>());
+    always_p_is_stable(lift_state(garbage_collector_does_not_delete_vd_vrs_objects(vd)));
 }
+
+pub open spec fn invariants_since_phase_vi(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> TempPred<ClusterState>
+{
+    always(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)))
+}
+
+pub proof fn invariants_since_phase_vi_is_stable(vd: VDeploymentView, cluster: Cluster, controller_id: int)
+    ensures valid(stable(invariants_since_phase_vi(vd, cluster, controller_id))),
+{
+    always_p_is_stable(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)));
+}
+
 
 // TODO: repair this proof; most importantly adapting Cathy's termination argument.
 #[verifier(external_body)]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int, i: nat)
     requires 
-        1 <= i <= 5,
+        1 <= i <= 6,
         // The vd type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
         // The vd controller runs in the cluster.
