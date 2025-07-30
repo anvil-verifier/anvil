@@ -1557,12 +1557,28 @@ ensures
                             assert(new_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
                             assert(!pending_create_new_vrs_req_in_flight(vd, controller_id)(s));
                             assert(s.resources().contains_key(new_vrs.object_ref()));
-                            assert(s_prime.resources().contains_key(new_vrs.object_ref()));
+                            assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
+                                let etcd_obj = s.resources()[new_vrs.object_ref()];
+                                // trigger rely_delete
+                                assert(vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(etcd_obj).unwrap()));
+                                assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+                                assert(etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
+                                    assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
+                                    assert(etcd_obj.metadata == VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata);
+                                }
+                                match msg.content.get_APIRequest_0() {
+                                    APIRequest::DeleteRequest(req) => assume(false), // vd controller doesn't send delete req
+                                    APIRequest::GetThenDeleteRequest(req) => assume(false),
+                                    APIRequest::GetThenUpdateRequest(req) => assume(false),
+                                    APIRequest::UpdateRequest(req) => assume(false), // vd controller doesn't send update req
+                                    _ => {},
+                                }
+                            }
+                            assume(false);
                             assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0 == Some(new_vrs));
                             assert(VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()]) is Ok);
                             assert(vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()]).unwrap()));
                         } else {
-                            assume(false);
                         } // how to eliminata else branch?
                     }
                 }
