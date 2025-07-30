@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::{
-    trusted::{spec_types::*, step::*, util::*, liveness_theorem::*},
+    trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
     proof::{predicate::*, liveness::api_actions::*, helper_lemmas::*},
 };
@@ -1465,6 +1465,7 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
     n == 0,
 ensures
     spec.entails(lift_state(and!(
@@ -1494,11 +1495,14 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] vd_rely(other_id)(s)
+        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] vd_rely(other_id)(s_prime)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = (None, Some(vd.object_ref()));
@@ -1510,43 +1514,36 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
+                // trigger
+                assert(s.in_flight().contains(msg));
                 // just to improve the stability
                 if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
                     if msg.src.is_controller_id(controller_id) {
-                        if msg.src.get_Controller_1() == vd.object_ref() {
-                        // assert(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s));
-                        // let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        // assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
-                        //     s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
-                        // assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
-                        //     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        //     // somehow this unused vds helps to speed up the proof...
-                        //     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        //     let new_vrs = vds_prime.new_vrs->0;
-                        //     // non-interference
-                        //     assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
-                        //         // trigger
-                        //         match msg.content.get_APIRequest_0() {
-                        //             APIRequest::DeleteRequest(req) => assert(false), // vd controller doesn't send delete req
-                        //             APIRequest::GetThenDeleteRequest(req) => assert(false),
-                        //             APIRequest::UpdateRequest(req) => {}, // does not contribute to etcd obj being deleted
-                        //             APIRequest::GetThenUpdateRequest(req) => {},
-                        //             _ => {},
-                        //         }
-                        //     }
-                        // }
-                        } else { // same controller, other vd
+                        if msg.src.get_Controller_1() != vd.object_ref() { // same controller, other vd
                             // every_msg_from_vd_controller_carries_vd_key
-                            let other_vd = choose |vd: VDeploymentView| HostId::Controller(controller_id, #[trigger] vd.object_ref()) == msg.src;
+                            let cr_key = msg.src.get_Controller_1();
+                            let other_vd = VDeploymentView {
+                                metadata: ObjectMetaView {
+                                    name: Some(cr_key.name),
+                                    namespace: Some(cr_key.namespace),
+                                    ..make_vd().metadata
+                                },
+                                ..make_vd()
+                            };
+                            // so msg can only be list, create or get_then_update
                             assert(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, other_vd)(s));
-                            // trigger
-                            assert(s.in_flight().contains(msg));
-                            assume(msg.src == HostId::Controller(controller_id, other_vd.object_ref()));
                             match msg.content.get_APIRequest_0() {
                                 APIRequest::DeleteRequest(req) => assert(false), // vd controller doesn't send delete req
                                 APIRequest::GetThenDeleteRequest(req) => assert(false),
                                 _ => {},
                             }
+                            VDeploymentReconcileState::marshal_preserves_integrity();
+                        }
+                    } else {
+                        let other_id = msg.src.get_Controller_0();
+                        if cluster.controller_models.remove(controller_id).contains_key(other_id) {
+                            assert(vd_rely(other_id)(s));
+                            assert(vd_rely(other_id)(s_prime));
                             VDeploymentReconcileState::marshal_preserves_integrity();
                             let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                             let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
@@ -1564,9 +1561,9 @@ ensures
                             assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0 == Some(new_vrs));
                             assert(VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()]) is Ok);
                             assert(vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()]).unwrap()));
-                        }
-                    } else {
-                        assume(false);
+                        } else {
+                            assume(false);
+                        } // how to eliminata else branch?
                     }
                 }
             },
@@ -1653,5 +1650,8 @@ ensures
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
     );
 }
+
+// Havoc function for VDeploymentView.
+uninterp spec fn make_vd() -> VDeploymentView;
 
 }
