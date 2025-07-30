@@ -18,7 +18,8 @@ use crate::vdeployment_controller::{
         liveness_theorem::*, 
         rely_guarantee::*,
         spec_types::*, 
-        step::*
+        step::*,
+        step::VDeploymentReconcileStepView::*,
     },
     proof::{helper_invariants::*, helper_lemmas::*, liveness::*, predicate::*},
 };
@@ -217,9 +218,6 @@ pub proof fn invariants_since_phase_vi_is_stable(vd: VDeploymentView, cluster: C
     always_p_is_stable(lift_state(no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id)));
 }
 
-
-// TODO: repair this proof; most importantly adapting Cathy's termination argument.
-#[verifier(external_body)]
 pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int, i: nat)
     requires 
         1 <= i <= 6,
@@ -256,7 +254,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
         }
     }
 
-    reveal_with_fuel(spec_before_phase_n, 5);
+    reveal_with_fuel(spec_before_phase_n, 6);
     if i == 1 {
         use_tla_forall(spec, |input| cluster.disable_crash().weak_fairness(input), controller_id);
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
@@ -272,13 +270,14 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             lift_state(Cluster::the_object_in_schedule_has_spec_and_uid_as(controller_id, vd))
         );
     } else {
-        //terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
-        // use_tla_forall(
-        //     spec,
-        //     |key: ObjectRef|
-        //         true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
-        //     vd.object_ref()
-        // );
+        terminate::reconcile_eventually_terminates(spec, cluster, controller_id);
+        use_tla_forall(
+            spec,
+            |key: ObjectRef|
+                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))),
+            vd.object_ref()
+        );
+
         if i == 2 {
             use_tla_forall(
                 spec, 
@@ -287,39 +286,53 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
             );
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
             cluster.lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, controller_id, vd);
-            // TODO: expected invariant: lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
+            lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_vrs_objects(spec, cluster, controller_id);
+            lemma_eventually_always_vd_in_schedule_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(spec, controller_id, vd.object_ref());
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
                 lift_state(Cluster::the_object_in_reconcile_has_spec_and_uid_as(controller_id, vd)),
-                // TODO: expected invariant: lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
+                lift_state(no_pending_mutation_request_not_from_controller_on_vrs_objects()),
+                lift_state(vd_in_schedule_does_not_have_deletion_timestamp(vd, controller_id)),
                 lift_state(Cluster::pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg(controller_id, vd.object_ref()))
             );
         } else if i == 3 {
             always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-            // TODO: expected invariant: lemma_eventually_always_no_pending_interfering_update_request(spec, cluster, controller_id);
-            // TODO: expected invariant: lemma_eventually_always_no_pending_mutation_request_not_from_controller_on_pods(spec, cluster, controller_id);
-            // TODO: expected invariant: lemma_eventually_always_vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
+            always_tla_forall_apply(
+                spec,
+                |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+                    controller_id,
+                    vd.object_ref(),
+                    cluster.reconcile_model(controller_id).done
+                )),
+                vd
+            );
+            always_tla_forall_apply(
+                spec,
+                |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+                    controller_id,
+                    vd.object_ref(),
+                    cluster.reconcile_model(controller_id).error
+                )),
+                vd
+            );
+            lemma_eventually_always_vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(spec, vd, cluster, controller_id);
             cluster.lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of(spec, controller_id, vd.object_ref());
-            // leads_to_always_combine_n!(
-            //     spec,
-            //     true_pred(),
-            //     lift_state(no_pending_interfering_update_request()),
-            //     lift_state(no_pending_mutation_request_not_from_controller_on_pods()),
-            //     lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
-            //     lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))
-            // );
+            leads_to_always_combine_n!(
+                spec,
+                true_pred(),
+                lift_state(vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(vd, controller_id)),
+                lift_state(Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()))
+            );
         } else if i == 4 {
-            assert(spec.entails(always(true_pred())));
-            // TODO: expected invariant
-            // always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-            // lemma_eventually_always_garbage_collector_does_not_delete_vd_pods(spec, vd, cluster, controller_id);
+            lemma_eventually_always_no_pending_interfering_update_request(spec, vd, cluster, controller_id);
         } else if i == 5 {
-            assert(spec.entails(always(true_pred())));
-            // TODO: expected invariant
-            // always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
-            // lemma_eventually_always_no_other_pending_request_interferes_with_vd_reconcile(spec, vd, cluster, controller_id);
+            always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
+            lemma_eventually_always_garbage_collector_does_not_delete_vd_vrs_objects(spec, vd, cluster, controller_id);
+        } else if i == 6 {
+            always_tla_forall_apply(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())), vd);
+            lemma_eventually_always_no_other_pending_request_interferes_with_vd_reconcile(spec, vd, cluster, controller_id);
         }
     }
 }
@@ -479,25 +492,14 @@ pub open spec fn derived_invariants_since_beginning(vd: VDeploymentView, cluster
     .and(always(lift_state(Cluster::there_is_the_controller_state(controller_id))))
     .and(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))))
     .and(always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))))
-    // TODO: likely invariants
-    // .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init))))))
-    // .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods))))))
-    // .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()
-    // ))))))
-    // .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()
-    // ))))))
-    // .and(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-    //     controller_id,
-    //     vd.object_ref(),
-    //     cluster.reconcile_model(controller_id).done
-    // ))))
-    // .and(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-    //     controller_id,
-    //     vd.object_ref(),
-    //     cluster.reconcile_model(controller_id).error
-    // ))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init])))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS])))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done)))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error)))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS])))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS])))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS])))))
+    .and(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS])))))
     .and(always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
     .and(always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))))
     .and(always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))))
@@ -527,26 +529,14 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
     always_p_is_stable(lift_state(Cluster::there_is_the_controller_state(controller_id)));
     always_p_is_stable(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)));
     always_p_is_stable(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)));
-    // TODO: likely invariants
-    // always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init)))));
-    // always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods)))));
-    // always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()
-    // )))));
-    // always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()
-    // )))));
-    // always_p_is_stable(lift_state(each_vd_in_reconcile_implies_filtered_pods_owned_by_vd(controller_id)));
-    // always_p_is_stable(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-    //     controller_id,
-    //     vd.object_ref(),
-    //     cluster.reconcile_model(controller_id).done
-    // )));
-    // always_p_is_stable(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-    //     controller_id,
-    //     vd.object_ref(),
-    //     cluster.reconcile_model(controller_id).error
-    // )));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init]))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS]))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS]))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS]))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS]))));
+    always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS]))));
     always_p_is_stable(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))));
     always_p_is_stable(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)));
     always_p_is_stable(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)));
@@ -573,25 +563,14 @@ pub proof fn derived_invariants_since_beginning_is_stable(vd: VDeploymentView, c
         always(lift_state(Cluster::there_is_the_controller_state(controller_id))),
         always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id))),
         always(lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id))),
-        // TODO: likely invariants
-        // always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init))))),
-        // always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods))))),
-        // always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-        //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()
-        // ))))),
-        // always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-        //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()
-        // ))))),
-        // always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-        //     controller_id,
-        //     vd.object_ref(),
-        //     cluster.reconcile_model(controller_id).done
-        // ))),
-        // always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-        //     controller_id,
-        //     vd.object_ref(),
-        //     cluster.reconcile_model(controller_id).error
-        // ))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init])))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS])))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done)))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error)))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS])))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS])))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS])))),
+        always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS])))),
         always(tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))),
         always(lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id))),
         always(lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id)))
@@ -624,41 +603,57 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     cluster.lemma_always_ongoing_reconciles_is_finite(spec, controller_id);
     cluster.lemma_always_cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(spec, controller_id);
     cluster.lemma_always_etcd_is_finite(spec);
+
     assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, #[trigger] vd.object_ref())))) by {
         cluster.lemma_always_pending_req_of_key_is_unique_with_unique_id(spec, controller_id, vd.object_ref());
     }
     spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())));
+
     cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
     lemma_always_there_is_no_request_msg_to_external_from_controller(spec, cluster, controller_id);
     cluster.lemma_always_cr_states_are_unmarshallable::<VDeploymentReconciler, VDeploymentReconcileState, VDeploymentView, VoidEReqView, VoidERespView>(spec, controller_id);
     VDeploymentReconcileState::marshal_preserves_integrity();
-    // TODO: likely invariants
-    // assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init))))) by {
-    //     cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init));
-    // }
-    // spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init))));
-    // assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods))))) by {
-    //     cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods));
-    // }
-    // spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods))));
-    // assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()
-    // ))))) by {
-    //     cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), unwrap_local_state_closure(|s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()));
-    // }
-    // spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()
-    // ))));
-    // assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()
-    // ))))) by {
-    //     cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), unwrap_local_state_closure(|s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()));
-    // }
-    // spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-    //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()
-    // ))));
-    // cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done);
-    // cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error);
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_or![Init])))) by {
+        cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_or![Init]);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init])));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_or![AfterEnsureNewVRS])))) by {
+        cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS]);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS])));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), cluster.reconcile_model(controller_id).done)))) by {
+        cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done)));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), cluster.reconcile_model(controller_id).error)))) by {
+        cluster.lemma_always_no_pending_req_msg_at_reconcile_state(spec, controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error)));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_or![AfterListVRS])))) by {
+        cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_or![AfterListVRS]);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS])));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_or![AfterCreateNewVRS])))) by {
+        cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS]);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS])));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_or![AfterScaleNewVRS])))) by {
+        cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS]);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS])));
+
+    assert forall |vd: VDeploymentView| spec.entails(always(lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, #[trigger] vd.object_ref(), at_step_or![AfterScaleDownOldVRS])))) by {
+        cluster.lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(spec, controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS]);
+    }
+    spec_entails_always_tla_forall(spec, |vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS])));
+
     assert forall |vd: VDeploymentView| spec.entails(always(lift_state(#[trigger] vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))) by {
         lemma_always_vd_reconcile_request_only_interferes_with_itself(
             spec, cluster, controller_id, vd
@@ -669,6 +664,7 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
     );
     lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(spec, cluster, controller_id);
     lemma_always_every_msg_from_vd_controller_carries_vd_key(spec, cluster, controller_id);
+
     entails_always_and_n!(
         spec,
         lift_state(Cluster::every_in_flight_msg_has_unique_id()),
@@ -692,24 +688,14 @@ pub proof fn spec_entails_all_invariants(spec: TempPred<ClusterState>, vd: VDepl
         lift_state(Cluster::there_is_the_controller_state(controller_id)),
         lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)),
         lift_state(Cluster::cr_states_are_unmarshallable::<VDeploymentReconcileState, VDeploymentView>(controller_id)),
-        // tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::Init)))),
-        // tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_closure(VDeploymentRecStepView::AfterListPods)))),
-        // tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-        //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterCreatePod()
-        // )))),
-        // tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), unwrap_local_state_closure(
-        //     |s: VDeploymentReconcileState| s.reconcile_step.is_AfterDeletePod()
-        // )))),
-        // lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-        //     controller_id,
-        //     vd.object_ref(),
-        //     cluster.reconcile_model(controller_id).done
-        // )),
-        // lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
-        //     controller_id,
-        //     vd.object_ref(),
-        //     cluster.reconcile_model(controller_id).error
-        // )),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init]))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS]))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).done))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), cluster.reconcile_model(controller_id).error))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS]))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS]))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS]))),
+        tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS]))),
         tla_forall(|vd: VDeploymentView| lift_state(vd_reconcile_request_only_interferes_with_itself(controller_id, vd))),
         lift_state(vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id)),
         lift_state(every_msg_from_vd_controller_carries_vd_key(controller_id))
