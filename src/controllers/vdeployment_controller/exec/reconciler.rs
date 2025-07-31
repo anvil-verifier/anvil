@@ -162,7 +162,7 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
                 return (error_state(state), None);
             }
             let obj = extract_some_k_create_resp!(resp_o).unwrap();
-            if VReplicaSet::unmarshal(obj).is_err() {
+            if VReplicaSet::unmarshal(obj.clone()).is_err() {
                 return (error_state(state), None);
             }
             let new_vrs = VReplicaSet::unmarshal(obj).unwrap();
@@ -253,7 +253,9 @@ ensures
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterCreateNewVRS,
-        ..(*state)
+        old_vrs_list: state.old_vrs_list.clone(),
+        new_vrs: state.new_vrs.clone(),
+        old_vrs_index: state.old_vrs_index,
     };
     return (state_prime, Some(Request::KRequest(req)))
 }
