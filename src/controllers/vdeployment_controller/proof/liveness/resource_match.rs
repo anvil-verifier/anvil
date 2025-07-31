@@ -1493,17 +1493,20 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] vd_rely(other_id)(s)
         &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] vd_rely(other_id)(s_prime)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
         lifted_vd_rely_condition_action(cluster, controller_id),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
     );
     let input = (None, Some(vd.object_ref()));
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1561,21 +1564,47 @@ ensures
                                     assert(!pending_create_new_vrs_req_in_flight(vd, controller_id)(s));
                                     assert(s.resources().contains_key(new_vrs.object_ref()));
                                     match msg.content.get_APIRequest_0() {
-                                        APIRequest::DeleteRequest(req) => assume(false), // vd controller doesn't send delete req
-                                        APIRequest::GetThenDeleteRequest(req) => assume(false),
-                                        APIRequest::GetThenUpdateRequest(req) => assume(true),
-                                        APIRequest::UpdateRequest(req) => assume(true), // vd controller doesn't send update req
+                                        APIRequest::DeleteRequest(req) => {
+                                            assert(req.key.kind == VReplicaSetView::kind() ==>
+                                                req.preconditions is Some
+                                                && req.preconditions->0.resource_version is Some
+                                                && !{
+                                                    let etcd_obj = s.resources()[req.key];
+                                                    let owner_references = etcd_obj.metadata.owner_references->0;
+                                                    &&& s.resources().contains_key(req.key)
+                                                    &&& etcd_obj.metadata.resource_version is Some
+                                                    &&& etcd_obj.metadata.resource_version
+                                                        == req.preconditions->0.resource_version
+                                                    &&& etcd_obj.metadata.owner_references is Some
+                                                    &&& exists |vd: VDeploymentView| 
+                                                        #[trigger] owner_references.contains(vd.controller_owner_ref())
+                                                }); // vd controller doesn't send delete req
+
+                                                assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
+                                                    let etcd_obj = s.resources()[new_vrs.object_ref()];
+                                                    // trigger rely_delete
+                                                    assert(vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(etcd_obj).unwrap()));
+                                                    assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+                                                    assert(etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
+                                                        assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
+                                                        assert(etcd_obj.metadata == VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata);
+                                                    }
+                                                    assert(etcd_obj.metadata.owner_references is Some);
+                                                    // trigger
+                                                    assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
+                                                }
+                                            },
+                                        APIRequest::GetThenDeleteRequest(req) => {
+                                            assert(
+                                            req.key.kind == VReplicaSetView::kind() ==> {
+                                                &&& req.owner_ref.controller is Some
+                                                &&& req.owner_ref.controller->0
+                                                &&& req.owner_ref.kind != VDeploymentView::kind()
+                                            });
+                                        },
+                                        APIRequest::GetThenUpdateRequest(req) => assume(false),
+                                        APIRequest::UpdateRequest(req) => assume(false), // vd controller doesn't send update req
                                         _ => {},
-                                    }
-                                    assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
-                                        let etcd_obj = s.resources()[new_vrs.object_ref()];
-                                        // trigger rely_delete
-                                        assert(vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(etcd_obj).unwrap()));
-                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
-                                        assert(etcd_obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
-                                            assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
-                                            assert(etcd_obj.metadata == VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata);
-                                        }
                                     }
                                     assert(filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is Some);
                                     assert(vrs_eq_for_vd((filter_old_and_new_vrs_on_etcd(vd, s.resources()).0)->0, new_vrs));
