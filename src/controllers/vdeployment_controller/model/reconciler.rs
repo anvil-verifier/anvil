@@ -114,29 +114,14 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
-                let obj = extract_some_k_create_resp_view!(resp_o).unwrap();
-                if VReplicaSetView::unmarshal(obj) is Err{
-                    (error_state(state), None)
-                } else {
-                    let new_vrs = VReplicaSetView::unmarshal(obj).unwrap();
-                    let state_prime = VDeploymentReconcileState {
-                        reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
-                        new_vrs: Some(new_vrs),
-                        ..state
-                    };
-                    (state_prime, None)
-                }
+                (new_vrs_ensured_state(state), None)
             }
         },
         VDeploymentReconcileStepView::AfterScaleNewVRS => {
             if !(is_some_k_get_then_update_resp_view!(resp_o) && extract_some_k_get_then_update_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
-                let state_prime = VDeploymentReconcileState {
-                    reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
-                    ..state
-                };
-                (state_prime, None)
+                (new_vrs_ensured_state(state), None)
             }
         },
         // a response-free barrier step
@@ -172,6 +157,13 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
         _ => {
             (state, None)
         }
+    }
+}
+
+pub open spec fn new_vrs_ensured_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState) {
+    VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
+        ..state
     }
 }
 
@@ -245,6 +237,7 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::AfterCreateNewVRS,
+        new_vrs: Some(new_vrs),
         ..state
     };
     (state_prime, Some(RequestView::KRequest(req)))

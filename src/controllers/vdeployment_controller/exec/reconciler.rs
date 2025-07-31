@@ -161,27 +161,13 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            let obj = extract_some_k_create_resp!(resp_o).unwrap();
-            if VReplicaSet::unmarshal(obj.clone()).is_err() {
-                return (error_state(state), None);
-            }
-            let new_vrs = VReplicaSet::unmarshal(obj).unwrap();
-            let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
-                new_vrs: Some(new_vrs),
-                ..state
-            };
-            return (state_prime, None);
+            return (new_vrs_ensured_state(state), None);
         }
         VDeploymentReconcileStep::AfterScaleNewVRS => {
             if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            let state_prime = VDeploymentReconcileState {
-                reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
-                ..state
-            };
-            return (state_prime, None);
+            return (new_vrs_ensured_state(state), None);
         },
         VDeploymentReconcileStep::AfterEnsureNewVRS => {
             if state.old_vrs_index == 0 {
@@ -213,6 +199,15 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
         _ => {
             return (state, None)
         }
+    }
+}
+
+pub fn new_vrs_ensured_state(state: VDeploymentReconcileState) -> (state_prime: VDeploymentReconcileState)
+    ensures state_prime@ == model_reconciler::new_vrs_ensured_state(state@),
+{
+    VDeploymentReconcileState {
+        reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
+        ..state
     }
 }
 
@@ -253,9 +248,9 @@ ensures
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterCreateNewVRS,
+        new_vrs: Some(new_vrs),
         old_vrs_list: state.old_vrs_list.clone(),
-        new_vrs: state.new_vrs.clone(),
-        old_vrs_index: state.old_vrs_index,
+        old_vrs_index: state.old_vrs_index
     };
     return (state_prime, Some(Request::KRequest(req)))
 }
