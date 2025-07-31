@@ -354,10 +354,10 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             &&& valid_owned_object(vrs, vd)
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-            // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
-            // resource version and status can change
             &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(vrs)
             &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
+            // This is too strong, we only care about metadata.{name, namespace, labels} and spec,
+            // TODO: support status change
             &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
         }
         // vds.old_vrs_list.no_duplicates() can be inferred by
@@ -388,7 +388,7 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
     }
 }
 
-// weaker version of == for vrs when resource version and uid are not available
+// weaker version of == for vrs excluding resource version, uid and status
 pub open spec fn vrs_eq_for_vd(lhs: VReplicaSetView, rhs: VReplicaSetView) -> bool {
     &&& lhs.metadata.namespace == rhs.metadata.namespace
     &&& lhs.metadata.name == rhs.metadata.name

@@ -108,21 +108,6 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()),
-    // forall |obj: DynamicObjectView| s.resources().values().contains(obj) && VReplicaSetView::unmarshal(obj) is Ok
-    //     && #[trigger] valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd) ==> s_prime.resources().values().contains(obj),
-    // ({
-    //     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-    //     &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==> {
-    //         &&& s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref())
-    //         &&& VReplicaSetView::unmarshal(s_prime.resources()[vds_prime.old_vrs_list[i].object_ref()])->Ok_0 == vds_prime.old_vrs_list[i]
-    //     }
-    //     &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime) ==> {
-    //         let new_vrs = vds_prime.new_vrs.unwrap();
-    //         &&& s_prime.resources().contains_key(new_vrs.object_ref())
-    //         // may needs to be weaken as the version in etcd has resource_version & uid
-    //         &&& VReplicaSetView::unmarshal(s_prime.resources()[new_vrs.object_ref()])->Ok_0 == new_vrs
-    //     }
-    // })
 {}
 
 }
