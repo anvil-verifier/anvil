@@ -384,10 +384,10 @@ pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_pending_interfering_update_request(
-    spec: TempPred<ClusterState>, 
+    spec: TempPred<ClusterState>,
+    vd: VDeploymentView,
     cluster: Cluster, 
-    controller_id: int,
-    vd: VDeploymentView
+    controller_id: int
 )
     requires
         spec.entails(always(lift_action(cluster.next()))),

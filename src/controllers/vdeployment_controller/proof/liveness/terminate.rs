@@ -29,6 +29,241 @@ pub open spec fn new_vrs_some_and_replicas(n: nat) -> spec_fn(VDeploymentReconci
     |vds: VDeploymentReconcileState| vds.new_vrs is Some && vds.new_vrs.unwrap().spec.replicas.unwrap_or(1) == n
 }
 
+pub proof fn reconcile_eventually_terminates(
+    spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+    requires
+        spec.entails(always(lift_action(cluster.next()))),
+        cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+        spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+        spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.builtin_controllers_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| cluster.external_next().weak_fairness((controller_id, i)))),
+        spec.entails(tla_forall(|i| cluster.schedule_controller_reconcile().weak_fairness((controller_id, i)))),
+        spec.entails(always(lift_state(Cluster::there_is_no_request_msg_to_external_from_controller(controller_id)))),
+        spec.entails(always(lift_state(Cluster::there_is_the_controller_state(controller_id)))),
+        spec.entails(always(lift_state(Cluster::crash_disabled(controller_id)))),
+        spec.entails(always(lift_state(Cluster::req_drop_disabled()))),
+        spec.entails(always(lift_state(Cluster::pod_monkey_disabled()))),
+        spec.entails(always(lift_state(Cluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(Cluster::each_object_in_etcd_is_weakly_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_builtin_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(cluster.each_custom_object_in_etcd_is_well_formed::<VDeploymentView>()))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)))),
+        spec.entails(always(lift_state(Cluster::cr_objects_in_reconcile_satisfy_state_validation::<VDeploymentView>(controller_id)))),
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))))),
+        // no request in init
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![Init]))))),
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::no_pending_req_msg_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterEnsureNewVRS]))))),
+        // there is always pending request for vd to proceed
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterListVRS]))))),
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS]))))),
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS]))))),
+        spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS]))))),
+        ensures
+            spec.entails(tla_forall(|key: ObjectRef| 
+                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
+            )),
+{
+    let post = |key: ObjectRef|
+        true_pred().leads_to(lift_state(
+            |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)
+        ));
+
+    assert forall |key: ObjectRef| spec.entails(#[trigger] post(key)) by {
+        
+        // Unwrap tla_foralls for all relevant preconditions for VDeploymentView.
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref()))
+        )) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::pending_req_of_key_is_unique_with_unique_id(controller_id, vd.object_ref())),
+            vd
+            );
+        }
+
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+            controller_id,
+            vd.object_ref(),
+            at_step_or![Init]
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+                controller_id,
+                vd.object_ref(),
+                at_step_or![Init]
+            )),
+            vd
+            );
+        }
+
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+            controller_id,
+            vd.object_ref(),
+            at_step_or![AfterEnsureNewVRS]
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::no_pending_req_msg_at_reconcile_state(
+                controller_id,
+                vd.object_ref(),
+                at_step_or![AfterEnsureNewVRS]
+            )),
+            vd
+            );
+        }
+
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vd.object_ref(),
+            at_step_or![AfterListVRS]
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vd.object_ref(),
+                at_step_or![AfterListVRS]
+            )),
+            vd
+            );
+        }
+
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vd.object_ref(),
+            at_step_or![AfterCreateNewVRS]
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vd.object_ref(),
+                at_step_or![AfterCreateNewVRS]
+            )),
+            vd
+            );
+        }
+
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vd.object_ref(),
+            at_step_or![AfterScaleNewVRS]
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vd.object_ref(),
+                at_step_or![AfterScaleNewVRS]
+            )),
+            vd
+            );
+        }
+
+        assert forall |vd: VDeploymentView| #![auto]
+        spec.entails(always(
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            controller_id,
+            vd.object_ref(),
+            at_step_or![AfterScaleDownOldVRS]
+        )))) by {
+            always_tla_forall_apply::<ClusterState, VDeploymentView>(
+            spec,
+            |vd: VDeploymentView|
+            lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+                controller_id,
+                vd.object_ref(),
+                at_step_or![AfterScaleDownOldVRS]
+            )),
+            vd
+            );
+        }
+        // End unwrapping foralls.
+        if key.kind == VDeploymentView::kind() {
+            let vd = make_vd(); // havoc for VDeploymentView
+            let vd_with_key = VDeploymentView {
+            metadata: ObjectMetaView {
+                name: Some(key.name),
+                namespace: Some(key.namespace),
+                ..vd.metadata
+            },
+            ..vd
+            };
+            assert(key == vd_with_key.object_ref());
+
+            reconcile_eventually_terminates_on_vd_object(
+            spec, vd_with_key, cluster, controller_id
+            );
+        } else {
+            always_weaken(
+                spec, 
+                lift_state(Cluster::cr_objects_in_reconcile_have_correct_kind::<VDeploymentView>(controller_id)),
+                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key))
+            );
+
+            let terminated_vd = |s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key);
+            assert forall |ex|
+            spec.entails(always(lift_state(terminated_vd)))
+            implies 
+                #[trigger] spec.implies(always(
+                true_pred().and(true_pred()).and(true_pred())
+                .implies(later(lift_state(terminated_vd)))
+                )).satisfied_by(ex) by {
+            if spec.satisfied_by(ex) {
+                assert forall |n: nat| 
+                spec.satisfied_by(ex)
+                && spec.entails(always(lift_state(terminated_vd)))
+                implies 
+                    #[trigger] true_pred().and(true_pred()).and(true_pred())
+                    .implies(later(lift_state(terminated_vd))).satisfied_by(ex.suffix(n)) by {
+                    assert(valid(spec.implies(always(lift_state(terminated_vd)))));
+                    assert(spec.implies(always(lift_state(terminated_vd))).satisfied_by(ex));
+                    assert(always(lift_state(terminated_vd)).satisfied_by(ex));
+                    assert(lift_state(terminated_vd).satisfied_by(ex.suffix(n + 1)));
+                }
+            }
+            }
+
+            entails_implies_leads_to(spec, always(true_pred()), true_pred());
+                wf1_variant_temp(
+                spec,
+                true_pred(),
+                true_pred(),
+                true_pred(),
+                lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)),
+            );
+        }
+    }
+
+    spec_entails_tla_forall(
+        spec,
+        post
+    );
+}
+
+uninterp spec fn make_vd() -> VDeploymentView;
+
 pub proof fn reconcile_eventually_terminates_on_vd_object(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
