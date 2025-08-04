@@ -497,7 +497,7 @@ pub open spec fn cluster_invariants_since_reconciliation(cluster: Cluster, vd: V
         Cluster::every_msg_from_key_is_pending_req_msg_of(controller_id, vd.object_ref()),
         helper_invariants::no_other_pending_request_interferes_with_vd_reconcile(vd, controller_id),
         // we use lifted version for vd_reconcile_request_only_interferes_with_itself with quantifiers
-        helper_invariants::no_pending_interfering_update_request(),
+        helper_invariants::no_pending_interfering_update_request(vd, controller_id),
         helper_invariants::garbage_collector_does_not_delete_vd_vrs_objects(vd),
         helper_invariants::every_msg_from_vd_controller_carries_vd_key(controller_id),
         helper_invariants::vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(controller_id),
@@ -656,6 +656,16 @@ pub open spec fn lifted_vd_reconcile_request_only_interferes_with_itself_action(
         (forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s))
         && (forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime))
     })
+}
+
+pub open spec fn owner_references_contains_ignoring_uid(meta: ObjectMetaView, orig_or: OwnerReferenceView) -> bool {
+    exists |or: OwnerReferenceView| {
+        &&& #[trigger] meta.owner_references_contains(or)
+        &&& or.block_owner_deletion == orig_or.block_owner_deletion
+        &&& or.controller == orig_or.controller
+        &&& or.kind == orig_or.kind
+        &&& or.name == orig_or.name
+    }
 }
 
 }

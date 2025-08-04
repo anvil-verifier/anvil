@@ -12,6 +12,7 @@ use crate::vdeployment_controller::{
         step::*
     },
 };
+use crate::vreplicaset_controller::trusted::spec_types::*;
 use vstd::prelude::*;
 
 verus! {
@@ -23,6 +24,8 @@ proof fn eventually_stable_reconciliation_holds(spec: TempPred<ClusterState>, cl
         spec.entails(next_with_wf(cluster, controller_id)),
         // The vd type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        // The vrs type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vd controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         // No other controllers interfere with the vd controller.
@@ -74,6 +77,8 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
         spec.entails(next_with_wf(cluster, controller_id)),
         // The vd type is installed in the cluster.
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+        // The vrs type is installed in the cluster.
+        cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
         // The vd controller runs in the cluster.
         cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
         // No other controllers interfere with the vd controller.
@@ -92,8 +97,9 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
         stable_spec, cluster, controller_id
     );
     lemma_true_leads_to_always_current_state_matches(stable_spec, vd, cluster, controller_id);
-    reveal_with_fuel(spec_before_phase_n, 6);
+    reveal_with_fuel(spec_before_phase_n, 7);
 
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, stable_spec, vd, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(5, stable_spec, vd, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(4, stable_spec, vd, cluster, controller_id);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(3, stable_spec, vd, cluster, controller_id);
@@ -128,7 +134,7 @@ proof fn eventually_stable_reconciliation_holds_per_cr(spec: TempPred<ClusterSta
 
 proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int)
     requires
-        1 <= i <= 5,
+        1 <= i <= 6,
         valid(stable(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)))),
         spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vd))))),
         cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -137,7 +143,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
             ==> spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures spec.and(spec_before_phase_n(i, vd, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vd))))),
 {
-    reveal_with_fuel(spec_before_phase_n, 6);
+    reveal_with_fuel(spec_before_phase_n, 7);
     temp_pred_equality(
         spec.and(spec_before_phase_n(i + 1, vd, cluster, controller_id)),
         spec.and(spec_before_phase_n(i, vd, cluster, controller_id))

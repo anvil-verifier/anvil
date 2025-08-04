@@ -201,4 +201,58 @@ ensures
     return vrs;
 }
 
+pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_references_unchanged(
+    meta: ObjectMetaView,
+    other_meta: ObjectMetaView,
+    owner_ref: OwnerReferenceView
+)
+    requires
+        meta.owner_references == other_meta.owner_references,
+    ensures
+        owner_references_contains_ignoring_uid(meta, owner_ref) == owner_references_contains_ignoring_uid(other_meta, owner_ref),
+{
+    assert_by(
+        owner_references_contains_ignoring_uid(meta, owner_ref) ==> owner_references_contains_ignoring_uid(other_meta, owner_ref),
+        {
+            if owner_references_contains_ignoring_uid(meta, owner_ref) {
+                let or = choose |or: OwnerReferenceView| {
+                    &&& #[trigger] meta.owner_references_contains(or)
+                    &&& or.block_owner_deletion == owner_ref.block_owner_deletion
+                    &&& or.controller == owner_ref.controller
+                    &&& or.kind == owner_ref.kind
+                    &&& or.name == owner_ref.name
+                };
+                assert({
+                    &&& other_meta.owner_references_contains(or)
+                    &&& or.block_owner_deletion == owner_ref.block_owner_deletion
+                    &&& or.controller == owner_ref.controller
+                    &&& or.kind == owner_ref.kind
+                    &&& or.name == owner_ref.name
+                });
+            }
+        }
+    );
+    assert_by(
+        owner_references_contains_ignoring_uid(other_meta, owner_ref) ==> owner_references_contains_ignoring_uid(meta, owner_ref),
+        {
+            if owner_references_contains_ignoring_uid(other_meta, owner_ref) {
+                let or = choose |or: OwnerReferenceView| {
+                    &&& #[trigger] other_meta.owner_references_contains(or)
+                    &&& or.block_owner_deletion == owner_ref.block_owner_deletion
+                    &&& or.controller == owner_ref.controller
+                    &&& or.kind == owner_ref.kind
+                    &&& or.name == owner_ref.name
+                };
+                assert({
+                    &&& meta.owner_references_contains(or)
+                    &&& or.block_owner_deletion == owner_ref.block_owner_deletion
+                    &&& or.controller == owner_ref.controller
+                    &&& or.kind == owner_ref.kind
+                    &&& or.name == owner_ref.name
+                });
+            }
+        }
+    );
+}
+
 }
