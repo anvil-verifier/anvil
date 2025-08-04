@@ -225,5 +225,4 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
     }
 }
 
-
 }
