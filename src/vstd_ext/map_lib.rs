@@ -5,10 +5,6 @@ use vstd::{map_lib::*, prelude::*, seq_lib::*, set::*, set_lib::*};
 
 verus! {
 
-pub open spec fn forall_on_map<K, V>(m: Map<K, V>, pred: spec_fn(K, V) -> bool) -> bool {
-    forall |k| #[trigger] m.contains_key(k) ==> pred(k, m[k])
-}
-
 pub proof fn a_submap_of_a_finite_map_is_finite<K, V>(m1: Map<K, V>, m2: Map<K, V>)
     requires
         m1.submap_of(m2),

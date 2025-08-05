@@ -15,19 +15,18 @@ pub struct ControllerSpec {
 }
 
 pub open spec fn composable(spec: TempPred<ClusterState>, cluster: Cluster, controller_specs: Map<int, ControllerSpec>) -> bool {
-    &&& forall_on_map(controller_specs, |i:int, c: ControllerSpec| (c.membership)(cluster))
+    &&& (forall |i| #[trigger] controller_specs.contains_key(i) ==> (controller_specs[i].membership)(cluster))
         && spec.entails(lift_state(cluster.init()))
         && spec.entails(always(lift_action(cluster.next())))
-        && forall_on_map(controller_specs, |i:int, c: ControllerSpec| spec.entails(c.fairness))
-        && forall_on_map(controller_specs,
-                |i:int, c: ControllerSpec| forall_on_map(cluster.controller_models.remove_keys(controller_specs.dom()),
-                    |other, oc: ControllerModel| spec.entails((c.safety_partial_rely)(other)))
-            )
-        ==> forall_on_map(controller_specs, |i:int, c: ControllerSpec| spec.entails(c.liveness_guarantee))
-    &&& forall_on_map(controller_specs, |i:int, c: ControllerSpec| (c.membership)(cluster))
+        ==> (forall |i| #[trigger] controller_specs.contains_key(i) ==> spec.entails(controller_specs[i].safety_guarantee))
+    &&& (forall |i| #[trigger] controller_specs.contains_key(i) ==> (controller_specs[i].membership)(cluster))
         && spec.entails(lift_state(cluster.init()))
         && spec.entails(always(lift_action(cluster.next())))
-        ==> forall_on_map(controller_specs, |i:int, c: ControllerSpec| spec.entails(c.safety_guarantee))
+        && (forall |i| #[trigger] controller_specs.contains_key(i) ==> spec.entails(controller_specs[i].fairness))
+        && (forall |i| #[trigger] controller_specs.contains_key(i) ==>
+            forall |j| #[trigger] cluster.controller_models.remove_keys(controller_specs.dom()).contains_key(j) ==>
+                spec.entails((controller_specs[i].safety_partial_rely)(j)))
+        ==> (forall |i| #[trigger] controller_specs.contains_key(i) ==> spec.entails(controller_specs[i].liveness_guarantee))
 }
 
 pub trait Composition: Sized {
@@ -53,11 +52,12 @@ pub trait Composition: Sized {
             spec.entails(always(lift_action(cluster.next()))),
             spec.entails(Self::c().safety_guarantee),
             !Self::composed().contains_key(Self::id()),
-            forall_on_map(Self::composed(), |i:int, c: ControllerSpec| (c.membership)(cluster)),
-            forall_on_map(Self::composed(), |i:int, c: ControllerSpec| spec.entails(c.safety_guarantee)),
+            forall |i| #[trigger] Self::composed().contains_key(i) ==> (Self::composed()[i].membership)(cluster),
+            forall |i| #[trigger] Self::composed().contains_key(i) ==> spec.entails(Self::composed()[i].safety_guarantee),
         ensures
-            forall_on_map(Self::composed(), |i, c: ControllerSpec| spec.entails((Self::c().safety_partial_rely)(i))
-                && spec.entails((c.safety_partial_rely)(Self::id())))
+            forall |i| #[trigger] Self::composed().contains_key(i) ==>
+                spec.entails((Self::c().safety_partial_rely)(i))
+                && spec.entails((Self::composed()[i].safety_partial_rely)(Self::id()))
         ;
 }
 
@@ -68,7 +68,7 @@ pub trait HorizontalComposition: Sized + Composition {
             spec.entails(lift_state(cluster.init())),
             spec.entails(always(lift_action(cluster.next()))),
             spec.entails(Self::c().fairness),
-            forall |other_id| cluster.controller_models.remove(Self::id()).contains_key(other_id)
+            forall |other_id| #[trigger] cluster.controller_models.remove(Self::id()).contains_key(other_id)
                 ==> spec.entails((Self::c().safety_partial_rely)(other_id)),
         ensures
             spec.entails(Self::c().liveness_guarantee),
@@ -82,7 +82,7 @@ pub trait VerticalComposition: Sized + Composition {
             spec.entails(lift_state(cluster.init())),
             spec.entails(always(lift_action(cluster.next()))),
             spec.entails(Self::c().fairness),
-            forall |other_id| cluster.controller_models.remove(Self::id()).contains_key(other_id)
+            forall |other_id| #[trigger] cluster.controller_models.remove(Self::id()).contains_key(other_id)
                 ==> spec.entails((Self::c().safety_partial_rely)(other_id)),
             forall |i| #[trigger] Self::composed().contains_key(i)
                 ==> spec.entails(Self::composed()[i].liveness_guarantee),
@@ -102,8 +102,9 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
 {
     let composed = HC::composed();
     let new_composed = HC::composed().insert(HC::id(), HC::c());
+    let others = cluster.controller_models.remove_keys(new_composed.dom());
 
-    if forall_on_map(new_composed, |i:int, c: ControllerSpec| (c.membership)(cluster))
+    if (forall |i| #[trigger] new_composed.contains_key(i) ==> (new_composed[i].membership)(cluster))
         && spec.entails(lift_state(cluster.init()))
         && spec.entails(always(lift_action(cluster.next())))
     {
@@ -116,11 +117,10 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
         
         HC::safety_is_guaranteed(spec, cluster);
 
-        if forall_on_map(new_composed, |i:int, c: ControllerSpec| spec.entails(c.fairness))
-            && forall_on_map(new_composed,
-                    |i:int, c: ControllerSpec| forall_on_map(cluster.controller_models.remove_keys(new_composed.dom()),
-                        |other, oc: ControllerModel| spec.entails((c.safety_partial_rely)(other)))
-                )
+        if (forall |i| #[trigger] new_composed.contains_key(i) ==> spec.entails(new_composed[i].fairness))
+            && (forall |i| #[trigger] new_composed.contains_key(i) ==> 
+                    forall |j| #[trigger] others.contains_key(j) ==>
+                        spec.entails((new_composed[i].safety_partial_rely)(j)))
         {
             HC::no_internal_interference(spec, cluster);
 
@@ -131,13 +131,13 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
                 }
 
                 assert forall |i| #[trigger] composed.contains_key(i)
-                implies forall_on_map(cluster.controller_models.remove_keys(composed.dom()),
-                    |other, oc: ControllerModel| spec.entails((composed[i].safety_partial_rely)(other)))
+                implies (forall |j| #[trigger] cluster.controller_models.remove_keys(composed.dom()).contains_key(j)
+                    ==> spec.entails((composed[i].safety_partial_rely)(j)))
                 by {
                     assert(new_composed.contains_key(i));
-                    assert forall |other| #[trigger] cluster.controller_models.remove_keys(composed.dom()).contains_key(other)
-                    implies spec.entails((composed[i].safety_partial_rely)(other)) by {
-                        if cluster.controller_models.remove_keys(new_composed.dom()).contains_key(other) {}
+                    assert forall |j| #[trigger] cluster.controller_models.remove_keys(composed.dom()).contains_key(j)
+                    implies spec.entails((composed[i].safety_partial_rely)(j)) by {
+                        if others.contains_key(j) {}
                     }
                 }
             }
@@ -147,9 +147,9 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
                     assert(new_composed.contains_key(HC::id()));
                 }
 
-                assert forall |other_id| cluster.controller_models.remove(HC::id()).contains_key(other_id)
+                assert forall |other_id| #[trigger] cluster.controller_models.remove(HC::id()).contains_key(other_id)
                 implies spec.entails((HC::c().safety_partial_rely)(other_id)) by {
-                    if cluster.controller_models.remove_keys(new_composed.dom()).contains_key(other_id) {}
+                    if others.contains_key(other_id) {}
                 }
 
                 HC::liveness_is_guaranteed(spec, cluster);
@@ -169,8 +169,9 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
 {
     let composed = VC::composed();
     let new_composed = VC::composed().insert(VC::id(), VC::c());
+    let others = cluster.controller_models.remove_keys(new_composed.dom());
 
-    if forall_on_map(new_composed, |i:int, c: ControllerSpec| (c.membership)(cluster))
+    if (forall |i| #[trigger] new_composed.contains_key(i) ==> (new_composed[i].membership)(cluster))
         && spec.entails(lift_state(cluster.init()))
         && spec.entails(always(lift_action(cluster.next())))
     {
@@ -183,11 +184,10 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
         
         VC::safety_is_guaranteed(spec, cluster);
 
-        if forall_on_map(new_composed, |i:int, c: ControllerSpec| spec.entails(c.fairness))
-            && forall_on_map(new_composed,
-                    |i:int, c: ControllerSpec| forall_on_map(cluster.controller_models.remove_keys(new_composed.dom()),
-                        |other, oc: ControllerModel| spec.entails((c.safety_partial_rely)(other)))
-                )
+        if (forall |i| #[trigger] new_composed.contains_key(i) ==> spec.entails(new_composed[i].fairness))
+            && (forall |i| #[trigger] new_composed.contains_key(i) ==> 
+                    forall |j| #[trigger] others.contains_key(j) ==>
+                        spec.entails((new_composed[i].safety_partial_rely)(j)))
         {
             VC::no_internal_interference(spec, cluster);
 
@@ -198,13 +198,13 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
                 }
 
                 assert forall |i| #[trigger] composed.contains_key(i)
-                implies forall_on_map(cluster.controller_models.remove_keys(composed.dom()),
-                    |other, oc: ControllerModel| spec.entails((composed[i].safety_partial_rely)(other)))
+                implies (forall |j| #[trigger] cluster.controller_models.remove_keys(composed.dom()).contains_key(j)
+                    ==> spec.entails((composed[i].safety_partial_rely)(j)))
                 by {
                     assert(new_composed.contains_key(i));
-                    assert forall |other| #[trigger] cluster.controller_models.remove_keys(composed.dom()).contains_key(other)
-                    implies spec.entails((composed[i].safety_partial_rely)(other)) by {
-                        if cluster.controller_models.remove_keys(new_composed.dom()).contains_key(other) {}
+                    assert forall |j| #[trigger] cluster.controller_models.remove_keys(composed.dom()).contains_key(j)
+                    implies spec.entails((composed[i].safety_partial_rely)(j)) by {
+                        if others.contains_key(j) {}
                     }
                 }
             }
@@ -214,9 +214,9 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
                     assert(new_composed.contains_key(VC::id()));
                 }
 
-                assert forall |other_id| cluster.controller_models.remove(VC::id()).contains_key(other_id)
+                assert forall |other_id| #[trigger] cluster.controller_models.remove(VC::id()).contains_key(other_id)
                 implies spec.entails((VC::c().safety_partial_rely)(other_id)) by {
-                    if cluster.controller_models.remove_keys(new_composed.dom()).contains_key(other_id) {}
+                    if others.contains_key(other_id) {}
                 }
 
                 VC::liveness_is_guaranteed(spec, cluster);
