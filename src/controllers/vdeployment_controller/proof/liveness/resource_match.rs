@@ -1524,7 +1524,6 @@ ensures
                     match msg.src {
                         HostId::Controller(id, cr_key) => {
                             if id == controller_id {
-                                assume(false);
                                 if cr_key != vd.object_ref() {
                                     // same controller, other vd
                                     // every_msg_from_vd_controller_carries_vd_key
@@ -1542,10 +1541,39 @@ ensures
                                     match msg.content.get_APIRequest_0() {
                                         APIRequest::DeleteRequest(req) => assert(false), // vd controller doesn't send delete req
                                         APIRequest::GetThenDeleteRequest(req) => assert(false),
-                                        APIRequest::UpdateRequest(req) => assert(vd_rely_update_req(req)(s)), // vd does not send update req itself
                                         APIRequest::GetThenUpdateRequest(req) => {
                                             assert(no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s));
                                             assert(vd_reconcile_get_then_update_request_only_interferes_with_itself(req, other_vd)(s));
+                                            let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                                            let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                                            let new_vrs = vds.new_vrs->0;
+                                            assert(vds.new_vrs is Some);
+                                            assert(vds_prime.new_vrs is Some);
+                                            assert(!pending_create_new_vrs_req_in_flight(vd, controller_id)(s));
+                                            assert(s.resources().contains_key(new_vrs.object_ref()));
+                                            // etcd object should not be touched
+                                            let etcd_obj = s.resources()[new_vrs.object_ref()];
+                                            assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
+                                            // controller_owner_ref does not carry namespace, while object_ref does
+                                            // so object_ref != is not enough to prove controller_owner_ref !=
+                                            if cr_key.namespace == vd.metadata.namespace->0 {
+                                                assert(etcd_obj.metadata.owner_references is Some);
+                                                assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                                        assert(controller_owner_filter()(req.owner_ref));
+                                                        assert(req.owner_ref != vd.controller_owner_ref()) by {
+                                                            assert(cr_key != vd.object_ref());
+                                                            assert(cr_key.kind == VDeploymentView::kind());
+                                                            assert(cr_key.name != vd.metadata.name->0);
+                                                        }
+                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                                        assert(false);
+                                                    }
+                                                }
+                                            } else {
+                                                // namespace is different, so should not be touched at all
+                                            }
                                         },
                                         _ => {},
                                     }
@@ -1602,6 +1630,7 @@ ensures
                                                 }
                                             },
                                         APIRequest::GetThenDeleteRequest(req) => {
+                                            assume(false);
                                             assert(
                                             req.key.kind == VReplicaSetView::kind() ==> {
                                                 &&& req.owner_ref.controller is Some
