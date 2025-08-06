@@ -2082,12 +2082,14 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                     }
 
                     // Stopgap fix for flaky proof.
-                    assert(forall |i| {
-                        &&& 0 <= i < diff
-                    } ==> {
-                        &&& s_prime.resources().contains_key(filtered_pod_keys[i])
-                        &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
-                        &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == #[trigger] filtered_pods[i]
+                    assert_by(post(s_prime), {
+                        assert(forall |i| {
+                            &&& 0 <= i < diff
+                        } ==> {
+                            &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                            &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == #[trigger] filtered_pods[i]
+                        });
                     });
                 }
             },
