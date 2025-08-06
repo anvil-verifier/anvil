@@ -1495,9 +1495,7 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s_prime)
-        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] vd_rely(other_id)(s)
-        &&& forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id) ==> #[trigger] vd_rely(other_id)(s_prime)
+        &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     combine_spec_entails_always_n!(spec,
@@ -1570,45 +1568,44 @@ ensures
                                 }
                             } else {
                                 let other_id = msg.src.get_Controller_0();
-                                if cluster.controller_models.remove(controller_id).contains_key(other_id) {
-                                    assert(vd_rely(other_id)(s));
-                                    assert(vd_rely(other_id)(s_prime));
-                                    VDeploymentReconcileState::marshal_preserves_integrity();
-                                    match msg.content.get_APIRequest_0() {
-                                        APIRequest::DeleteRequest(req) => {},
-                                        APIRequest::GetThenDeleteRequest(req) => {
-                                            if req.key.kind == VReplicaSetView::kind() {
-                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                    }
+                                // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
+                                assert(cluster.controller_models.contains_key(other_id));
+                                assert(vd_rely(other_id)(s)); // trigger vd_rely_condition
+                                VDeploymentReconcileState::marshal_preserves_integrity();
+                                match msg.content.get_APIRequest_0() {
+                                    APIRequest::DeleteRequest(req) => {},
+                                    APIRequest::GetThenDeleteRequest(req) => {
+                                        if req.key.kind == VReplicaSetView::kind() {
+                                            assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                                if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                                    assert(req.owner_ref != vd.controller_owner_ref());
+                                                    assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                                 }
                                             }
-                                        },
-                                        APIRequest::GetThenUpdateRequest(req) => {
-                                            if req.obj.kind == VReplicaSetView::kind() {
-                                                // rely condition
-                                                assert({
-                                                    &&& req.owner_ref.controller is Some
-                                                    &&& req.owner_ref.controller->0
-                                                    &&& req.owner_ref.kind != VDeploymentView::kind()
-                                                });
-                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                    }
+                                        }
+                                    },
+                                    APIRequest::GetThenUpdateRequest(req) => {
+                                        if req.obj.kind == VReplicaSetView::kind() {
+                                            // rely condition
+                                            assert({
+                                                &&& req.owner_ref.controller is Some
+                                                &&& req.owner_ref.controller->0
+                                                &&& req.owner_ref.kind != VDeploymentView::kind()
+                                            });
+                                            assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                                if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
+                                                    assert(req.owner_ref != vd.controller_owner_ref());
+                                                    assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
                                                 }
                                             }
-                                            // The strange part is even if the 2nd part of vd_rely_get_then_update_req is commented out,
-                                            // this still passes
-                                            // TODO: investigate it
-                                        },
-                                        APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
-                                        _ => {},
-                                    }
-                                } else {}
+                                        }
+                                        // The strange part is even if the 2nd part of vd_rely_get_then_update_req is commented out,
+                                        // this still passes
+                                        // TODO: investigate it
+                                    },
+                                    APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
+                                    _ => {},
+                                }
                             }
                         },
                         _ => {}, // somehow this branch is slow
