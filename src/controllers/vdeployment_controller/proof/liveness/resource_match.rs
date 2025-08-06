@@ -1320,8 +1320,6 @@ ensures
                     );
                     // just to improve the stability
                     if msg.src.is_controller_id(controller_id) {
-                        assume(false);
-                        assume(local_state_is_valid_and_coherent(vd, controller_id)(s_prime));
                         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
                         assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
                             s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
@@ -1340,10 +1338,15 @@ ensures
                                 assert(etcd_obj.metadata.owner_references->0 == seq![vd.controller_owner_ref()]);
                             }
                         }
-                    }
+
+                        assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))])(s_prime));
+                        assert(req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, req_msg)(s_prime));
+                        assert(etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime));
+                        assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime));
+                    } else {assume(false);}
                 }
             },
-            _ => {}
+            _ => {assume(false);}
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
