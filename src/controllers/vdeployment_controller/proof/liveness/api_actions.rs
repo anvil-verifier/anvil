@@ -81,12 +81,10 @@ requires
     req_msg_is_scale_down_old_vrs_req(vd, controller_id, msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s),
-    local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), (old_vrs_index - nat1!()) as nat)(s_prime),
-    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
