@@ -1933,7 +1933,8 @@ pub proof fn lemma_from_after_receive_ok_resp_at_after_create_pod_step_to_done(
 
 // Delete lemmas
 
-// TODO: Investigate flaky proof and weird assertion needed.
+// TODO: Investigate flaky proof and weird assertion needed. Higher priority:
+// already put in a stopgap fix.
 #[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
     vrs: VReplicaSetView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
@@ -2080,25 +2081,15 @@ pub proof fn lemma_from_after_receive_list_pods_resp_to_send_delete_pod_req(
                         assert(filtered_pods.to_set().contains(filtered_pods[i]));
                     }
 
-                    // No idea why this assert is needed, but proof is brittle
-                    // without it.
-                    assert({
-                        let s = s_prime;
-                        let state = VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).unwrap();
-                        let filtered_pods = state.filtered_pods.unwrap();
-                        let filtered_pod_keys = filtered_pods.map_values(|p: PodView| p.object_ref());
-                        let diff = state.reconcile_step.get_AfterDeletePod_0();
-                        &&& s.ongoing_reconciles(controller_id).contains_key(vrs.object_ref())
-                        &&& VReplicaSetReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vrs.object_ref()].local_state).is_ok()
-                        &&& state.reconcile_step.is_AfterDeletePod()
-                        &&& state.filtered_pods is Some
-                        &&& filtered_pod_keys.no_duplicates()
-                        &&& diff < filtered_pods.len()
-                        &&& forall |i| #![trigger state.filtered_pods.unwrap()[i]] 0 <= i < diff ==> {
-                            &&& s.resources().contains_key(filtered_pod_keys[i])
-                            &&& matching_pods(vrs, s.resources()).contains(s.resources()[filtered_pod_keys[i]])
-                            &&& PodView::unmarshal(s.resources()[filtered_pod_keys[i]])->Ok_0 == filtered_pods[i]
-                        }
+                    // Stopgap fix for flaky proof.
+                    assert_by(post(s_prime), {
+                        assert(forall |i| {
+                            &&& 0 <= i < diff
+                        } ==> {
+                            &&& s_prime.resources().contains_key(filtered_pod_keys[i])
+                            &&& matching_pods(vrs, s_prime.resources()).contains(s_prime.resources()[filtered_pod_keys[i]])
+                            &&& PodView::unmarshal(s_prime.resources()[filtered_pod_keys[i]])->Ok_0 == #[trigger] filtered_pods[i]
+                        });
                     });
                 }
             },
