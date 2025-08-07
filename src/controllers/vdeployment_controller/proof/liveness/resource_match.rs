@@ -724,7 +724,10 @@ ensures
                             }
                         }
                     }
-                    let new_vrs = make_replica_set_makes_valid_owned_object(vd);
+                    let new_vrs = make_replica_set(vd);
+                    assert(valid_owned_object(new_vrs, vd)) by {
+                        make_replica_set_makes_valid_owned_object(vd);
+                    }
                     assert(vds_prime.new_vrs == Some(new_vrs));
                 }
             },

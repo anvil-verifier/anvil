@@ -190,15 +190,12 @@ pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_wi
     );
 }
 
-pub proof fn make_replica_set_makes_valid_owned_object(vd: VDeploymentView) -> (vrs: VReplicaSetView)
+pub proof fn make_replica_set_makes_valid_owned_object(vd: VDeploymentView)
 requires vd.well_formed(),
 ensures
-    valid_owned_object(vrs, vd),
-    vrs == make_replica_set(vd),
+    valid_owned_object(make_replica_set(vd), vd),
 {
-    let vrs = make_replica_set(vd);
-    assert(vrs.metadata.owner_references->0[0] == vd.controller_owner_ref());
-    return vrs;
+    assert(make_replica_set(vd).metadata.owner_references->0[0] == vd.controller_owner_ref());
 }
 
 pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_references_unchanged(
