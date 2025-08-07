@@ -211,6 +211,8 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
         &&& request.namespace == vd.metadata.namespace.unwrap()
         &&& request.owner_ref == vd.controller_owner_ref()
+        // stronger than local_state_is_valid_and_coherent
+        &&& state.old_vrs_index < state.old_vrs_list.len()
         &&& s.resources().contains_key(key)
         // the scaled down vrs can previously pass old vrs filter
         &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).1.contains(VReplicaSetView::unmarshal(obj).unwrap())

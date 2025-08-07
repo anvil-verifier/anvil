@@ -45,10 +45,12 @@ requires
     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, None, old_vrs_index)(s),
+    local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
     resp_msg == handle_create_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
+    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
     return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
@@ -63,10 +65,12 @@ requires
     req_msg_is_scale_new_vrs_req(vd, controller_id, msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(replicas), old_vrs_index)(s),
+    local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
+    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
@@ -81,10 +85,12 @@ requires
     req_msg_is_scale_down_old_vrs_req(vd, controller_id, msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s),
+    local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), (old_vrs_index - nat1!()) as nat)(s_prime),
+    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
 }
@@ -98,7 +104,8 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()))
+        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
     filter_old_and_new_vrs_on_etcd(vd, s.resources()) ==
     filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
@@ -106,6 +113,7 @@ ensures
     s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq(),
     objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()) ==
     objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()),
+    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {}
 
 }

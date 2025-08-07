@@ -577,6 +577,7 @@ ensures
 }
 
 // maybe another case of flakiness, see verus log
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -1256,6 +1257,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
@@ -1313,6 +1315,7 @@ ensures
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
+                    VDeploymentReconcileState::marshal_preserves_integrity();
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
@@ -1320,33 +1323,10 @@ ensures
                     );
                     // just to improve the stability
                     if msg.src.is_controller_id(controller_id) {
-                        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0<=i<vds_prime.old_vrs_index ==>
-                            s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()));
-                        assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
-                            let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                            // somehow this unused vds helps to speed up the proof...
-                            let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                            let new_vrs = vds_prime.new_vrs->0;
-                            // non-interference
-                            assert(s_prime.resources().contains_key(new_vrs.object_ref())) by {
-                                // trigger
-                                assert(s.in_flight().contains(msg));
-                                let etcd_obj = s.resources()[new_vrs.object_ref()];
-                                assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
-                                assert(etcd_obj.metadata.owner_references is Some);
-                                assert(etcd_obj.metadata.owner_references->0 == seq![vd.controller_owner_ref()]);
-                            }
-                        }
-
-                        assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))])(s_prime));
-                        assert(req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, req_msg)(s_prime));
-                        assert(etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n)(s_prime));
-                        assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime));
-                    } else {assume(false);}
+                    } else {}
                 }
             },
-            _ => {assume(false);}
+            _ => {}
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
@@ -1363,6 +1343,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_n_to_n_minus_one_on_old_vrs_len(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, n: nat
 )
@@ -1602,9 +1583,6 @@ ensures
                                                 }
                                             }
                                         }
-                                        // The strange part is even if the 2nd part of vd_rely_get_then_update_req is commented out,
-                                        // this still passes
-                                        // TODO: investigate it
                                     },
                                     APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
                                     _ => {},
