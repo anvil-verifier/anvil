@@ -23,12 +23,7 @@ pub open spec fn valid_owned_object(vrs: VReplicaSetView, vd: VDeploymentView) -
     // weaker version of well_formed, only need the key to be in etcd
     // and corresponding objects can pass the filter
     &&& vrs.metadata.name is Some
-    // if I include the namespace check, we will see
-    // error: The verifier does not yet support the following Rust feature: ==/!= for non smt equality types
-    //    --> src/controllers/vdeployment_controller/exec/reconciler.rs:419:12
-    //     |
-    // 419 |         && vrs.metadata().namespace().unwrap() == vd.metadata().namespace().unwrap() 
-    // It's ok to go ahead without that because the namespace is ensured on API server side
+    &&& vrs.metadata.namespace == vd.metadata.namespace
     &&& vrs.metadata.deletion_timestamp is None
     &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
     &&& vrs.state_validation()
