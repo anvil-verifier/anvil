@@ -126,14 +126,14 @@ pub proof fn vd_rely_condition_equivalent_to_lifted_vd_rely_condition_action(
     );
 }
 
-pub broadcast proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
+pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
     ensures
         spec.entails(always(tla_forall(|vd: VDeploymentView| 
             lift_state(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)))))
         <==>
-            spec.entails(always(#[trigger] lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)))
+            spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id)))
 {
     let lhs = 
         spec.entails(always(tla_forall(|vd: VDeploymentView| 
