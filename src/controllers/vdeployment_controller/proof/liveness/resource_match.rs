@@ -1327,96 +1327,27 @@ ensures
                     use crate::vdeployment_controller::proof::helper_invariants;
                     // trigger
                     assert(s.in_flight().contains(msg));
-                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let new_vrs = vds.new_vrs->0;
-                    let etcd_obj = s.resources()[new_vrs.object_ref()];
-                    assert(etcd_obj.metadata.namespace == vd.metadata.namespace);
-                    assert(new_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
-                    assert(!pending_create_new_vrs_req_in_flight(vd, controller_id)(s));
-                    assert(s.resources().contains_key(new_vrs.object_ref()));
-                    // rule out cases etcd_obj get deleted with rely_delete and handle_delete_eq checks
-                    assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
-                    if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
-                        match msg.src {
-                            HostId::Controller(id, cr_key) => {
-                                if id == controller_id {
-                                    if cr_key != vd.object_ref() {
-                                        // same controller, other vd
-                                        // every_msg_from_vd_controller_carries_vd_key
-                                        let cr_key = msg.src.get_Controller_1();
-                                        let other_vd = VDeploymentView {
-                                            metadata: ObjectMetaView {
-                                                name: Some(cr_key.name),
-                                                namespace: Some(cr_key.namespace),
-                                                ..make_vd().metadata
-                                            },
-                                            ..make_vd()
-                                        };
-                                        // so msg can only be list, create or get_then_update
-                                        assert(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, other_vd)(s));
-                                        match msg.content.get_APIRequest_0() {
-                                            APIRequest::DeleteRequest(req) => assert(false), // vd controller doesn't send delete req
-                                            APIRequest::GetThenDeleteRequest(req) => assert(false),
-                                            APIRequest::GetThenUpdateRequest(req) => {
-                                                assert(no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s));
-                                                assert(vd_reconcile_get_then_update_request_only_interferes_with_itself(req, other_vd)(s));
-                                                // controller_owner_ref does not carry namespace, while object_ref does
-                                                // so object_ref != is not enough to prove controller_owner_ref !=
-                                                if cr_key.namespace == vd.metadata.namespace->0 {
-                                                    assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                        if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                            assert(req.owner_ref != vd.controller_owner_ref());
-                                                            assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                        }
-                                                    }
-                                                } // or else, namespace is different, so should not be touched at all
-                                            },
-                                            _ => {},
-                                        }
-                                        VDeploymentReconcileState::marshal_preserves_integrity();
-                                    }
-                                } else {
-                                    let other_id = msg.src.get_Controller_0();
-                                    // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
-                                    assert(cluster.controller_models.contains_key(other_id));
-                                    assert(vd_rely(other_id)(s)); // trigger vd_rely_condition
-                                    VDeploymentReconcileState::marshal_preserves_integrity();
-                                    match msg.content.get_APIRequest_0() {
-                                        APIRequest::DeleteRequest(req) => {},
-                                        APIRequest::GetThenDeleteRequest(req) => {
-                                            if req.key.kind == VReplicaSetView::kind() {
-                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        APIRequest::GetThenUpdateRequest(req) => {
-                                            if req.obj.kind == VReplicaSetView::kind() {
-                                                // rely condition
-                                                assert({
-                                                    &&& req.owner_ref.controller is Some
-                                                    &&& req.owner_ref.controller->0
-                                                    &&& req.owner_ref.kind != VDeploymentView::kind()
-                                                });
-                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
-                                        _ => {},
-                                    }
-                                }
-                            },
-                            _ => {}, // somehow this branch is slow
+                    assert(msg.src != HostId::Controller(controller_id, vd.object_ref())) by {
+                        if msg.src == HostId::Controller(controller_id, vd.object_ref()) {
+                            assert(Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg));
+                            assert(msg == req_msg);
+                            assert(false);
                         }
+                    }
+                    // it's possible to lift the predicate saying the object we care about is not touched during the transition caused by other msg
+                    // as a direct result of the boundary predicates and rely conditions
+                    // it can be used in both coherent(s) -> coherent(s_prime) and pending_req_msg_is_X(s) -> pending_req_msg_is_X(s_prime)
+                    assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
+                        == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
+                    assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
+                    assert(s_prime.in_flight().contains(req_msg));
+                    assert(req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s_prime)) by {
+                        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        assert(s_prime.resources().contains_key(request.key()));
+                        let etcd_obj = s_prime.resources()[request.key()];
+                        assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
+                        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(etcd_obj).unwrap()));
+                        assert(valid_owned_object(VReplicaSetView::unmarshal(etcd_obj).unwrap(), vd));
                     }
                 }
             },
