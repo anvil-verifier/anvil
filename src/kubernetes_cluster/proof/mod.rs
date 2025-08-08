@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 pub mod cluster;
-pub mod compositionality;
+pub mod composition;
 pub mod controller_runtime_liveness;
 pub mod controller_runtime_safety;
 pub mod failures_liveness;
