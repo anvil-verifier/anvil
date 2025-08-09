@@ -9,7 +9,6 @@ use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::util as model_util;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
-use crate::vstd_ext::option_lib::*;
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 use deps_hack::tracing::{error, info};
 use vstd::{prelude::*, seq_lib::*, set::*, map::*};

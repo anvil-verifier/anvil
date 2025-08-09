@@ -1,7 +1,6 @@
 use crate::kubernetes_api_objects::spec::resource::{CustomResourceView, ResourceView};
 use crate::reconciler::exec::io::*;
 use crate::reconciler::spec::reconciler::Reconciler as ModelReconciler;
-use crate::vstd_ext::option_lib::*;
 use vstd::prelude::*;
 
 verus! {

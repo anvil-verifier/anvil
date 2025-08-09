@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::{option_lib::*, string_map::StringMap, seq_lib::*};
+use crate::vstd_ext::{string_map::StringMap, seq_lib::*};
 use crate::reconciler::spec::io::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
