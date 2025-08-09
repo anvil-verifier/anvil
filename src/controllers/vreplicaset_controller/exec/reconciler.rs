@@ -5,7 +5,8 @@ use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::{option_lib::*, string_map::StringMap, seq_lib::*};
+use crate::vstd_ext::{string_map::StringMap, seq_lib::*};
+use crate::reconciler::spec::io::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -30,10 +31,7 @@ impl View for VReplicaSetReconcileState {
     open spec fn view(&self) -> model_reconciler::VReplicaSetReconcileState {
         model_reconciler::VReplicaSetReconcileState {
             reconcile_step: self.reconcile_step@,
-            filtered_pods: match self.filtered_pods {
-                Some(fp) => Some(fp@.map_values(|p: Pod| p@)),
-                None => None,
-            },
+            filtered_pods: self.filtered_pods.deep_view(),
         }
     }
 }
@@ -121,6 +119,7 @@ pub fn reconcile_core(v_replica_set: &VReplicaSet, resp_o: Option<Response<VoidE
                 return (error_state(state), None);
             }
             let objs = extract_some_k_list_resp!(resp_o).unwrap();
+            assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
             let pods_or_none = objects_to_pods(objs);
             if pods_or_none.is_none() {
                 return (error_state(state), None);
@@ -264,16 +263,16 @@ pub fn make_owner_references(v_replica_set: &VReplicaSet) -> (owner_references: 
 // TODO: This function can be replaced by a map.
 // Revisit it if Verus supports Vec.map.
 fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
-    ensures option_vec_view(pods_or_none) == model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@))
+    ensures pods_or_none.deep_view() == model_reconciler::objects_to_pods(objs.deep_view())
 {
     let mut pods = Vec::new();
     let mut idx = 0;
 
     proof {
-        let model_result = model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@));
+        let model_result = model_reconciler::objects_to_pods(objs.deep_view());
         if model_result.is_some() {
             assert_seqs_equal!(
-                pods@.map_values(|p: Pod| p@),
+                pods.deep_view(),
                 model_result.unwrap().take(0)
             );
         }
@@ -283,9 +282,9 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         invariant
             idx <= objs.len(),
             ({
-                let model_result = model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@));
+                let model_result = model_reconciler::objects_to_pods(objs.deep_view());
                 &&& (model_result.is_some() ==>
-                        pods@.map_values(|p: Pod| p@) == model_result.unwrap().take(idx as int))
+                        pods.deep_view() == model_result.unwrap().take(idx as int))
                 &&& forall|i: int| 0 <= i < idx ==> PodView::unmarshal(#[trigger] objs@[i]@).is_ok()
             }),
     {
@@ -294,12 +293,12 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             pods.push(pod_or_error.unwrap());
             proof {
                 // Show that the pods Vec and the model_result are equal up to index idx + 1.
-                let model_result = model_reconciler::objects_to_pods(objs@.map_values(|o: DynamicObject| o@));
+                let model_result = model_reconciler::objects_to_pods(objs.deep_view());
                 if (model_result.is_some()) {
                     assert(model_result.unwrap().take((idx + 1) as int)
                         == model_result.unwrap().take(idx as int) + seq![model_result.unwrap()[idx as int]]);
                     assert_seqs_equal!(
-                        pods@.map_values(|p: Pod| p@),
+                        pods.deep_view(),
                         model_result.unwrap().take((idx + 1) as int)
                     );
                 }
@@ -307,7 +306,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
         } else {
             proof {
                 // Show that if a pod was unable to be serialized, the model would return None.
-                let model_input = objs@.map_values(|o: DynamicObject| o@);
+                let model_input = objs.deep_view();
                 let model_result = model_reconciler::objects_to_pods(model_input);
                 assert(
                     model_input
@@ -321,7 +320,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
     }
 
     proof {
-        let model_input = objs@.map_values(|o: DynamicObject| o@);
+        let model_input = objs.deep_view();
         let model_result = model_reconciler::objects_to_pods(model_input);
 
         // Prove, by contradiction, that the model_result can't be None.
@@ -347,23 +346,23 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
 // Revisit it if Verus supports Vec.map.
 fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: Vec<Pod>)
     requires v_replica_set@.well_formed(),
-    ensures filtered_pods@.map_values(|p: Pod| p@) == model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@), v_replica_set@),
+    ensures filtered_pods.deep_view() == model_reconciler::filter_pods(pods.deep_view(), v_replica_set@),
 {
     let mut filtered_pods = Vec::new();
     let mut idx = 0;
 
     proof {
         assert_seqs_equal!(
-            filtered_pods@.map_values(|p: Pod| p@),
-            model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@).take(0), v_replica_set@)
+            filtered_pods.deep_view(),
+            model_reconciler::filter_pods(pods.deep_view().take(0), v_replica_set@)
         );
     }
 
     for idx in 0..pods.len()
         invariant
             idx <= pods.len(),
-            filtered_pods@.map_values(|p: Pod| p@)
-                == model_reconciler::filter_pods(pods@.map_values(|p: Pod| p@).take(idx as int), v_replica_set@),
+            filtered_pods.deep_view()
+                == model_reconciler::filter_pods(pods.deep_view().take(idx as int), v_replica_set@),
     {
         let pod = &pods[idx];
 
@@ -383,18 +382,18 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
                 && v_replica_set@.spec.selector.matches(pod.metadata.labels.unwrap_or(Map::empty()))
                 && pod.metadata.deletion_timestamp is None;
             let old_filtered = if spec_filter(pod@) {
-                filtered_pods@.map_values(|p: Pod| p@).drop_last()
+                filtered_pods.deep_view().drop_last()
             } else {
-                filtered_pods@.map_values(|p: Pod| p@)
+                filtered_pods.deep_view()
             };
-            assert(old_filtered == pods@.map_values(|p: Pod| p@).take(idx as int).filter(spec_filter));
-            push_filter_and_filter_push(pods@.map_values(|p: Pod| p@).take(idx as int), spec_filter, pod@);
-            assert(pods@.map_values(|p: Pod| p@).take(idx as int).push(pod@)
-                   == pods@.map_values(|p: Pod| p@).take((idx + 1) as int));
-            assert(spec_filter(pod@) ==> filtered_pods@.map_values(|p: Pod| p@) == old_filtered.push(pod@));
+            assert(old_filtered == pods.deep_view().take(idx as int).filter(spec_filter));
+            push_filter_and_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
+            assert(pods.deep_view().take(idx as int).push(pod@)
+                   == pods.deep_view().take((idx + 1) as int));
+            assert(spec_filter(pod@) ==> filtered_pods.deep_view() == old_filtered.push(pod@));
         }
     }
-    assert(pods@.map_values(|p: Pod| p@) == pods@.map_values(|p: Pod| p@).take(pods.len() as int));
+    assert(pods.deep_view() == pods.deep_view().take(pods.len() as int));
     filtered_pods
 }
 

@@ -9,7 +9,6 @@ use crate::vdeployment_controller::model::reconciler as model_reconciler;
 use crate::vdeployment_controller::trusted::util as model_util;
 use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
-use crate::vstd_ext::option_lib::*;
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 use deps_hack::tracing::{error, info};
 use vstd::{prelude::*, seq_lib::*, set::*, map::*};
@@ -106,11 +105,8 @@ pub fn reconcile_error(state: &VDeploymentReconcileState) -> (res: bool)
  // mask this proof before there's a solution to flakiness
  // see https://github.com/verus-lang/verus/issues/1756
 pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, state: VDeploymentReconcileState) -> (res: (VDeploymentReconcileState, Option<Request<VoidEReq>>))
-    requires
-        vd@.well_formed(),
-    ensures
-        res.0@ == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).0,
-        res.1.deep_view() == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@).1,
+    requires vd@.well_formed(),
+    ensures (res.0@, res.1.deep_view()) == model_reconciler::reconcile_core(vd@, resp_o.deep_view(), state@),
 {
     let namespace = vd.metadata().namespace().unwrap();
     match state.reconcile_step {
@@ -326,7 +322,7 @@ ensures res == model_util::match_replicas(vd@, vrs@),
 
 fn objects_to_vrs_list(objs: Vec<DynamicObject>) -> (vrs_list_or_none: Option<Vec<VReplicaSet>>)
 ensures
-    vrs_list_or_none@.deep_view() == model_util::objects_to_vrs_list(objs.deep_view()),
+    vrs_list_or_none.deep_view() == model_util::objects_to_vrs_list(objs.deep_view()),
 {
     let mut vrs_list: Vec<VReplicaSet> = Vec::new();
     let mut idx = 0;

@@ -5,7 +5,6 @@ use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, owner_reference::*, preconditions::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{api_method::*, common::ObjectRef};
-use crate::vstd_ext::option_lib::*;
 use vstd::prelude::*;
 
 use vstd::pervasive::unreached;
