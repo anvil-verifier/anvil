@@ -20,11 +20,6 @@ implement_deep_view_trait!(DynamicObject, DynamicObjectView);
 implement_clone_trait!(DynamicObject);
 
 impl DynamicObject {
-    #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-        &self.inner.metadata
-    }
-
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
