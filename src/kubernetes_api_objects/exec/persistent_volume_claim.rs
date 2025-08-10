@@ -78,7 +78,7 @@ impl PersistentVolumeClaimSpec {
 
     #[verifier(external_body)]
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
-        ensures self@ == old(self)@.with_access_modes(access_modes@.map_values(|mode: String| mode@)),
+        ensures self@ == old(self)@.with_access_modes(access_modes.deep_view()),
     {
         self.inner.access_modes = Some(access_modes);
     }

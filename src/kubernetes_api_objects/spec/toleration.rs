@@ -9,6 +9,10 @@ verus! {
 
 pub struct TolerationView {}
 
-impl TolerationView {}
+impl TolerationView {
+    pub open spec fn default() -> TolerationView {
+        TolerationView {}
+    }
+}
 
 }

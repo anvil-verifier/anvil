@@ -19,6 +19,18 @@ implement_object_wrapper_type!(
     RoleBindingView
 );
 
+implement_field_wrapper_type!(
+    RoleRef,
+    deps_hack::k8s_openapi::api::rbac::v1::RoleRef,
+    RoleRefView
+);
+
+implement_field_wrapper_type!(
+    Subject,
+    deps_hack::k8s_openapi::api::rbac::v1::Subject,
+    SubjectView
+);
+
 verus! {
 
 impl RoleBinding {
@@ -38,7 +50,7 @@ impl RoleBinding {
 
     #[verifier(external_body)]
     pub fn set_subjects(&mut self, subjects: Vec<Subject>)
-        ensures self@ == old(self)@.with_subjects(subjects@.map_values(|s: Subject| s@)),
+        ensures self@ == old(self)@.with_subjects(subjects.deep_view()),
     {
         self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
@@ -46,33 +58,12 @@ impl RoleBinding {
     }
 }
 
-#[verifier(external_body)]
-pub struct RoleRef {
-    inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef,
-}
-
 impl RoleRef {
-    pub uninterp spec fn view(&self) -> RoleRefView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (role_ref: RoleRef)
-        ensures role_ref@ == RoleRefView::default(),
-    {
-        RoleRef { inner: deps_hack::k8s_openapi::api::rbac::v1::RoleRef::default() }
-    }
-
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
         ensures b == (self.view() == other.view())
     {
         self.inner == other.inner
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (c: Self)
-        ensures c@ == self@,
-    {
-        RoleRef { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -111,23 +102,7 @@ impl RoleRef {
     }
 }
 
-#[verifier(external_body)]
-pub struct Subject {
-    inner: deps_hack::k8s_openapi::api::rbac::v1::Subject,
-}
-
 impl Subject {
-    pub uninterp spec fn view(&self) -> SubjectView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (subject: Subject)
-        ensures subject@ == SubjectView::default(),
-    {
-        Subject {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::Subject::default(),
-        }
-    }
-
     #[verifier(external_body)]
     pub fn set_kind(&mut self, kind: String)
         ensures self@ == old(self)@.with_kind(kind@),

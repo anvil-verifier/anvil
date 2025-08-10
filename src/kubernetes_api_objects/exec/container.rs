@@ -5,32 +5,75 @@ use crate::kubernetes_api_objects::spec::container::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
+implement_field_wrapper_type!(
+    Container,
+    deps_hack::k8s_openapi::api::core::v1::Container,
+    ContainerView
+);
+
+implement_field_wrapper_type!(
+    ContainerPort,
+    deps_hack::k8s_openapi::api::core::v1::ContainerPort,
+    ContainerPortView
+);
+
+implement_field_wrapper_type!(
+    VolumeMount,
+    deps_hack::k8s_openapi::api::core::v1::VolumeMount,
+    VolumeMountView
+);
+
+implement_field_wrapper_type!(
+    Probe,
+    deps_hack::k8s_openapi::api::core::v1::Probe,
+    ProbeView
+);
+
+implement_field_wrapper_type!(
+    ExecAction,
+    deps_hack::k8s_openapi::api::core::v1::ExecAction,
+    ExecActionView
+);
+
+implement_field_wrapper_type!(
+    TCPSocketAction,
+    deps_hack::k8s_openapi::api::core::v1::TCPSocketAction,
+    TCPSocketActionView
+);
+
+implement_field_wrapper_type!(
+    Lifecycle,
+    deps_hack::k8s_openapi::api::core::v1::Lifecycle,
+    LifecycleView
+);
+
+implement_field_wrapper_type!(
+    LifecycleHandler,
+    deps_hack::k8s_openapi::api::core::v1::LifecycleHandler,
+    LifecycleHandlerView
+);
+
+implement_field_wrapper_type!(
+    EnvVar,
+    deps_hack::k8s_openapi::api::core::v1::EnvVar,
+    EnvVarView
+);
+
+implement_field_wrapper_type!(
+    EnvVarSource,
+    deps_hack::k8s_openapi::api::core::v1::EnvVarSource,
+    EnvVarSourceView
+);
+
+implement_field_wrapper_type!(
+    SecurityContext,
+    deps_hack::k8s_openapi::api::core::v1::SecurityContext,
+    SecurityContextView
+);
+
 verus! {
 
-#[verifier(external_body)]
-pub struct Container {
-    inner: deps_hack::k8s_openapi::api::core::v1::Container,
-}
-
 impl Container {
-    pub uninterp spec fn view(&self) -> ContainerView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (container: Container)
-        ensures container@ == ContainerView::default(),
-    {
-        Container {
-            inner: deps_hack::k8s_openapi::api::core::v1::Container::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        Container { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_image(&mut self, image: String)
         ensures self@ == old(self)@.with_image(image@),
@@ -47,7 +90,7 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_volume_mounts(&mut self, volume_mounts: Vec<VolumeMount>)
-        ensures self@ == old(self)@.with_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
+        ensures self@ == old(self)@.with_volume_mounts(volume_mounts.deep_view()),
     {
         self.inner.volume_mounts = Some(
             volume_mounts.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
@@ -56,7 +99,7 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_ports(&mut self, ports: Vec<ContainerPort>)
-        ensures self@ == old(self)@.with_ports(ports@.map_values(|port: ContainerPort| port@)),
+        ensures self@ == old(self)@.with_ports(ports.deep_view()),
     {
         self.inner.ports = Some(ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect())
     }
@@ -91,7 +134,7 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
-        ensures self@ == old(self)@.with_command(command@.map_values(|c: String| c@)),
+        ensures self@ == old(self)@.with_command(command.deep_view()),
     {
         self.inner.command = Some(command)
     }
@@ -105,14 +148,14 @@ impl Container {
 
     #[verifier(external_body)]
     pub fn set_env(&mut self, env: Vec<EnvVar>)
-        ensures self@ == old(self)@.with_env(env@.map_values(|v: EnvVar| v@)),
+        ensures self@ == old(self)@.with_env(env.deep_view()),
     {
         self.inner.env = Some(env.into_iter().map(|e: EnvVar| e.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_args(&mut self, args: Vec<String>)
-        ensures self@ == old(self)@.with_args(args@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_args(args.deep_view()),
     {
         self.inner.args = Some(args)
     }
@@ -125,21 +168,7 @@ impl Container {
     }
 }
 
-#[verifier(external_body)]
-pub struct ContainerPort {
-    inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort,
-}
-
 impl ContainerPort {
-    pub uninterp spec fn view(&self) -> ContainerPortView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (container_port: ContainerPort)
-        ensures container_port@ == ContainerPortView::default(),
-    {
-        ContainerPort { inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort::default() }
-    }
-
     pub fn new_with(name: String, port: i32) -> (container_port: ContainerPort)
         ensures container_port@ == ContainerPortView::default().with_name(name@).with_container_port(port as int),
     {
@@ -186,21 +215,7 @@ impl ContainerPort {
     }
 }
 
-#[verifier(external_body)]
-pub struct VolumeMount {
-    inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount,
-}
-
 impl VolumeMount {
-    pub uninterp spec fn view(&self) -> VolumeMountView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (volume_mount: VolumeMount)
-        ensures volume_mount@ == VolumeMountView::default(),
-    {
-        VolumeMount { inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount::default() }
-    }
-
     pub fn new_with(mount_path: String, name: String) -> (volume_mount: VolumeMount)
         ensures volume_mount@ == VolumeMountView::default().with_mount_path(mount_path@).with_name(name@),
     {
@@ -247,28 +262,7 @@ impl VolumeMount {
     }
 }
 
-#[verifier(external_body)]
-pub struct Probe {
-    inner: deps_hack::k8s_openapi::api::core::v1::Probe,
-}
-
 impl Probe {
-    pub uninterp spec fn view(&self) -> ProbeView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (probe: Probe)
-        ensures probe@ == ProbeView::default(),
-    {
-        Probe { inner: deps_hack::k8s_openapi::api::core::v1::Probe::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        Probe { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
         ensures self@ == old(self)@.with_exec(exec@),
@@ -319,58 +313,16 @@ impl Probe {
     }
 }
 
-#[verifier(external_body)]
-pub struct ExecAction {
-    inner: deps_hack::k8s_openapi::api::core::v1::ExecAction,
-}
-
 impl ExecAction {
-    pub uninterp spec fn view(&self) -> ExecActionView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (exec_action: ExecAction)
-        ensures exec_action@ == ExecActionView::default(),
-    {
-        ExecAction { inner: deps_hack::k8s_openapi::api::core::v1::ExecAction::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        ExecAction { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
-        ensures self@ == old(self)@.with_command(command@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_command(command.deep_view()),
     {
         self.inner.command = Some(command);
     }
 }
 
-#[verifier(external_body)]
-pub struct TCPSocketAction {
-    inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction,
-}
-
 impl TCPSocketAction {
-    pub uninterp spec fn view(&self) -> TCPSocketActionView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (tcp_socket_action: TCPSocketAction)
-        ensures tcp_socket_action@ == TCPSocketActionView::default(),
-    {
-        TCPSocketAction { inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        TCPSocketAction { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_host(&mut self, host: String)
         ensures self@ == old(self)@.with_host(host@),
@@ -386,28 +338,7 @@ impl TCPSocketAction {
     }
 }
 
-#[verifier(external_body)]
-pub struct Lifecycle {
-    inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle,
-}
-
 impl Lifecycle {
-    pub uninterp spec fn view(&self) -> LifecycleView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (lifecycle: Lifecycle)
-        ensures lifecycle@ == LifecycleView::default(),
-    {
-        Lifecycle { inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        Lifecycle { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_pre_stop(&mut self, handler: LifecycleHandler)
         ensures self@ == old(self)@.with_pre_stop(handler@),
@@ -416,28 +347,7 @@ impl Lifecycle {
     }
 }
 
-#[verifier(external_body)]
-pub struct LifecycleHandler {
-    inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler,
-}
-
 impl LifecycleHandler {
-    pub uninterp spec fn view(&self) -> LifecycleHandlerView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (lifecycle_handler: LifecycleHandler)
-        ensures lifecycle_handler@ == LifecycleHandlerView::default(),
-    {
-        LifecycleHandler { inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        LifecycleHandler { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
         ensures self@ == old(self)@.with_exec(exec@),
@@ -446,26 +356,7 @@ impl LifecycleHandler {
     }
 }
 
-#[verifier(external_body)]
-pub struct EnvVar {
-    inner: deps_hack::k8s_openapi::api::core::v1::EnvVar,
-}
-
 impl EnvVar {
-    pub uninterp spec fn view(&self) -> EnvVarView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (env_var: EnvVar)
-        ensures env_var@ == EnvVarView::default(),
-    {
-        EnvVar { inner: deps_hack::k8s_openapi::api::core::v1::EnvVar::default() }
-    }
-
-    #[verifier(external)]
-    pub fn clone(&self) -> (s: Self) {
-        EnvVar { inner: self.inner.clone() }
-    }
-
     pub fn new_with(name: String, value: Option<String>, value_from: Option<EnvVarSource>) -> (env_var: EnvVar)
         ensures
             env_var@ == (EnvVarView {
@@ -513,24 +404,7 @@ impl EnvVar {
     }
 }
 
-#[verifier(external_body)]
-pub struct EnvVarSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource,
-}
-
 impl EnvVarSource {
-    pub uninterp spec fn view(&self) -> EnvVarSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (env_var_source: EnvVarSource)
-        ensures env_var_source@ == EnvVarSourceView::default(),
-    {
-        EnvVarSource { inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default() }
-    }
-
-    #[verifier(external)]
-    pub fn clone(&self) -> (s: Self) { EnvVarSource { inner: self.inner.clone() } }
-
     pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (env_var_source: EnvVarSource)
         ensures env_var_source@ == EnvVarSourceView::default().with_field_ref(field_ref@)
     {
@@ -545,15 +419,6 @@ impl EnvVarSource {
     {
         self.inner.field_ref = Some(field_ref.into_kube());
     }
-}
-
-#[verifier(external_body)]
-pub struct SecurityContext {
-    inner: deps_hack::k8s_openapi::api::core::v1::SecurityContext,
-}
-
-impl SecurityContext {
-    pub uninterp spec fn view(&self) -> SecurityContextView;
 }
 
 }

@@ -17,6 +17,11 @@ pub struct OwnerReferenceView {
     pub uid: Uid,
 }
 
+impl OwnerReferenceView {
+    // default() isn't needed; this is just to make the macro implement_field_wrapper_type happy
+    pub uninterp spec fn default() -> OwnerReferenceView;
+}
+
 pub open spec fn owner_reference_to_object_reference(owner_reference: OwnerReferenceView, namespace: StringView) -> ObjectRef {
     ObjectRef {
         kind: owner_reference.kind,

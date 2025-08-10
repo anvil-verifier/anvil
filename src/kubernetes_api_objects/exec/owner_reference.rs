@@ -4,9 +4,6 @@ use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::owner_reference::*;
 use vstd::prelude::*;
 
-verus! {
-
-
 // OwnerReference contains enough information to let you identify an owning object.
 // An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
 //
@@ -15,21 +12,15 @@ verus! {
 // It is supposed to be used in exec controller code.
 //
 
-#[verifier(external_body)]
-pub struct OwnerReference {
-    inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference,
-}
+implement_field_wrapper_type!(
+    OwnerReference,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference,
+    OwnerReferenceView
+);
+
+verus! {
 
 impl OwnerReference {
-    pub uninterp spec fn view(&self) -> OwnerReferenceView;
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        OwnerReference { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn controller(&self) -> (controller: Option<bool>)
         ensures
@@ -40,16 +31,6 @@ impl OwnerReference {
             Some(c) => Some(*c),
             None => None,
         }
-    }
-
-    #[verifier(external)]
-    pub fn as_kube_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference {
-        &self.inner
-    }
-
-    #[verifier(external)]
-    pub fn as_kube_mut_ref(&mut self) -> &mut deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference {
-        &mut self.inner
     }
 }
 

@@ -1,6 +1,5 @@
 use crate::kubernetes_cluster::spec::cluster::*;
 use crate::temporal_logic::defs::*;
-use crate::vstd_ext::map_lib::*;
 use vstd::prelude::*;
 
 verus! {
@@ -139,11 +138,11 @@ proof fn horizontal_composition<HC>(spec: TempPred<ClusterState>, cluster: Clust
         assert forall |i| #[trigger] composed.contains_key(i) implies (composed[i].membership)(cluster) by {
             assert(new_composed.contains_key(i));
         }
-        
+
         HC::safety_is_guaranteed(spec, cluster);
 
         if (forall |i| #[trigger] new_composed.contains_key(i) ==> spec.entails(new_composed[i].fairness))
-            && (forall |i| #[trigger] new_composed.contains_key(i) ==> 
+            && (forall |i| #[trigger] new_composed.contains_key(i) ==>
                     forall |j| #[trigger] others.contains_key(j) ==>
                         spec.entails((new_composed[i].safety_partial_rely)(j)))
         {
@@ -206,11 +205,11 @@ proof fn vertical_composition<VC>(spec: TempPred<ClusterState>, cluster: Cluster
         assert forall |i| #[trigger] composed.contains_key(i) implies (composed[i].membership)(cluster) by {
             assert(new_composed.contains_key(i));
         }
-        
+
         VC::safety_is_guaranteed(spec, cluster);
 
         if (forall |i| #[trigger] new_composed.contains_key(i) ==> spec.entails(new_composed[i].fairness))
-            && (forall |i| #[trigger] new_composed.contains_key(i) ==> 
+            && (forall |i| #[trigger] new_composed.contains_key(i) ==>
                     forall |j| #[trigger] others.contains_key(j) ==>
                         spec.entails((new_composed[i].safety_partial_rely)(j)))
         {

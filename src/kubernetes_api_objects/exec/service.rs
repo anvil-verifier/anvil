@@ -24,6 +24,18 @@ implement_object_wrapper_type!(
     ServiceView
 );
 
+implement_field_wrapper_type!(
+    ServiceSpec,
+    deps_hack::k8s_openapi::api::core::v1::ServiceSpec,
+    ServiceSpecView
+);
+
+implement_field_wrapper_type!(
+    ServicePort,
+    deps_hack::k8s_openapi::api::core::v1::ServicePort,
+    ServicePortView
+);
+
 verus! {
 
 impl Service {
@@ -47,30 +59,7 @@ impl Service {
     }
 }
 
-#[verifier(external_body)]
-pub struct ServiceSpec {
-    inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec,
-}
-
 impl ServiceSpec {
-    pub uninterp spec fn view(&self) -> ServiceSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (service_spec: ServiceSpec)
-        ensures service_spec@ == ServiceSpecView::default(),
-    {
-        ServiceSpec {
-            inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        ServiceSpec { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_cluster_ip(&mut self, cluster_ip: String)
         ensures self@ == old(self)@.with_cluster_ip(cluster_ip@),
@@ -82,7 +71,7 @@ impl ServiceSpec {
     pub fn ports(&self) -> (ports: Option<Vec<ServicePort>>)
         ensures
             self@.ports is Some == ports is Some,
-            ports is Some ==> ports->0@.map_values(|port: ServicePort| port@) == self@.ports->0,
+            ports is Some ==> ports->0.deep_view() == self@.ports->0,
     {
         match &self.inner.ports {
             Some(p) => Some(p.into_iter().map(|port: &deps_hack::k8s_openapi::api::core::v1::ServicePort| ServicePort::from_kube(port.clone())).collect()),
@@ -92,7 +81,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn set_ports(&mut self, ports: Vec<ServicePort>)
-        ensures self@ == old(self)@.with_ports(ports@.map_values(|port: ServicePort| port@)),
+        ensures self@ == old(self)@.with_ports(ports.deep_view()),
     {
         self.inner.ports = Some(ports.into_iter().map(|port: ServicePort| port.into_kube()).collect())
     }
@@ -140,23 +129,7 @@ impl ServiceSpec {
     }
 }
 
-#[verifier(external_body)]
-pub struct ServicePort {
-    inner: deps_hack::k8s_openapi::api::core::v1::ServicePort,
-}
-
 impl ServicePort {
-    pub uninterp spec fn view(&self) -> ServicePortView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (service_port: ServicePort)
-        ensures service_port@ == ServicePortView::default(),
-    {
-        ServicePort {
-            inner: deps_hack::k8s_openapi::api::core::v1::ServicePort::default(),
-        }
-    }
-
     pub fn new_with(name: String, port: i32) -> (service_port: ServicePort)
         ensures service_port@ == ServicePortView::default().with_name(name@).with_port(port as int),
     {

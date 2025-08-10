@@ -102,7 +102,7 @@ impl ObjectMeta {
     pub fn finalizers(&self) -> (finalizers: Option<Vec<String>>)
         ensures
             self@.finalizers is Some == finalizers is Some,
-            finalizers is Some ==> finalizers->0@.map_values(|s: String| s@) == self@.finalizers->0,
+            finalizers is Some ==> finalizers->0.deep_view() == self@.finalizers->0,
     {
         self.inner.finalizers.clone()
     }
@@ -111,7 +111,7 @@ impl ObjectMeta {
     pub fn owner_references(&self) -> (owner_references: Option<Vec<OwnerReference>>)
         ensures
             self@.owner_references is Some == owner_references is Some,
-            owner_references is Some ==> owner_references->0@.map_values(|o: OwnerReference| o@) == self@.owner_references->0,
+            owner_references is Some ==> owner_references->0.deep_view() == self@.owner_references->0,
     {
         match &self.inner.owner_references {
             Some(o) => Some(o.into_iter().map(|item| OwnerReference::from_kube(item.clone())).collect()),
@@ -274,14 +274,14 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
-        ensures self@ == old(self)@.with_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
+        ensures self@ == old(self)@.with_owner_references(owner_references.deep_view()),
     {
         self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
-        ensures self@ == old(self)@.with_finalizers(finalizers@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_finalizers(finalizers.deep_view()),
     {
         self.inner.finalizers = Some(finalizers);
     }

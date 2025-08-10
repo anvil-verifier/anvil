@@ -448,4 +448,10 @@ impl EnvVarSourceView {
 
 pub struct SecurityContextView {}
 
+impl SecurityContextView {
+    pub open spec fn default() -> SecurityContextView {
+        SecurityContextView {}
+    }
+}
+
 }

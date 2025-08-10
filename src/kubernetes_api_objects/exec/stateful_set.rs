@@ -115,7 +115,7 @@ impl StatefulSetSpec {
 
     #[verifier(external_body)]
     pub fn set_volume_claim_templates(&mut self, volume_claim_templates: Vec<PersistentVolumeClaim>)
-        ensures self@ == old(self)@.with_volume_claim_templates(volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@)),
+        ensures self@ == old(self)@.with_volume_claim_templates(volume_claim_templates.deep_view()),
     {
         self.inner.volume_claim_templates = Some(
             volume_claim_templates.into_iter().map(|pvc: PersistentVolumeClaim| pvc.into_kube()).collect()
@@ -179,7 +179,7 @@ impl StatefulSetSpec {
     pub fn volume_claim_templates(&self) -> (volume_claim_templates: Option<Vec<PersistentVolumeClaim>>)
         ensures
             self@.volume_claim_templates is Some == volume_claim_templates is Some,
-            volume_claim_templates is Some ==> volume_claim_templates->0@.map_values(|p: PersistentVolumeClaim| p@) == self@.volume_claim_templates->0,
+            volume_claim_templates is Some ==> volume_claim_templates->0.deep_view() == self@.volume_claim_templates->0,
     {
         match &self.inner.volume_claim_templates {
             Some(p) => Some(p.into_iter().map(|item| PersistentVolumeClaim::from_kube(item.clone())).collect()),

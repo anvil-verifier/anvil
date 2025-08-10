@@ -338,7 +338,7 @@ impl View for KubeListResponse {
     type V = ListResponse;
     open spec fn view(&self) -> ListResponse {
         match self.res {
-            Ok(l) => ListResponse { res: Ok(l@.map_values(|o: DynamicObject| o@)) },
+            Ok(l) => ListResponse { res: Ok(l.deep_view()) },
             Err(e) => ListResponse { res: Err(e) },
         }
     }

@@ -15,6 +15,12 @@ use vstd::prelude::*;
 
 implement_object_wrapper_type!(Role, deps_hack::k8s_openapi::api::rbac::v1::Role, RoleView);
 
+implement_field_wrapper_type!(
+    PolicyRule,
+    deps_hack::k8s_openapi::api::rbac::v1::PolicyRule,
+    PolicyRuleView
+);
+
 verus! {
 
 impl Role {
@@ -22,7 +28,7 @@ impl Role {
     pub fn rules(&self) -> (policy_rules: Option<Vec<PolicyRule>>)
         ensures
             self@.policy_rules is Some == policy_rules is Some,
-            policy_rules is Some ==> policy_rules->0@.map_values(|policy_rule: PolicyRule| policy_rule@) == self@.policy_rules->0
+            policy_rules is Some ==> policy_rules->0.deep_view() == self@.policy_rules->0
     {
         match &self.inner.rules {
             Some(p) => Some(p.into_iter().map(|item| PolicyRule::from_kube(item.clone())).collect()),
@@ -32,7 +38,7 @@ impl Role {
 
     #[verifier(external_body)]
     pub fn set_rules(&mut self, policy_rules: Vec<PolicyRule>)
-        ensures self@ == old(self)@.with_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
+        ensures self@ == old(self)@.with_rules(policy_rules.deep_view()),
     {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
@@ -40,28 +46,12 @@ impl Role {
     }
 }
 
-#[verifier(external_body)]
-pub struct PolicyRule {
-    inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule,
-}
-
 impl PolicyRule {
-    pub uninterp spec fn view(&self) -> PolicyRuleView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (policy_rule: PolicyRule)
-        ensures policy_rule@ == PolicyRuleView::default(),
-    {
-        PolicyRule {
-            inner: deps_hack::k8s_openapi::api::rbac::v1::PolicyRule::default(),
-        }
-    }
-
     #[verifier(external_body)]
     pub fn api_groups(&self) -> (api_groups: Option<Vec<String>>)
         ensures
             self@.api_groups is Some == api_groups is Some,
-            api_groups is Some ==> api_groups->0@.map_values(|api_group: String| api_group@) == self@.api_groups->0
+            api_groups is Some ==> api_groups->0.deep_view() == self@.api_groups->0
     {
         self.inner.api_groups.clone()
     }
@@ -70,7 +60,7 @@ impl PolicyRule {
     pub fn resources(&self) -> (resources: Option<Vec<String>>)
         ensures
             self@.resources is Some == resources is Some,
-            resources is Some ==> resources->0@.map_values(|resource: String| resource@) == self@.resources->0
+            resources is Some ==> resources->0.deep_view() == self@.resources->0
     {
         self.inner.resources.clone()
     }
@@ -78,28 +68,28 @@ impl PolicyRule {
     #[verifier(external_body)]
     pub fn verbs(&self) -> (verbs: Vec<String>)
         ensures
-            verbs@.map_values(|verb: String| verb@) == self@.verbs
+            verbs.deep_view() == self@.verbs
     {
         self.inner.verbs.clone()
     }
 
     #[verifier(external_body)]
     pub fn set_api_groups(&mut self, api_groups: Vec<String>)
-        ensures self@ == old(self)@.with_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
+        ensures self@ == old(self)@.with_api_groups(api_groups.deep_view()),
     {
         self.inner.api_groups = Some(api_groups)
     }
 
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: Vec<String>)
-        ensures self@ == old(self)@.with_resources(resources@.map_values(|resource: String| resource@)),
+        ensures self@ == old(self)@.with_resources(resources.deep_view()),
     {
         self.inner.resources = Some(resources)
     }
 
     #[verifier(external_body)]
     pub fn set_verbs(&mut self, verbs: Vec<String>)
-        ensures self@ == old(self)@.with_verbs(verbs@.map_values(|verb: String| verb@)),
+        ensures self@ == old(self)@.with_verbs(verbs.deep_view()),
     {
         self.inner.verbs = verbs
     }

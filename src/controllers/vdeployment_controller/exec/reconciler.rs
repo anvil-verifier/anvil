@@ -11,7 +11,7 @@ use crate::vdeployment_controller::trusted::{exec_types::*, step::*};
 use crate::vreplicaset_controller::trusted::{exec_types::*, spec_types::*};
 use crate::vstd_ext::{seq_lib::*, string_map::*, string_view::*};
 use deps_hack::tracing::{error, info};
-use vstd::{prelude::*, seq_lib::*, set::*, map::*};
+use vstd::{map::*, prelude::*, seq_lib::*, set::*};
 // for assert(objs.deep_view() == extract_some_k_list_resp_view!(resp_o.deep_view()).unwrap());
 use crate::reconciler::spec::io::*;
 
@@ -652,12 +652,12 @@ pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerRe
 requires
     vd@.well_formed(),
 ensures
-    owner_references@.map_values(|or: OwnerReference| or@) == model_reconciler::make_owner_references(vd@),
+    owner_references.deep_view() == model_reconciler::make_owner_references(vd@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(vd.controller_owner_ref());
     proof {
-        assert(owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@) =~= model_reconciler::make_owner_references(vd@));
+        assert(owner_references.deep_view() =~= model_reconciler::make_owner_references(vd@));
     }
     owner_references
 }
