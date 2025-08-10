@@ -4,24 +4,20 @@ use crate::kubernetes_api_objects::exec::{object_meta::*, resource::*};
 use crate::kubernetes_api_objects::spec::dynamic::*;
 use vstd::prelude::*;
 
-verus! {
-
 // DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
 // We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
 // for all kinds of Kubernetes resource objects without exhaustive pattern matching.
+
+verus! {
 
 #[verifier(external_body)]
 pub struct DynamicObject {
     inner: deps_hack::kube::api::DynamicObject,
 }
 
+implement_view_trait!(DynamicObject, DynamicObjectView);
 implement_deep_view_trait!(DynamicObject, DynamicObjectView);
-
-impl View for DynamicObject {
-    type V = DynamicObjectView;
-
-    uninterp spec fn view(&self) -> DynamicObjectView;
-}
+implement_clone_trait!(DynamicObject);
 
 impl DynamicObject {
     #[verifier(external)]
@@ -35,13 +31,6 @@ impl DynamicObject {
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
-}
-
-impl std::clone::Clone for DynamicObject {
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: Self)
-        ensures result == self
-    { DynamicObject { inner: self.inner.clone() } }
 }
 
 #[verifier(external)]

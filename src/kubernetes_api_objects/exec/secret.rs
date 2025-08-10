@@ -29,9 +29,7 @@ verus! {
 impl Secret {
     #[verifier(external_body)]
     pub fn data(&self) -> (data: Option<StringMap>)
-        ensures
-            self@.data is Some == data is Some,
-            data is Some ==> data->0@ == self@.data->0,
+        ensures self@.data == data.deep_view()
     {
         match &self.inner.data {
             Some(d) => {

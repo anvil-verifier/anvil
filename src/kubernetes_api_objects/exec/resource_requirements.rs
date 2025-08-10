@@ -5,32 +5,15 @@ use crate::kubernetes_api_objects::spec::resource_requirements::*;
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
+implement_field_wrapper_type!(
+    ResourceRequirements,
+    deps_hack::k8s_openapi::api::core::v1::ResourceRequirements,
+    ResourceRequirementsView
+);
+
 verus! {
 
-#[verifier(external_body)]
-pub struct ResourceRequirements {
-    inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements
-}
-
 impl ResourceRequirements {
-    pub uninterp spec fn view(&self) -> ResourceRequirementsView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (resource_requirements: ResourceRequirements)
-        ensures resource_requirements@ == ResourceRequirementsView::default(),
-    {
-        ResourceRequirements {
-            inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        ResourceRequirements { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_limits(&mut self, limits: StringMap)
         ensures self@ == old(self)@.with_limits(limits@),

@@ -23,9 +23,7 @@ verus! {
 impl OwnerReference {
     #[verifier(external_body)]
     pub fn controller(&self) -> (controller: Option<bool>)
-        ensures
-            self@.controller is Some == controller is Some,
-            controller is Some ==> controller->0 == self@.controller->0,
+        ensures self@.controller == controller.deep_view()
     {
         match &self.inner.controller {
             Some(c) => Some(*c),

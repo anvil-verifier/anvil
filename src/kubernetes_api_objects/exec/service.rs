@@ -41,9 +41,7 @@ verus! {
 impl Service {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<ServiceSpec>)
-        ensures
-            self@.spec is Some == spec is Some,
-            spec is Some ==> spec->0@ == self@.spec->0,
+        ensures self@.spec == spec.deep_view()
     {
         match &self.inner.spec {
             Some(s) => Some(ServiceSpec::from_kube(s.clone())),
@@ -69,9 +67,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn ports(&self) -> (ports: Option<Vec<ServicePort>>)
-        ensures
-            self@.ports is Some == ports is Some,
-            ports is Some ==> ports->0.deep_view() == self@.ports->0,
+        ensures self@.ports == ports.deep_view()
     {
         match &self.inner.ports {
             Some(p) => Some(p.into_iter().map(|port: &deps_hack::k8s_openapi::api::core::v1::ServicePort| ServicePort::from_kube(port.clone())).collect()),
@@ -88,9 +84,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn selector(&self) -> (selector: Option<StringMap>)
-        ensures
-            self@.selector is Some == selector is Some,
-            selector is Some ==> selector->0@ == self@.selector->0,
+        ensures self@.selector == selector.deep_view()
     {
         match &self.inner.selector {
             Some(s) => Some(StringMap::from_rust_map(s.clone())),
@@ -107,9 +101,7 @@ impl ServiceSpec {
 
     #[verifier(external_body)]
     pub fn publish_not_ready_addresses(&self) -> (publish_not_ready_addresses: Option<bool>)
-        ensures
-            self@.publish_not_ready_addresses is Some == publish_not_ready_addresses is Some,
-            publish_not_ready_addresses is Some ==> publish_not_ready_addresses->0 == self@.publish_not_ready_addresses->0,
+        ensures self@.publish_not_ready_addresses == publish_not_ready_addresses.deep_view()
     {
         self.inner.publish_not_ready_addresses.clone()
     }

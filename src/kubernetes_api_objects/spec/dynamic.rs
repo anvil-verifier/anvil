@@ -8,7 +8,6 @@ verus! {
 
 // DynamicObjectView is the ghost type of DynamicObject.
 
-
 pub struct DynamicObjectView {
     pub kind: Kind,
     pub metadata: ObjectMetaView,

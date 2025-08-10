@@ -22,6 +22,12 @@ implement_object_wrapper_type!(
     PersistentVolumeClaimView
 );
 
+implement_field_wrapper_type!(
+    PersistentVolumeClaimSpec,
+    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
+    PersistentVolumeClaimSpecView
+);
+
 verus! {
 
 impl PersistentVolumeClaim {
@@ -34,9 +40,7 @@ impl PersistentVolumeClaim {
 
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<PersistentVolumeClaimSpec>)
-        ensures
-            self@.spec is Some == spec is Some,
-            spec is Some ==> spec->0@ == self@.spec->0,
+        ensures self@.spec == spec.deep_view()
     {
         match &self.inner.spec {
             Some(s) => Some(PersistentVolumeClaimSpec::from_kube(s.clone())),
@@ -52,30 +56,7 @@ impl PersistentVolumeClaim {
     }
 }
 
-#[verifier(external_body)]
-pub struct PersistentVolumeClaimSpec {
-    inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
-}
-
 impl PersistentVolumeClaimSpec {
-    pub uninterp spec fn view(&self) -> PersistentVolumeClaimSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (pvc_spec: PersistentVolumeClaimSpec)
-        ensures pvc_spec@ == PersistentVolumeClaimSpecView::default(),
-    {
-        PersistentVolumeClaimSpec {
-            inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (pvc_spec: PersistentVolumeClaimSpec)
-        ensures pvc_spec@ == self@,
-    {
-        PersistentVolumeClaimSpec { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_access_modes(&mut self, access_modes: Vec<String>)
         ensures self@ == old(self)@.with_access_modes(access_modes.deep_view()),
@@ -97,7 +78,6 @@ impl PersistentVolumeClaimSpec {
         self.inner.storage_class_name = Some(storage_class_name);
     }
 }
-
 
 }
 
