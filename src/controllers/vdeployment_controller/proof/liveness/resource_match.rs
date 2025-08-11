@@ -10,7 +10,7 @@ use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, liveness::api_actions::*, helper_lemmas::*, helper_invariants::*},
+    proof::{predicate::*, liveness::api_actions::*, helper_lemmas::*, helper_invariants},
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -974,6 +974,8 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -1003,11 +1005,15 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
     let input = Some(req_msg);
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
+        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1024,6 +1030,48 @@ ensures
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
+                } else {
+                    let msg = input->0;
+                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
+                    // trigger
+                    assert(s.in_flight().contains(msg));
+                    assert(msg.src != HostId::Controller(controller_id, vd.object_ref())) by {
+                        if msg.src == HostId::Controller(controller_id, vd.object_ref()) {
+                            assert(Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg));
+                            assert(msg == req_msg);
+                            assert(false);
+                        }
+                    }
+                    // it's possible to lift the predicate saying the object we care about is not touched during the transition caused by other msg
+                    // as a direct result of the boundary predicates and rely conditions
+                    // it can be used in both coherent(s) -> coherent(s_prime) and pending_req_msg_is_X(s) -> pending_req_msg_is_X(s_prime)
+
+                    // etcd object is not touched by other msg
+                    let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
+                    assert(s.resources().contains_key(key));
+                    let etcd_obj = s.resources()[key];
+                    assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
+                    VReplicaSetView::marshal_preserves_integrity();
+                    assert(VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata == etcd_obj.metadata);
+                    // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
+                    assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
+                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, key, msg
+                    );
+                    assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
+                        == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
+                    assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
+                    assert(s_prime.in_flight().contains(req_msg));
+                    assert(req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s_prime)) by {
+                        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        assert(s_prime.resources().contains_key(request.key()));
+                        let etcd_obj = s_prime.resources()[request.key()];
+                        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                        assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
+                        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0 == Some(VReplicaSetView::unmarshal(etcd_obj)->Ok_0));
+                    }
                 }
             },
             _ => {}
@@ -1287,7 +1335,6 @@ ensures
             local_state_is_valid_and_coherent(vd, controller_id)
         )))),
 {
-    use crate::vdeployment_controller::proof::helper_invariants;
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n - nat1!()))]),
         req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, req_msg),
@@ -1303,18 +1350,15 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
-        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
-    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
         lifted_vd_rely_condition_action(cluster, controller_id),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
-        later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = Some(req_msg);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1509,7 +1553,6 @@ ensures
             current_state_matches(vd)
         )))),
 {
-    use crate::vdeployment_controller::proof::helper_invariants;
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
         no_pending_req_in_cluster(vd, controller_id),
