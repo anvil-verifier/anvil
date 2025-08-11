@@ -233,12 +233,23 @@ ensures
                                 }
                             }
                         },
+<<<<<<< HEAD
+=======
+                        APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
+>>>>>>> fe223b4 (prove lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd)
                         _ => {},
                     }
                 }
             },
+<<<<<<< HEAD
             _ => {},
         }
+=======
+            _ => {}, // somehow this branch is slow
+        }
+        assert(s_prime.resources().contains_key(key));
+        assert(s_prime.resources()[key] == etcd_obj);
+>>>>>>> fe223b4 (prove lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd)
     }
 }
 
