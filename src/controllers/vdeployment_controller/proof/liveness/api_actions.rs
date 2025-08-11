@@ -117,6 +117,9 @@ ensures
     local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {}
 
+// This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
+// the API request msg does not change or delete the object
+// as the direct result of rely condition and non-interference property.
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     key: ObjectRef, msg: Message
@@ -230,15 +233,12 @@ ensures
                                 }
                             }
                         },
-                        APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
                         _ => {},
                     }
                 }
             },
-            _ => {}, // somehow this branch is slow
+            _ => {},
         }
-        assert(s_prime.resources().contains_key(key));
-        assert(s_prime.resources()[key] == etcd_obj);
     }
 }
 
