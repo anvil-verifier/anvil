@@ -129,7 +129,7 @@ jobs:
       - name: Verify vreplicaset controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh vreplicaset_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vreplicaset_controller.rs --rlimit 50 --time --verify-module vreplicaset_controller
   vdeployment-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -147,7 +147,7 @@ jobs:
       - name: Verify vdeployment controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
   vstatefulset-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -165,7 +165,7 @@ jobs:
       - name: Verify vstatefulset controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh vstatefulset_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vstatefulset_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
   vreplicaset-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -183,7 +183,7 @@ jobs:
       - name: Verify vreplicaset admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh vreplicaset_admission_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vreplicaset_admission_controller.rs --rlimit 50 --time --verify-module vreplicaset_controller
   vstatefulset-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -201,7 +201,7 @@ jobs:
       - name: Verify vstatefulset admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh vstatefulset_admission_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vstatefulset_admission_controller.rs --rlimit 50 --time --verify-module vstatefulset_controller
   vdeployment-admission-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
@@ -219,7 +219,7 @@ jobs:
       - name: Verify vdeployment admission controller
         run: |
           . "$HOME/.cargo/env"
-          VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_admission_controller.rs --rlimit 50 --time
+          VERUS_DIR="${HOME}/verus" ./build.sh vdeployment_admission_controller.rs --rlimit 50 --time --verify-module vdeployment_controller
   framework-verification:
     needs: build-and-cache-verus
     runs-on: ubuntu-22.04
