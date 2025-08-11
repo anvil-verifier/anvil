@@ -203,6 +203,7 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         let key = request.key();
         let obj = s.resources()[key];
+        let etcd_vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(request.obj).unwrap();
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
@@ -219,9 +220,14 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         &&& valid_owned_object(req_vrs, vd)
         // etcd obj is owned by vd and should be protected by non-interference property
         &&& VReplicaSetView::unmarshal(obj) is Ok
-        &&& valid_owned_object(VReplicaSetView::unmarshal(obj).unwrap(), vd)
+        // unwrapped weaker version of vrs_eq_for_vd without spec as it's updated here
+        &&& etcd_vrs.metadata.namespace == req_vrs.metadata.namespace
+        &&& etcd_vrs.metadata.name == req_vrs.metadata.name
+        &&& etcd_vrs.metadata.labels == req_vrs.metadata.labels
+        &&& etcd_vrs.metadata.owner_references == req_vrs.metadata.owner_references
         // step-specific update content
-        &&& req_vrs.metadata.owner_references_contains(vd.controller_owner_ref())
+        &&& req_vrs.metadata.owner_references is Some
+        &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
         &&& req_vrs.spec.replicas == Some(int0!())
         &&& key == state.old_vrs_list[state.old_vrs_index as int].object_ref()
