@@ -739,7 +739,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
