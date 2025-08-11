@@ -1047,7 +1047,6 @@ ensures
 }
 
 // same as lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs
-#[verifier(external_body)]
 pub proof fn lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -1073,7 +1072,7 @@ ensures
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
-        resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg),
+        resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg),
         etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), n),
         local_state_is_valid_and_coherent(vd, controller_id)
     );
