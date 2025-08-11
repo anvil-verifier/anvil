@@ -820,7 +820,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 // need a step from exists to instantitated resp
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
