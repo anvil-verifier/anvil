@@ -125,8 +125,12 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()
     &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj) is Ok
-    &&& forall |obj| resp_objs.contains(obj) ==> #[trigger] VReplicaSetView::unmarshal(obj)->Ok_0.metadata.namespace == vd.metadata.namespace
+    &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> VReplicaSetView::unmarshal(obj) is Ok
+    &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
+        &&& obj.metadata.namespace == vd.metadata.namespace
+        &&& obj.metadata.owner_references is Some
+        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+    }
 }
 
 pub open spec fn req_msg_is_create_vrs_req(

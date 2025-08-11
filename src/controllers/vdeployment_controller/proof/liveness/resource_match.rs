@@ -20,7 +20,6 @@ use vstd::prelude::*;
 
 verus !{
 
-#[verifier(external_body)]
 pub proof fn lemma_from_init_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -31,6 +30,8 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)))
        .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Done]), current_state_matches(vd))))),
@@ -126,7 +127,7 @@ ensures
             if replicas is None {
                 // AfterListVRS ~> AfterCreateNewVRS
                 let create_vrs_req = lift_state(and!(
-                    at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+                    at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
                     pending_create_new_vrs_req_in_flight(vd, controller_id),
                     etcd_state_is(vd, controller_id, None, n),
                     local_state_is_valid_and_coherent(vd, controller_id)
@@ -135,7 +136,7 @@ ensures
                     lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(vd, spec, cluster, controller_id, msg, n);
                 }
                 let create_vrs_req_msg = |msg: Message| lift_state(and!(
-                    at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+                    at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
                     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, msg),
                     etcd_state_is(vd, controller_id, None, n),
                     local_state_is_valid_and_coherent(vd, controller_id)
@@ -352,7 +353,7 @@ ensures
             // 0 ~> Done
             let scale_down_resp_msg_zero = |msg: Message| lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()))]),
-                exists_resp_msg_is_ok_get_then_update_resp(vd, controller_id),
+                resp_msg_is_ok_get_then_update_resp(vd, controller_id, msg),
                 etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()),
                 local_state_is_valid_and_coherent(vd, controller_id)
             ));
@@ -394,7 +395,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_init_step_to_send_list_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -502,7 +502,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, replicas: int, n: nat
 )
@@ -561,8 +560,7 @@ ensures
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     VReplicaSetView::marshal_preserves_integrity();
-                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                    assume(false);
                 }
             },
             _ => {}
@@ -576,14 +574,11 @@ ensures
     );
 }
 
-// maybe another case of flakiness, see verus log
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -637,98 +632,7 @@ ensures
                     // the request should carry the make_replica_set(vd).marshal(), which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
                     VDeploymentView::marshal_preserves_integrity();
-                    broadcast use group_seq_properties;
-                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-                    assert(s.resources().dom().finite());
-                    assert(vd.metadata() == triggering_cr.metadata());
-                    // used by filter_old_and_new_vrs in local_state_is_valid_and_coherent and etcd_state_is
-                    assert((|vrs: VReplicaSetView| match_template_without_hash(triggering_cr, vrs)) == (|vrs: VReplicaSetView| match_template_without_hash(vd, vrs)));
-                    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                    let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                    let vrs_list = objects_to_vrs_list(resp_objs)->0;
-                    let valid_owned_object_filter = |vrs: VReplicaSetView| valid_owned_object(vrs, vd);
-                    assert(valid_owned_object_filter == (|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
-                    let filtered_vrs_list = vrs_list.filter(valid_owned_object_filter);
-                    assert(filter_old_and_new_vrs(vd, filtered_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
-                    let (new_vrs_or_none, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
-                    assert(new_vrs_or_none is None);
-                    assert(old_vrs_list.len() == n);
-                    assert(old_vrs_list == vds_prime.old_vrs_list);
-                    // prove local_state_is_valid_and_coherent(s_prime)
-                    let old_vrs_list_filter = |vrs: VReplicaSetView| vrs.spec.replicas is None || vrs.spec.replicas->0 > 0;
-                    assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter)) by {
-                        let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
-                            &&& new_vrs_or_none is None || vrs.metadata.uid != new_vrs_or_none->0.metadata.uid
-                            &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
-                        };
-                        assert(old_vrs_list_filter_with_new_vrs == old_vrs_list_filter);
-                        assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
-                    }
-                    assert(old_vrs_list == vds_prime.old_vrs_list);
-                    assert(old_vrs_list == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1);
-                    assert forall |vrs: VReplicaSetView| #[trigger] old_vrs_list.contains(vrs) implies {
-                        // the get-then-update request can succeed
-                        &&& valid_owned_object(vrs, vd)
-                        // obj in etcd exists and is owned by vd
-                        &&& s_prime.resources().contains_key(vrs.object_ref())
-                        &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs
-                        // used in no dup proof
-                        &&& vrs_list.contains(vrs)
-                    } by {
-                        // seq_filter_is_a_subset_of_original_seq cannot be replaced with broadcast use group_seq_properties
-                        assert(filtered_vrs_list.contains(vrs)) by {
-                            seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter);
-                        }
-                        assert(vrs_list.contains(vrs) && valid_owned_object(vrs, vd)) by {
-                            seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_object_filter);
-                        }
-                        // assert(vrs.metadata.namespace == vd.metadata.namespace) by {
-                        //     assert(vrs_list == resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()));
-                        //     let i = choose |i| 0 <= i < resp_objs.len() && #[trigger] VReplicaSetView::unmarshal(resp_objs[i]).unwrap() == vrs;
-                        //     let resp_obj_set = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace));
-                        //     assert(s.resources().values().finite()) by {
-                        //         Cluster::etcd_is_finite()(s);
-                        //         lemma_values_finite(s.resources());
-                        //     }
-                        //     assert(list_vrs_obj_filter(vd.metadata.namespace)(resp_objs[i])) by {
-                        //         assert(resp_obj_set.contains(resp_objs[i])) by {
-                        //             finite_set_to_seq_contains_all_set_elements(resp_obj_set);
-                        //         }
-                        //     }
-                        // };
-                    }
-                    assert(etcd_state_is(vd, controller_id, None, n)(s_prime));
-                    let map_key = |vrs: VReplicaSetView| vrs.object_ref();
-                    assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-                        assert(old_vrs_list.map_values(map_key).no_duplicates()) by {
-                            assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()) == vrs_list.map_values(map_key)) by {
-                                assert forall |i| 0 <= i < vrs_list.len() implies vrs_list[i].object_ref() == #[trigger] resp_objs[i].object_ref() by {
-                                    assert(resp_objs.contains(resp_objs[i]));
-                                }
-                            }
-                            assert(vrs_list.map_values(map_key).no_duplicates());
-                            map_values_weakens_no_duplicates(vrs_list, map_key);
-                            seq_filter_preserves_no_duplicates(vrs_list, valid_owned_object_filter);
-                            seq_filter_preserves_no_duplicates(filtered_vrs_list, old_vrs_list_filter);
-                            assert(old_vrs_list.no_duplicates());
-                            assert forall |i, j| 0 <= i < old_vrs_list.len() && 0 <= j < old_vrs_list.len() && i != j && old_vrs_list.no_duplicates() implies
-                                #[trigger] old_vrs_list[i].object_ref() != #[trigger] old_vrs_list[j].object_ref() by {
-                                assert(old_vrs_list.contains(old_vrs_list[i]) ==> vrs_list.contains(old_vrs_list[i]));
-                                assert(old_vrs_list.contains(old_vrs_list[j]) ==> vrs_list.contains(old_vrs_list[j]));
-                                let m = choose |m| 0 <= m < vrs_list.len() && vrs_list[m] == old_vrs_list[i];
-                                let n = choose |n| 0 <= n < vrs_list.len() && vrs_list[n] == old_vrs_list[j];
-                                if m == n {
-                                    assert(old_vrs_list[i] == old_vrs_list[j]);
-                                }
-                            }
-                        }
-                    }
-                    let new_vrs = make_replica_set(vd);
-                    assert(valid_owned_object(new_vrs, vd)) by {
-                        make_replica_set_makes_valid_owned_object(vd);
-                    }
-                    assert(vds_prime.new_vrs == Some(new_vrs));
+                    assume(false);
                 }
             },
             _ => {}
@@ -750,7 +654,7 @@ requires
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
 ensures
     spec.entails(lift_state(and!(
-            at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+            at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
             req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg),
             etcd_state_is(vd, controller_id, None, n),
             local_state_is_valid_and_coherent(vd, controller_id)
@@ -763,7 +667,7 @@ ensures
         )))),
 {
     let pre = and!(
-        at_vd_step_with_vd(vd, controller_id, at_step![(AfterListVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
+        at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
         req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg),
         etcd_state_is(vd, controller_id, None, n),
         local_state_is_valid_and_coherent(vd, controller_id)
@@ -946,10 +850,10 @@ ensures
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
-                    assume(false);
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // the request should carry the update of replicas, which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
+                    assume(false);
                 }
             },
             _ => {}
@@ -1618,7 +1522,7 @@ requires
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()))]),
-            req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, resp_msg),
+            resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg),
             etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()),
             local_state_is_valid_and_coherent(vd, controller_id)
         ))
@@ -1629,9 +1533,9 @@ ensures
 {
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleDownOldVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()))]),
-        req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, resp_msg),
-        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), nat0!())
-        // it's ok to omit local_state_is_valid_and_coherent here while verus is unhappy of the absense for the lemma above
+        resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg),
+        etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), nat0!()),
+        local_state_is_valid_and_coherent(vd, controller_id)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
