@@ -26,6 +26,18 @@ implement_object_wrapper_type!(
     DaemonSetView
 );
 
+implement_field_wrapper_type!(
+    DaemonSetSpec,
+    deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec,
+    DaemonSetSpecView
+);
+
+implement_field_wrapper_type!(
+    DaemonSetStatus,
+    deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus,
+    DaemonSetStatusView
+);
+
 verus! {
 
 impl DaemonSet {
@@ -46,28 +58,7 @@ impl DaemonSet {
     }
 }
 
-#[verifier(external_body)]
-pub struct DaemonSetSpec {
-    inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec,
-}
-
 impl DaemonSetSpec {
-    pub uninterp spec fn view(&self) -> DaemonSetSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (daemon_set_spec: DaemonSetSpec)
-        ensures daemon_set_spec@ == DaemonSetSpecView::default(),
-    {
-        DaemonSetSpec { inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        DaemonSetSpec { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: LabelSelector)
         ensures self@ == old(self)@.with_selector(selector@),
@@ -97,14 +88,7 @@ impl DaemonSetSpec {
     }
 }
 
-#[verifier(external_body)]
-pub struct DaemonSetStatus {
-    inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus,
-}
-
 impl DaemonSetStatus {
-    pub uninterp spec fn view(&self) -> DaemonSetStatusView;
-
     #[verifier(external_body)]
     pub fn number_ready(&self) -> (number_ready: i32)
         ensures self@.number_ready == number_ready as int,

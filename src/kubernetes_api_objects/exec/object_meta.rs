@@ -16,30 +16,13 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/.
 
-#[verifier(external_body)]
-pub struct ObjectMeta {
-    inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
-}
+implement_field_wrapper_type!(
+    ObjectMeta,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
+    ObjectMetaView
+);
 
 impl ObjectMeta {
-    pub uninterp spec fn view(&self) -> ObjectMetaView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (object_meta: ObjectMeta)
-        ensures object_meta@ == ObjectMetaView::default(),
-    {
-        ObjectMeta {
-            inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        ObjectMeta { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures self@.name == name.deep_view()

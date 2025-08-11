@@ -16,15 +16,13 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors.
 
-#[verifier(external_body)]
-pub struct LabelSelector {
-    inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
-}
+implement_field_wrapper_type!(
+    LabelSelector,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+    LabelSelectorView
+);
 
 impl LabelSelector {
-
-    pub uninterp spec fn view(&self) -> LabelSelectorView;
-
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
         ensures b == (self.view() == other.view())
@@ -33,26 +31,10 @@ impl LabelSelector {
     }
 
     #[verifier(external_body)]
-    pub fn default() -> (label_selector: LabelSelector)
-        ensures label_selector@ == LabelSelectorView::default(),
-    {
-        LabelSelector {
-            inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (label_selector: LabelSelector)
-        ensures label_selector@ == self@,
-    {
-        LabelSelector { inner: self.inner.clone() }
-    }
-
-    #[verifier(external_body)]
     pub fn match_labels(&self) -> (match_labels: Option<StringMap>)
         ensures
-            self@.match_labels is Some == match_labels is Some,
-            match_labels is Some ==> match_labels->0@ == self@.match_labels->0 && match_labels->0@.dom().finite(),
+            self@.match_labels == match_labels.deep_view(),
+            match_labels is Some ==> match_labels->0@.dom().finite(),
     {
         match &self.inner.match_labels {
             Some(ml) => Some(StringMap::from_rust_map(ml.clone())),
