@@ -8,6 +8,8 @@ use crate::kubernetes_api_objects::spec::{resource::*, secret::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
+verus! {
+
 // Secret is a type of API object used to store confidential data in key-value pairs.
 // A Secret object can be used to set environment variables or configuration files
 // in a Volume mounted to a Pod.
@@ -23,8 +25,6 @@ implement_object_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::Secret,
     SecretView
 );
-
-verus! {
 
 impl Secret {
     #[verifier(external_body)]

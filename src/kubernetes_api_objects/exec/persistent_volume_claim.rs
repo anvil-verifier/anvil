@@ -7,6 +7,8 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, resource::*};
 use vstd::prelude::*;
 
+verus! {
+
 // PersistentVolumeClaim is a type of API object representing a request for storage (typically used by a Pod).
 // PersistentVolumeClaim objects are often defined in StatefulSet objects as the Volumes mounted to the Pods.
 //
@@ -27,8 +29,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
     PersistentVolumeClaimSpecView
 );
-
-verus! {
 
 impl PersistentVolumeClaim {
     #[verifier(external_body)]

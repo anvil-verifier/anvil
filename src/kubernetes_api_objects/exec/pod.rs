@@ -9,6 +9,8 @@ use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
+verus! {
+
 // Pod is a type of API object used for grouping one or more containers that share storage and network resources.
 // This is the smallest deployable unit in Kubernetes.
 //
@@ -40,8 +42,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
     LocalObjectReferenceView
 );
-
-verus! {
 
 impl Pod {
     #[verifier(external_body)]

@@ -5,6 +5,8 @@ use crate::kubernetes_api_objects::spec::container::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
+verus! {
+
 implement_field_wrapper_type!(
     Container,
     deps_hack::k8s_openapi::api::core::v1::Container,
@@ -70,8 +72,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::SecurityContext,
     SecurityContextView
 );
-
-verus! {
 
 impl Container {
     #[verifier(external_body)]

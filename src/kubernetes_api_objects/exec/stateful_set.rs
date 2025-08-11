@@ -8,6 +8,8 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{resource::*, stateful_set::*};
 use vstd::prelude::*;
 
+verus! {
+
 // StatefulSet is a type of API object used for managing stateful applications,
 // mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
 // A StatefulSet object allows different types of Volumes attached to the pods,
@@ -43,8 +45,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
     StatefulSetPersistentVolumeClaimRetentionPolicyView
 );
-
-verus! {
 
 impl StatefulSet {
     #[verifier(external_body)]

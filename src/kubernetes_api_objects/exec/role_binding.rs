@@ -7,6 +7,8 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{resource::*, role_binding::*};
 use vstd::prelude::*;
 
+verus! {
+
 // This definition is a wrapper of RoleBinding defined at
 // https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role_binding.rs.
 // It is supposed to be used in exec controller code.
@@ -30,8 +32,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::rbac::v1::Subject,
     SubjectView
 );
-
-verus! {
 
 impl RoleBinding {
     #[verifier(external_body)]

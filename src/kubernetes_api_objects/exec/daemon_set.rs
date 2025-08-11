@@ -8,6 +8,8 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{daemon_set::*, resource::*};
 use vstd::prelude::*;
 
+verus! {
+
 // DaemonSet is a type of API object used for managing daemon applications,
 // mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
 // A DaemonSet object allows different types of Volumes attached to the pods,
@@ -37,8 +39,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus,
     DaemonSetStatusView
 );
-
-verus! {
 
 impl DaemonSet {
     #[verifier(external_body)]

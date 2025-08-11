@@ -8,6 +8,8 @@ use crate::kubernetes_api_objects::spec::{resource::*, service::*};
 use crate::vstd_ext::string_map::StringMap;
 use vstd::prelude::*;
 
+verus! {
+
 // Service is a type of API object used for exposing a network application
 // that is running as one or more Pods in your cluster.
 // A Service object can be used to assign stable IP addresses and DNS names to pods.
@@ -35,8 +37,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::ServicePort,
     ServicePortView
 );
-
-verus! {
 
 impl Service {
     #[verifier(external_body)]

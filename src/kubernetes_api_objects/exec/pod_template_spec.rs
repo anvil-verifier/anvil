@@ -6,14 +6,13 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
-pub struct PodTemplateSpec {
-    inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec,
-}
+implement_field_wrapper_type!(
+    PodTemplateSpec,
+    deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec,
+    PodTemplateSpecView
+);
 
 impl PodTemplateSpec {
-    pub uninterp spec fn view(&self) -> PodTemplateSpecView;
-
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
         ensures b == (self.view() == other.view())
@@ -22,26 +21,8 @@ impl PodTemplateSpec {
     }
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_template_spec: PodTemplateSpec)
-        ensures pod_template_spec@ == PodTemplateSpecView::default(),
-    {
-        PodTemplateSpec {
-            inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (pod_template_spec: PodTemplateSpec)
-        ensures pod_template_spec@ == self@,
-    {
-        PodTemplateSpec { inner: self.inner.clone() }
-    }
-
-    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: Option<ObjectMeta>)
-        ensures
-            self@.metadata is Some == metadata is Some,
-            metadata is Some ==> metadata->0@ == self@.metadata->0,
+        ensures self@.metadata == metadata.deep_view()
     {
         match &self.inner.metadata {
             Some(m) => Some(ObjectMeta::from_kube(m.clone())),
@@ -51,9 +32,7 @@ impl PodTemplateSpec {
 
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<PodSpec>)
-        ensures
-            self@.spec is Some == spec is Some,
-            spec is Some ==> spec->0@ == self@.spec->0,
+        ensures self@.spec == spec.deep_view()
     {
         match &self.inner.spec {
             Some(s) => Some(PodSpec::from_kube(s.clone())),

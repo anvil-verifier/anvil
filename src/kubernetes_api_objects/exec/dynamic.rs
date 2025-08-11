@@ -4,11 +4,11 @@ use crate::kubernetes_api_objects::exec::{object_meta::*, resource::*};
 use crate::kubernetes_api_objects::spec::dynamic::*;
 use vstd::prelude::*;
 
+verus! {
+
 // DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
 // We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
 // for all kinds of Kubernetes resource objects without exhaustive pattern matching.
-
-verus! {
 
 #[verifier(external_body)]
 pub struct DynamicObject {

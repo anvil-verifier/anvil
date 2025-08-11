@@ -4,13 +4,13 @@ use crate::kubernetes_api_objects::exec::{object_meta::*, resource::*};
 use crate::kubernetes_api_objects::spec::preconditions::*;
 use vstd::prelude::*;
 
+verus! {
+
 implement_field_wrapper_type!(
     Preconditions,
     deps_hack::kube::api::Preconditions,
     PreconditionsView
 );
-
-verus! {
 
 impl Preconditions {
     #[verifier(external_body)]

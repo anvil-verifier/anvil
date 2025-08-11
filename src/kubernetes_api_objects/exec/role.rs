@@ -7,6 +7,8 @@ use crate::kubernetes_api_objects::exec::{
 use crate::kubernetes_api_objects::spec::{resource::*, role::*};
 use vstd::prelude::*;
 
+verus! {
+
 // This definition is a wrapper of Role defined at
 // https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role.rs.
 // It is supposed to be used in exec controller code.
@@ -20,8 +22,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::rbac::v1::PolicyRule,
     PolicyRuleView
 );
-
-verus! {
 
 impl Role {
     #[verifier(external_body)]

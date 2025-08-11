@@ -4,6 +4,8 @@ use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::owner_reference::*;
 use vstd::prelude::*;
 
+verus! {
+
 // OwnerReference contains enough information to let you identify an owning object.
 // An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
 //
@@ -17,8 +19,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference,
     OwnerReferenceView
 );
-
-verus! {
 
 impl OwnerReference {
     #[verifier(external_body)]

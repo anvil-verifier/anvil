@@ -4,6 +4,8 @@ use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::volume::*;
 use vstd::prelude::*;
 
+verus! {
+
 implement_field_wrapper_type!(
     Volume,
     deps_hack::k8s_openapi::api::core::v1::Volume,
@@ -81,8 +83,6 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector,
     ObjectFieldSelectorView
 );
-
-verus! {
 
 impl Volume {
     #[verifier(external_body)]

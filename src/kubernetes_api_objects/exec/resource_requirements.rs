@@ -5,13 +5,13 @@ use crate::kubernetes_api_objects::spec::resource_requirements::*;
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
+verus! {
+
 implement_field_wrapper_type!(
     ResourceRequirements,
     deps_hack::k8s_openapi::api::core::v1::ResourceRequirements,
     ResourceRequirementsView
 );
-
-verus! {
 
 impl ResourceRequirements {
     #[verifier(external_body)]
