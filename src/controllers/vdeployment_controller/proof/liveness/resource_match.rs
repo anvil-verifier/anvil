@@ -693,6 +693,7 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
+                let msg = input->0;
                 if msg == req_msg {
                     let resp_msg = lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
                         s, s_prime, vd, cluster, controller_id, msg, n
@@ -702,6 +703,11 @@ ensures
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
+                } else {
+                    let msg = input->0;
+                    lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
                 }
             },
             _ => {}
@@ -723,7 +729,7 @@ ensures
     );
 }
 
-// need a step from exists to instantitated resp
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
