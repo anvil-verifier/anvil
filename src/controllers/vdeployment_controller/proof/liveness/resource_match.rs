@@ -965,7 +965,6 @@ ensures
     );
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, replicas: int, n: nat
 )
@@ -1352,91 +1351,14 @@ ensures
                     let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
                     assert(s.resources().contains_key(key));
                     let etcd_obj = s.resources()[key];
+                    assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
                     VReplicaSetView::marshal_preserves_integrity();
                     assert(VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata == etcd_obj.metadata);
-                    // rule out cases etcd_obj get deleted with rely_delete and handle_delete_eq checks
+                    // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
                     assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
-                    if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
-                        match msg.src {
-                            HostId::Controller(id, cr_key) => {
-                                if id == controller_id {
-                                    if cr_key != vd.object_ref() {
-                                        // same controller, other vd
-                                        // every_msg_from_vd_controller_carries_vd_key
-                                        let cr_key = msg.src.get_Controller_1();
-                                        let other_vd = VDeploymentView {
-                                            metadata: ObjectMetaView {
-                                                name: Some(cr_key.name),
-                                                namespace: Some(cr_key.namespace),
-                                                ..make_vd().metadata
-                                            },
-                                            ..make_vd()
-                                        };
-                                        // so msg can only be list, create or get_then_update
-                                        assert(helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, other_vd)(s));
-                                        match msg.content.get_APIRequest_0() {
-                                            APIRequest::DeleteRequest(req) => assert(false), // vd controller doesn't send delete req
-                                            APIRequest::GetThenDeleteRequest(req) => assert(false),
-                                            APIRequest::GetThenUpdateRequest(req) => {
-                                                assert(no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s));
-                                                assert(vd_reconcile_get_then_update_request_only_interferes_with_itself(req, other_vd)(s));
-                                                // controller_owner_ref does not carry namespace, while object_ref does
-                                                // so object_ref != is not enough to prove controller_owner_ref !=
-                                                if cr_key.namespace == vd.metadata.namespace->0 {
-                                                    assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                        if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                            assert(req.owner_ref != vd.controller_owner_ref());
-                                                            assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                        }
-                                                    }
-                                                } // or else, namespace is different, so should not be touched at all
-                                            },
-                                            _ => {},
-                                        }
-                                        VDeploymentReconcileState::marshal_preserves_integrity();
-                                    }
-                                } else {
-                                    let other_id = msg.src.get_Controller_0();
-                                    // by every_in_flight_req_msg_from_controller_has_valid_controller_id, used by vd_rely
-                                    assert(cluster.controller_models.contains_key(other_id));
-                                    assert(vd_rely(other_id)(s)); // trigger vd_rely_condition
-                                    VDeploymentReconcileState::marshal_preserves_integrity();
-                                    match msg.content.get_APIRequest_0() {
-                                        APIRequest::DeleteRequest(req) => {},
-                                        APIRequest::GetThenDeleteRequest(req) => {
-                                            if req.key.kind == VReplicaSetView::kind() {
-                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        APIRequest::GetThenUpdateRequest(req) => {
-                                            if req.obj.kind == VReplicaSetView::kind() {
-                                                // rely condition
-                                                assert({
-                                                    &&& req.owner_ref.controller is Some
-                                                    &&& req.owner_ref.controller->0
-                                                    &&& req.owner_ref.kind != VDeploymentView::kind()
-                                                });
-                                                assert(!etcd_obj.metadata.owner_references_contains(req.owner_ref)) by {
-                                                    if etcd_obj.metadata.owner_references_contains(req.owner_ref) {
-                                                        assert(req.owner_ref != vd.controller_owner_ref());
-                                                        assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        APIRequest::UpdateRequest(req) => {}, // vd controller doesn't send update req
-                                        _ => {},
-                                    }
-                                }
-                            },
-                            _ => {}, // somehow this branch is slow
-                        }
-                    }
+                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, key, msg
+                    );
                     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
                         == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
                     assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
