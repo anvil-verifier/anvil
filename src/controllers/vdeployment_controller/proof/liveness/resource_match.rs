@@ -892,7 +892,7 @@ ensures
     );
 }
 
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, replicas: int, n: nat
 )
@@ -919,8 +919,7 @@ ensures
     let pre = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg),
-        etcd_state_is(vd, controller_id, Some(replicas), n),
-        local_state_is_valid_and_coherent(vd, controller_id)
+        etcd_state_is(vd, controller_id, Some(replicas), n)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterScaleNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -949,6 +948,7 @@ ensures
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
+                    assume(false);
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     // the request should carry the update of replicas, which requires reasoning over unmarshalling vrs
                     VReplicaSetView::marshal_preserves_integrity();
