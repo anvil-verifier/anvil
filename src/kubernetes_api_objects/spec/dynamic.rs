@@ -86,8 +86,4 @@ impl DynamicObjectView {
     }
 }
 
-// This data type represents the entire cluster state that consists of
-// many different objects in the form of DynamicObjectView
-pub type StoredState = Map<ObjectRef, DynamicObjectView>;
-
 }
