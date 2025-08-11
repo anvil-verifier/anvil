@@ -16,44 +16,23 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/.
 
-#[verifier(external_body)]
-pub struct ObjectMeta {
-    inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
-}
+implement_field_wrapper_type!(
+    ObjectMeta,
+    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
+    ObjectMetaView
+);
 
 impl ObjectMeta {
-    pub uninterp spec fn view(&self) -> ObjectMetaView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (object_meta: ObjectMeta)
-        ensures object_meta@ == ObjectMetaView::default(),
-    {
-        ObjectMeta {
-            inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        ObjectMeta { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
-        ensures
-            self@.name is Some == name is Some,
-            name is Some ==> name->0@ == self@.name->0,
+        ensures self@.name == name.deep_view()
     {
         self.inner.name.clone()
     }
 
     #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
-        ensures
-            self@.namespace is Some == namespace is Some,
-            namespace is Some ==> namespace->0@ == self@.namespace->0,
+        ensures self@.namespace == namespace.deep_view()
     {
         self.inner.namespace.clone()
     }
@@ -67,9 +46,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn generate_name(&self) -> (generate_name: Option<String>)
-        ensures
-            self@.generate_name is Some == generate_name is Some,
-            generate_name is Some ==> generate_name->0@ == self@.generate_name->0,
+        ensures self@.generate_name == generate_name.deep_view()
     {
         self.inner.generate_name.clone()
     }
@@ -77,8 +54,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn labels(&self) -> (labels: Option<StringMap>)
         ensures
-            self@.labels is Some == labels is Some,
-            labels is Some ==> labels->0@ == self@.labels->0 && labels->0@.dom().finite(),
+            self@.labels == labels.deep_view(),
+            labels is Some ==> labels->0@.dom().finite(),
     {
         match &self.inner.labels {
             Some(l) => Some(StringMap::from_rust_map(l.clone())),
@@ -89,8 +66,8 @@ impl ObjectMeta {
     #[verifier(external_body)]
     pub fn annotations(&self) -> (annotations: Option<StringMap>)
         ensures
-            self@.annotations is Some == annotations is Some,
-            annotations is Some ==> annotations->0@ == self@.annotations->0 && annotations->0@.dom().finite(),
+            self@.annotations == annotations.deep_view(),
+            annotations is Some ==> annotations->0@.dom().finite(),
     {
         match &self.inner.annotations {
             Some(a) => Some(StringMap::from_rust_map(a.clone())),
@@ -100,18 +77,14 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn finalizers(&self) -> (finalizers: Option<Vec<String>>)
-        ensures
-            self@.finalizers is Some == finalizers is Some,
-            finalizers is Some ==> finalizers->0@.map_values(|s: String| s@) == self@.finalizers->0,
+        ensures self@.finalizers == finalizers.deep_view()
     {
         self.inner.finalizers.clone()
     }
 
     #[verifier(external_body)]
     pub fn owner_references(&self) -> (owner_references: Option<Vec<OwnerReference>>)
-        ensures
-            self@.owner_references is Some == owner_references is Some,
-            owner_references is Some ==> owner_references->0@.map_values(|o: OwnerReference| o@) == self@.owner_references->0,
+        ensures self@.owner_references == owner_references.deep_view()
     {
         match &self.inner.owner_references {
             Some(o) => Some(o.into_iter().map(|item| OwnerReference::from_kube(item.clone())).collect()),
@@ -140,18 +113,17 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn resource_version(&self) -> (version: Option<String>)
+    pub fn resource_version(&self) -> (resource_version: Option<String>)
         ensures
-            self@.resource_version is Some == version is Some,
-            version is Some ==> version->0@ == int_to_string_view(self@.resource_version->0),
+            self@.resource_version is Some == resource_version is Some,
+            resource_version is Some ==> resource_version->0@ == int_to_string_view(self@.resource_version->0),
     {
         self.inner.resource_version.clone()
     }
 
     #[verifier(external_body)]
     pub fn has_some_resource_version(&self) -> (b: bool)
-        ensures
-            self@.resource_version is Some == b,
+        ensures self@.resource_version is Some == b
     {
         self.inner.resource_version.is_some()
     }
@@ -171,8 +143,7 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn has_some_uid(&self) -> (b: bool)
-        ensures
-            self@.uid is Some == b,
+        ensures self@.uid is Some == b,
     {
         self.inner.uid.is_some()
     }
@@ -274,14 +245,14 @@ impl ObjectMeta {
 
     #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
-        ensures self@ == old(self)@.with_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
+        ensures self@ == old(self)@.with_owner_references(owner_references.deep_view()),
     {
         self.inner.owner_references = Some(owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect());
     }
 
     #[verifier(external_body)]
     pub fn set_finalizers(&mut self, finalizers: Vec<String>)
-        ensures self@ == old(self)@.with_finalizers(finalizers@.map_values(|s: String| s@)),
+        ensures self@ == old(self)@.with_finalizers(finalizers.deep_view()),
     {
         self.inner.finalizers = Some(finalizers);
     }

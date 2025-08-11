@@ -8,7 +8,6 @@ verus! {
 
 // DynamicObjectView is the ghost type of DynamicObject.
 
-
 pub struct DynamicObjectView {
     pub kind: Kind,
     pub metadata: ObjectMetaView,
@@ -86,9 +85,5 @@ impl DynamicObjectView {
         }
     }
 }
-
-// This data type represents the entire cluster state that consists of
-// many different objects in the form of DynamicObjectView
-pub type StoredState = Map<ObjectRef, DynamicObjectView>;
 
 }

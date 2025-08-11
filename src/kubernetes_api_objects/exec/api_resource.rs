@@ -17,10 +17,8 @@ pub struct ApiResource {
     inner: deps_hack::kube::api::ApiResource,
 }
 
-impl ApiResource {
-    pub uninterp spec fn view(&self) -> ApiResourceView;
-}
-
-}
-
+implement_view_trait!(ApiResource, ApiResourceView);
+implement_deep_view_trait!(ApiResource, ApiResourceView);
 implement_resource_wrapper_trait!(ApiResource, deps_hack::kube::api::ApiResource);
+
+}

@@ -9,6 +9,8 @@ use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
+verus! {
+
 // Pod is a type of API object used for grouping one or more containers that share storage and network resources.
 // This is the smallest deployable unit in Kubernetes.
 //
@@ -29,7 +31,17 @@ implement_field_wrapper_type!(
     PodSpecView
 );
 
-verus! {
+implement_field_wrapper_type!(
+    PodSecurityContext,
+    deps_hack::k8s_openapi::api::core::v1::PodSecurityContext,
+    PodSecurityContextView
+);
+
+implement_field_wrapper_type!(
+    LocalObjectReference,
+    deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
+    LocalObjectReferenceView
+);
 
 impl Pod {
     #[verifier(external_body)]
@@ -60,21 +72,21 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_containers(&mut self, containers: Vec<Container>)
-        ensures self@ == old(self)@.with_containers(containers@.map_values(|container: Container| container@)),
+        ensures self@ == old(self)@.with_containers(containers.deep_view()),
     {
         self.inner.containers = containers.into_iter().map(|container: Container| container.into_kube()).collect()
     }
 
     #[verifier(external_body)]
     pub fn set_volumes(&mut self, volumes: Vec<Volume>)
-        ensures self@ == old(self)@.with_volumes(volumes@.map_values(|vol: Volume| vol@)),
+        ensures self@ == old(self)@.with_volumes(volumes.deep_view()),
     {
         self.inner.volumes = Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
     }
 
     #[verifier(external_body)]
     pub fn set_init_containers(&mut self, init_containers: Vec<Container>)
-        ensures self@ == old(self)@.with_init_containers(init_containers@.map_values(|container: Container| container@)),
+        ensures self@ == old(self)@.with_init_containers(init_containers.deep_view()),
     {
         self.inner.init_containers = Some(init_containers.into_iter().map(|container: Container| container.into_kube()).collect())
     }
@@ -88,7 +100,7 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_tolerations(&mut self, tolerations: Vec<Toleration>)
-        ensures self@ == old(self)@.with_tolerations(tolerations@.map_values(|toleration: Toleration| toleration@)),
+        ensures self@ == old(self)@.with_tolerations(tolerations.deep_view()),
     {
         self.inner.tolerations = Some(tolerations.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect())
     }
@@ -151,32 +163,10 @@ impl PodSpec {
 
     #[verifier(external_body)]
     pub fn set_image_pull_secrets(&mut self, image_pull_secrets: Vec<LocalObjectReference>)
-        ensures self@ == old(self)@.with_image_pull_secrets(image_pull_secrets@.map_values(|r: LocalObjectReference| r@)),
+        ensures self@ == old(self)@.with_image_pull_secrets(image_pull_secrets.deep_view()),
     {
         self.inner.image_pull_secrets = Some(image_pull_secrets.into_iter().map(|r: LocalObjectReference| r.into_kube()).collect())
     }
-}
-
-#[verifier(external_body)]
-pub struct PodSecurityContext {
-    inner: deps_hack::k8s_openapi::api::core::v1::PodSecurityContext,
-}
-
-impl View for PodSecurityContext {
-    type V = PodSecurityContextView;
-
-    uninterp spec fn view(&self) -> PodSecurityContextView;
-}
-
-#[verifier(external_body)]
-pub struct LocalObjectReference {
-    inner: deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
-}
-
-impl View for LocalObjectReference {
-    type V = LocalObjectReferenceView;
-
-    uninterp spec fn view(&self) -> LocalObjectReferenceView;
 }
 
 }

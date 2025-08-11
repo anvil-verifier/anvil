@@ -15,33 +15,17 @@ pub struct DynamicObject {
     inner: deps_hack::kube::api::DynamicObject,
 }
 
+implement_view_trait!(DynamicObject, DynamicObjectView);
 implement_deep_view_trait!(DynamicObject, DynamicObjectView);
-
-impl View for DynamicObject {
-    type V = DynamicObjectView;
-
-    uninterp spec fn view(&self) -> DynamicObjectView;
-}
+implement_clone_trait!(DynamicObject);
 
 impl DynamicObject {
-    #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-        &self.inner.metadata
-    }
-
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures metadata@ == self@.metadata,
     {
         ObjectMeta::from_kube(self.inner.metadata.clone())
     }
-}
-
-impl std::clone::Clone for DynamicObject {
-    #[verifier(external_body)]
-    fn clone(&self) -> (result: Self)
-        ensures result == self
-    { DynamicObject { inner: self.inner.clone() } }
 }
 
 #[verifier(external)]

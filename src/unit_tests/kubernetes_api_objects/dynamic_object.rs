@@ -30,32 +30,6 @@ pub fn test_kube() {
 }
 
 #[test]
-pub fn test_kube_metadata_ref() {
-    let dynamic_object = DynamicObject::from_kube(deps_hack::kube::api::DynamicObject {
-        metadata: deps_hack::kube::api::ObjectMeta {
-            name: Some("name".to_string()),
-            namespace: Some("namespace".to_string()),
-            ..Default::default()
-        },
-        types: Some(deps_hack::kube::api::TypeMeta {
-            api_version: "api_version".to_string(),
-            kind: "kind".to_string(),
-        }),
-        data: deps_hack::serde_json::json!({
-            "key": "value",
-        }),
-    });
-    assert_eq!(
-        dynamic_object.kube_metadata_ref(),
-        &deps_hack::kube::api::ObjectMeta {
-            name: Some("name".to_string()),
-            namespace: Some("namespace".to_string()),
-            ..Default::default()
-        }
-    );
-}
-
-#[test]
 pub fn test_metadata() {
     let dynamic_object = DynamicObject::from_kube(deps_hack::kube::api::DynamicObject {
         metadata: deps_hack::kube::api::ObjectMeta {

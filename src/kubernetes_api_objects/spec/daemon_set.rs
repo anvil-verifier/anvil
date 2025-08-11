@@ -164,4 +164,13 @@ pub struct DaemonSetStatusView {
     pub number_ready: int,
 }
 
+impl DaemonSetStatusView {
+    pub open spec fn default() -> DaemonSetStatusView {
+        DaemonSetStatusView {
+            number_ready: 0,
+        }
+    }
+}
+
+
 }

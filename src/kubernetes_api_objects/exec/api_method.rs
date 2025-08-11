@@ -96,7 +96,7 @@ pub struct KubeCreateRequest {
 impl KubeCreateRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.obj.kube_metadata_ref().name.as_ref().unwrap_or(&"".to_string()))
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace, self.obj.as_kube_ref().metadata.name.as_ref().unwrap_or(&"".to_string()))
     }
 }
 
@@ -338,7 +338,7 @@ impl View for KubeListResponse {
     type V = ListResponse;
     open spec fn view(&self) -> ListResponse {
         match self.res {
-            Ok(l) => ListResponse { res: Ok(l@.map_values(|o: DynamicObject| o@)) },
+            Ok(l) => ListResponse { res: Ok(l.deep_view()) },
             Err(e) => ListResponse { res: Err(e) },
         }
     }

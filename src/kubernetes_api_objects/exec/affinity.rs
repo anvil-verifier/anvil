@@ -14,14 +14,11 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity.
 
-#[verifier(external_body)]
-pub struct Affinity {
-    inner: deps_hack::k8s_openapi::api::core::v1::Affinity,
-}
-
-impl Affinity {
-    pub uninterp spec fn view(&self) -> AffinityView;
-}
+implement_field_wrapper_type!(
+    Affinity,
+    deps_hack::k8s_openapi::api::core::v1::Affinity,
+    AffinityView
+);
 
 }
 

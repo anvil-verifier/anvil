@@ -6,9 +6,12 @@ verus! {
 
 // AffinityView is the ghost type of Affinity.
 
-
 pub struct AffinityView {}
 
-impl AffinityView {}
+impl AffinityView {
+    pub open spec fn default() -> AffinityView {
+        AffinityView {}
+    }
+}
 
 }

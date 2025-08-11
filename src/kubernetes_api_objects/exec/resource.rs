@@ -1,6 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use vstd::prelude::*;
 
 #[macro_export]
 macro_rules! implement_field_wrapper_type {

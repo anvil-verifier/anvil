@@ -7,9 +7,21 @@ pub struct StringMap {
     inner: std::collections::BTreeMap<std::string::String, std::string::String>,
 }
 
-impl StringMap {
-    pub uninterp spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
+impl View for StringMap {
+    type V = Map<Seq<char>, Seq<char>>;
 
+    uninterp spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
+}
+
+impl DeepView for StringMap {
+    type V = Map<Seq<char>, Seq<char>>;
+
+    open spec fn deep_view(&self) -> Map<Seq<char>, Seq<char>> {
+        self@
+    }
+}
+
+impl StringMap {
     #[verifier(external_body)]
     pub fn new() -> (m: Self)
         ensures m@ == Map::<Seq<char>, Seq<char>>::empty(),

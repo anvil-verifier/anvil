@@ -265,4 +265,12 @@ pub struct StatefulSetStatusView {
     pub ready_replicas: Option<int>,
 }
 
+impl StatefulSetStatusView {
+    pub open spec fn default() -> StatefulSetStatusView {
+        StatefulSetStatusView {
+            ready_replicas: None,
+        }
+    }
+}
+
 }

@@ -3,10 +3,10 @@
 use crate::kubernetes_api_objects::exec::prelude::*;
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::reconciler::spec::io::*;
 use crate::vreplicaset_controller::model::reconciler as model_reconciler;
 use crate::vreplicaset_controller::trusted::{exec_types::*, step::*};
-use crate::vstd_ext::{string_map::StringMap, seq_lib::*};
-use crate::reconciler::spec::io::*;
+use crate::vstd_ext::{seq_lib::*, string_map::StringMap};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 
@@ -247,13 +247,13 @@ pub fn error_state(state: VReplicaSetReconcileState) -> (state_prime: VReplicaSe
 
 pub fn make_owner_references(v_replica_set: &VReplicaSet) -> (owner_references: Vec<OwnerReference>)
     requires v_replica_set@.well_formed(),
-    ensures owner_references@.map_values(|or: OwnerReference| or@) ==  model_reconciler::make_owner_references(v_replica_set@),
+    ensures owner_references.deep_view() ==  model_reconciler::make_owner_references(v_replica_set@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(v_replica_set.controller_owner_ref());
     proof {
         assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            owner_references.deep_view(),
             model_reconciler::make_owner_references(v_replica_set@)
         );
     }
@@ -277,7 +277,7 @@ fn objects_to_pods(objs: Vec<DynamicObject>) -> (pods_or_none: Option<Vec<Pod>>)
             );
         }
     }
-    
+
     for idx in 0..objs.len()
         invariant
             idx <= objs.len(),

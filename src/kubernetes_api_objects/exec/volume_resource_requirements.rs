@@ -7,30 +7,13 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
-pub struct VolumeResourceRequirements {
-    inner: deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements
-}
+implement_field_wrapper_type!(
+    VolumeResourceRequirements,
+    deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements,
+    VolumeResourceRequirementsView
+);
 
 impl VolumeResourceRequirements {
-    pub uninterp spec fn view(&self) -> VolumeResourceRequirementsView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (resource_requirements: VolumeResourceRequirements)
-        ensures resource_requirements@ == VolumeResourceRequirementsView::default(),
-    {
-        VolumeResourceRequirements {
-            inner: deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (s: Self)
-        ensures s@ == self@,
-    {
-        VolumeResourceRequirements { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_limits(&mut self, limits: StringMap)
         ensures self@ == old(self)@.with_limits(limits@),

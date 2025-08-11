@@ -8,6 +8,8 @@ use crate::kubernetes_api_objects::spec::{config_map::*, resource::*};
 use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
+verus! {
+
 // ConfigMap is a type of API object used to store non-confidential data in key-value pairs.
 // A ConfigMap object can be used to set environment variables or configuration files
 // in a Volume mounted to a Pod.
@@ -24,14 +26,10 @@ implement_object_wrapper_type!(
     ConfigMapView
 );
 
-verus! {
-
 impl ConfigMap {
     #[verifier(external_body)]
     pub fn data(&self) -> (data: Option<StringMap>)
-        ensures
-            self@.data is Some == data is Some,
-            data is Some ==> data->0@ == self@.data->0,
+        ensures self@.data == data.deep_view()
     {
         match &self.inner.data {
             Some(d) => Some(StringMap::from_rust_map(d.clone())),

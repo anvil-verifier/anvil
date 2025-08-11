@@ -6,30 +6,85 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
-pub struct Volume {
-    inner: deps_hack::k8s_openapi::api::core::v1::Volume,
-}
+implement_field_wrapper_type!(
+    Volume,
+    deps_hack::k8s_openapi::api::core::v1::Volume,
+    VolumeView
+);
+
+implement_field_wrapper_type!(
+    EmptyDirVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource,
+    EmptyDirVolumeSourceView
+);
+
+implement_field_wrapper_type!(
+    HostPathVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource,
+    HostPathVolumeSourceView
+);
+
+implement_field_wrapper_type!(
+    ConfigMapVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource,
+    ConfigMapVolumeSourceView
+);
+
+implement_field_wrapper_type!(
+    SecretVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource,
+    SecretVolumeSourceView
+);
+
+implement_field_wrapper_type!(
+    ProjectedVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource,
+    ProjectedVolumeSourceView
+);
+
+implement_field_wrapper_type!(
+    VolumeProjection,
+    deps_hack::k8s_openapi::api::core::v1::VolumeProjection,
+    VolumeProjectionView
+);
+
+implement_field_wrapper_type!(
+    ConfigMapProjection,
+    deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection,
+    ConfigMapProjectionView
+);
+
+implement_field_wrapper_type!(
+    SecretProjection,
+    deps_hack::k8s_openapi::api::core::v1::SecretProjection,
+    SecretProjectionView
+);
+
+implement_field_wrapper_type!(
+    KeyToPath,
+    deps_hack::k8s_openapi::api::core::v1::KeyToPath,
+    KeyToPathView
+);
+
+implement_field_wrapper_type!(
+    DownwardAPIVolumeSource,
+    deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource,
+    DownwardAPIVolumeSourceView
+);
+
+implement_field_wrapper_type!(
+    DownwardAPIVolumeFile,
+    deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile,
+    DownwardAPIVolumeFileView
+);
+
+implement_field_wrapper_type!(
+    ObjectFieldSelector,
+    deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector,
+    ObjectFieldSelectorView
+);
 
 impl Volume {
-    pub uninterp spec fn view(&self) -> VolumeView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (volume: Volume)
-        ensures volume@ == VolumeView::default(),
-    {
-        Volume {
-            inner: deps_hack::k8s_openapi::api::core::v1::Volume::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (volume: Volume)
-        ensures volume@ == self@,
-    {
-        Volume { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
@@ -82,53 +137,7 @@ impl Volume {
     }
 }
 
-#[verifier(external_body)]
-pub struct EmptyDirVolumeSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource,
-}
-
-impl EmptyDirVolumeSource {
-    pub uninterp spec fn view(&self) -> EmptyDirVolumeSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (empty_dir_volum_source: EmptyDirVolumeSource)
-        ensures empty_dir_volum_source@ == EmptyDirVolumeSourceView::default(),
-    {
-        EmptyDirVolumeSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (empty_dir_volum_source: EmptyDirVolumeSource)
-        ensures empty_dir_volum_source@ == self@,
-    {
-        EmptyDirVolumeSource { inner: self.inner.clone() }
-    }
-}
-
-#[verifier(external_body)]
-pub struct HostPathVolumeSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource,
-}
-
 impl HostPathVolumeSource {
-    pub uninterp spec fn view(&self) -> HostPathVolumeSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (host_path_volume_source: HostPathVolumeSource)
-        ensures host_path_volume_source@ == HostPathVolumeSourceView::default(),
-    {
-        HostPathVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (host_path_volume_source: HostPathVolumeSource)
-        ensures host_path_volume_source@ == self@,
-    {
-        HostPathVolumeSource { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_path(&mut self, path: String)
         ensures self@ == old(self)@.with_path(path@),
@@ -137,28 +146,7 @@ impl HostPathVolumeSource {
     }
 }
 
-#[verifier(external_body)]
-pub struct ConfigMapVolumeSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource,
-}
-
 impl ConfigMapVolumeSource {
-    pub uninterp spec fn view(&self) -> ConfigMapVolumeSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (config_map_volume_source: ConfigMapVolumeSource)
-        ensures config_map_volume_source@ == ConfigMapVolumeSourceView::default(),
-    {
-        ConfigMapVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (config_map_volume_source: ConfigMapVolumeSource)
-        ensures config_map_volume_source@ == self@,
-    {
-        ConfigMapVolumeSource { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
@@ -167,30 +155,7 @@ impl ConfigMapVolumeSource {
     }
 }
 
-#[verifier(external_body)]
-pub struct SecretVolumeSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource,
-}
-
 impl SecretVolumeSource {
-    pub uninterp spec fn view(&self) -> SecretVolumeSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (secret_volume_source: SecretVolumeSource)
-        ensures secret_volume_source@ == SecretVolumeSourceView::default(),
-    {
-        SecretVolumeSource {
-            inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (secret_volume_source: SecretVolumeSource)
-        ensures secret_volume_source@ == self@,
-    {
-        SecretVolumeSource { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_secret_name(&mut self, secret_name: String)
         ensures self@ == old(self)@.with_secret_name(secret_name@),
@@ -199,51 +164,16 @@ impl SecretVolumeSource {
     }
 }
 
-#[verifier(external_body)]
-pub struct ProjectedVolumeSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource,
-}
-
 impl ProjectedVolumeSource {
-    pub uninterp spec fn view(&self) -> ProjectedVolumeSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (projected_volume_source: ProjectedVolumeSource)
-        ensures projected_volume_source@ == ProjectedVolumeSourceView::default(),
-    {
-        ProjectedVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (projected_volume_source: ProjectedVolumeSource)
-        ensures projected_volume_source@ == self@,
-    {
-        ProjectedVolumeSource { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_sources(&mut self, sources: Vec<VolumeProjection>)
-        ensures self@ == old(self)@.with_sources(sources@.map_values(|v: VolumeProjection| v@)),
+        ensures self@ == old(self)@.with_sources(sources.deep_view()),
     {
         self.inner.sources = Some(sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect());
     }
 }
 
-#[verifier(external_body)]
-pub struct VolumeProjection {
-    inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection,
-}
-
 impl VolumeProjection {
-    pub uninterp spec fn view(&self) -> VolumeProjectionView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (volume_projection: VolumeProjection)
-        ensures volume_projection@ == VolumeProjectionView::default(),
-    {
-        VolumeProjection { inner: deps_hack::k8s_openapi::api::core::v1::VolumeProjection::default() }
-    }
-
     #[verifier(external_body)]
     pub fn set_config_map(&mut self, config_map: ConfigMapProjection)
         ensures self@ == old(self)@.with_config_map(config_map@),
@@ -259,28 +189,7 @@ impl VolumeProjection {
     }
 }
 
-#[verifier(external_body)]
-pub struct ConfigMapProjection {
-    inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection,
-}
-
 impl ConfigMapProjection {
-    pub uninterp spec fn view(&self) -> ConfigMapProjectionView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (config_map_projection: ConfigMapProjection)
-        ensures config_map_projection@ == ConfigMapProjectionView::default(),
-    {
-        ConfigMapProjection { inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (config_map_projection: ConfigMapProjection)
-        ensures config_map_projection@ == self@,
-    {
-        ConfigMapProjection { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
@@ -290,34 +199,13 @@ impl ConfigMapProjection {
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
-        ensures self@ == old(self)@.with_items(items@.map_values(|v: KeyToPath| v@)),
+        ensures self@ == old(self)@.with_items(items.deep_view()),
     {
         self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
-}
-
-#[verifier(external_body)]
-pub struct SecretProjection {
-    inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection,
 }
 
 impl SecretProjection {
-    pub uninterp spec fn view(&self) -> SecretProjectionView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (secret_projection: SecretProjection)
-        ensures secret_projection@ == SecretProjectionView::default(),
-    {
-        SecretProjection { inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (secret_projection: SecretProjection)
-        ensures secret_projection@ == self@,
-    {
-        SecretProjection { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures self@ == old(self)@.with_name(name@),
@@ -327,27 +215,13 @@ impl SecretProjection {
 
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<KeyToPath>)
-        ensures self@ == old(self)@.with_items(items@.map_values(|v: KeyToPath| v@)),
+        ensures self@ == old(self)@.with_items(items.deep_view()),
     {
         self.inner.items = Some(items.into_iter().map(|v: KeyToPath| v.into_kube()).collect());
     }
 }
 
-#[verifier(external_body)]
-pub struct KeyToPath {
-    inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath,
-}
-
 impl KeyToPath {
-    pub uninterp spec fn view(&self) -> KeyToPathView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (key_to_path: KeyToPath)
-        ensures key_to_path@ == KeyToPathView::default(),
-    {
-        KeyToPath { inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath::default() }
-    }
-
     #[verifier(external_body)]
     pub fn set_key(&mut self, key: String)
         ensures self@ == old(self)@.with_key(key@),
@@ -363,51 +237,16 @@ impl KeyToPath {
     }
 }
 
-#[verifier(external_body)]
-pub struct DownwardAPIVolumeSource {
-    inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource,
-}
-
 impl DownwardAPIVolumeSource {
-    pub uninterp spec fn view(&self) -> DownwardAPIVolumeSourceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (downward_api_volume_source: DownwardAPIVolumeSource)
-        ensures downward_api_volume_source@ == DownwardAPIVolumeSourceView::default(),
-    {
-        DownwardAPIVolumeSource { inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (downward_api_volume_source: DownwardAPIVolumeSource)
-        ensures downward_api_volume_source@ == self@,
-    {
-        DownwardAPIVolumeSource { inner: self.inner.clone() }
-    }
-
     #[verifier(external_body)]
     pub fn set_items(&mut self, items: Vec<DownwardAPIVolumeFile>)
-        ensures self@ == old(self)@.with_items(items@.map_values(|v: DownwardAPIVolumeFile| v@)),
+        ensures self@ == old(self)@.with_items(items.deep_view()),
     {
         self.inner.items = Some(items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect());
     }
 }
 
-#[verifier(external_body)]
-pub struct DownwardAPIVolumeFile {
-    inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile,
-}
-
 impl DownwardAPIVolumeFile {
-    pub uninterp spec fn view(&self) -> DownwardAPIVolumeFileView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (downward_api_volume_file: DownwardAPIVolumeFile)
-        ensures downward_api_volume_file@ == DownwardAPIVolumeFileView::default(),
-    {
-        DownwardAPIVolumeFile { inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile::default() }
-    }
-
     #[verifier(external_body)]
     pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector)
         ensures self@ == old(self)@.with_field_ref(field_ref@),
@@ -423,28 +262,7 @@ impl DownwardAPIVolumeFile {
     }
 }
 
-#[verifier(external_body)]
-pub struct ObjectFieldSelector {
-    inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector,
-}
-
 impl ObjectFieldSelector {
-    pub uninterp spec fn view(&self) -> ObjectFieldSelectorView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (object_field_selector: ObjectFieldSelector)
-        ensures object_field_selector@ == ObjectFieldSelectorView::default(),
-    {
-        ObjectFieldSelector { inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default() }
-    }
-
-    #[verifier(external_body)]
-    pub fn clone(&self) -> (object_field_selector: ObjectFieldSelector)
-        ensures object_field_selector@ == self@,
-    {
-        ObjectFieldSelector { inner: self.inner.clone() }
-    }
-
     pub fn new_with(api_version: String, field_path: String) -> (object_field_selector: ObjectFieldSelector)
         ensures object_field_selector@ == ObjectFieldSelectorView::default().with_api_version(api_version@).with_field_path(field_path@),
     {

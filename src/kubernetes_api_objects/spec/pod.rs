@@ -295,6 +295,18 @@ impl PodSpecView {
 
 pub struct PodSecurityContextView {}
 
+impl PodSecurityContextView {
+    pub open spec fn default() -> PodSecurityContextView {
+        PodSecurityContextView {}
+    }
+}
+
 pub struct LocalObjectReferenceView {}
+
+impl LocalObjectReferenceView {
+    pub open spec fn default() -> LocalObjectReferenceView {
+        LocalObjectReferenceView {}
+    }
+}
 
 }
