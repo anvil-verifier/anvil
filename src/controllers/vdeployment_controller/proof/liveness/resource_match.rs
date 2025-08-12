@@ -536,6 +536,7 @@ ensures
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // TODO: fix this
     assume(triggering_cr == vd);
+    assert(triggering_cr.object_ref() == vd.object_ref());
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
     assert(resp_msg.content.is_list_response());
@@ -545,25 +546,39 @@ ensures
     assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq());
     assert(filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
     let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd)));
-    assert(new_vrs is Some);
-    assert(match_replicas(vd, new_vrs->0));
-    assert(old_vrs_list.len() == n);
     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-    assert(vds_prime == VDeploymentReconcileState {
-        reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
-        new_vrs: new_vrs,
-        old_vrs_list: old_vrs_list,
-        old_vrs_index: old_vrs_list.len()
+    assert(vds_prime.old_vrs_list == old_vrs_list);
+    assert(vds_prime.old_vrs_index == old_vrs_list.len());
+    assert(old_vrs_list.len() == n);
+    // replicate transition in reconciler
+    assert(match replicas_or_not_exist {
+        None => {
+            &&& new_vrs is None
+            &&& vds_prime.reconcile_step == AfterCreateNewVRS
+            &&& vds_prime.new_vrs == Some(make_replica_set(vd))
+            &&& pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime)
+        },
+        Some(replicas) => {
+            &&& new_vrs is Some
+            &&& new_vrs->0.spec.replicas.unwrap_or(int1!()) == replicas
+            &&& replicas == vd.spec.replicas.unwrap_or(int1!()) ==> {
+                &&& vds_prime.reconcile_step == AfterEnsureNewVRS
+                &&& vds_prime.new_vrs == new_vrs
+            }
+            &&& replicas != vd.spec.replicas.unwrap_or(int1!()) ==> {
+                &&& vds_prime.reconcile_step == AfterScaleNewVRS
+                &&& vds_prime.new_vrs == Some(VReplicaSetView {
+                    spec: VReplicaSetSpecView {
+                        replicas: Some(vd.spec.replicas.unwrap_or(1)),
+                        ..new_vrs->0.spec
+                    },
+                    ..new_vrs->0
+                })
+            }
+        }
     });
-    assert(forall |obj| #[trigger] resp_objs.contains(obj) ==> VReplicaSetView::unmarshal(obj) is Ok);
-    assert(forall |obj| #[trigger] resp_objs.contains(obj) ==> {
-        &&& obj.metadata.namespace == vd.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-        &&& s.resources().contains_key(obj.object_ref())
-    });
-    assert(at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))])(s_prime));
+
     let vrs_list = vrs_list_or_none->0;
     let valid_owned_object_filter = |vrs: VReplicaSetView| valid_owned_object(vrs, vd);
     assert(valid_owned_object_filter == (|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
@@ -614,23 +629,23 @@ ensures
     }
     assert forall |vrs| #[trigger] vrs_list.contains(vrs) implies {
         &&& s_prime.resources().contains_key(vrs.object_ref())
+        &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()]) is Ok
         &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs
+        &&& vrs.metadata.owner_references is Some
+        &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
     } by {
         assert(resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap()).contains(vrs));
-        let obj = choose |o: DynamicObjectView| #[trigger] resp_objs.contains(o) && VReplicaSetView::unmarshal(o).unwrap() == vrs;
-        assert(vrs.object_ref() == obj.object_ref()) by {
-            assert(obj.kind == VReplicaSetView::kind());
-            assert(vrs.metadata == obj.metadata);
-        }
-        assert(s.resources()[obj.object_ref()] == obj);
-        assert(s_prime.resources() == s.resources());
+        let i = choose |i| #![trigger resp_objs[i]] 0 <= i < resp_objs.len() && resp_objs.map_values(|o: DynamicObjectView| VReplicaSetView::unmarshal(o).unwrap())[i] == vrs;
+        assert(resp_objs.contains(resp_objs[i])); // trigger
     }
-    assume(false);
     assert forall |vrs: VReplicaSetView| #[trigger] old_vrs_list.contains(vrs) implies {
         &&& valid_owned_object(vrs, vd)
         &&& s_prime.resources().contains_key(vrs.object_ref())
+        &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()]) is Ok
         &&& VReplicaSetView::unmarshal(s_prime.resources()[vrs.object_ref()])->Ok_0 == vrs
         &&& vrs_list.contains(vrs)
+        &&& vrs.metadata.owner_references is Some
+        &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
     } by {
         // seq_filter_is_a_subset_of_original_seq cannot be replaced with broadcast use group_seq_properties
         assert(filtered_vrs_list.contains(vrs)) by {
@@ -641,20 +656,24 @@ ensures
         }
         assert(valid_owned_object(vrs, vd));
     }
-    assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==> old_vrs_list.contains(vds_prime.old_vrs_list[i]));
-    assert(local_state_is_valid_and_coherent(vd, controller_id)(s_prime)) by {
-        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==> {
-            let vrs = vds_prime.old_vrs_list[i];
-            let key = vrs.object_ref();
-            &&& s_prime.resources().contains_key(key)
-            &&& valid_owned_object(vrs, vd)
-            &&& vrs.metadata.owner_references is Some
-            &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-            &&& filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(vrs)
-            &&& VReplicaSetView::unmarshal(s_prime.resources()[key]) is Ok
-            &&& VReplicaSetView::unmarshal(s_prime.resources()[key])->Ok_0 == vrs
-        });
+    assert(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index ==>
+        old_vrs_list.contains(vds_prime.old_vrs_list[i])); // trigger
+    assert(0 <= vds_prime.old_vrs_index <= vds_prime.old_vrs_list.len());
+    assert(vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
+    if replicas_or_not_exist is Some {
+        assert(new_vrs is Some);
+        assert(vds_prime.new_vrs is Some);
+        assume(false);
+    } else {
+        make_replica_set_makes_valid_owned_object(vd);
+        assert(vds_prime.new_vrs == Some(make_replica_set(vd)));
+        let new_vrs = vds_prime.new_vrs->0;
+        let vd_ref_seq = make_owner_references(vd);
+        assert(vd_ref_seq == Seq::empty().push(vd.controller_owner_ref()));
+        assert(vd_ref_seq.filter(controller_owner_filter()) == vd_ref_seq) by {
+            reveal(Seq::filter);
+        }
+        assert(new_vrs.metadata.owner_references == Some(vd_ref_seq));
     }
 }
 
