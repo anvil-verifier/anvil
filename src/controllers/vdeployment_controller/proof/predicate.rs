@@ -130,6 +130,8 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& obj.metadata.namespace == vd.metadata.namespace
         &&& obj.metadata.owner_references is Some
         &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+        &&& s.resources().contains_key(obj.object_ref())
+        &&& s.resources()[obj.object_ref()] == obj
     }
 }
 
