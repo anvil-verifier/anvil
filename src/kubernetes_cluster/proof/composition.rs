@@ -254,7 +254,6 @@ mod example {
 use super::*;
 
 // cook is a controller whose progress doesn't rely on other controllers
-
 pub uninterp spec fn cook() -> ControllerSpec;
 
 pub struct ComposeCook {}
@@ -279,7 +278,6 @@ impl HorizontalComposition for ComposeCook {
 }
 
 // waiter is a controller whose progress relies on cook's progress
-
 pub uninterp spec fn waiter() -> ControllerSpec;
 
 pub struct ComposeWaiter {}
@@ -304,14 +302,12 @@ impl VerticalComposition for ComposeWaiter {
 }
 
 // cook and waiter can be composed together
-
 proof fn compose_cook_and_waiter(spec: TempPred<ClusterState>, cluster: Cluster)
     requires
         ComposeCook::id() != ComposeWaiter::id(),
     ensures
         composable(spec, cluster, Map::<int, ControllerSpec>::empty().insert(ComposeCook::id(), cook()).insert(ComposeWaiter::id(), waiter()))
 {
-    let empty = Map::<int, ControllerSpec>::empty();
     horizontal_composition::<ComposeCook>(spec, cluster);
     vertical_composition::<ComposeWaiter>(spec, cluster);
 }
