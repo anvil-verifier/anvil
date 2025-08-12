@@ -377,14 +377,20 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             // if it's just created, etcd should not have it yet
             // otherwise obj in etcd exists and is owned by vd
             &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
+                let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()])->Ok_0;
                 // the get-then-update request can succeed
                 &&& s.resources().contains_key(new_vrs.object_ref())
-                &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is Some
-                &&& vrs_eq_for_vd((filter_old_and_new_vrs_on_etcd(vd, s.resources()).0)->0, new_vrs)
-                // may needs to be weaken as the version in etcd has resource_version & uid
                 &&& VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]) is Ok
-                // because make_replica_set(vd) does not carry resource_version & uid
-                &&& vrs_eq_for_vd(new_vrs, VReplicaSetView::unmarshal(s.resources()[new_vrs.object_ref()]).unwrap())
+                &&& filter_old_and_new_vrs_on_etcd(vd, s.resources()).0 is Some
+                &&& (filter_old_and_new_vrs_on_etcd(vd, s.resources()).0)->0 == etcd_vrs
+                // spec is not equal as the update request is in flight 
+                &&& !pending_get_then_update_new_vrs_req_in_flight(vd, controller_id)(s) ==> vrs_eq_for_vd(new_vrs, etcd_vrs)
+                &&& pending_get_then_update_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
+                    &&& etcd_vrs.metadata.namespace == new_vrs.metadata.namespace
+                    &&& etcd_vrs.metadata.name == new_vrs.metadata.name
+                    &&& etcd_vrs.metadata.labels == new_vrs.metadata.labels
+                    &&& etcd_vrs.metadata.owner_references == new_vrs.metadata.owner_references
+                }
             }
         }
     }
