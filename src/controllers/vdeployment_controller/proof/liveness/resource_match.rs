@@ -157,7 +157,7 @@ ensures
                     local_state_is_valid_and_coherent(vd, controller_id)
                 ));
                 assert forall |msg: Message| spec.entails(#[trigger] create_vrs_req_msg(msg).leads_to(create_vrs_resp)) by {
-                    lemma_from_after_send_create_pod_req_to_receive_ok_resp(vd, spec, cluster, controller_id, msg, n);
+                    lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(vd, spec, cluster, controller_id, msg, n);
                 }
                 leads_to_exists_intro(spec, |msg| create_vrs_req_msg(msg), create_vrs_resp);
                 let create_vrs_resp_msg = |msg: Message| lift_state(and!(
@@ -937,7 +937,7 @@ ensures
     );
 }
 
-pub proof fn lemma_from_after_send_create_pod_req_to_receive_ok_resp(
+pub proof fn lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
 requires
