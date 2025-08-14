@@ -126,12 +126,6 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
-    let obj_owned_by_vd = |obj: DynamicObjectView| {
-        &&& obj.kind == VReplicaSetView::kind()
-        &&& obj.metadata.namespace == vd.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-    };
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
@@ -139,7 +133,10 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
     &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
         &&& VReplicaSetView::unmarshal(obj) is Ok
-        &&& obj_owned_by_vd(obj)
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& obj.metadata.namespace == vd.metadata.namespace
+        &&& obj.metadata.owner_references is Some
+        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         &&& s.resources().contains_key(obj.object_ref())
         &&& s.resources()[obj.object_ref()] == obj
     }
