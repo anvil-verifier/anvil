@@ -1,7 +1,5 @@
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    label_selector::*, pod_template_spec::*, prelude::*,
-};
+use crate::kubernetes_api_objects::spec::{label_selector::*, pod_template_spec::*, prelude::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -9,11 +7,9 @@ verus! {
 
 pub struct VStatefulSetView {
     pub metadata: ObjectMetaView,
-    pub spec: VStatefulSetSpecView,
-    pub status: Option<VStatefulSetStatusView>,
+    pub spec: StatefulSetSpecView,
+    pub status: Option<StatefulSetStatusView>,
 }
-
-pub type VStatefulSetStatusView = EmptyStatusView;
 
 impl VStatefulSetView {
     pub open spec fn well_formed(self) -> bool {
@@ -30,16 +26,30 @@ impl VStatefulSetView {
             uid: self.metadata.uid->0,
         }
     }
+
+    pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> VStatefulSetView {
+        VStatefulSetView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
+    pub open spec fn with_spec(self, spec: StatefulSetSpecView) -> VStatefulSetView {
+        VStatefulSetView {
+            spec: spec,
+            ..self
+        }
+    }
 }
 
 impl ResourceView for VStatefulSetView {
-    type Spec = VStatefulSetSpecView;
-    type Status = Option<VStatefulSetStatusView>;
+    type Spec = StatefulSetSpecView;
+    type Status = Option<StatefulSetStatusView>;
 
     open spec fn default() -> VStatefulSetView {
         VStatefulSetView {
             metadata: ObjectMetaView::default(),
-            spec: arbitrary(), // TODO: specify default value for spec
+            spec: StatefulSetSpecView::default(),
             status: None,
         }
     }
@@ -58,9 +68,9 @@ impl ResourceView for VStatefulSetView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn spec(self) -> VStatefulSetSpecView { self.spec }
+    open spec fn spec(self) -> StatefulSetSpecView { self.spec }
 
-    open spec fn status(self) -> Option<VStatefulSetStatusView> { self.status }
+    open spec fn status(self) -> Option<StatefulSetStatusView> { self.status }
 
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
@@ -96,13 +106,13 @@ impl ResourceView for VStatefulSetView {
 
     proof fn marshal_preserves_kind() {}
 
-    uninterp spec fn marshal_spec(s: VStatefulSetSpecView) -> Value;
+    uninterp spec fn marshal_spec(s: StatefulSetSpecView) -> Value;
 
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<VStatefulSetSpecView, UnmarshalError>;
+    uninterp spec fn unmarshal_spec(v: Value) -> Result<StatefulSetSpecView, UnmarshalError>;
 
-    uninterp spec fn marshal_status(s: Option<VStatefulSetStatusView>) -> Value;
+    uninterp spec fn marshal_status(s: Option<StatefulSetStatusView>) -> Value;
 
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<VStatefulSetStatusView>, UnmarshalError>;
+    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<StatefulSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -202,119 +212,4 @@ impl CustomResourceView for VStatefulSetView {
     proof fn validation_result_determined_by_spec_and_status() {}
 }
 
-pub struct StatefulSetUpdateStrategyView {
-    pub type_: Option<StringView>,
-    pub rolling_update: Option<RollingUpdateStatefulSetStrategyView>,
-}
-
-impl StatefulSetUpdateStrategyView {
-    pub open spec fn default() -> StatefulSetUpdateStrategyView {
-        StatefulSetUpdateStrategyView {
-            type_: None,
-            rolling_update: None
-        }
-    }
-
-    pub open spec fn with_type(self, type_: StringView) -> StatefulSetUpdateStrategyView {
-        StatefulSetUpdateStrategyView {
-            type_: Some(type_),
-            ..self
-        }
-    }
-
-    pub open spec fn with_rolling_update(self, rolling_update: RollingUpdateStatefulSetStrategyView) -> StatefulSetUpdateStrategyView {
-        StatefulSetUpdateStrategyView {
-            rolling_update: Some(rolling_update),
-            ..self
-        }
-    }
-}
-
-pub struct RollingUpdateStatefulSetStrategyView {
-    pub partition: Option<int>,
-    pub max_unavailable: Option<int>
-}
-
-impl RollingUpdateStatefulSetStrategyView {
-    pub open spec fn default() -> RollingUpdateStatefulSetStrategyView {
-        RollingUpdateStatefulSetStrategyView {
-            partition: None,
-            max_unavailable: None
-        }
-    }
-    pub open spec fn with_partition(self, partition: int) -> RollingUpdateStatefulSetStrategyView {
-        RollingUpdateStatefulSetStrategyView {
-            partition: Some(partition),
-            ..self
-        }
-    }
-
-    pub open spec fn with_max_unavailable(self, max_unavailable: int) -> RollingUpdateStatefulSetStrategyView {
-        RollingUpdateStatefulSetStrategyView {
-            max_unavailable: Some(max_unavailable),
-            ..self
-        }
-    }
-}
-
-pub struct StatefulSetPersistentVolumeClaimRetentionPolicyView {
-    pub when_deleted: Option<StringView>,
-    pub when_scaled: Option<StringView>
-}
-
-impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
-    pub open spec fn default() -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
-        StatefulSetPersistentVolumeClaimRetentionPolicyView {
-            when_deleted: None,
-            when_scaled: None
-        }
-    }
-
-    pub open spec fn with_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
-        StatefulSetPersistentVolumeClaimRetentionPolicyView {
-            when_deleted: Some(when_deleted),
-            ..self
-        }
-    }
-
-    pub open spec fn with_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
-        StatefulSetPersistentVolumeClaimRetentionPolicyView {
-            when_scaled: Some(when_scaled),
-            ..self
-        }
-    }
-}
-
-pub struct StatefulSetOrdinalsView {
-    pub start: Option<int>
-}
-
-impl StatefulSetOrdinalsView {
-    pub open spec fn default() -> StatefulSetOrdinalsView {
-        StatefulSetOrdinalsView {
-            start: None,
-        }
-    }
-
-    pub open spec fn with_start(self, start: int) -> StatefulSetOrdinalsView {
-        StatefulSetOrdinalsView {
-            start: Some(start),
-            ..self
-        }
-    }
-}
-
-pub struct VStatefulSetSpecView {
-    pub service_name: StringView, //should be optional
-    pub replicas: Option<int>,
-    pub selector: LabelSelectorView,
-    pub template: PodTemplateSpecView,
-    pub update_strategy: Option<StatefulSetUpdateStrategyView>,
-    pub pod_management_policy: Option<StringView>,
-    pub revision_history_limit: Option<int>,
-    pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
-    pub min_ready_seconds: Option<int>,
-    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
-    pub ordinals: Option<StatefulSetOrdinalsView>,
-}
 }

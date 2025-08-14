@@ -285,7 +285,7 @@ pub struct FluentBitConfigSpec {
 pub struct VReplicaSetSpec {
     pub replicas: Option<i32>,
     pub selector: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
-    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec,>
+    pub template: Option<k8s_openapi::api::core::v1::PodTemplateSpec>,
 }
 
 impl Default for VReplicaSet {
@@ -332,7 +332,13 @@ impl Default for VDeployment {
 }
 
 #[derive(
-    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    kube::CustomResource,
+    Default,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VStatefulSet")]
 #[kube(shortname = "vsts", namespaced)]
@@ -379,4 +385,34 @@ pub struct VStatefulSetStatus {
     pub update_revision: Option<String>,
     #[serde(rename = "observedGeneration")]
     pub observed_generation: Option<i64>,
+}
+
+impl Default for VStatefulSet {
+    fn default() -> Self {
+        Self {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+            spec: VStatefulSetSpec::default(),
+            status: None,
+        }
+    }
+}
+
+impl VStatefulSetSpec {
+    pub fn to_native(&self) -> k8s_openapi::api::apps::v1::StatefulSetSpec {
+        k8s_openapi::api::apps::v1::StatefulSetSpec {
+            service_name: self.service_name.clone(),
+            selector: self.selector.clone(),
+            template: self.template.clone(),
+            replicas: self.replicas.clone(),
+            update_strategy: self.update_strategy.clone(),
+            pod_management_policy: self.pod_management_policy.clone(),
+            revision_history_limit: self.revision_history_limit.clone(),
+            volume_claim_templates: self.volume_claim_templates.clone(),
+            min_ready_seconds: self.min_ready_seconds.clone(),
+            persistent_volume_claim_retention_policy: self
+                .persistent_volume_claim_retention_policy
+                .clone(),
+            ordinals: self.ordinals.clone(),
+        }
+    }
 }
