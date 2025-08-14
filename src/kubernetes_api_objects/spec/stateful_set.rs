@@ -149,25 +149,33 @@ impl ResourceView for StatefulSetView {
 }
 
 pub struct StatefulSetSpecView {
+    pub min_ready_seconds: Option<int>,
+    pub ordinals: Option<StatefulSetOrdinalsView>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
+    pub pod_management_policy: Option<StringView>,
     pub replicas: Option<int>,
+    pub revision_history_limit: Option<int>,
     pub selector: LabelSelectorView,
     pub service_name: StringView,
     pub template: PodTemplateSpecView,
+    pub update_strategy: Option<StatefulSetUpdateStrategyView>,
     pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
-    pub pod_management_policy: Option<StringView>,
-    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
 impl StatefulSetSpecView {
     pub open spec fn default() -> StatefulSetSpecView {
         StatefulSetSpecView {
+            min_ready_seconds: None,
+            ordinals: None,
+            persistent_volume_claim_retention_policy: None,
+            pod_management_policy: None,
             replicas: None,
+            revision_history_limit: None,
             selector: LabelSelectorView::default(),
             service_name: ""@,
             template: PodTemplateSpecView::default(),
+            update_strategy: None,
             volume_claim_templates: None,
-            pod_management_policy: None,
-            persistent_volume_claim_retention_policy: None,
         }
     }
 
@@ -256,6 +264,80 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
     pub open spec fn with_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
         StatefulSetPersistentVolumeClaimRetentionPolicyView {
             when_scaled: Some(when_scaled),
+            ..self
+        }
+    }
+}
+
+pub struct StatefulSetOrdinalsView {
+    pub start: Option<int>
+}
+
+impl StatefulSetOrdinalsView {
+    pub open spec fn default() -> StatefulSetOrdinalsView {
+        StatefulSetOrdinalsView {
+            start: None,
+        }
+    }
+
+    pub open spec fn with_start(self, start: int) -> StatefulSetOrdinalsView {
+        StatefulSetOrdinalsView {
+            start: Some(start),
+            ..self
+        }
+    }
+}
+
+pub struct StatefulSetUpdateStrategyView {
+    pub type_: Option<StringView>,
+    pub rolling_update: Option<RollingUpdateStatefulSetStrategyView>,
+}
+
+impl StatefulSetUpdateStrategyView {
+    pub open spec fn default() -> StatefulSetUpdateStrategyView {
+        StatefulSetUpdateStrategyView {
+            type_: None,
+            rolling_update: None
+        }
+    }
+
+    pub open spec fn with_type(self, type_: StringView) -> StatefulSetUpdateStrategyView {
+        StatefulSetUpdateStrategyView {
+            type_: Some(type_),
+            ..self
+        }
+    }
+
+    pub open spec fn with_rolling_update(self, rolling_update: RollingUpdateStatefulSetStrategyView) -> StatefulSetUpdateStrategyView {
+        StatefulSetUpdateStrategyView {
+            rolling_update: Some(rolling_update),
+            ..self
+        }
+    }
+}
+
+pub struct RollingUpdateStatefulSetStrategyView {
+    pub partition: Option<int>,
+    pub max_unavailable: Option<int>
+}
+
+impl RollingUpdateStatefulSetStrategyView {
+    pub open spec fn default() -> RollingUpdateStatefulSetStrategyView {
+        RollingUpdateStatefulSetStrategyView {
+            partition: None,
+            max_unavailable: None
+        }
+    }
+    pub open spec fn with_partition(self, partition: int) -> RollingUpdateStatefulSetStrategyView {
+        RollingUpdateStatefulSetStrategyView {
+            partition: Some(partition),
+            ..self
+        }
+    }
+
+    pub open spec fn with_max_unavailable(self, max_unavailable: int) -> RollingUpdateStatefulSetStrategyView {
+        RollingUpdateStatefulSetStrategyView {
+            max_unavailable: Some(max_unavailable),
             ..self
         }
     }

@@ -16,23 +16,21 @@ pub mod vstatefulset_controller;
 pub mod vstd_ext;
 
 use crate::kubernetes_api_objects::exec::{dynamic::DynamicObject, resource::ResourceWrapper};
-use crate::vstatefulset_controller::trusted::exec_types::{VStatefulSet, VStatefulSetSpec};
+use crate::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use deps_hack::anyhow::Result;
-use deps_hack::kube::CustomResourceExt;
-use deps_hack::serde_yaml;
-use deps_hack::tokio;
-// use deps_hack::tracing::{error, info};
 use deps_hack::kube::core::{
     admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},
     DynamicObject as KubeDynamicObject, ResourceExt,
 };
+use deps_hack::kube::CustomResourceExt;
+use deps_hack::serde_yaml;
+use deps_hack::tokio;
 use deps_hack::tracing::*;
 use deps_hack::tracing_subscriber;
 use deps_hack::warp::*;
 use shim_layer::controller_runtime::run_controller;
-use std::env;
-// use deps_hack::warp::{reply, Filter, Reply};
 use std::convert::Infallible;
+use std::env;
 use std::error::Error;
 
 pub fn validate_state(vss: &VStatefulSet) -> Result<(), String> {
