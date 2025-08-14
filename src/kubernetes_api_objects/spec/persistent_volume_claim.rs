@@ -11,7 +11,6 @@ verus! {
 
 // PersistentVolumeClaimView is the ghost type of PersistentVolumeClaim.
 
-
 pub struct PersistentVolumeClaimView {
     pub metadata: ObjectMetaView,
     pub spec: Option<PersistentVolumeClaimSpecView>,

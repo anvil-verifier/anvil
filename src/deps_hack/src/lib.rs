@@ -398,6 +398,10 @@ impl Default for VStatefulSet {
 }
 
 impl VStatefulSetSpec {
+    // This is a workaround to allows us to
+    // (1) create VStatefulSet through VStatefulSetSpec using macros from k8s_openapi, and
+    // (2) reuse the wrapper type of k8s_openapi::api::apps::v1::StatefulSetSpec for VStatefulSet
+    // instead of creating a new wrapper type for VStatefulSetSpec.
     pub fn to_native(&self) -> k8s_openapi::api::apps::v1::StatefulSetSpec {
         k8s_openapi::api::apps::v1::StatefulSetSpec {
             service_name: self.service_name.clone(),
