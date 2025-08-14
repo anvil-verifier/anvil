@@ -418,8 +418,8 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
     .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
     .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
-    .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
     .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
+    .and(cluster.disable_crash().weak_fairness(controller_id))
     .and(cluster.disable_req_drop().weak_fairness(()))
     .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
