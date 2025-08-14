@@ -136,10 +136,6 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    // this will not hold if garbage collector deletes vrs objects
-    // &&& resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()
-    // instead, we can use a weaker version that all objects owned by vd are included in resp_pbjs
-    &&& forall |obj| s.resources().values().contains(obj) && obj_owned_by_vd(obj) ==> #[trigger] resp_objs.contains(obj)
     &&& filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s.resources())
     &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
         &&& VReplicaSetView::unmarshal(obj) is Ok
@@ -448,9 +444,7 @@ pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> boo
 // new_vrs_replicas is Some(x) -> new vrs exists and has replicas = x; else new vrs does not exist
 pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_replicas: Option<int>, old_vrs_list_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        &&& objects_to_vrs_list(objs) is Some
         &&& old_vrs_list.len() == old_vrs_list_len
         &&& match new_vrs_replicas {
             Some(n) => {
