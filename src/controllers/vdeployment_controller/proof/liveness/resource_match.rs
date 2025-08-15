@@ -673,6 +673,7 @@ ensures
     }
 }
 
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, replicas: int, n: nat
 )
@@ -1216,6 +1217,7 @@ ensures
 }
 
 // same as lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )

@@ -21,11 +21,7 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
 // TODO: add another version which talks about pods and derives from VRS ESR and this ESR
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        // make it consistent with API server's handle_list_req
-        let objs = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
         let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-        // this step may return None so we need to check here
-        &&& objects_to_vrs_list(objs) is Some
         &&& old_vrs_list.len() == 0
         &&& new_vrs is Some
         &&& match_template_without_hash(vd, new_vrs->0)
