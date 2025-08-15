@@ -256,7 +256,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 
     reveal_with_fuel(spec_before_phase_n, 6);
     if i == 1 {
-        // use_tla_forall(spec, |input| cluster.disable_crash().weak_fairness(input), controller_id);
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
