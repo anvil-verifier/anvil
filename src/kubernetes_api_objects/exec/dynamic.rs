@@ -18,6 +18,7 @@ pub struct DynamicObject {
 implement_view_trait!(DynamicObject, DynamicObjectView);
 implement_deep_view_trait!(DynamicObject, DynamicObjectView);
 implement_clone_trait!(DynamicObject);
+implement_resource_wrapper_trait!(DynamicObject, deps_hack::kube::api::DynamicObject);
 
 impl DynamicObject {
     #[verifier(external_body)]
@@ -34,5 +35,3 @@ impl std::fmt::Debug for DynamicObject {
 }
 
 }
-
-implement_resource_wrapper_trait!(DynamicObject, deps_hack::kube::api::DynamicObject);

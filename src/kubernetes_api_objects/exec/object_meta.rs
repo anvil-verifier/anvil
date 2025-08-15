@@ -266,8 +266,3 @@ impl ObjectMeta {
 }
 
 }
-
-implement_resource_wrapper_trait!(
-    ObjectMeta,
-    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta
-);

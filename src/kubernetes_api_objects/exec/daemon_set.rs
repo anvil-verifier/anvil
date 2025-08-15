@@ -98,15 +98,3 @@ impl DaemonSetStatus {
 }
 
 }
-
-implement_resource_wrapper_trait!(DaemonSet, deps_hack::k8s_openapi::api::apps::v1::DaemonSet);
-
-implement_resource_wrapper_trait!(
-    DaemonSetSpec,
-    deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec
-);
-
-implement_resource_wrapper_trait!(
-    DaemonSetStatus,
-    deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus
-);

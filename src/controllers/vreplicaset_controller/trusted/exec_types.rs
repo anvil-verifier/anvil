@@ -238,5 +238,3 @@ impl VReplicaSetSpec {
 }
 
 }
-
-implement_resource_wrapper_trait!(VReplicaSet, deps_hack::VReplicaSet);

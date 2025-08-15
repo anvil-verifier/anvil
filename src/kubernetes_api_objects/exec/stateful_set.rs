@@ -381,38 +381,3 @@ impl StatefulSetStatus {
 }
 
 }
-
-implement_resource_wrapper_trait!(
-    StatefulSet,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSet
-);
-
-implement_resource_wrapper_trait!(
-    StatefulSetSpec,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec
-);
-
-implement_resource_wrapper_trait!(
-    StatefulSetPersistentVolumeClaimRetentionPolicy,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy
-);
-
-implement_resource_wrapper_trait!(
-    StatefulSetUpdateStrategy,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy
-);
-
-implement_resource_wrapper_trait!(
-    StatefulSetOrdinals,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals
-);
-
-implement_resource_wrapper_trait!(
-    RollingUpdateStatefulSetStrategy,
-    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy
-);
-
-implement_resource_wrapper_trait!(
-    StatefulSetStatus,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus
-);

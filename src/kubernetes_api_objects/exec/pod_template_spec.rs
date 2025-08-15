@@ -14,13 +14,6 @@ implement_field_wrapper_type!(
 
 impl PodTemplateSpec {
     #[verifier(external_body)]
-    pub fn eq(&self, other: &Self) -> (b: bool)
-        ensures b == (self.view() == other.view())
-    {
-        self.inner == other.inner
-    }
-
-    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: Option<ObjectMeta>)
         ensures self@.metadata == metadata.deep_view()
     {
@@ -56,8 +49,3 @@ impl PodTemplateSpec {
 }
 
 }
-
-implement_resource_wrapper_trait!(
-    PodTemplateSpec,
-    deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec
-);
