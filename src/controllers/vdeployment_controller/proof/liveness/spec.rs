@@ -256,7 +256,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(provided_
 
     reveal_with_fuel(spec_before_phase_n, 6);
     if i == 1 {
-        use_tla_forall(spec, |input| cluster.disable_crash().weak_fairness(input), controller_id);
         cluster.lemma_true_leads_to_crash_always_disabled(spec, controller_id);
         cluster.lemma_true_leads_to_req_drop_always_disabled(spec);
         cluster.lemma_true_leads_to_pod_monkey_always_disabled(spec);
@@ -418,8 +417,8 @@ pub open spec fn next_with_wf(cluster: Cluster, controller_id: int) -> TempPred<
     .and(tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)))
     .and(tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))))
     .and(tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))))
-    .and(tla_forall(|input| cluster.disable_crash().weak_fairness(input)))
     .and(tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))))
+    .and(cluster.disable_crash().weak_fairness(controller_id))
     .and(cluster.disable_req_drop().weak_fairness(()))
     .and(cluster.disable_pod_monkey().weak_fairness(()))
 }
@@ -433,7 +432,10 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
     cluster.tla_forall_controller_next_weak_fairness_is_stable(controller_id);
     cluster.tla_forall_schedule_controller_reconcile_weak_fairness_is_stable(controller_id);
     cluster.tla_forall_external_next_weak_fairness_is_stable(controller_id);
-    Cluster::tla_forall_action_weak_fairness_is_stable(cluster.disable_crash());
+    assert(valid(stable(cluster.disable_crash().weak_fairness(controller_id)))) by {
+        let split_always = always(lift_state(cluster.disable_crash().pre(controller_id))).implies(eventually(lift_action(cluster.disable_crash().forward(controller_id))));
+        always_p_is_stable::<ClusterState>(split_always);
+    }
     Cluster::action_weak_fairness_is_stable(cluster.disable_req_drop());
     Cluster::action_weak_fairness_is_stable(cluster.disable_pod_monkey());
     stable_and_n!(
@@ -442,8 +444,8 @@ pub proof fn next_with_wf_is_stable(cluster: Cluster, controller_id: int)
         tla_forall(|input| cluster.builtin_controllers_next().weak_fairness(input)),
         tla_forall(|input: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, input.0, input.1))),
         tla_forall(|input| cluster.schedule_controller_reconcile().weak_fairness((controller_id, input))),
-        tla_forall(|input| cluster.disable_crash().weak_fairness(input)),
         tla_forall(|input| cluster.external_next().weak_fairness((controller_id, input))),
+        cluster.disable_crash().weak_fairness(controller_id),
         cluster.disable_req_drop().weak_fairness(()),
         cluster.disable_pod_monkey().weak_fairness(())
     );
