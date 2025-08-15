@@ -17,7 +17,6 @@ macro_rules! implement_field_wrapper_type {
         implement_deep_view_trait!($t, $vt);
         implement_default_trait!($t, $it, $vt);
         implement_clone_trait!($t);
-        implement_eq!($t);
         implement_resource_wrapper_trait!($t, $it);
     };
 }
@@ -180,6 +179,7 @@ macro_rules! implement_clone_trait {
 
 pub use implement_clone_trait;
 
+// implement_eq needs to be used carefully. It cannot be applied to anything that contains floating points.
 #[macro_export]
 macro_rules! implement_eq {
     ($t:ty) => {
@@ -187,7 +187,7 @@ macro_rules! implement_eq {
 
         impl $t {
             #[verifier(external_body)]
-            fn eq(&self, other: &Self) -> (b: bool)
+            pub fn eq(&self, other: &Self) -> (b: bool)
                 ensures b == (self@ == other@)
             {
                 self.inner == other.inner

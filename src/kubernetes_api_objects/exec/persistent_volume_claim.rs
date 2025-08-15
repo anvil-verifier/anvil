@@ -24,6 +24,8 @@ implement_object_wrapper_type!(
     PersistentVolumeClaimView
 );
 
+implement_eq!(PersistentVolumeClaim);
+
 implement_field_wrapper_type!(
     PersistentVolumeClaimSpec,
     deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,

@@ -22,6 +22,8 @@ implement_field_wrapper_type!(
     LabelSelectorView
 );
 
+implement_eq!(LabelSelector);
+
 impl LabelSelector {
     #[verifier(external_body)]
     pub fn match_labels(&self) -> (match_labels: Option<StringMap>)

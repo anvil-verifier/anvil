@@ -27,6 +27,8 @@ implement_field_wrapper_type!(
     RoleRefView
 );
 
+implement_eq!(RoleRef);
+
 implement_field_wrapper_type!(
     Subject,
     deps_hack::k8s_openapi::api::rbac::v1::Subject,

@@ -12,6 +12,8 @@ implement_field_wrapper_type!(
     PodTemplateSpecView
 );
 
+implement_eq!(PodTemplateSpec);
+
 impl PodTemplateSpec {
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: Option<ObjectMeta>)
