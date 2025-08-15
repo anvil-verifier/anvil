@@ -40,5 +40,3 @@ impl VStatefulSet {
 }
 
 }
-
-implement_resource_wrapper_trait!(VStatefulSet, deps_hack::VStatefulSet);

@@ -17,6 +17,7 @@ macro_rules! implement_field_wrapper_type {
         implement_deep_view_trait!($t, $vt);
         implement_default_trait!($t, $it, $vt);
         implement_clone_trait!($t);
+        implement_resource_wrapper_trait!($t, $it);
     };
 }
 
@@ -178,19 +179,41 @@ macro_rules! implement_clone_trait {
 
 pub use implement_clone_trait;
 
+// implement_eq needs to be used carefully. It cannot be applied to anything that contains floating points.
+#[macro_export]
+macro_rules! implement_eq {
+    ($t:ty) => {
+        verus! {
+
+        impl $t {
+            #[verifier(external_body)]
+            pub fn eq(&self, other: &Self) -> (b: bool)
+                ensures b == (self@ == other@)
+            {
+                self.inner == other.inner
+            }
+        }
+
+        }
+    };
+}
+
+pub use implement_eq;
+
 pub trait ResourceWrapper<T>: Sized {
     fn from_kube(inner: T) -> Self;
 
     fn into_kube(self) -> T;
 
     fn as_kube_ref(&self) -> &T;
-
-    fn as_kube_mut_ref(&mut self) -> &mut T;
 }
 
 #[macro_export]
 macro_rules! implement_resource_wrapper_trait {
     ($t:ty, $it:ty) => {
+        verus! {
+
+        #[verifier(external)]
         impl ResourceWrapper<$it> for $t {
             fn from_kube(inner: $it) -> $t {
                 Self { inner: inner }
@@ -203,10 +226,8 @@ macro_rules! implement_resource_wrapper_trait {
             fn as_kube_ref(&self) -> &$it {
                 &self.inner
             }
+        }
 
-            fn as_kube_mut_ref(&mut self) -> &mut $it {
-                &mut self.inner
-            }
         }
     };
 }

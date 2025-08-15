@@ -162,15 +162,3 @@ impl ServicePort {
 }
 
 }
-
-implement_resource_wrapper_trait!(Service, deps_hack::k8s_openapi::api::core::v1::Service);
-
-implement_resource_wrapper_trait!(
-    ServiceSpec,
-    deps_hack::k8s_openapi::api::core::v1::ServiceSpec
-);
-
-implement_resource_wrapper_trait!(
-    ServicePort,
-    deps_hack::k8s_openapi::api::core::v1::ServicePort
-);

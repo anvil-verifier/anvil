@@ -46,5 +46,3 @@ impl ConfigMap {
 }
 
 }
-
-implement_resource_wrapper_trait!(ConfigMap, deps_hack::k8s_openapi::api::core::v1::ConfigMap);

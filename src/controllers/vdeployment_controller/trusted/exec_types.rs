@@ -18,11 +18,6 @@ implement_custom_object_wrapper_type!(
     spec_types::VDeploymentView
 );
 
-implement_resource_wrapper_trait!(
-    VDeployment,
-    deps_hack::VDeployment
-);
-
 impl VDeployment {
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: VDeploymentSpec)
@@ -44,7 +39,7 @@ impl VDeployment {
         ensures
             res == self@.state_validation(),
     {
-        
+
         // replicas doesn't exist (eq to 1) or non-negative
         if let Some(replicas) = self.spec().replicas() {
             if replicas < 0 {
@@ -222,12 +217,6 @@ implement_field_wrapper_type!(
     spec_types::DeploymentStrategyView
 );
 
-implement_resource_wrapper_trait!(
-    DeploymentStrategy,
-    deps_hack::k8s_openapi::api::apps::v1::DeploymentStrategy
-);
-
-
 impl DeploymentStrategy {
 
     #[verifier(external_body)]
@@ -270,11 +259,6 @@ implement_field_wrapper_type!(
     RollingUpdateDeployment,
     deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment,
     spec_types::RollingUpdateDeploymentView
-);
-
-implement_resource_wrapper_trait!(
-    RollingUpdateDeployment,
-    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateDeployment
 );
 
 impl RollingUpdateDeployment {

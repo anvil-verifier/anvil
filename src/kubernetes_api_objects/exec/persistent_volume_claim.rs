@@ -24,6 +24,8 @@ implement_object_wrapper_type!(
     PersistentVolumeClaimView
 );
 
+implement_eq!(PersistentVolumeClaim);
+
 implement_field_wrapper_type!(
     PersistentVolumeClaimSpec,
     deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
@@ -31,13 +33,6 @@ implement_field_wrapper_type!(
 );
 
 impl PersistentVolumeClaim {
-    #[verifier(external_body)]
-    pub fn eq(&self, other: &Self) -> (b: bool)
-        ensures b == (self.view() == other.view())
-    {
-        self.inner == other.inner
-    }
-
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<PersistentVolumeClaimSpec>)
         ensures self@.spec == spec.deep_view()
@@ -80,13 +75,3 @@ impl PersistentVolumeClaimSpec {
 }
 
 }
-
-implement_resource_wrapper_trait!(
-    PersistentVolumeClaim,
-    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim
-);
-
-implement_resource_wrapper_trait!(
-    PersistentVolumeClaimSpec,
-    deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec
-);

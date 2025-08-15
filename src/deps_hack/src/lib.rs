@@ -279,6 +279,7 @@ pub struct FluentBitConfigSpec {
     serde::Deserialize,
     serde::Serialize,
     schemars::JsonSchema,
+    PartialEq,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VReplicaSet")]
 #[kube(shortname = "vrs", namespaced)]
@@ -305,6 +306,7 @@ impl Default for VReplicaSet {
     serde::Deserialize,
     serde::Serialize,
     schemars::JsonSchema,
+    PartialEq,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VDeployment")]
 #[kube(shortname = "vd", namespaced)]
@@ -339,6 +341,7 @@ impl Default for VDeployment {
     serde::Deserialize,
     serde::Serialize,
     schemars::JsonSchema,
+    PartialEq,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "VStatefulSet")]
 #[kube(shortname = "vsts", namespaced)]
@@ -365,7 +368,9 @@ pub struct VStatefulSetSpec {
     pub ordinals: Option<k8s_openapi::api::apps::v1::StatefulSetOrdinals>,
 }
 
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+#[derive(
+    Clone, Debug, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema, PartialEq,
+)]
 pub struct VStatefulSetStatus {
     pub replicas: i32,
     #[serde(rename = "readyReplicas")]

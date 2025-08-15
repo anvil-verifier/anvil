@@ -29,5 +29,3 @@ impl Preconditions {
 }
 
 }
-
-implement_resource_wrapper_trait!(Preconditions, deps_hack::kube::api::Preconditions);

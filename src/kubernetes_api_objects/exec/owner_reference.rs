@@ -33,8 +33,3 @@ impl OwnerReference {
 }
 
 }
-
-implement_resource_wrapper_trait!(
-    OwnerReference,
-    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference
-);

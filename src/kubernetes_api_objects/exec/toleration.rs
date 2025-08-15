@@ -17,8 +17,3 @@ implement_field_wrapper_type!(
     deps_hack::k8s_openapi::api::core::v1::Toleration,
     TolerationView
 );
-
-implement_resource_wrapper_trait!(
-    Toleration,
-    deps_hack::k8s_openapi::api::core::v1::Toleration
-);

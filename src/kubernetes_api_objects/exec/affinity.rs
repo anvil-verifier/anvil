@@ -21,5 +21,3 @@ implement_field_wrapper_type!(
 );
 
 }
-
-implement_resource_wrapper_trait!(Affinity, deps_hack::k8s_openapi::api::core::v1::Affinity);

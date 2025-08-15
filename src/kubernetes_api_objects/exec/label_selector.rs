@@ -22,14 +22,9 @@ implement_field_wrapper_type!(
     LabelSelectorView
 );
 
-impl LabelSelector {
-    #[verifier(external_body)]
-    pub fn eq(&self, other: &Self) -> (b: bool)
-        ensures b == (self.view() == other.view())
-    {
-        self.inner == other.inner
-    }
+implement_eq!(LabelSelector);
 
+impl LabelSelector {
     #[verifier(external_body)]
     pub fn match_labels(&self) -> (match_labels: Option<StringMap>)
         ensures
@@ -75,8 +70,3 @@ impl LabelSelector {
 }
 
 }
-
-implement_resource_wrapper_trait!(
-    LabelSelector,
-    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector
-);

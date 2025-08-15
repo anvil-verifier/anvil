@@ -170,17 +170,3 @@ impl PodSpec {
 }
 
 }
-
-implement_resource_wrapper_trait!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod);
-
-implement_resource_wrapper_trait!(PodSpec, deps_hack::k8s_openapi::api::core::v1::PodSpec);
-
-implement_resource_wrapper_trait!(
-    PodSecurityContext,
-    deps_hack::k8s_openapi::api::core::v1::PodSecurityContext
-);
-
-implement_resource_wrapper_trait!(
-    LocalObjectReference,
-    deps_hack::k8s_openapi::api::core::v1::LocalObjectReference
-);
