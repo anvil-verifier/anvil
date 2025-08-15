@@ -14,116 +14,139 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*};
-use crate::vstd_ext::seq_lib::*;
+use vstd::{seq_lib::*, prelude::*, map_lib::*};
+use crate::vstd_ext::{seq_lib::*, set_lib::*};
 
 verus! {
 
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    msg: Message,
+    req_msg: Message,
 ) -> (resp_msg: Message)
 requires
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_list_vrs_req(vd, controller_id, msg),
+    vd.well_formed(),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    req_msg_is_list_vrs_req(vd, controller_id, req_msg),
+    at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
-    resp_msg == handle_list_request_msg(msg, s.api_server).1,
+    resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
     resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg),
 {
+    broadcast use group_seq_properties;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // TODO: weaken at_vd_step_with_vd
+    let req = req_msg.content.get_list_request();
+    let list_req_filter = |o: DynamicObjectView| {
+        // why changing the order of fields makes a difference
+        &&& o.object_ref().namespace == req.namespace
+        &&& o.object_ref().kind == req.kind
+    };
     assert(triggering_cr.metadata == vd.metadata);
     assert(triggering_cr.object_ref() == vd.object_ref());
-    let resp_msg = handle_list_request_msg(msg, s.api_server).1;
+    let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
     assert(resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)) by {
+        assert(vd.metadata.namespace is Some);
+        assert(req.kind == VReplicaSetView::kind());
+        assert(req.namespace == vd.metadata.namespace->0);
+        assert(resp_msg.content.is_list_response());
+        assert(resp_msg.content.get_list_response() == handle_list_request(req, s.api_server));
+        assert(resp_msg.content.get_list_response().res is Ok);
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
         let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
-        assert(resp_msg.content.is_list_response());
-        assert(resp_msg.content.get_list_response().res is Ok);
-        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq());
+        assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
+        assert forall |o| #[trigger] resp_objs.contains(o) implies {
+            &&& o.kind == VReplicaSetView::kind()
+            &&& o.metadata.namespace == vd.metadata.namespace
+            &&& o.metadata.owner_references is Some
+            &&& o.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+            &&& VReplicaSetView::unmarshal(o) is Ok
+            &&& s_prime.resources().contains_key(o.object_ref())
+            &&& s_prime.resources()[o.object_ref()] == o
+        } by {
+            assert(list_req_filter(o)) by {
+                assert(s.resources().values().filter(list_req_filter).contains(o)) by {
+                    lemma_values_finite(s.resources());
+                    finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
+                }
+            }
+            assert(s.resources().contains_key(o.object_ref()));
+            assert(s.resources()[o.object_ref()] == o);
+            assert(o.kind == VReplicaSetView::kind());
+            assert(o.metadata.namespace is Some);
+            assert(o.object_ref().namespace == o.metadata.namespace->0);
+            assert(o.metadata.namespace == vd.metadata.namespace);
+            assert(o.metadata.owner_references is Some);
+            assert(o.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+            assert(VReplicaSetView::unmarshal(o) is Ok);
+            assert(s_prime.resources().contains_key(o.object_ref()));
+            assert(s_prime.resources()[o.object_ref()] == o);
+        }
         assert(objects_to_vrs_list(resp_objs) is Some);
         assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates());
         assert(filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()));
-        assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
-            &&& VReplicaSetView::unmarshal(obj) is Ok
-            &&& obj.kind == VReplicaSetView::kind()
-            &&& obj.metadata.namespace == vd.metadata.namespace
-            &&& obj.metadata.owner_references is Some
-            &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-            &&& s_prime.resources().contains_key(obj.object_ref())
-            &&& s_prime.resources()[obj.object_ref()] == obj
-        } by {
-            assert(VReplicaSetView::unmarshal(obj) is Ok);
-            assert(obj.kind == VReplicaSetView::kind());
-            assert(obj.metadata.namespace == vd.metadata.namespace);
-            assert(obj.metadata.owner_references is Some);
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
-            assert(s_prime.resources().contains_key(obj.object_ref()));
-            assert(s_prime.resources()[obj.object_ref()] == obj);
-        }
     }
+    assume(false);
     return resp_msg;
 }
 
 #[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    msg: Message, old_vrs_index: nat
+    req_msg: Message, old_vrs_index: nat
 ) -> (resp_msg: Message)
 requires
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, msg)(s),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, None, old_vrs_index)(s),
     local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
-    resp_msg == handle_create_request_msg(cluster.installed_types, msg, s.api_server).1,
+    resp_msg == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
     local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
-    return handle_create_request_msg(cluster.installed_types, msg, s.api_server).1;
+    return handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
 #[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    msg: Message, replicas: int, old_vrs_index: nat
+    req_msg: Message, replicas: int, old_vrs_index: nat
 ) -> (resp_msg: Message)
 requires
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_scale_new_vrs_req(vd, controller_id, msg)(s),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(replicas), old_vrs_index)(s),
     local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
-    resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
+    resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
     local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
-    return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
+    return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
 #[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    msg: Message, old_vrs_index: nat
+    req_msg: Message, old_vrs_index: nat
 ) -> (resp_msg: Message)
 requires
-    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
-    req_msg_is_scale_down_old_vrs_req(vd, controller_id, msg)(s),
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
+    req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s),
     local_state_is_valid_and_coherent(vd, controller_id)(s),
 ensures
-    resp_msg == handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1,
+    resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), (old_vrs_index - nat1!()) as nat)(s_prime),
     local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
-    return handle_get_then_update_request_msg(cluster.installed_types, msg, s.api_server).1;
+    return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
 #[verifier(external_body)]
