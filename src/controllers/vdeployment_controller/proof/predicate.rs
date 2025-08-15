@@ -29,15 +29,15 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
         &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).is_ok()
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
+        &&& triggering_cr.metadata.labels == vd.metadata.labels
+        // object_ref includes kind, name, namespace
         &&& triggering_cr.object_ref() == vd.object_ref()
         &&& triggering_cr.spec() == vd.spec()
-        &&& triggering_cr.metadata() == vd.metadata()
-        // &&& triggering_cr.metadata().uid == vd.metadata().uid
-        // &&& triggering_cr.metadata().namespace == vd.metadata().namespace
-        // &&& triggering_cr.metadata().name == vd.metadata().name
-        // &&& triggering_cr.metadata().labels == vd.metadata().labels
-        // &&& triggering_cr.metadata().resource_version == vd.metadata().resource_version
+        // controller_owner_ref includes kind, name, uid
         &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
+        // well_formed_for_namespaced includes resource_version
+        // TODO: investigate if vd has RV, or weaken the precondition of utility functions
+        //       as they don't read RV 
         &&& triggering_cr.well_formed() == vd.well_formed()
         &&& step_pred(local_state)
     }

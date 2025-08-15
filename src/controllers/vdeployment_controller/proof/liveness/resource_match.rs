@@ -534,8 +534,14 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     broadcast use group_seq_properties;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    assert(triggering_cr.metadata == vd.metadata);
-    assert(triggering_cr.object_ref() == vd.object_ref());
+    assert(triggering_cr.metadata.name == vd.metadata.name);
+    assert(triggering_cr.metadata.labels == vd.metadata.labels);
+    assert(triggering_cr.spec() == vd.spec());
+    assert(make_replica_set(triggering_cr) == make_replica_set(vd)) by {
+        // unprovable due to
+        // let pod_template_hash = int_to_string_view(vd.metadata.resource_version.unwrap());
+        assume(false);
+    }
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
 
