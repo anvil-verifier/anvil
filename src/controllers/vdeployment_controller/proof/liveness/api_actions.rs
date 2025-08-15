@@ -19,7 +19,6 @@ use crate::vstd_ext::seq_lib::*;
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message,
@@ -32,7 +31,38 @@ ensures
     resp_msg == handle_list_request_msg(msg, s.api_server).1,
     resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg),
 {
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    // TODO: weaken at_vd_step_with_vd
+    assert(triggering_cr.metadata == vd.metadata);
+    assert(triggering_cr.object_ref() == vd.object_ref());
     let resp_msg = handle_list_request_msg(msg, s.api_server).1;
+    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)) by {
+        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+        let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
+        assert(resp_msg.content.is_list_response());
+        assert(resp_msg.content.get_list_response().res is Ok);
+        assert(resp_objs == s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq());
+        assert(objects_to_vrs_list(resp_objs) is Some);
+        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates());
+        assert(filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()));
+        assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
+            &&& VReplicaSetView::unmarshal(obj) is Ok
+            &&& obj.kind == VReplicaSetView::kind()
+            &&& obj.metadata.namespace == vd.metadata.namespace
+            &&& obj.metadata.owner_references is Some
+            &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+            &&& s_prime.resources().contains_key(obj.object_ref())
+            &&& s_prime.resources()[obj.object_ref()] == obj
+        } by {
+            assert(VReplicaSetView::unmarshal(obj) is Ok);
+            assert(obj.kind == VReplicaSetView::kind());
+            assert(obj.metadata.namespace == vd.metadata.namespace);
+            assert(obj.metadata.owner_references is Some);
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+            assert(s_prime.resources().contains_key(obj.object_ref()));
+            assert(s_prime.resources()[obj.object_ref()] == obj);
+        }
+    }
     return resp_msg;
 }
 
