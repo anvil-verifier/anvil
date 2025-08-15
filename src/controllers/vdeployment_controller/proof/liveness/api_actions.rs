@@ -104,18 +104,53 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(vd, cluster, controller_id)(s),
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    filter_old_and_new_vrs_on_etcd(vd, s.resources()) ==
-    filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
-    // false assertions: an easy counterexample is to consider the garbage collector.
-    // s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq() ==
-    // s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq(),
-    // objects_to_vrs_list(s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()) ==
-    // objects_to_vrs_list(s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq()),
+    filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
     local_state_is_valid_and_coherent(vd, controller_id)(s) ==> local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
-{}
+{
+    // first, prove filter_old_and_new_vrs_on_etc(s) == filter_old_and_new_vrs_on_etcd(s_prime)
+    let objs = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
+    let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
+    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
+    let objs_prime = s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
+    let filtered_vrs_list_prime = objects_to_vrs_list(objs_prime).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
+    let (new_vrs_prime, old_vrs_list_prime) = filter_old_and_new_vrs_on_etcd(vd, s_prime.resources());
+    assert forall |vrs| filtered_vrs_list.contains(vrs) implies filtered_vrs_list_prime.contains(vrs) by {
+        assume({
+            let etcd_obj = s.resources()[vrs.object_ref()];
+            &&& s.resources().contains_key(vrs.object_ref())
+            &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
+            &&& etcd_obj.metadata.namespace == vd.metadata.namespace
+            &&& etcd_obj.metadata.owner_references is Some
+            &&& etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+        });
+        lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, vrs.object_ref(), msg
+        );
+        assume(filtered_vrs_list_prime.contains(vrs));
+    }
+    assert forall |vrs| filtered_vrs_list_prime.contains(vrs) implies filtered_vrs_list.contains(vrs) by {
+        if !filtered_vrs_list.contains(vrs) {
+            if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
+                match msg.src {
+                    HostId::Controller(id, cr_key) => {
+                        assume(false);
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+    // second, prove local_state_is_valid_and_coherent(vd, controller_id)(s_prime)
+    if local_state_is_valid_and_coherent(vd, controller_id)(s) {
+        assume(false);
+    }
+
+}
 
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API request msg does not change or delete the object
