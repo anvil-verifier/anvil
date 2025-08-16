@@ -31,103 +31,45 @@ impl RoleView {
             ..self
         }
     }
-}
 
-impl ResourceView for RoleView {
-    type Spec = RoleSpecView;
-    type Status = EmptyStatusView;
-
-    open spec fn default() -> RoleView {
+    #[verifier(inline)]
+    pub open spec fn _default() -> RoleView {
         RoleView {
             metadata: ObjectMetaView::default(),
             policy_rules: None,
         }
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::RoleKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> RoleSpecView {
+    #[verifier(inline)]
+    pub open spec fn _spec(self) -> RoleSpecView {
         self.policy_rules
     }
 
-    open spec fn status(self) -> EmptyStatusView {
+    #[verifier(inline)]
+    pub open spec fn _status(self) -> EmptyStatusView {
         empty_status()
     }
 
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: RoleView::marshal_spec(self.policy_rules),
-            status: RoleView::marshal_status(empty_status()),
+    #[verifier(inline)]
+    pub open spec fn _unmarshal_helper(obj: DynamicObjectView) -> RoleView {
+        RoleView {
+            metadata: obj.metadata,
+            policy_rules: RoleView::unmarshal_spec(obj.spec)->Ok_0,
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(RoleView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(RoleView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(RoleView {
-                metadata: obj.metadata,
-                policy_rules: RoleView::unmarshal_spec(obj.spec)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        RoleView::marshal_spec_preserves_integrity();
-        RoleView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: RoleSpecView) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<RoleSpecView, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: EmptyStatusView) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
-        &&& self.policy_rules is Some
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
+        self.policy_rules is Some
             ==> (forall |i| 0 <= i < self.policy_rules->0.len() ==> #[trigger] self.policy_rules->0[i].state_validation())
     }
 
-    open spec fn transition_validation(self, old_obj: RoleView) -> bool {
-        true
-    }
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: RoleView) -> bool { true }
 }
+
+implement_resource_view_trait!(RoleView, RoleSpecView, EmptyStatusView, _default, Kind::RoleKind, _spec, _status,
+    _unmarshal_helper, _state_validation, _transition_validation);
 
 pub struct PolicyRuleView {
     pub api_groups: Option<Seq<StringView>>,

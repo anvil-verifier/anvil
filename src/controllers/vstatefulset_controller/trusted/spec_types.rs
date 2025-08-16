@@ -40,89 +40,12 @@ impl VStatefulSetView {
             ..self
         }
     }
-}
 
-impl ResourceView for VStatefulSetView {
-    type Spec = StatefulSetSpecView;
-    type Status = Option<StatefulSetStatusView>;
+    #[verifier(inline)]
+    pub open spec fn _kind() -> Kind { Kind::CustomResourceKind("vstatefulset"@) }
 
-    open spec fn default() -> VStatefulSetView {
-        VStatefulSetView {
-            metadata: ObjectMetaView::default(),
-            spec: StatefulSetSpecView::default(),
-            status: None,
-        }
-    }
-
-    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
-
-    open spec fn kind() -> Kind { Kind::CustomResourceKind("vstatefulset"@) }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> StatefulSetSpecView { self.spec }
-
-    open spec fn status(self) -> Option<StatefulSetStatusView> { self.status }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: VStatefulSetView::marshal_spec(self.spec),
-            status: VStatefulSetView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<VStatefulSetView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(VStatefulSetView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(VStatefulSetView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(VStatefulSetView {
-                metadata: obj.metadata,
-                spec: VStatefulSetView::unmarshal_spec(obj.spec)->Ok_0,
-                status: VStatefulSetView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        VStatefulSetView::marshal_spec_preserves_integrity();
-        VStatefulSetView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: StatefulSetSpecView) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<StatefulSetSpecView, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<StatefulSetStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<StatefulSetStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
         // selector exists, and its match_labels is not empty
         // TODO: revise it after supporting selector.match_expressions
         &&& self.spec.selector.match_labels is Some
@@ -193,10 +116,12 @@ impl ResourceView for VStatefulSetView {
         )
     }
 
-    open spec fn transition_validation(self, old_obj: VStatefulSetView) -> bool {
-        true
-    }
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: VStatefulSetView) -> bool { true }
 }
+
+implement_resource_view_trait!(VStatefulSetView, StatefulSetSpecView, StatefulSetSpecView::default(),
+    Option<StatefulSetStatusView>, None, VStatefulSetView::_kind(), _state_validation, _transition_validation);
 
 impl CustomResourceView for VStatefulSetView {
     proof fn kind_is_custom_resource() {}

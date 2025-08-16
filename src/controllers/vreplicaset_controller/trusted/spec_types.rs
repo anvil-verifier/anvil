@@ -43,90 +43,13 @@ impl VReplicaSetView {
             ..self
         }
     }
-}
 
-impl ResourceView for VReplicaSetView {
-    type Spec = VReplicaSetSpecView;
-    type Status = Option<VReplicaSetStatusView>;
-
-    open spec fn default() -> VReplicaSetView {
-        VReplicaSetView {
-            metadata: ObjectMetaView::default(),
-            spec: arbitrary(), // TODO: specify the default value for spec
-            status: None,
-        }
-    }
-
-    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
-
-    open spec fn kind() -> Kind { Kind::CustomResourceKind("vreplicaset"@) }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> VReplicaSetSpecView { self.spec }
-
-    open spec fn status(self) -> Option<VReplicaSetStatusView> { self.status }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: VReplicaSetView::marshal_spec(self.spec),
-            status: VReplicaSetView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<VReplicaSetView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(VReplicaSetView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(VReplicaSetView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(VReplicaSetView {
-                metadata: obj.metadata,
-                spec: VReplicaSetView::unmarshal_spec(obj.spec)->Ok_0,
-                status: VReplicaSetView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        VReplicaSetView::marshal_spec_preserves_integrity();
-        VReplicaSetView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: VReplicaSetSpecView) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<VReplicaSetSpecView, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<VReplicaSetStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<VReplicaSetStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
+    #[verifier(inline)]
+    pub open spec fn _kind() -> Kind { Kind::CustomResourceKind("vreplicaset"@) }
 
     // TODO: keep it consistent with k8s's ReplicaSet
-    open spec fn state_validation(self) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
         // replicas is non-negative
         &&& self.spec.replicas is Some ==> self.spec.replicas->0 >= 0
         // selector exists, and its match_labels is not empty
@@ -146,10 +69,14 @@ impl ResourceView for VReplicaSetView {
         &&& self.spec.selector.matches(self.spec.template->0.metadata->0.labels->0)
     }
 
-    open spec fn transition_validation(self, old_obj: VReplicaSetView) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: VReplicaSetView) -> bool {
         true
     }
 }
+
+implement_resource_view_trait!(VReplicaSetView, VReplicaSetSpecView, VReplicaSetSpecView::default(),
+    Option<VReplicaSetStatusView>, None, VReplicaSetView::_kind(), _state_validation, _transition_validation);
 
 impl CustomResourceView for VReplicaSetView {
     proof fn kind_is_custom_resource() {}

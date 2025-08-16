@@ -32,104 +32,18 @@ impl ServiceView {
             ..self
         }
     }
+
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
+        self.spec is Some
+    }
+
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: ServiceView) -> bool { true }
 }
 
-impl ResourceView for ServiceView {
-    type Spec = Option<ServiceSpecView>;
-    type Status = Option<ServiceStatusView>;
-
-    open spec fn default() -> ServiceView {
-        ServiceView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::ServiceKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> Option<ServiceSpecView> {
-        self.spec
-    }
-
-    open spec fn status(self) -> Option<ServiceStatusView> {
-        self.status
-    }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: ServiceView::marshal_spec(self.spec),
-            status: ServiceView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(ServiceView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(ServiceView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(ServiceView {
-                metadata: obj.metadata,
-                spec: ServiceView::unmarshal_spec(obj.spec)->Ok_0,
-                status: ServiceView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        ServiceView::marshal_spec_preserves_integrity();
-        ServiceView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: Option<ServiceSpecView>) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<ServiceStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<ServiceStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
-        &&& self.spec is Some
-    }
-
-    open spec fn transition_validation(self, old_obj: ServiceView) -> bool {
-        true
-    }
-}
+implement_resource_view_trait!(ServiceView, Option<ServiceSpecView>, None, Option<ServiceStatusView>, None,
+    Kind::ServiceKind, _state_validation, _transition_validation);
 
 pub struct ServiceSpecView {
     pub cluster_ip: Option<StringView>,

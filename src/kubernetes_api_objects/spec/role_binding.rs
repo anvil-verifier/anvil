@@ -9,7 +9,6 @@ verus! {
 
 // RoleBindingView is the ghost type of RoleBinding.
 
-
 pub struct RoleBindingView {
     pub metadata: ObjectMetaView,
     pub role_ref: RoleRefView,
@@ -39,13 +38,9 @@ impl RoleBindingView {
             ..self
         }
     }
-}
 
-impl ResourceView for RoleBindingView {
-    type Spec = RoleBindingSpecView;
-    type Status = EmptyStatusView;
-
-    open spec fn default() -> RoleBindingView {
+    #[verifier(inline)]
+    pub open spec fn _default() -> RoleBindingView {
         RoleBindingView {
             metadata: ObjectMetaView::default(),
             role_ref: RoleRefView::default(),
@@ -53,83 +48,27 @@ impl ResourceView for RoleBindingView {
         }
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::RoleBindingKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> RoleBindingSpecView {
+    #[verifier(inline)]
+    pub open spec fn _spec(self) -> RoleBindingSpecView {
         (self.role_ref, self.subjects)
     }
 
-    open spec fn status(self) -> EmptyStatusView {
+    #[verifier(inline)]
+    pub open spec fn _status(self) -> EmptyStatusView {
         empty_status()
     }
 
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: RoleBindingView::marshal_spec((self.role_ref, self.subjects)),
-            status: RoleBindingView::marshal_status(empty_status()),
+    #[verifier(inline)]
+    pub open spec fn _unmarshal_helper(obj: DynamicObjectView) -> RoleBindingView {
+        RoleBindingView {
+            metadata: obj.metadata,
+            role_ref: RoleBindingView::unmarshal_spec(obj.spec)->Ok_0.0,
+            subjects: RoleBindingView::unmarshal_spec(obj.spec)->Ok_0.1,
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleBindingView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(RoleBindingView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(RoleBindingView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(RoleBindingView {
-                metadata: obj.metadata,
-                role_ref: RoleBindingView::unmarshal_spec(obj.spec)->Ok_0.0,
-                subjects: RoleBindingView::unmarshal_spec(obj.spec)->Ok_0.1,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        RoleBindingView::marshal_spec_preserves_integrity();
-        RoleBindingView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: RoleBindingSpecView) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: EmptyStatusView) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
         &&& self.role_ref.api_group == "rbac.authorization.k8s.io"@
         &&& (self.role_ref.kind == "Role"@ || self.role_ref.kind == "ClusterRole"@)
         // &&& self.role_ref.name.len() > 0
@@ -137,10 +76,14 @@ impl ResourceView for RoleBindingView {
         //     ==> forall |i| 0 <= i < self.subjects->0.len() ==> #[trigger] self.subjects->0[i].state_validation(true)
     }
 
-    open spec fn transition_validation(self, old_obj: RoleBindingView) -> bool {
-        &&& old_obj.role_ref == self.role_ref // role_ref is immutable
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: RoleBindingView) -> bool {
+        old_obj.role_ref == self.role_ref // role_ref is immutable
     }
 }
+
+implement_resource_view_trait!(RoleBindingView, RoleBindingSpecView, EmptyStatusView, _default, Kind::RoleBindingKind,
+    _spec, _status, _unmarshal_helper, _state_validation, _transition_validation);
 
 pub struct RoleRefView {
     pub api_group: StringView,
