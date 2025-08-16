@@ -10,7 +10,6 @@ verus! {
 
 // DaemonSetView is the ghost type of DaemonSet.
 
-
 pub struct DaemonSetView {
     pub metadata: ObjectMetaView,
     pub spec: Option<DaemonSetSpecView>,
@@ -31,106 +30,22 @@ impl DaemonSetView {
             ..self
         }
     }
-}
 
-impl ResourceView for DaemonSetView {
-    type Spec = Option<DaemonSetSpecView>;
-    type Status = Option<DaemonSetStatusView>;
-
-    open spec fn default() -> DaemonSetView {
-        DaemonSetView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
+        self.spec is Some
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::DaemonSetKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> Option<DaemonSetSpecView> {
-        self.spec
-    }
-
-    open spec fn status(self) -> Option<DaemonSetStatusView> {
-        self.status
-    }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: DaemonSetView::marshal_spec(self.spec),
-            status: DaemonSetView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(DaemonSetView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(DaemonSetView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(DaemonSetView {
-                metadata: obj.metadata,
-                spec: DaemonSetView::unmarshal_spec(obj.spec)->Ok_0,
-                status: DaemonSetView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        DaemonSetView::marshal_spec_preserves_integrity();
-        DaemonSetView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<DaemonSetStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
-        &&& self.spec is Some
-    }
-
-    open spec fn transition_validation(self, old_obj: DaemonSetView) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: DaemonSetView) -> bool {
         let old_spec = old_obj.spec->0;
         let new_spec = self.spec->0;
-        &&& old_spec.selector == new_spec.selector
+        old_spec.selector == new_spec.selector
     }
 }
+
+implement_resource_view_trait!(DaemonSetView, Option<DaemonSetSpecView>, None, Option<DaemonSetStatusView>, None,
+    Kind::DaemonSetKind, _state_validation, _transition_validation);
 
 pub struct DaemonSetSpecView {
     pub selector: LabelSelectorView,

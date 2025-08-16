@@ -12,7 +12,6 @@ verus! {
 
 // PodView is the ghost type of Pod.
 
-
 pub struct PodView {
     pub metadata: ObjectMetaView,
     pub spec: Option<PodSpecView>,
@@ -35,104 +34,18 @@ impl PodView {
             ..self
         }
     }
+
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
+        self.spec is Some
+    }
+
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: PodView) -> bool { true }
 }
 
-impl ResourceView for PodView {
-    type Spec = Option<PodSpecView>;
-    type Status = Option<PodStatusView>;
-
-    open spec fn default() -> PodView {
-        PodView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::PodKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> Option<PodSpecView> {
-        self.spec
-    }
-
-    open spec fn status(self) -> Option<PodStatusView> {
-        self.status
-    }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: PodView::marshal_spec(self.spec),
-            status: PodView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<PodView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(PodView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(PodView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(PodView {
-                metadata: obj.metadata,
-                spec: PodView::unmarshal_spec(obj.spec)->Ok_0,
-                status: PodView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        PodView::marshal_spec_preserves_integrity();
-        PodView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<PodStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<PodStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity(){}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
-        &&& self.spec is Some
-    }
-
-    open spec fn transition_validation(self, old_obj: PodView) -> bool {
-        true
-    }
-}
+implement_resource_view_trait!(PodView, Option<PodSpecView>, None, Option<PodStatusView>, None,
+    Kind::PodKind, _state_validation, _transition_validation);
 
 pub struct PodSpecView {
     pub affinity: Option<AffinityView>,
