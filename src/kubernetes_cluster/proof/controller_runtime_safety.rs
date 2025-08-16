@@ -246,9 +246,9 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
         &&& Self::every_in_flight_msg_has_no_replicas_and_has_unique_id()(s)
     };
 
-    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) ==> Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)(s, s_prime) by {
+    assert forall |s: ClusterState, s_prime: ClusterState| #[trigger] stronger_next(s, s_prime) implies Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)(s, s_prime) by {
         assert forall |ky: ObjectRef| (!s.ongoing_reconciles(controller_id).contains_key(ky) || requirements(ky, s))
-        && #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(ky) && stronger_next(s, s_prime) implies requirements(ky, s_prime) by {
+        && #[trigger] s_prime.ongoing_reconciles(controller_id).contains_key(ky) implies requirements(ky, s_prime) by {
             if requirements_antecedent(ky, s_prime) {
                 let next_step = choose |step| self.next_step(s, s_prime, step);
                 let pending_req_msg = s.ongoing_reconciles(controller_id)[key].pending_req_msg->0;
@@ -387,7 +387,7 @@ pub proof fn lemma_true_leads_to_always_pending_req_in_flight_xor_resp_in_flight
     }
 
     invariant_n!(
-        spec, lift_action(stronger_next), 
+        spec, lift_action(stronger_next),
         lift_action(Cluster::every_new_ongoing_reconcile_satisfies(controller_id, requirements)),
         lift_action(self.next()),
         lift_state(Self::there_is_the_controller_state(controller_id)),
@@ -928,11 +928,11 @@ pub proof fn lemma_true_leads_to_always_every_msg_from_key_is_pending_req_msg_of
 
                         if id == controller_id
                             && cr_key_opt is Some && cr_key == key {
-                            // Requires invariant 
+                            // Requires invariant
                             // `pending_req_in_flight_xor_resp_in_flight_if_has_pending_req_msg`
                             // if there's an incoming message, the `no_pending_req_msg_at_reconcile_state`
                             // family if there's not one (meaning we're done).
-                            // 
+                            //
                             // (comment left to provide a hint of the reasoning needed).
                         }
                     },
