@@ -1,9 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    label_selector::*, pod_template_spec::*, prelude::*,
-};
+use crate::kubernetes_api_objects::spec::{label_selector::*, pod_template_spec::*, prelude::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
 
@@ -18,7 +16,6 @@ pub struct VDeploymentView {
 pub type VDeploymentStatusView = EmptyStatusView;
 
 impl VDeploymentView {
-
     pub open spec fn with_metadata(self, metadata: ObjectMetaView) -> VDeploymentView {
         VDeploymentView {
             metadata: metadata,
@@ -40,90 +37,13 @@ impl VDeploymentView {
             uid: self.metadata.uid->0,
         }
     }
-}
 
-impl ResourceView for VDeploymentView {
-    type Spec = VDeploymentSpecView;
-    type Status = Option<VDeploymentStatusView>;
-
-    open spec fn default() -> VDeploymentView {
-        VDeploymentView {
-            metadata: ObjectMetaView::default(),
-            spec: arbitrary(), // TODO: specify the default value for spec
-            status: None,
-        }
-    }
-
-    open spec fn metadata(self) -> ObjectMetaView { self.metadata }
-
-    open spec fn kind() -> Kind { Kind::CustomResourceKind("vdeployment"@) }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> VDeploymentSpecView { self.spec }
-
-    open spec fn status(self) -> Option<VDeploymentStatusView> { self.status }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: VDeploymentView::marshal_spec(self.spec),
-            status: VDeploymentView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<VDeploymentView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(VDeploymentView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(VDeploymentView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(VDeploymentView {
-                metadata: obj.metadata,
-                spec: VDeploymentView::unmarshal_spec(obj.spec)->Ok_0,
-                status: VDeploymentView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        VDeploymentView::marshal_spec_preserves_integrity();
-        VDeploymentView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: VDeploymentSpecView) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<VDeploymentSpecView, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<VDeploymentStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<VDeploymentStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
+    #[verifier(inline)]
+    pub open spec fn _kind() -> Kind { Kind::CustomResourceKind("vdeployment"@) }
 
     // TODO: keep it consistent with k8s's Deployment
-    open spec fn state_validation(self) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
         // replicas is non-negative
         &&& self.spec.replicas is Some ==> self.spec.replicas->0 >= 0
 
@@ -179,11 +99,13 @@ impl ResourceView for VDeploymentView {
         &&& self.spec.selector.matches(self.spec.template.metadata->0.labels->0)
     }
 
-
-    open spec fn transition_validation(self, old_obj: VDeploymentView) -> bool {
-        true
-    }
+    // TODO: implement transition validation logic
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: VDeploymentView) -> bool { true }
 }
+
+implement_resource_view_trait!(VDeploymentView, VDeploymentSpecView, VDeploymentSpecView::default(),
+    Option<VDeploymentStatusView>, None, VDeploymentView::_kind(), _state_validation, _transition_validation);
 
 impl CustomResourceView for VDeploymentView {
     proof fn kind_is_custom_resource() {}
@@ -212,6 +134,7 @@ impl DeploymentStrategyView {
             rolling_update: None,
         }
     }
+
     pub open spec fn with_type(self, type_: StringView) -> DeploymentStrategyView {
         DeploymentStrategyView {
             type_: Some(type_),
@@ -264,6 +187,21 @@ pub struct VDeploymentSpecView {
     pub strategy: Option<DeploymentStrategyView>,
     pub revision_history_limit: Option<int>,
     pub paused: Option<bool>
+}
+
+impl VDeploymentSpecView {
+    pub open spec fn default() -> VDeploymentSpecView {
+        VDeploymentSpecView {
+            replicas: None,
+            selector: LabelSelectorView::default(),
+            template: PodTemplateSpecView::default(),
+            min_ready_seconds: None,
+            progress_deadline_seconds: None,
+            strategy: None,
+            revision_history_limit: None,
+            paused: None,
+        }
+    }
 }
 
 }

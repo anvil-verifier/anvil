@@ -12,7 +12,6 @@ verus! {
 
 // StatefulSetView is the ghost type of StatefulSet.
 
-
 pub struct StatefulSetView {
     pub metadata: ObjectMetaView,
     pub spec: Option<StatefulSetSpecView>,
@@ -33,97 +32,9 @@ impl StatefulSetView {
             ..self
         }
     }
-}
 
-impl ResourceView for StatefulSetView {
-    type Spec = Option<StatefulSetSpecView>;
-    type Status = Option<StatefulSetStatusView>;
-
-    open spec fn default() -> StatefulSetView {
-        StatefulSetView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::StatefulSetKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn spec(self) -> Option<StatefulSetSpecView> {
-        self.spec
-    }
-
-    open spec fn status(self) -> Option<StatefulSetStatusView> {
-        self.status
-    }
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: StatefulSetView::marshal_spec(self.spec),
-            status: StatefulSetView::marshal_status(self.status),
-        }
-    }
-
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<StatefulSetView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(StatefulSetView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(StatefulSetView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(StatefulSetView {
-                metadata: obj.metadata,
-                spec: StatefulSetView::unmarshal_spec(obj.spec)->Ok_0,
-                status: StatefulSetView::unmarshal_status(obj.status)->Ok_0,
-            })
-        }
-    }
-
-    proof fn marshal_preserves_integrity() {
-        StatefulSetView::marshal_spec_preserves_integrity();
-        StatefulSetView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: Option<StatefulSetSpecView>) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: Option<StatefulSetStatusView>) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<Option<StatefulSetStatusView>, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool {
         let new_spec = self.spec->0;
         &&& self.spec is Some
         &&& new_spec.replicas is Some ==> new_spec.replicas->0 >= 0
@@ -134,7 +45,8 @@ impl ResourceView for StatefulSetView {
         //     ==> new_spec.persistent_volume_claim_retention_policy->0.state_validation()
     }
 
-    open spec fn transition_validation(self, old_obj: StatefulSetView) -> bool {
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: StatefulSetView) -> bool {
         let old_spec = old_obj.spec->0;
         let new_spec = self.spec->0;
         // Fields other than replicas, template, persistent_volume_claim_retention_policy
@@ -147,6 +59,9 @@ impl ResourceView for StatefulSetView {
         }
     }
 }
+
+implement_resource_view_trait!(StatefulSetView, Option<StatefulSetSpecView>, None, Option<StatefulSetStatusView>, None,
+    Kind::StatefulSetKind, _state_validation, _transition_validation);
 
 pub struct StatefulSetSpecView {
     pub min_ready_seconds: Option<int>,
