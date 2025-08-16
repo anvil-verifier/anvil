@@ -28,101 +28,41 @@ impl SecretView {
             ..self
         }
     }
-}
 
-impl ResourceView for SecretView {
-    type Spec = SecretSpecView;
-    type Status = EmptyStatusView;
-
-    open spec fn default() -> SecretView {
+    #[verifier(inline)]
+    pub open spec fn _default() -> SecretView {
         SecretView {
             metadata: ObjectMetaView::default(),
             data: None,
         }
     }
 
-    open spec fn metadata(self) -> ObjectMetaView {
-        self.metadata
-    }
-
-    open spec fn kind() -> Kind {
-        Kind::SecretKind
-    }
-
-    open spec fn object_ref(self) -> ObjectRef {
-        ObjectRef {
-            kind: Self::kind(),
-            name: self.metadata.name->0,
-            namespace: self.metadata.namespace->0,
-        }
-    }
-
-    open spec fn spec(self) -> SecretSpecView {
+    #[verifier(inline)]
+    pub open spec fn _spec(self) -> SecretSpecView {
         self.data
     }
 
-    open spec fn status(self) -> EmptyStatusView {
+    #[verifier(inline)]
+    pub open spec fn _status(self) -> EmptyStatusView {
         empty_status()
     }
 
-    proof fn object_ref_is_well_formed() {}
-
-    open spec fn marshal(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: Self::kind(),
-            metadata: self.metadata,
-            spec: SecretView::marshal_spec(self.data),
-            status: SecretView::marshal_status(empty_status()),
+    #[verifier(inline)]
+    pub open spec fn _unmarshal_helper(obj: DynamicObjectView) -> SecretView {
+        SecretView {
+            metadata: obj.metadata,
+            data: SecretView::unmarshal_spec(obj.spec)->Ok_0,
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SecretView, UnmarshalError> {
-        if obj.kind != Self::kind() {
-            Err(())
-        } else if !(SecretView::unmarshal_spec(obj.spec) is Ok) {
-            Err(())
-        } else if !(SecretView::unmarshal_status(obj.status) is Ok) {
-            Err(())
-        } else {
-            Ok(SecretView {
-                metadata: obj.metadata,
-                data: SecretView::unmarshal_spec(obj.spec)->Ok_0,
-            })
-        }
-    }
+    #[verifier(inline)]
+    pub open spec fn _state_validation(self) -> bool { true }
 
-    proof fn marshal_preserves_integrity() {
-        SecretView::marshal_spec_preserves_integrity();
-        SecretView::marshal_status_preserves_integrity();
-    }
-
-    proof fn marshal_preserves_metadata() {}
-
-    proof fn marshal_preserves_kind() {}
-
-    uninterp spec fn marshal_spec(s: SecretSpecView) -> Value;
-
-    uninterp spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, UnmarshalError>;
-
-    uninterp spec fn marshal_status(s: EmptyStatusView) -> Value;
-
-    uninterp spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_spec_preserves_integrity() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_status_preserves_integrity() {}
-
-    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
-
-    open spec fn state_validation(self) -> bool {
-        true
-    }
-
-    open spec fn transition_validation(self, old_obj: SecretView) -> bool {
-        true
-    }
+    #[verifier(inline)]
+    pub open spec fn _transition_validation(self, old_obj: SecretView) -> bool { true }
 }
+
+implement_resource_view_trait!(SecretView, SecretSpecView, EmptyStatusView, _default, Kind::SecretKind, _spec,
+    _status, _unmarshal_helper, _state_validation, _transition_validation);
 
 }

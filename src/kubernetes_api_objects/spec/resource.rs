@@ -160,8 +160,8 @@ macro_rules! implement_resource_view_trait {
             open spec fn object_ref(self) -> ObjectRef {
                 ObjectRef {
                     kind: Self::kind(),
-                    name: self.metadata.name->0,
-                    namespace: self.metadata.namespace->0,
+                    name: self.metadata().name->0,
+                    namespace: self.metadata().namespace->0,
                 }
             }
 
@@ -178,9 +178,9 @@ macro_rules! implement_resource_view_trait {
             open spec fn marshal(self) -> DynamicObjectView {
                 DynamicObjectView {
                     kind: Self::kind(),
-                    metadata: self.metadata,
-                    spec: Self::marshal_spec(self.spec),
-                    status: Self::marshal_status(self.status),
+                    metadata: self.metadata(),
+                    spec: Self::marshal_spec(self.spec()),
+                    status: Self::marshal_status(self.status()),
                 }
             }
 
@@ -197,6 +197,100 @@ macro_rules! implement_resource_view_trait {
                         spec: Self::unmarshal_spec(obj.spec)->Ok_0,
                         status: Self::unmarshal_status(obj.status)->Ok_0,
                     })
+                }
+            }
+
+            proof fn marshal_preserves_integrity() {
+                Self::marshal_spec_preserves_integrity();
+                Self::marshal_status_preserves_integrity();
+            }
+
+            proof fn marshal_preserves_metadata() {}
+
+            proof fn marshal_preserves_kind() {}
+
+            uninterp spec fn marshal_spec(s: Self::Spec) -> Value;
+
+            uninterp spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, UnmarshalError>;
+
+            uninterp spec fn marshal_status(s: Self::Status) -> Value;
+
+            uninterp spec fn unmarshal_status(v: Value) -> Result<Self::Status, UnmarshalError>;
+
+            #[verifier(external_body)]
+            proof fn marshal_spec_preserves_integrity() {}
+
+            #[verifier(external_body)]
+            proof fn marshal_status_preserves_integrity() {}
+
+            proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
+
+            open spec fn state_validation(self) -> bool {
+                self.$state_validation()
+            }
+
+            open spec fn transition_validation(self, old_obj: Self) -> bool {
+                self.$transition_validation(old_obj)
+            }
+        }
+
+        }
+    };
+    ($t:ty, $spec_t:ty, $status_t:ty, $default:ident, $kind:expr, $spec:ident, $status:ident, $unmarshal:ident, $state_validation:ident, $transition_validation:ident) => {
+        verus! {
+
+        impl ResourceView for $t {
+            type Spec = $spec_t;
+            type Status = $status_t;
+
+            open spec fn default() -> Self {
+                Self::$default()
+            }
+
+            open spec fn metadata(self) -> ObjectMetaView {
+                self.metadata
+            }
+
+            open spec fn kind() -> Kind {
+                $kind
+            }
+
+            open spec fn object_ref(self) -> ObjectRef {
+                ObjectRef {
+                    kind: Self::kind(),
+                    name: self.metadata().name->0,
+                    namespace: self.metadata().namespace->0,
+                }
+            }
+
+            proof fn object_ref_is_well_formed() {}
+
+            open spec fn spec(self) -> Self::Spec {
+                self.$spec()
+            }
+
+            open spec fn status(self) -> Self::Status {
+                self.$status()
+            }
+
+            open spec fn marshal(self) -> DynamicObjectView {
+                DynamicObjectView {
+                    kind: Self::kind(),
+                    metadata: self.metadata(),
+                    spec: Self::marshal_spec(self.spec()),
+                    status: Self::marshal_status(self.status()),
+                }
+            }
+
+            open spec fn unmarshal(obj: DynamicObjectView) -> Result<Self, UnmarshalError> {
+                if obj.kind != Self::kind() {
+                    Err(())
+                } else if !(Self::unmarshal_spec(obj.spec) is Ok) {
+                    Err(())
+                } else if !(Self::unmarshal_status(obj.status) is Ok) {
+                    Err(())
+                } else {
+                    Ok(Self::$unmarshal(obj))
                 }
             }
 
