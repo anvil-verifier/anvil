@@ -63,6 +63,8 @@ pub struct PodSpecView {
     pub host_network: Option<bool>,
     pub termination_grace_period_seconds: Option<int>,
     pub image_pull_secrets: Option<Seq<LocalObjectReferenceView>>,
+    pub hostname: Option<StringView>,
+    pub subdomain: Option<StringView>,
 }
 
 impl PodSpecView {
@@ -83,6 +85,8 @@ impl PodSpecView {
             host_network: None,
             termination_grace_period_seconds: None,
             image_pull_secrets: None,
+            hostname: None,
+            subdomain: None,
         }
     }
 

@@ -13,6 +13,7 @@ pub struct VolumeView {
     pub secret: Option<SecretVolumeSourceView>,
     pub downward_api: Option<DownwardAPIVolumeSourceView>,
     pub empty_dir: Option<EmptyDirVolumeSourceView>,
+    pub persistent_volume_claim: Option<PersistentVolumeClaimVolumeSourceView>,
 }
 
 impl VolumeView {
@@ -79,7 +80,7 @@ impl VolumeView {
 }
 
 pub struct EmptyDirVolumeSourceView {
-    pub medium: Option<String>,
+    pub medium: Option<StringView>,
     pub size_limit: Option<StringView>,
 }
 
@@ -351,6 +352,20 @@ impl ObjectFieldSelectorView {
         ObjectFieldSelectorView {
             api_version: Some(api_version),
             ..self
+        }
+    }
+}
+
+pub struct PersistentVolumeClaimVolumeSourceView {
+    pub claim_name: StringView,
+    pub read_only: Option<bool>,
+}
+
+impl PersistentVolumeClaimVolumeSourceView {
+    pub open spec fn default() -> PersistentVolumeClaimVolumeSourceView {
+        PersistentVolumeClaimVolumeSourceView {
+            claim_name: ""@,
+            read_only: None,
         }
     }
 }
