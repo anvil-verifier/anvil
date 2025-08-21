@@ -26,6 +26,7 @@ impl VolumeView {
             secret: None,
             downward_api: None,
             empty_dir: None,
+            persistent_volume_claim: None,
         }
     }
 
