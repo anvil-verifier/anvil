@@ -38,6 +38,9 @@ pub enum RequestView<T> {
     ExternalRequest(T),
 }
 
+pub type DefaultResp = Option<ResponseView<VoidERespView>>;
+pub type DefaultReq = Option<RequestView<VoidEReqView>>;
+
 impl<T> RequestView<T> {
     pub open spec fn is_k_update_request(self) -> bool {
         &&& self.is_KRequest()
