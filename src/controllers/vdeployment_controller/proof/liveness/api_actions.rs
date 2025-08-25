@@ -88,12 +88,12 @@ ensures
     return resp_msg;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, old_vrs_index: nat
 ) -> (resp_msg: Message)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -114,6 +114,7 @@ pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
     req_msg: Message, replicas: int, old_vrs_index: nat
 ) -> (resp_msg: Message)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -134,6 +135,7 @@ pub proof fn lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(
     req_msg: Message, old_vrs_index: nat
 ) -> (resp_msg: Message)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
@@ -154,6 +156,7 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_
     msg: Message,
 )
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
