@@ -123,7 +123,6 @@ ensures
     return handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, replicas: int, old_vrs_index: nat
@@ -141,6 +140,15 @@ ensures
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
     local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
+    let req = req_msg.content.get_get_then_update_request();
+    let etcd_obj = s.resources()[req.key()];
+    // update can succeed
+    assert(etcd_obj.metadata.owner_references_contains(req.owner_ref));
+    assert(req.owner_ref == vd.controller_owner_ref());
+    assert(s.resources().contains_key(req.key()));
+    assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
+    assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0.is_Some());
+    assume(false);
     return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
@@ -165,7 +173,6 @@ ensures
     return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     msg: Message,
@@ -182,6 +189,7 @@ ensures
     filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
     local_state_is_valid_and_coherent(vd, controller_id)(s) ==> local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
+    broadcast use group_seq_properties;
     // first, prove filter_old_and_new_vrs_on_etc(s) == filter_old_and_new_vrs_on_etcd(s_prime)
     let list_req_filter = |o: DynamicObjectView| {
         &&& o.object_ref().namespace == vd.metadata.namespace->0
@@ -214,10 +222,17 @@ ensures
                     HostId::Controller(id, cr_key) => {
                         assume(false);
                     },
-                    _ => {},
+                    _ => {
+                        assume(false);
+                    },
                 }
             }
         }
+    }
+    // we need to prove the order is preserved
+    assert(filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources())) by {
+        assert(filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs(vd, filtered_vrs_list));
+        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()) == filter_old_and_new_vrs(vd, filtered_vrs_list_prime));
     }
     // second, prove local_state_is_valid_and_coherent(vd, controller_id)(s_prime)
     if local_state_is_valid_and_coherent(vd, controller_id)(s) {
@@ -234,8 +249,6 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owne
     key: ObjectRef, msg: Message
 )
 requires
-    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
-    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),

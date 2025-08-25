@@ -275,6 +275,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& valid_owned_object(req_vrs, vd)
         // etcd obj is owned by vd and should be protected by non-interference property
         &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& VReplicaSetView::unmarshal(request.obj) is Ok
         // unwrapped weaker version of vrs_eq_for_vd without spec as it's updated here
         &&& etcd_vrs.metadata.namespace == req_vrs.metadata.namespace
         &&& etcd_vrs.metadata.name == req_vrs.metadata.name
