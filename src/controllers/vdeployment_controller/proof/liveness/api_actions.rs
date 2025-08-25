@@ -52,7 +52,6 @@ ensures
         assert(resp_msg.content.get_list_response() == handle_list_request(req, s.api_server));
         assert(resp_msg.content.get_list_response().res is Ok);
         let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-        let vrs_list = objects_to_vrs_list(resp_objs).unwrap();
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
         assert forall |o| #[trigger] resp_objs.contains(o) implies {
             &&& o.kind == VReplicaSetView::kind()
@@ -85,7 +84,6 @@ ensures
                 }
             }
         }
-        assume(filter_old_and_new_vrs(triggering_cr, vrs_list.filter(|vrs| valid_owned_object(vrs, triggering_cr))) == filter_old_and_new_vrs_on_etcd(triggering_cr, s_prime.resources()));
     }
     return resp_msg;
 }
@@ -167,10 +165,14 @@ ensures
     local_state_is_valid_and_coherent(vd, controller_id)(s) ==> local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
     // first, prove filter_old_and_new_vrs_on_etc(s) == filter_old_and_new_vrs_on_etcd(s_prime)
-    let objs = s.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
+    let list_req_filter = |o: DynamicObjectView| {
+        &&& o.object_ref().namespace == vd.metadata.namespace->0
+        &&& o.object_ref().kind == VReplicaSetView::kind()
+    }; 
+    let objs = s.resources().values().filter(list_req_filter).to_seq();
     let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
     let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-    let objs_prime = s_prime.resources().values().filter(list_vrs_obj_filter(vd.metadata.namespace)).to_seq();
+    let objs_prime = s_prime.resources().values().filter(list_req_filter).to_seq();
     let filtered_vrs_list_prime = objects_to_vrs_list(objs_prime).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
     let (new_vrs_prime, old_vrs_list_prime) = filter_old_and_new_vrs_on_etcd(vd, s_prime.resources());
     assert forall |vrs| filtered_vrs_list.contains(vrs) implies filtered_vrs_list_prime.contains(vrs) by {
