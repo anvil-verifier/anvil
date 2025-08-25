@@ -534,6 +534,7 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     broadcast use group_seq_properties;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    assert(triggering_cr.metadata == vd.metadata);
     assert(triggering_cr.object_ref() == vd.object_ref());
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
@@ -631,8 +632,8 @@ ensures
         None => {
             &&& new_vrs is None
             &&& vds_prime.reconcile_step == AfterCreateNewVRS
-            &&& vds_prime.new_vrs == Some(make_replica_set(triggering_cr))
-            &&& pending_create_new_vrs_req_in_flight(triggering_cr, controller_id)(s_prime)
+            &&& vds_prime.new_vrs == Some(make_replica_set(vd))
+            &&& pending_create_new_vrs_req_in_flight(vd, controller_id)(s_prime)
         },
         Some(replicas) => {
             &&& new_vrs is Some
@@ -660,11 +661,11 @@ ensures
     assert(0 <= vds_prime.old_vrs_index <= vds_prime.old_vrs_list.len());
     assert(vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
     if replicas_or_not_exist is None {
-        make_replica_set_makes_valid_owned_object(triggering_cr);
-        assert(vds_prime.new_vrs == Some(make_replica_set(triggering_cr)));
+        make_replica_set_makes_valid_owned_object(vd);
+        assert(vds_prime.new_vrs == Some(make_replica_set(vd)));
         let new_vrs = vds_prime.new_vrs->0;
-        let vd_ref_seq = make_owner_references(triggering_cr);
-        assert(vd_ref_seq == Seq::empty().push(triggering_cr.controller_owner_ref()));
+        let vd_ref_seq = make_owner_references(vd);
+        assert(vd_ref_seq == Seq::empty().push(vd.controller_owner_ref()));
         assert(vd_ref_seq.filter(controller_owner_filter()) == vd_ref_seq) by {
             reveal(Seq::filter);
         }
