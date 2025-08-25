@@ -396,13 +396,18 @@ pub open spec fn handle_after_create_pod(vsts: VStatefulSetView, resp_o: Default
     }
 }
 
-// TODO: finish this handler
+// TODO: skip updating the pod if identity and storage already matches
 pub open spec fn handle_update_pod(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if state.needed_index < state.needed.len() {
-        // let req = APIRequest::CreateRequest(CreateRequest {
-        //     namespace: vsts.metadata.namespace->0,
-        //     obj: state.needed[state.needed_index].marshal(),
-        // });
+    if state.needed_index < state.needed.len() && state.needed[state.needed_index as int] is Some {
+        let old_pod = state.needed[state.needed_index as int]->0;
+        let ordinal = state.needed_index;
+        let new_pod = update_storage(vsts, update_identity(vsts, old_pod, ordinal), ordinal);
+        let req = APIRequest::GetThenUpdateRequest(GetThenUpdateRequest {
+            name: new_pod.metadata.name->0,
+            namespace: vsts.metadata.namespace->0,
+            owner_ref: vsts.controller_owner_ref(),
+            obj: new_pod.marshal(),
+        });
         let state_prime = VStatefulSetReconcileState {
             reconcile_step: VStatefulSetReconcileStepView::AfterUpdatePod,
             ..state
@@ -415,8 +420,8 @@ pub open spec fn handle_update_pod(vsts: VStatefulSetView, resp_o: DefaultResp, 
 }
 
 pub open spec fn handle_after_update_pod(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_create_resp_view!(resp_o) {
-        let result = extract_some_k_create_resp_view!(resp_o);
+    if is_some_k_get_then_update_resp_view!(resp_o) {
+        let result = extract_some_k_get_then_update_resp_view!(resp_o);
         if result is Ok {
             handle_after_create_or_after_update_pod_helper(vsts, state)
         } else {
@@ -500,8 +505,8 @@ pub open spec fn handle_delete_pod(vsts: VStatefulSetView, resp_o: DefaultResp, 
 }
 
 pub open spec fn handle_after_delete_pod(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_create_resp_view!(resp_o) {
-        let result = extract_some_k_create_resp_view!(resp_o);
+    if is_some_k_get_then_delete_resp_view!(resp_o) {
+        let result = extract_some_k_delete_resp_view!(resp_o);
         if result is Ok {
             let new_condemned_index = state.condemned_index + 1;
             if new_condemned_index < state.condemned.len() {
@@ -696,24 +701,24 @@ pub open spec fn update_storage(vsts: VStatefulSetView, pod: PodView, ordinal: n
     }
 }
 
-pub open spec fn identity_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
-    pod.metadata.labels is Some
-    && pod.metadata.labels->0.contains_key("statefulset.kubernetes.io/pod-name"@)
-    && pod.metadata.labels->0["statefulset.kubernetes.io/pod-name"@] == pod.metadata.name->0
-}
+// pub open spec fn identity_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
+//     pod.metadata.labels is Some
+//     && pod.metadata.labels->0.contains_key("statefulset.kubernetes.io/pod-name"@)
+//     && pod.metadata.labels->0["statefulset.kubernetes.io/pod-name"@] == pod.metadata.name->0
+// }
 
-pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
-    let claims = vsts.spec.volume_claim_templates->0;
-    let volumes = pod.spec->0.volumes->0;
-    let ordinal = get_ordinal(vsts.metadata.name->0, pod);
-    vsts.spec.volume_claim_templates is Some
-    ==> pod.spec->0.volumes is Some
-        && forall |i: int| #![trigger claims[i]] 0 <= i < claims.len()
-            ==> exists |j: int| #![trigger volumes[j]] 0 <= j < volumes.len()
-                    && volumes[j].name == claims[i].metadata.name->0
-                    && volumes[j].persistent_volume_claim is Some
-                    && volumes[j].persistent_volume_claim->0.claim_name == pvc_name(claims[i].metadata.name->0, vsts.metadata.name->0, ordinal)
-}
+// pub open spec fn storage_matches(vsts: VStatefulSetView, pod: PodView) -> bool {
+//     let claims = vsts.spec.volume_claim_templates->0;
+//     let volumes = pod.spec->0.volumes->0;
+//     let ordinal = get_ordinal(vsts.metadata.name->0, pod);
+//     vsts.spec.volume_claim_templates is Some
+//     ==> pod.spec->0.volumes is Some
+//         && forall |i: int| #![trigger claims[i]] 0 <= i < claims.len()
+//             ==> exists |j: int| #![trigger volumes[j]] 0 <= j < volumes.len()
+//                     && volumes[j].name == claims[i].metadata.name->0
+//                     && volumes[j].persistent_volume_claim is Some
+//                     && volumes[j].persistent_volume_claim->0.claim_name == pvc_name(claims[i].metadata.name->0, vsts.metadata.name->0, ordinal)
+// }
 
 
 }
