@@ -24,7 +24,6 @@ pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     req_msg: Message,
 ) -> (resp_msg: Message)
 requires
-    vd.well_formed(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_list_vrs_req(vd, controller_id, req_msg),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
@@ -41,7 +40,6 @@ ensures
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
     };
-    assert(triggering_cr.metadata == vd.metadata);
     assert(triggering_cr.object_ref() == vd.object_ref());
     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
     assert(resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)) by {
