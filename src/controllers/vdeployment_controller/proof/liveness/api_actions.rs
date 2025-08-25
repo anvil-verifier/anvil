@@ -88,6 +88,8 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)]
+// staged, we need to handle collision
 pub proof fn lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, old_vrs_index: nat
@@ -105,6 +107,19 @@ ensures
     etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
     local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
+    broadcast use group_seq_properties;
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    let request = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    let new_vrs = make_replica_set(triggering_cr);
+    assert(request == CreateRequest {
+        namespace: triggering_cr.metadata.namespace.unwrap(),
+        obj: new_vrs.marshal()
+    });
+    assert(s_prime.api_server == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).0);
+    assert(create_request_admission_check(cluster.installed_types, request, s.api_server) is None) by {
+        VReplicaSetView::marshal_preserves_integrity();
+    }
+    assume(false);
     return handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
