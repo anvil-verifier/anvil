@@ -69,8 +69,7 @@ pub enum VStatefulSetReconcileStepView {
     AfterGetPVC,
     CreatePVC,
     AfterCreatePVC,
-    UpdatePVC,
-    AfterUpdatePVC,
+    SkipPVC,
     CreatePod,
     AfterCreatePod,
     UpdatePod,
@@ -101,11 +100,8 @@ pub open spec fn reconcile_core(vsts: VStatefulSetView, resp_o: DefaultResp, sta
         VStatefulSetReconcileStepView::AfterCreatePVC => {
             handle_after_create_pvc(vsts, resp_o, state)
         },
-        VStatefulSetReconcileStepView::UpdatePVC => {
-            handle_update_pvc(vsts, resp_o, state)
-        },
-        VStatefulSetReconcileStepView::AfterUpdatePVC => {
-            handle_after_update_pvc(vsts, resp_o, state)
+        VStatefulSetReconcileStepView::SkipPVC => {
+            handle_skip_pvc(vsts, resp_o, state)
         },
         VStatefulSetReconcileStepView::CreatePod => {
             handle_create_pod(vsts, resp_o, state)
@@ -245,9 +241,9 @@ pub open spec fn handle_after_get_pvc(vsts: VStatefulSetView, resp_o: DefaultRes
     if is_some_k_get_resp_view!(resp_o) {
         let result = extract_some_k_get_resp_view!(resp_o);
         if result is Ok {
-                // The pvc exists, so we update it in the next step
+                // The pvc exists, so we don't do anything to it
                 let state_prime = VStatefulSetReconcileState {
-                    reconcile_step: VStatefulSetReconcileStepView::UpdatePVC,
+                    reconcile_step: VStatefulSetReconcileStepView::SkipPVC,
                     ..state
                 };
                 (state_prime, None)
@@ -290,7 +286,7 @@ pub open spec fn handle_after_create_pvc(vsts: VStatefulSetView, resp_o: Default
     if is_some_k_create_resp_view!(resp_o) {
         let result = extract_some_k_create_resp_view!(resp_o);
         if result is Ok || (result is Err && result->Err_0 is ObjectAlreadyExists) {
-            handle_after_create_or_after_update_pvc_helper(vsts, state)
+            handle_after_create_or_skip_pvc_helper(vsts, state)
         } else {
             (error_state(state), None)
         }
@@ -300,39 +296,11 @@ pub open spec fn handle_after_create_pvc(vsts: VStatefulSetView, resp_o: Default
     }
 }
 
-// TODO: finish this handler
-pub open spec fn handle_update_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if state.pvc_index < state.pvcs.len() {
-        // let req = APIRequest::CreateRequest(CreateRequest {
-        //     namespace: namespace,
-        //     obj: state.pvcs[state.pvc_index].marshal(),
-        // });
-        let state_prime = VStatefulSetReconcileState {
-            reconcile_step: VStatefulSetReconcileStepView::AfterUpdatePVC,
-            ..state
-        };
-        (state_prime, None)
-    } else {
-        // This should be unreachable
-        (error_state(state), None)
-    }
+pub open spec fn handle_skip_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
+    handle_after_create_or_skip_pvc_helper(vsts, state)
 }
 
-pub open spec fn handle_after_update_pvc(vsts: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
-    if is_some_k_update_resp_view!(resp_o) {
-        let result = extract_some_k_update_resp_view!(resp_o);
-        if result is Ok {
-            handle_after_create_or_after_update_pvc_helper(vsts, state)
-        } else {
-            (error_state(state), None)
-        }
-    } else {
-        // This should be unreachable
-        (error_state(state), None)
-    }
-}
-
-pub open spec fn handle_after_create_or_after_update_pvc_helper(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
+pub open spec fn handle_after_create_or_skip_pvc_helper(vsts: VStatefulSetView, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
     let new_pvc_index = state.pvc_index + 1;
     if new_pvc_index < state.pvcs.len() {
         (VStatefulSetReconcileState {
