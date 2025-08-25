@@ -31,14 +31,10 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
         &&& triggering_cr.object_ref() == vd.object_ref()
         &&& triggering_cr.spec() == vd.spec()
-        &&& triggering_cr.metadata() == vd.metadata()
-        // &&& triggering_cr.metadata().uid == vd.metadata().uid
-        // &&& triggering_cr.metadata().namespace == vd.metadata().namespace
-        // &&& triggering_cr.metadata().name == vd.metadata().name
-        // &&& triggering_cr.metadata().labels == vd.metadata().labels
-        // &&& triggering_cr.metadata().resource_version == vd.metadata().resource_version
+        &&& triggering_cr.metadata().uid == vd.metadata().uid
+        &&& triggering_cr.metadata().labels == vd.metadata().labels
         &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
-        &&& triggering_cr.well_formed() == vd.well_formed()
+        &&& triggering_cr.well_formed()
         &&& step_pred(local_state)
     }
 }
@@ -142,17 +138,20 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     }
 }
 
+// because make_replica_set use vd's RV to fake hash
+// we need to use triggering_cr here as a temporary workaround
+// because vd only provides basic spec, and has no RV
 pub open spec fn req_msg_is_create_vrs_req(
-    vd: VDeploymentView, controller_id: int, req_msg: Message
+    triggering_cr: VDeploymentView, controller_id: int, req_msg: Message
 ) -> bool {
     let request = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
-    &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
+    &&& req_msg.src == HostId::Controller(controller_id, triggering_cr.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content.is_APIRequest()
     &&& req_msg.content.get_APIRequest_0().is_CreateRequest()
     &&& request == CreateRequest {
-        namespace: vd.metadata.namespace.unwrap(),
-        obj: make_replica_set(vd).marshal()
+        namespace: triggering_cr.metadata.namespace.unwrap(),
+        obj: make_replica_set(triggering_cr).marshal()
     }
 }
 
@@ -161,9 +160,10 @@ pub open spec fn pending_create_new_vrs_req_in_flight(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+        &&& req_msg_is_create_vrs_req(triggering_cr, controller_id, req_msg)
     }
 }
 
@@ -171,9 +171,10 @@ pub open spec fn req_msg_is_pending_create_new_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+        &&& req_msg_is_create_vrs_req(triggering_cr, controller_id, req_msg)
     }
 }
 
@@ -182,8 +183,9 @@ pub open spec fn resp_msg_is_ok_create_new_vrs_resp(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+        &&& req_msg_is_create_vrs_req(triggering_cr, controller_id, req_msg)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.is_create_response()
@@ -196,8 +198,9 @@ pub open spec fn exists_resp_msg_is_ok_create_new_vrs_resp(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg)
+        &&& req_msg_is_create_vrs_req(triggering_cr, controller_id, req_msg)
         &&& exists |resp_msg| {
             // predicate on resp_msg
             &&& #[trigger] s.in_flight().contains(resp_msg)
