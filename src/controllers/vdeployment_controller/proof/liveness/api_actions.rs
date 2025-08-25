@@ -24,13 +24,16 @@ pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     req_msg: Message,
 ) -> (resp_msg: Message)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_list_vrs_req(vd, controller_id, req_msg),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
-    resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg),
+    resp_msg_is_ok_list_resp_containing_matched_vrs(
+        s_prime, VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap(), resp_msg
+    ),
 {
     broadcast use group_seq_properties;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -39,13 +42,12 @@ ensures
         // why changing the order of fields makes a difference
         &&& o.object_ref().namespace == req.namespace
         &&& o.object_ref().kind == req.kind
-    };
-    assert(triggering_cr.object_ref() == vd.object_ref());
+    }; 
     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
-    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)) by {
-        assert(vd.metadata.namespace is Some);
+    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, triggering_cr, resp_msg)) by {
+        assert(triggering_cr.metadata.namespace is Some);
         assert(req.kind == VReplicaSetView::kind());
-        assert(req.namespace == vd.metadata.namespace->0);
+        assert(req.namespace == triggering_cr.metadata.namespace->0);
         assert(resp_msg.content.is_list_response());
         assert(resp_msg.content.get_list_response() == handle_list_request(req, s.api_server));
         assert(resp_msg.content.get_list_response().res is Ok);
@@ -54,36 +56,37 @@ ensures
         assert(resp_objs == s.resources().values().filter(list_req_filter).to_seq());
         assert forall |o| #[trigger] resp_objs.contains(o) implies {
             &&& o.kind == VReplicaSetView::kind()
-            &&& o.metadata.namespace == vd.metadata.namespace
-            &&& o.metadata.owner_references is Some
-            &&& o.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+            &&& o.metadata.namespace == triggering_cr.metadata.namespace
             &&& VReplicaSetView::unmarshal(o) is Ok
             &&& s_prime.resources().contains_key(o.object_ref())
             &&& s_prime.resources()[o.object_ref()] == o
         } by {
-            assert(list_req_filter(o)) by {
-                assert(s.resources().values().filter(list_req_filter).contains(o)) by {
-                    lemma_values_finite(s.resources());
-                    finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
-                }
+            assert(s.resources().values().filter(list_req_filter).contains(o)) by {
+                lemma_values_finite(s.resources());
+                finite_set_to_seq_contains_all_set_elements(s.resources().values().filter(list_req_filter));
             }
+            assert(list_req_filter(o));
             assert(s.resources().contains_key(o.object_ref()));
             assert(s.resources()[o.object_ref()] == o);
-            assert(o.kind == VReplicaSetView::kind());
-            assert(o.metadata.namespace is Some);
-            assert(o.object_ref().namespace == o.metadata.namespace->0);
-            assert(o.metadata.namespace == vd.metadata.namespace);
-            assert(o.metadata.owner_references is Some);
-            assert(o.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
-            assert(VReplicaSetView::unmarshal(o) is Ok);
-            assert(s_prime.resources().contains_key(o.object_ref()));
-            assert(s_prime.resources()[o.object_ref()] == o);
         }
-        assert(objects_to_vrs_list(resp_objs) is Some);
-        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates());
-        assert(filter_old_and_new_vrs(vd, vrs_list.filter(|vrs| valid_owned_object(vrs, vd))) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()));
+        assert(objects_to_vrs_list(resp_objs) is Some) by {
+            seq_pred_false_on_all_elements_is_equivalent_to_empty_filter(resp_objs, |o: DynamicObjectView| VReplicaSetView::unmarshal(o).is_err());
+        }
+        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()) by {
+            lemma_values_finite(s.resources());
+            finite_set_to_seq_has_no_duplicates(s.resources().values().filter(list_req_filter));
+            // now we know resp_objs has no duplicates, prove keys are unique by contradiction
+            assert forall|i, j| (0 <= i < resp_objs.len() && 0 <= j < resp_objs.len() && i != j) implies #[trigger] resp_objs[i].object_ref() != #[trigger] resp_objs[j].object_ref() by {
+                if resp_objs[i].object_ref() == resp_objs[j].object_ref() {
+                    // trigger of s.resources()[o.object_ref()] == o
+                    assert(resp_objs.contains(resp_objs[i]));
+                    assert(resp_objs.contains(resp_objs[j]));
+                    assert(resp_objs[i] == resp_objs[j]);
+                }
+            }
+        }
+        assume(filter_old_and_new_vrs(triggering_cr, vrs_list.filter(|vrs| valid_owned_object(vrs, triggering_cr))) == filter_old_and_new_vrs_on_etcd(triggering_cr, s_prime.resources()));
     }
-    assume(false);
     return resp_msg;
 }
 

@@ -83,6 +83,7 @@ pub open spec fn req_msg_is_pending_list_req_in_flight(vd: VDeploymentView, cont
 pub open spec fn exists_pending_list_resp_in_flight_and_match_req(vd: VDeploymentView, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         // predicate on req_msg, it's not in_flight
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg)
@@ -90,7 +91,7 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(vd: VDeploymen
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, triggering_cr, resp_msg)
         }
     }
 }
@@ -100,13 +101,14 @@ pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         // predicate on req_msg, it's not in_flight
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& req_msg_is_list_vrs_req(vd, controller_id, req_msg)
         // predicate on resp_msg
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, triggering_cr, resp_msg)
     }
 }
 
@@ -131,8 +133,8 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
         &&& VReplicaSetView::unmarshal(obj) is Ok
         &&& obj.kind == VReplicaSetView::kind()
         &&& obj.metadata.namespace == vd.metadata.namespace
-        &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+        // &&& obj.metadata.owner_references is Some
+        // &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         &&& s.resources().contains_key(obj.object_ref())
         &&& s.resources()[obj.object_ref()] == obj
     }
