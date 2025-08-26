@@ -123,10 +123,6 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     s: ClusterState, vd: VDeploymentView, resp_msg: Message
 ) -> bool {
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    let etcd_marshalled_vrs = resources.values().filter(|o: DynamicObjectView| {
-        &&& o.object_ref().namespace == vd.metadata.namespace->0
-        &&& o.object_ref().kind == VReplicaSetView::kind()
-    }).to_seq();
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
@@ -135,8 +131,9 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // we say it contains all vrs we care about
     // because other controllers can create/delete vrs with the same namespace as vds
     // and thus break the predicate
+    // TODO: this may be weakened from <==> to be ==>
     &&& objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_object(vrs, vd))
-        == objects_to_vrs_list(etcd_marshalled_vrs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
+        == filter_vrs_managed_by_vd(vd, s.resources())
     &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
         &&& VReplicaSetView::unmarshal(obj) is Ok
         &&& obj.kind == VReplicaSetView::kind()
@@ -223,7 +220,7 @@ pub open spec fn exists_resp_msg_is_ok_create_new_vrs_resp(
 }
 
 pub open spec fn req_msg_is_scale_down_old_vrs_req(
-    vd: VDeploymentView, controller_id: int, req_msg: Message, new_vrs_uid: Uid
+    vd: VDeploymentView, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
@@ -244,7 +241,7 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         &&& s.resources().contains_key(key)
         // the scaled down vrs can previously pass old vrs filter
         &&& filter_vrs_managed_by_vd(vd, s.resources()).contains(etcd_vrs)
-        &&& old_vrs_filter(new_vrs_uid)(etcd_vrs)
+        &&& old_vrs_filter(Some(new_vrs))(etcd_vrs)
         // etcd obj is owned by vd and should be protected by non-interference property
         &&& VReplicaSetView::unmarshal(obj) is Ok
         // unwrapped weaker version of vrs_eq_for_vd without spec as it's updated here
@@ -387,7 +384,7 @@ pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(
 // - only need the key to be in etcd and corresponding objects can pass the filter
 // - so current_state_matches canexists_resp_msg_is_ok_get_then_update_resp be reached by sending get-then-update request
 // this predicate holds since AfterListVRS state
-pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controller_id: int, new_vrs_uid: Option<Uid>) -> StatePred<ClusterState> {
+pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controller_id: int, new_vrs: Option<VReplicaSetView>) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
@@ -400,7 +397,7 @@ pub open spec fn local_state_is_valid_and_coherent(vd: VDeploymentView, controll
             &&& s.resources().contains_key(key)
             // obj in etcd exists and is owned by vd
             &&& filtered_vrs_list.contains(vrs)
-            &&& old_vrs_filter(new_vrs_uid)(vrs)
+            &&& old_vrs_filter(new_vrs)(vrs)
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
@@ -463,13 +460,12 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs_
                 let new_vrs_uid = new_vrs->0.metadata.uid;
                 &&& new_vrs_uid is Some
                 &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).contains(new_vrs->0)
-                &&& filtered_vrs_list.filter(old_vrs_filter(new_vrs_uid)).len() == old_vrs_list_len
             },
             None => {
                 &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).len() == 0
-                &&& filtered_vrs_list.filter(old_vrs_filter(None)).len() == old_vrs_list_len
             }
         }
+        &&& filtered_vrs_list.filter(new_vrs_or_none).len() == old_vrs_list_len
     }
 }
 

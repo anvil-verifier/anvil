@@ -88,10 +88,10 @@ ensures
         temp_pred_equality(list_resp, tla_exists(|msg| list_resp_msg(msg)));
     };
     temp_pred_equality(list_resp, tla_exists(|msg| list_resp_msg(msg)));
-    let after_list_with_etcd_state = |msg: Message, replicas_or_not_exist: Option<int>, n: nat| lift_state(and!(
+    let after_list_with_etcd_state = |msg: Message, new_vrs_or_none: Option<VReplicaSetView>, n: nat| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]),
         resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, msg),
-        etcd_state_is(vd, controller_id, replicas_or_not_exist, n)
+        etcd_state_is(vd, controller_id, new_vrs_or_none, n)
     ));
     let after_ensure_vrs = |n: nat| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![(AfterEnsureNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -105,26 +105,23 @@ ensures
         // (\A |msg|) list_resp_msg(msg) == \E |replicas: Options<int>, n: nat| after_ensure_vrs(n)
         // here replicas.is_Some == if new vrs exists, replicas->0 == new_vrs.spec.replicas.unwrap_or(1)
         // 1 is the default value if not set
-        assert(list_resp_msg(msg) == tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))) by {
+        assert(list_resp_msg(msg) == tla_exists(|i: (Option<VReplicaSetView>, nat)| after_list_with_etcd_state(msg, i.0, i.1))) by {
             assert forall |ex: Execution<ClusterState>| #[trigger] list_resp_msg(msg).satisfied_by(ex) implies
-                tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
+                tla_exists(|i: (Option<VReplicaSetView>, nat)| after_list_with_etcd_state(msg, i.0, i.1)).satisfied_by(ex) by {
                 let s = ex.head();
-                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
-                let replicas = if new_vrs is Some {
-                    Some(new_vrs->0.spec.replicas.unwrap_or(int1!()))
-                } else {
-                    None
-                };
+                let resp_objs = msg.content.get_list_response().res.unwrap();
+                let filtered_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_object(vrs, vd));
+                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, filtered_vrs_list);
                 let n = old_vrs_list.len();
-                assert((|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((replicas, n)).satisfied_by(ex));
+                assert((|i: (Option<VReplicaSetView>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((new_vrs, n)).satisfied_by(ex));
             }
-            temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<int>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
+            temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<VReplicaSetView>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
         }
         // \A |replicas, n| etcd_state_is(replicas, n) ~> \E |n| after_ensure_vrs(n)
-        assert forall |i: (Option<int>, nat)| #![trigger after_list_with_etcd_state(msg, i.0, i.1)] spec.entails(after_list_with_etcd_state(msg, i.0, i.1).leads_to(tla_exists(|n| after_ensure_vrs(n)))) by {
-            let (replicas, n) = i;
+        assert forall |i: (Option<VReplicaSetView>, nat)| #![trigger after_list_with_etcd_state(msg, i.0, i.1)] spec.entails(after_list_with_etcd_state(msg, i.0, i.1).leads_to(tla_exists(|n| after_ensure_vrs(n)))) by {
+            let (new_vrs_or_none, n) = i;
             // new vrs does not exists. Here the existance is encoded as is_Some, and replicas is get_Some_0
-            if replicas is None {
+            if new_vrs_or_none is None {
                 // AfterListVRS ~> AfterCreateNewVRS
                 let create_vrs_req = lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![(AfterCreateNewVRS, local_state_is(Some(vd.spec.replicas.unwrap_or(int1!())), n))]),
@@ -1433,7 +1430,7 @@ ensures
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs_uid: Uid, n: nat
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs: VReplicaSetView, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -1537,7 +1534,7 @@ ensures
                         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
                         assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
                         assert(filter_vrs_managed_by_vd(vd, s_prime.resources()).contains(etcd_vrs));
-                        assert(old_vrs_filter(Some(new_vrs_uid))(etcd_vrs));
+                        assert(old_vrs_filter(Some(new_vrs))(etcd_vrs));
                     }
                 }
             },

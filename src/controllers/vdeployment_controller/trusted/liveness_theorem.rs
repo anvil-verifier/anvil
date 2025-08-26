@@ -44,9 +44,9 @@ pub open spec fn new_vrs_filter(template: PodTemplateSpecView) -> spec_fn(VRepli
 }
 
 // None -> no new vrs
-pub open spec fn old_vrs_filter(new_vrs_id: Option<Uid>) -> spec_fn(VReplicaSetView) -> bool {
+pub open spec fn old_vrs_filter(new_vrs: Option<VReplicaSetView>) -> spec_fn(VReplicaSetView) -> bool {
     |vrs: VReplicaSetView| {
-        &&& new_vrs_id is None || vrs.metadata.uid != new_vrs_id->0
+        &&& new_vrs is None || vrs.metadata.uid != new_vrs.metadata.uid->0
         &&& vrs.spec.replicas.unwrap_or(1) > 0
     }
 }
