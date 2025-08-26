@@ -31,7 +31,7 @@ pub open spec fn valid_owned_object(vrs: VReplicaSetView, vd: VDeploymentView) -
 
 pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
 {
-    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd, vrs));
+    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs));
     let new_vrs = if new_vrs_list.len() == 0 {
         None
     } else {
@@ -44,9 +44,9 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
     (new_vrs, old_vrs_list)
 }
 
-pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+pub open spec fn match_template_without_hash(template: PodTemplateSpecView, vrs: VReplicaSetView) -> bool {
     let vrs_template = vrs.spec.template.unwrap();
-    vd.spec.template == PodTemplateSpecView {
+    template == PodTemplateSpecView {
         metadata: Some(ObjectMetaView {
             labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
             ..vrs_template.metadata.unwrap()

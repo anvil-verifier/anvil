@@ -147,7 +147,6 @@ ensures
     assert(req.owner_ref == vd.controller_owner_ref());
     assert(s.resources().contains_key(req.key()));
     assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
-    assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0.is_Some());
     assume(false);
     return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
@@ -174,7 +173,7 @@ ensures
 }
 
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
     msg: Message,
 )
 requires
@@ -186,21 +185,18 @@ requires
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()),
+    filter_vrs_managed_by_vd(vd, s.resources()) == filter_vrs_managed_by_vd(vd, s_prime.resources()),
     local_state_is_valid_and_coherent(vd, controller_id)(s) ==> local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
 {
     broadcast use group_seq_properties;
-    // first, prove filter_old_and_new_vrs_on_etc(s) == filter_old_and_new_vrs_on_etcd(s_prime)
     let list_req_filter = |o: DynamicObjectView| {
         &&& o.object_ref().namespace == vd.metadata.namespace->0
         &&& o.object_ref().kind == VReplicaSetView::kind()
     }; 
     let objs = s.resources().values().filter(list_req_filter).to_seq();
     let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
-    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs_on_etcd(vd, s.resources());
     let objs_prime = s_prime.resources().values().filter(list_req_filter).to_seq();
     let filtered_vrs_list_prime = objects_to_vrs_list(objs_prime).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
-    let (new_vrs_prime, old_vrs_list_prime) = filter_old_and_new_vrs_on_etcd(vd, s_prime.resources());
     assert forall |vrs| filtered_vrs_list.contains(vrs) implies filtered_vrs_list_prime.contains(vrs) by {
         assume({
             let etcd_obj = s.resources()[vrs.object_ref()];
@@ -228,11 +224,6 @@ ensures
                 }
             }
         }
-    }
-    // we need to prove the order is preserved
-    assert(filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs_on_etcd(vd, s_prime.resources())) by {
-        assert(filter_old_and_new_vrs_on_etcd(vd, s.resources()) == filter_old_and_new_vrs(vd, filtered_vrs_list));
-        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()) == filter_old_and_new_vrs(vd, filtered_vrs_list_prime));
     }
     // second, prove local_state_is_valid_and_coherent(vd, controller_id)(s_prime)
     if local_state_is_valid_and_coherent(vd, controller_id)(s) {

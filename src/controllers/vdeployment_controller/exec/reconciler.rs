@@ -472,21 +472,21 @@ ensures
     let mut new_vrs_list = Vec::<VReplicaSet>::new();
     let mut old_vrs_list = Vec::<VReplicaSet>::new();
     let mut idx = 0;
-    assert(new_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs)));
+    assert(new_vrs_list.deep_view() == vrs_list.deep_view().take(0).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@.spec.template, vrs)));
     for idx in 0..vrs_list.len()
     invariant
-        new_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs)),
+        new_vrs_list.deep_view() == vrs_list.deep_view().take(idx as int).filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@.spec.template, vrs)),
         forall |i: int| 0 <= i < new_vrs_list.len() ==> #[trigger] model_util::valid_owned_object(new_vrs_list[i]@, vd@),
         forall |i: int| 0 <= i < vrs_list.len() ==> #[trigger] model_util::valid_owned_object(vrs_list[i]@, vd@),
         vd@.well_formed(),
         idx <= vrs_list.len(),
     {
         assert(model_util::valid_owned_object(vrs_list[idx as int]@, vd@));
-        if match_template_without_hash(vd, &vrs_list[idx]) {
+        if match_template_without_hash(vd.spec().template(), &vrs_list[idx]) {
             new_vrs_list.push(vrs_list[idx].clone());
         }
         proof {
-            let spec_filter = |vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs);
+            let spec_filter = |vrs: VReplicaSetView| model_util::match_template_without_hash(vd@.spec.template, vrs);
             let pre_filtered_vrs_list = if spec_filter(vrs_list[idx as int]@) {
                 new_vrs_list.deep_view().drop_last()
             } else {
@@ -499,7 +499,7 @@ ensures
             assert(spec_filter(vrs_list[idx as int]@ ) ==> new_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
         }
     }
-    assert(new_vrs_list.deep_view() == vrs_list.deep_view().filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@, vrs))) by {
+    assert(new_vrs_list.deep_view() == vrs_list.deep_view().filter(|vrs: VReplicaSetView| model_util::match_template_without_hash(vd@.spec.template, vrs))) by {
         // this is stupid
         assert(vrs_list.deep_view().take(vrs_list.len() as int) == vrs_list.deep_view());
     }
@@ -633,11 +633,11 @@ ensures
     pod_template_spec
 }
 
-pub fn match_template_without_hash(vd: &VDeployment, vrs: &VReplicaSet) -> (res: bool)
+pub fn match_template_without_hash(template: &PodTemplateSpec, vrs: &VReplicaSet) -> (res: bool)
 requires
-    vd@.well_formed(),
-    model_util::valid_owned_object(vrs@, vd@),
-ensures res == model_util::match_template_without_hash(vd@, vrs@),
+    vrs@.state_validation(),
+ensures
+    res == model_util::match_template_without_hash(template@, vrs@),
 {
     let mut vrs_template = vrs.spec().template().unwrap().clone();
     let mut labels = vrs_template.metadata().unwrap().labels().unwrap();
@@ -645,7 +645,7 @@ ensures res == model_util::match_template_without_hash(vd@, vrs@),
     let mut template_meta = vrs_template.metadata().unwrap().clone();
     template_meta.set_labels(labels);
     vrs_template.set_metadata(template_meta);
-    vd.spec().template().eq(&vrs_template)
+    template.eq(&vrs_template)
 }
 
 pub fn make_owner_references(vd: &VDeployment) -> (owner_references: Vec<OwnerReference>)

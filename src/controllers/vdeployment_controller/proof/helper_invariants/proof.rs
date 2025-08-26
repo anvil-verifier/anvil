@@ -1182,7 +1182,7 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
                                     assert(controller_owners == seq![triggering_cr.controller_owner_ref()]);
                                 }
 
-                                let new_vrs_list = filtered_vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(triggering_cr, vrs));
+                                let new_vrs_list = filtered_vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(triggering_cr.spec.template, vrs));
 
                                 assert forall |i| #![trigger new_vrs_list[i]]
                                     0 <= i < new_vrs_list.len()
@@ -1200,7 +1200,7 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
                                     assert(new_vrs_list.contains(new_vrs_list[i]));
                                     seq_filter_contains_implies_seq_contains(
                                         filtered_vrs_list,
-                                        |vrs: VReplicaSetView| match_template_without_hash(triggering_cr, vrs),
+                                        |vrs: VReplicaSetView| match_template_without_hash(triggering_cr.spec.template, vrs),
                                         new_vrs_list[i]
                                     );
                                 }

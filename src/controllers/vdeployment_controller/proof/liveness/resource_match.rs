@@ -544,7 +544,6 @@ ensures
     let valid_owned_object_filter = |vrs: VReplicaSetView| valid_owned_object(vrs, vd);
     assert(valid_owned_object_filter == (|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
     let filtered_vrs_list = vrs_list.filter(valid_owned_object_filter);
-    assert(filter_old_and_new_vrs(vd, filtered_vrs_list) == filter_old_and_new_vrs_on_etcd(vd, s.resources()));
     let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
         &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
@@ -555,7 +554,7 @@ ensures
         assert(valid_owned_object_filter == (|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
         assert(filtered_vrs_list == vrs_list.filter(|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
         // new_vrs_filter is the same
-        assert((|vrs: VReplicaSetView| match_template_without_hash(triggering_cr, vrs)) == (|vrs: VReplicaSetView| match_template_without_hash(vd, vrs)));
+        // assert((|vrs: VReplicaSetView| match_template_without_hash(triggering_cr.spec.template, vrs)) == (|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs)));
         // old_vrs_list_filter_with_new_vrs does not contain vd, skip
     }
 
@@ -566,7 +565,7 @@ ensures
         seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter_with_new_vrs);
     }
     assert(new_vrs is Some ==> vrs_list.contains(new_vrs->0) && valid_owned_object(new_vrs->0, vd)) by {
-        let new_vrs_filter = |vrs: VReplicaSetView| match_template_without_hash(vd, vrs);
+        let new_vrs_filter = |vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs);
         if filtered_vrs_list.filter(new_vrs_filter).len() == 0 {
             assert(new_vrs is None);
         } else {
@@ -1434,7 +1433,7 @@ ensures
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
-    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
+    vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, new_vrs_uid: Uid, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
@@ -1537,7 +1536,8 @@ ensures
                         let etcd_obj = s_prime.resources()[request.key()];
                         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
                         assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
-                        assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).1.contains(VReplicaSetView::unmarshal(etcd_obj).unwrap()));
+                        assert(filter_vrs_managed_by_vd(vd, s_prime.resources()).contains(etcd_vrs));
+                        assert(old_vrs_filter(Some(new_vrs_uid))(etcd_vrs));
                     }
                 }
             },
