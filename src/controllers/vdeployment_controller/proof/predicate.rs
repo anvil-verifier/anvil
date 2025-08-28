@@ -393,18 +393,20 @@ pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> boo
     |o: OwnerReferenceView| o.controller is Some && o.controller->0
 }
 
-// new_vrs_or_none is Some -> new_vrs exists in etcd and can pass new_vrs_filter
-// new_vrs_or_none is None -> not vrs (marshalled) in etcd can pass new_vrs_filter
-pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_and_key: Option<Uid, ObjectRef>, ov_len: nat) -> StatePred<ClusterState> {
+// we don't need new_vrs.spec.replicas here as local state is enough to differentiate different transitions
+pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<Uid, ObjectRef, int>, ov_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
-        let new_vrs_uid = if nv_uid_and_key is Some { Some(nv_uid_and_key->0.0) } else { None };
-        &&& match nv_uid_and_key {
-            Some(uid, key) => {
+        let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
+        &&& match nv_uid_key_replicas {
+            Some(uid, key, replicas) => {
                 let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[key])->Ok_0;
                 &&& s.resources().contains_key(key)
                 &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
                 &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).contains(etcd_vrs)
+                &&& etcd_vrs.metadata.uid is Some
+                &&& etcd_vrs.metadata.uid->0 == uid
+                &&& etcd_vrs.spec.replicas.unwrap_or(1) == replicas
             },
             None => {
                 &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).len() == 0
@@ -414,30 +416,27 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_a
     }
 }
 
-// existintial quantifier to instantiate new_vrs after creation step
-// pub open spec fn exists_new_vrs_and_etcd_state_is(vd: VDeploymentView, controller_id: int, old_vrs_list_len: nat) -> StatePred<ClusterState> {
-//     |s: ClusterState| {
-//         exists |new_vrs: VReplicaSetView| {
-//             &&& #[trigger] etcd_state_is(vd, controller_id, Some(new_vrs), old_vrs_list_len)(s)
-//             &&& new_vrs.spec.replicas == vd.spec.replicas.unwrap_or(1)
-//         }
-//     }
-// }
+pub open spec fn exists_nv_local_state_is(vd: VDeploymentView, controller_id: int, ov_len: nat) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        exists |i: (Uid, ObjectRef)| #[trigger]
+            local_state_is(vd, controller_id, Some(i.0, i.1, vd.spec.replicas.unwrap_or(int1!())), ov_len)(s)
+    }
+}
 
 // new_vrs.object_ref works as a unique identifier
 // new_vrs.metadata.uid->0 works as a filter for old vrs list
 // new_vrs_uid_and_key is None -> no new_vrs in local cache exists
-pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_and_key: Option<Uid, ObjectRef>, ov_len: nat) -> StatePred<ClusterState> {
+pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<Uid, ObjectRef, int>, ov_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
+        let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
         // local state is valid
         &&& 0 <= vds.old_vrs_index <= vds.old_vrs_list.len()
         &&& vds.old_vrs_list.len() == ov_len
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
         // local state is coherent with etcd
         // local objects are validly owned by vd, and can pass corresponding filter
-        let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
-        let new_vrs_uid = if nv_uid_and_key is Some { Some(nv_uid_and_key->0.0) } else { None };
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
@@ -451,8 +450,8 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
             &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
             &&& filtered_vrs_list.contains(vrs)
         }
-        &&& match nv_uid_and_key {
-            Some(uid, key) => {
+        &&& match nv_uid_key_replicas {
+            Some(uid, key, _) => {
                 let local_new_vrs = vds.new_vrs->0;
                 // new vrs in local cache exists and its fingerprint matchesnew_vrs
                 &&& vds.new_vrs is Some
@@ -483,6 +482,10 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
                         vrs_eq_for_vd(etcd_vrs, local_new_vrs)
                     }
                 }
+            },
+            None => {
+                &&& vds.new_vrs is None
+                &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).len() == 0
             }
         }
     }
