@@ -159,7 +159,8 @@ ensures
                 }
                 // because nv_uid_key_replicas is None, we need to instantiate them after creation
                 // so we can get rid of tla_exists in this branch
-                assert forall |j: (Uid, ObjectRef)| true implies spec.entails(#[trigger] create_vrs_req(j).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by {
+                assert forall |j: (Uid, ObjectRef)| #![trigger create_vrs_req(j)] true
+                    implies spec.entails(create_vrs_req(j).leads_to(tla_exists(|i: (Uid, ObjectRef, nat)| after_ensure_vrs(i)))) by {
                     let (nv_uid, nv_key) = (j.0, j.1);
                     let create_vrs_req_msg = |msg: Message| lift_state(and!(
                         at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),

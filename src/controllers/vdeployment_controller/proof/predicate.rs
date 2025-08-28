@@ -416,10 +416,15 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_k
     }
 }
 
+// make verus happy about triggers
+pub open spec fn get_replicas(i: Option<int>) -> int {
+    i.unwrap_or(int1!())
+}
+
 pub open spec fn exists_nv_local_state_is(vd: VDeploymentView, controller_id: int, ov_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         exists |i: (Uid, ObjectRef)| #[trigger]
-            local_state_is(vd, controller_id, Some((i.0, i.1, vd.spec.replicas.unwrap_or(int1!()))), ov_len)(s)
+            local_state_is(vd, controller_id, Some((i.0, i.1, get_replicas(vd.spec.replicas))), ov_len)(s)
     }
 }
 
