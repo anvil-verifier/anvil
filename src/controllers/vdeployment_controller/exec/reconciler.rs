@@ -482,7 +482,7 @@ ensures
         idx <= vrs_list.len(),
     {
         assert(model_util::valid_owned_object(vrs_list[idx as int]@, vd@));
-        if match_template_without_hash(vd.spec().template(), &vrs_list[idx]) {
+        if match_template_without_hash(&vd.spec().template(), &vrs_list[idx]) {
             new_vrs_list.push(vrs_list[idx].clone());
         }
         proof {

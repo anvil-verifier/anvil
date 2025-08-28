@@ -1,0 +1,12 @@
+warning: `#[is_variant]` is deprecated - use `->` or `matches` instead: https://verus-lang.github.io/verus/guide/datatypes_enum.html
+  --> src/kubernetes_api_objects/error.rs:8:1
+   |
+8  | / #[is_variant]
+9  | | pub enum APIError {
+10 | |     BadRequest,
+11 | |     Conflict,
+...  |
+21 | |     Other
+22 | | }
+   | |_^
+

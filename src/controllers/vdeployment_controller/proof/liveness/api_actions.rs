@@ -92,20 +92,20 @@ ensures
 // staged, we need to handle collision
 pub proof fn lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    req_msg: Message, old_vrs_index: nat
+    req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, None, old_vrs_index)(s),
-    local_state_is_valid_and_coherent(vd, controller_id)(s),
+    etcd_state_is(vd, controller_id, None, n)(s),
+    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
 ensures
     resp_msg == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
-    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
-    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
+    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
 {
     broadcast use group_seq_properties;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -125,20 +125,21 @@ ensures
 
 pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    req_msg: Message, replicas: int, old_vrs_index: nat
+    req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, Some(replicas), old_vrs_index)(s),
-    local_state_is_valid_and_coherent(vd, controller_id)(s),
+    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
+    local_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
+    nv_uid_key_replicas.2 != vd.spec.replicas.unwrap_or(int1!()),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
-    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s_prime),
-    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
+    etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    local_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
 {
     let req = req_msg.content.get_get_then_update_request();
     let etcd_obj = s.resources()[req.key()];
@@ -154,27 +155,27 @@ ensures
 #[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    req_msg: Message, old_vrs_index: nat
+    req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg)(s),
+    req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg, nv_uid_key.0)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), old_vrs_index)(s),
-    local_state_is_valid_and_coherent(vd, controller_id)(s),
+    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
-    etcd_state_is(vd, controller_id, Some(vd.spec.replicas.unwrap_or(int1!())), (old_vrs_index - nat1!()) as nat)(s_prime),
-    local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
+    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
+    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
 {
     return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
-    msg: Message,
+    msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -186,7 +187,7 @@ requires
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
     filter_vrs_managed_by_vd(vd, s.resources()) == filter_vrs_managed_by_vd(vd, s_prime.resources()),
-    local_state_is_valid_and_coherent(vd, controller_id)(s) ==> local_state_is_valid_and_coherent(vd, controller_id)(s_prime),
+    local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     broadcast use group_seq_properties;
     let list_req_filter = |o: DynamicObjectView| {
@@ -226,10 +227,7 @@ ensures
         }
     }
     // second, prove local_state_is_valid_and_coherent(vd, controller_id)(s_prime)
-    if local_state_is_valid_and_coherent(vd, controller_id)(s) {
-        assume(false);
-    }
-
+    assume(false);
 }
 
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
