@@ -23,8 +23,8 @@ pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<Cluster
     |s: ClusterState| {
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
         let new_vrs_list = filtered_vrs_list.filter(new_vrs_filter(vd.spec.template));
-        let old_vrs_list = filtered_vrs_list.filter(new_vrs_list[0].metadata.uid);
-        &&& new_vrs_list.len() == 1
+        let old_vrs_list = filtered_vrs_list.filter(old_vrs_filter(new_vrs_list[0].metadata.uid));
+        &&& new_vrs_list.filter(|vrs| vrs.spec.replicas.unwrap_or(1) > 0).len() == 1
         &&& new_vrs_list[0].metadata.uid is Some
         &&& match_replicas(vd, new_vrs_list[0])
         &&& old_vrs_list.len() == 0
