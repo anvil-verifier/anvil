@@ -19,6 +19,7 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
 
 // draft of ESR for VDeployment
 // TODO: add another version which talks about pods and derives from VRS ESR and this ESR
+// Also try using quantifiers to simplify the proofs
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
