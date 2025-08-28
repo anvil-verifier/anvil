@@ -396,6 +396,7 @@ pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> boo
 // we don't need new_vrs.spec.replicas here as local state is enough to differentiate different transitions
 pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, ov_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
         let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
         &&& match nv_uid_key_replicas {
@@ -434,6 +435,7 @@ pub open spec fn exists_nv_local_state_is(vd: VDeploymentView, controller_id: in
 pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, ov_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
         let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
         // local state is valid
