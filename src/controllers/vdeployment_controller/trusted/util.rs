@@ -59,4 +59,38 @@ pub open spec fn match_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bo
     vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
 }
 
+// hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
+#[macro_export]
+macro_rules! nat0 {
+    () => {
+        spec_literal_nat("0")
+    };
+}
+
+#[macro_export]
+macro_rules! nat1 {
+    () => {
+        spec_literal_nat("1")
+    };
+}
+
+#[macro_export]
+macro_rules! int0 {
+    () => {
+        spec_literal_int("0")
+    };
+}
+
+#[macro_export]
+macro_rules! int1 {
+    () => {
+        spec_literal_int("1")
+    };
+}
+
+pub use nat0;
+pub use nat1;
+pub use int0;
+pub use int1;
+
 }

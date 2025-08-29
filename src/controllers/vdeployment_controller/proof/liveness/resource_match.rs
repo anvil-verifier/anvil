@@ -20,6 +20,7 @@ use vstd::prelude::*;
 
 verus !{
 
+#[verifier(external_body)]
 pub proof fn lemma_from_init_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int
 )
@@ -1830,6 +1831,7 @@ pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),

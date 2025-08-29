@@ -31,10 +31,13 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
         &&& triggering_cr.object_ref() == vd.object_ref()
         &&& triggering_cr.spec() == vd.spec()
-        &&& triggering_cr.metadata().uid == vd.metadata().uid
-        &&& triggering_cr.metadata().labels == vd.metadata().labels
+        &&& triggering_cr.metadata.uid == vd.metadata.uid
+        &&& triggering_cr.metadata.labels == vd.metadata.labels
         &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
         &&& triggering_cr.well_formed()
+        &&& triggering_cr.metadata.namespace is Some
+        // TODO: put it elsewere
+        &&& vd.metadata.namespace is Some
         &&& step_pred(local_state)
     }
 }
@@ -404,7 +407,8 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_k
                 let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[key])->Ok_0;
                 &&& s.resources().contains_key(key)
                 &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
-                &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).contains(etcd_vrs)
+                &&& filtered_vrs_list.contains(etcd_vrs)
+                &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
                 &&& etcd_vrs.metadata.uid is Some
                 &&& etcd_vrs.metadata.uid->0 == uid
                 &&& etcd_vrs.spec.replicas.unwrap_or(1) == replicas
@@ -656,39 +660,6 @@ pub open spec fn lift_local(controller_id: int, vd: VDeploymentView, step_pred: 
     Cluster::at_expected_reconcile_states(controller_id, vd.object_ref(), step_pred)
 }
 
-// hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
-#[macro_export]
-macro_rules! nat0 {
-    () => {
-        spec_literal_nat("0")
-    };
-}
-
-#[macro_export]
-macro_rules! nat1 {
-    () => {
-        spec_literal_nat("1")
-    };
-}
-
-#[macro_export]
-macro_rules! int0 {
-    () => {
-        spec_literal_int("0")
-    };
-}
-
-#[macro_export]
-macro_rules! int1 {
-    () => {
-        spec_literal_int("1")
-    };
-}
-
-pub use nat0;
-pub use nat1;
-pub use int0;
-pub use int1;
 pub use at_step_or_internal;
 pub use at_step_or;
 pub use at_step;

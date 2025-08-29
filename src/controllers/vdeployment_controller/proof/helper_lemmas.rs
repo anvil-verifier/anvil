@@ -9,7 +9,7 @@ use crate::temporal_logic::{defs::*, rules::*};
 use crate::vdeployment_controller::{
     model::{install::*, reconciler::*},
     proof::{helper_invariants, predicate::*},
-    trusted::{rely_guarantee::*, spec_types::*, util::*},
+    trusted::{rely_guarantee::*, spec_types::*, util::*, liveness_theorem::*, step::VDeploymentReconcileStepView::*},
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vstd_ext::{map_lib::*, seq_lib::*, set_lib::*};
@@ -252,4 +252,23 @@ pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_refere
     );
 }
 
+pub proof fn final_state_to_esr(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, ov_len: nat, s: ClusterState)
+requires
+    nv_uid_key_replicas is Some,
+    (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()),
+    ov_len == 0,
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, ov_len)(s),
+    at_vd_step_with_vd(vd, controller_id, at_step![Done])(s), // provide cr.spec == vd.spec
+ensures
+    current_state_matches(vd)(s),
+{
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[(nv_uid_key_replicas->0).1])->Ok_0;
+    let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
+    assert(filtered_vrs_list == filter_vrs_managed_by_vd(triggering_cr, s.resources())) by {
+        assert(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
+        assert(vd.metadata.namespace->0 == triggering_cr.metadata.namespace->0);
+        assert((|vrs| valid_owned_object(vrs, vd)) == (|vrs| valid_owned_object(vrs, triggering_cr)));
+    }
+}
 }

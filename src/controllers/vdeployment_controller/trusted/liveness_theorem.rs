@@ -23,12 +23,15 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
-        let new_vrs_list = filtered_vrs_list.filter(new_vrs_filter(vd.spec.template));
-        let old_vrs_list = filtered_vrs_list.filter(old_vrs_filter(new_vrs_list[0].metadata.uid));
-        &&& new_vrs_list.filter(|vrs: VReplicaSetView| vrs.spec.replicas.unwrap_or(1) > 0).len() == 1
-        &&& new_vrs_list[0].metadata.uid is Some
-        &&& match_replicas(vd, new_vrs_list[0])
-        &&& old_vrs_list.len() == 0
+        &&& exists |new_vrs: VReplicaSetView| {
+            // owned by vd, match template and has desired replicas
+            &&& #[trigger] filtered_vrs_list.contains(new_vrs)
+            &&& new_vrs_filter(vd.spec.template)(new_vrs)
+            &&& new_vrs.spec.replicas.unwrap_or(int1!()) == vd.spec.replicas.unwrap_or(int1!())
+            // all old vrs have 0 replicas
+            &&& new_vrs.metadata.uid is Some
+            &&& filtered_vrs_list.filter(old_vrs_filter(new_vrs.metadata.uid)).len() == 0
+        }
     }
 }
 
