@@ -188,6 +188,7 @@ requires
 ensures
     filter_vrs_managed_by_vd(vd, s.resources()) == filter_vrs_managed_by_vd(vd, s_prime.resources()),
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
+    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     broadcast use group_seq_properties;
     let list_req_filter = |o: DynamicObjectView| {
