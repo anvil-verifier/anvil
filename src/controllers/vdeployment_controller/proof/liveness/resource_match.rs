@@ -1173,6 +1173,9 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg, None, 0
                 );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
+                );
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
                     &&& s_prime.resources().contains_key(obj.object_ref())
@@ -1206,6 +1209,7 @@ pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -1270,6 +1274,9 @@ ensures
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                    );
+                    lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                         s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n
                     );
                     // trigger
@@ -1337,10 +1344,13 @@ pub proof fn lemma_from_receive_ok_resp_after_scale_new_vrs_to_after_ensure_new_
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
@@ -1385,6 +1395,9 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
                 );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                );
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
@@ -1407,10 +1420,13 @@ pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
     n > 0
 ensures
     spec.entails(lift_state(and!(
@@ -1441,10 +1457,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
+        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = (None::<Message>, Some(vd.object_ref()));
@@ -1454,6 +1474,9 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
                 );
             },
@@ -1479,10 +1502,13 @@ pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_sc
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
     n > 0
 ensures
     spec.entails(lift_state(and!(
@@ -1513,10 +1539,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
+        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
@@ -1535,12 +1565,17 @@ ensures
             Step::ControllerStep(input) => {
                 VDeploymentReconcileState::marshal_preserves_integrity();
                 VReplicaSetView::marshal_preserves_integrity();
+                assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS])(s_prime));
+                assert(pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, nv_uid_key.0)(s_prime));
+                assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime));
+                assert(local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime));
             },
             _ => {}
         }
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
+        VReplicaSetView::marshal_preserves_integrity();
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
