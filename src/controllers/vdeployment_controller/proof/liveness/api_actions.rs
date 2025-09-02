@@ -26,7 +26,7 @@ pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_list_vrs_req(vd, controller_id, req_msg),
+    req_msg_is_list_vrs_req(vd, controller_id, req_msg, s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
@@ -203,7 +203,10 @@ requires
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    filter_vrs_managed_by_vd(vd, s.resources()) == filter_vrs_managed_by_vd(vd, s_prime.resources()),
+    ({
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        &&& filter_vrs_managed_by_vd(triggering_cr, s.resources()) == filter_vrs_managed_by_vd(triggering_cr, s_prime.resources())
+    }),
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     broadcast use group_seq_properties;
