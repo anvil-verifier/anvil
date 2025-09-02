@@ -305,9 +305,10 @@ pub open spec fn req_msg_is_pending_get_then_update_old_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid: Uid
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
+        &&& req_msg_is_scale_down_old_vrs_req(triggering_cr, controller_id, req_msg, nv_uid)(s)
     }
 }
 
@@ -325,10 +326,11 @@ pub open spec fn pending_get_then_update_old_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, nv_uid: Uid
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
+        &&& req_msg_is_scale_down_old_vrs_req(triggering_cr, controller_id, req_msg, nv_uid)(s)
     }
 }
 
@@ -444,22 +446,24 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
         let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
         // local state is valid
         &&& 0 <= vds.old_vrs_index <= vds.old_vrs_list.len()
-        &&& vds.old_vrs_list.len() == ov_len
+        &&& vds.old_vrs_index == ov_len
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
         // local state is coherent with etcd
-        // local objects are validly owned by vd, and can pass corresponding filter
+        // local objects exist in etcd,
+        &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_list.len() ==> {
+            &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
+        }
+        // are owned by vd, and can pass corresponding filter
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
-            // obj in etcd exists and is owned by vd
-            &&& s.resources().contains_key(key)
             &&& old_vrs_filter(new_vrs_uid)(vrs)
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-            &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
             // this can be weakened, though not necessary now
-            &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
             &&& filtered_vrs_list.contains(vrs)
+            &&& VReplicaSetView::unmarshal(s.resources()[key]) is Ok
+            &&& VReplicaSetView::unmarshal(s.resources()[key])->Ok_0 == vrs
         }
         &&& match nv_uid_key_replicas {
             Some((uid, key, _)) => {
