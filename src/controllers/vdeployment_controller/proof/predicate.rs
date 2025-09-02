@@ -261,6 +261,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         let key = request.key();
         let obj = s.resources()[key];

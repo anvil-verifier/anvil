@@ -1204,6 +1204,8 @@ ensures
     );
 }
 
+#[verifier(spinoff_prover)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1308,14 +1310,6 @@ ensures
                         == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
                     assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
                     assert(s_prime.in_flight().contains(req_msg));
-                    assert(req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s_prime)) by {
-                        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
-                        assert(s_prime.resources().contains_key(request.key()));
-                        let etcd_obj = s_prime.resources()[request.key()];
-                        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                        assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
-                        // assert(filter_old_and_new_vrs_on_etcd(vd, s_prime.resources()).0 == Some(VReplicaSetView::unmarshal(etcd_obj)->Ok_0));
-                    }
                 }
             },
             _ => {}
