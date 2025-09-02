@@ -271,4 +271,24 @@ ensures
         assert((|vrs| valid_owned_object(vrs, vd)) == (|vrs| valid_owned_object(vrs, triggering_cr)));
     }
 }
+
+#[verifier(external_body)]
+pub proof fn filtered_new_vrs_and_old_vrs_to_etcd_state_is(vd: VDeploymentView, controller_id: int, new_vrs: Option<VReplicaSetView>, old_vrs_list: Seq<VReplicaSetView>, s: ClusterState)
+requires
+    at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
+    ({
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        (new_vrs, old_vrs_list) == filter_old_and_new_vrs(vd, filter_vrs_managed_by_vd(vd, s.resources()))
+    }),
+ensures
+    ({
+        let nv_uid_key_replicas = if new_vrs is Some {
+            let vrs = new_vrs->0;
+            Some((vrs.metadata.uid->0, vrs.object_ref(), vrs.spec.replicas.unwrap_or(int1!())))
+        } else {
+            None
+        };
+        etcd_state_is(vd, controller_id, nv_uid_key_replicas, old_vrs_list.len())(s)
+    }),
+{}
 }
