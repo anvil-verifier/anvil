@@ -1495,7 +1495,7 @@ ensures
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
             pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, nv_uid_key.0),
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
-            local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)
+            local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!())
         )))),
 {
     let pre = and!(
@@ -1508,7 +1508,7 @@ ensures
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
         pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, nv_uid_key.0),
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
-        local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)
+        local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!())
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
