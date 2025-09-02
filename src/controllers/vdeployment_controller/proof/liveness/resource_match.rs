@@ -1552,6 +1552,7 @@ pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_updat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -1615,6 +1616,9 @@ ensures
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                         s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - 1) as nat
+                    );
+                    lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
                     );
                     // trigger
                     assert(s.in_flight().contains(msg));
