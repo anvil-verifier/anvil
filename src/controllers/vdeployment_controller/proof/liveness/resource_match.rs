@@ -1048,6 +1048,7 @@ pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -1119,6 +1120,7 @@ pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -1180,6 +1182,8 @@ ensures
                 assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
                     &&& s_prime.resources().contains_key(obj.object_ref())
                     &&& s_prime.resources()[obj.object_ref()] == obj
+                    &&& VReplicaSetView::unmarshal(obj) is Ok
+                    &&& obj.metadata.namespace == vd.metadata.namespace
                 } by {
                     lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, obj.object_ref(), msg

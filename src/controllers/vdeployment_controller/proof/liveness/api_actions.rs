@@ -203,10 +203,11 @@ requires
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    ({
-        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        &&& filter_vrs_managed_by_vd(triggering_cr, s.resources()) == filter_vrs_managed_by_vd(triggering_cr, s_prime.resources())
-    }),
+    // order in seq may change
+    // ({
+    //     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    //     &&& filter_vrs_managed_by_vd(triggering_cr, s.resources()) == filter_vrs_managed_by_vd(triggering_cr, s_prime.resources())
+    // }),
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     broadcast use group_seq_properties;

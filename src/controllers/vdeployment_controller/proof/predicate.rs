@@ -53,7 +53,6 @@ pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: i
 }
 
 pub open spec fn req_msg_is_list_vrs_req(vd: VDeploymentView, controller_id: int, req_msg: Message, s: ClusterState) -> bool {
-    let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let request = req_msg.content.get_APIRequest_0();
     &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
     &&& req_msg.dst == HostId::APIServer
@@ -94,7 +93,7 @@ pub open spec fn exists_pending_list_resp_in_flight_and_match_req(vd: VDeploymen
         &&& exists |resp_msg| {
             &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
         }
     }
 }
@@ -110,7 +109,7 @@ pub open spec fn resp_msg_is_pending_list_resp_in_flight_and_match_req(
         // predicate on resp_msg
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, vd, resp_msg)
+        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
     }
 }
 
@@ -121,9 +120,8 @@ Ideally, we only need the namespace to match and vrs.metadata.owner_references->
 The unmarshallability part can be proved using each_custom_object_in_etcd_is_well_formed
 */
 
-pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
-    s: ClusterState, vd: VDeploymentView, resp_msg: Message
-) -> bool {
+pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(vd: VDeploymentView, controller_id: int, resp_msg: Message, s: ClusterState) -> bool {
+    let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
@@ -136,15 +134,14 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(
     // TODO: this may be weakened from <==> to be ==>
     &&& objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_object(vrs, vd))
         == filter_vrs_managed_by_vd(vd, s.resources())
-    &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
-        &&& VReplicaSetView::unmarshal(obj) is Ok
-        &&& obj.kind == VReplicaSetView::kind()
-        &&& obj.metadata.namespace == vd.metadata.namespace
-        // &&& obj.metadata.owner_references is Some
-        // &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-        &&& s.resources().contains_key(obj.object_ref())
-        &&& s.resources()[obj.object_ref()] == obj
-    }
+    // &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
+    //     &&& VReplicaSetView::unmarshal(obj) is Ok
+    //     &&& obj.metadata.namespace == vd.metadata.namespace
+    //     // &&& obj.metadata.owner_references is Some
+    //     // &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+    //     &&& s.resources().contains_key(obj.object_ref())
+    //     &&& s.resources()[obj.object_ref()] == obj
+    // }
 }
 
 // because make_replica_set use vd's RV to fake hash
