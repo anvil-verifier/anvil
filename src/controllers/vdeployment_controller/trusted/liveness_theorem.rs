@@ -55,6 +55,15 @@ pub open spec fn old_vrs_filter(new_vrs_uid: Option<Uid>) -> spec_fn(VReplicaSet
     }
 }
 
+// can be unmarshalled and unmarshalled vrs can pass valid_owned_vrs
+pub open spec fn valid_owned_obj(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
+    |o: DynamicObjectView| {
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& valid_owned_vrs(VReplicaSetView::unmarshal(obj).unwrap(), vd)
+    }
+}
+
 pub open spec fn filter_vrs_managed_by_vd(vd: VDeploymentView, resources: StoredState) -> Seq<VReplicaSetView> {
     let objs = resources.values().filter(list_vrs_filter(vd.metadata.namespace->0)).to_seq();
     // simulate controller AfterListVRS step

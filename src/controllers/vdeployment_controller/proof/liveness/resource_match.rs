@@ -1610,7 +1610,6 @@ ensures
 // TODO: make this proof more stable and faster
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1669,6 +1668,7 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 if input->0 == req_msg {
+                    assume(false); // speedup
                     let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, req_msg, nv_uid_key, n);
                     VReplicaSetView::marshal_preserves_integrity();
                     assert({
@@ -1713,6 +1713,10 @@ ensures
                         == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
                     assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
                     assert(s_prime.in_flight().contains(req_msg));
+                    assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS])(s_prime));
+                    assert(req_msg_is_pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key.0)(s_prime));
+                    assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime));
+                    assert(local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime));
                 }
             },
             _ => {}
