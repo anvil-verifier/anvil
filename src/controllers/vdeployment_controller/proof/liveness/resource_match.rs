@@ -82,11 +82,10 @@ ensures
             tla_exists(|msg| list_resp_msg(msg)).satisfied_by(ex) by {
             let s = ex.head();
             let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-            let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
             let resp_msg = choose |resp_msg| {
                 &&& #[trigger] s.in_flight().contains(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s, triggering_cr, resp_msg)
+                &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s)
             };
             assert((|msg| list_resp_msg(msg))(resp_msg).satisfied_by(ex));
         }
@@ -586,7 +585,7 @@ ensures
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)
+                        &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)
                     });
                 }
             },
@@ -602,7 +601,7 @@ ensures
         assert({
             &&& s_prime.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, msg)
-            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(s_prime, vd, resp_msg)
+            &&& resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)
         });
     }
     cluster.lemma_pre_leads_to_post_by_api_server(

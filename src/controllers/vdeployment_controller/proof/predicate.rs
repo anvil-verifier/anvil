@@ -477,6 +477,8 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
                     let etcd_obj = s.resources()[key];
                     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
                     &&& s.resources().contains_key(key)
+                    &&& etcd_obj.kind == VReplicaSetView::kind()
+                    &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
                     &&& valid_owned_vrs(etcd_vrs, vd)
                     &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
                     // etcd obj weakly equal to local version
@@ -488,7 +490,13 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
             },
             None => {
                 &&& vds.new_vrs is None
-                &&& filtered_vrs_list.filter(new_vrs_filter(vd.spec.template)).len() == 0
+                &&& !exists |o: DynamicObjectView| {
+                    &&& o.kind == VReplicaSetView::kind()
+                    &&& VReplicaSetView::unmarshal(o) is Ok
+                    // trigger cannot contains "let"
+                    &&& #[trigger] valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
+                    &&& #[trigger] new_vrs_filter(vd.spec.template)(VReplicaSetView::unmarshal(o)->Ok_0)
+                }
             }
         }
     }

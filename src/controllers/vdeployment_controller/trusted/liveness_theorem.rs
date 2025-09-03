@@ -61,12 +61,4 @@ pub open spec fn filter_vrs_managed_by_vd(vd: VDeploymentView, resources: Stored
     objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
 }
 
-pub open spec fn dyn_objs_managed_by_vd(vd: VDeploymentView, s: ClusterState) -> Set<DynamicObjectView> {
-    s.resources().values().filter(|o: DynamicObjectView| {
-        &&& o.kind = VReplicaSetView
-        &&& VReplicaSetView::unmarshal(o) is Ok
-        &&& valid_owned_vrs(VReplicaSetView::unmarshal(o)->Ok_0, vd)
-    })
-}
-
 }
