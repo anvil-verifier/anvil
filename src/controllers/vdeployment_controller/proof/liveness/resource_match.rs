@@ -611,6 +611,7 @@ ensures
 }
 
 // this lemma specifies how VD controller construct the internal cache from list response
+#[verifier(external_body)]
 proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
@@ -784,11 +785,13 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -872,11 +875,13 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
@@ -956,15 +961,19 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
@@ -994,13 +1003,17 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
-    let input = Some(req_msg);
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
+        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
+    let input = Some(req_msg);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
@@ -1043,6 +1056,7 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_receive_ok_resp_after_create_new_vrs_to_after_ensure_new_vrs(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1053,6 +1067,8 @@ requires
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
@@ -1082,10 +1098,14 @@ ensures
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
+        &&& vd_rely_condition(vd, cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
+        lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
+        lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
@@ -1115,6 +1135,7 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1149,7 +1170,7 @@ ensures
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleNewVRS]),
         pending_get_then_update_new_vrs_req_in_flight(vd, controller_id),
-        etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n),
+        etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n),
         local_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)
     );
     let stronger_next = |s, s_prime: ClusterState| {
@@ -1210,6 +1231,7 @@ ensures
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1417,6 +1439,7 @@ ensures
     );
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_from_after_ensure_new_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1500,6 +1523,7 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1586,6 +1610,7 @@ ensures
 // TODO: make this proof more stable and faster
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
+#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_get_then_update_resp_on_old_vrs_of_n(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1712,6 +1737,7 @@ pub proof fn lemma_from_n_to_n_minus_one_on_old_vrs_len(
 )
 requires
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
     spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
     spec.entails(always(lift_action(cluster.next()))),
