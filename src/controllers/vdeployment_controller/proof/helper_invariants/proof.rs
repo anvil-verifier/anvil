@@ -330,7 +330,7 @@ pub proof fn lemma_always_vd_reconcile_request_only_interferes_with_itself(
                                 let list_resp = resp_msg_opt.unwrap().content.get_list_response();
                                 let objs = list_resp.res.unwrap();
                                 let vrs_list_or_none = objects_to_vrs_list(objs);
-                                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, triggering_cr)));
+                                let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, vrs_list_or_none->0.filter(|vrs| valid_owned_vrs(vrs, triggering_cr)));
 
                                 // idea: sidestep an explicit proof that the message we send is owned by triggering_cr
                                 // by applying the invariant `vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd`
@@ -1115,7 +1115,7 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
                                 let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[cr_key].triggering_cr).unwrap();
                                 let vrs_list_or_none = objects_to_vrs_list(objs);
                                 let vrs_list = vrs_list_or_none.unwrap();
-                                let filtered_vrs_list = vrs_list.filter(|vrs| valid_owned_object(vrs, triggering_cr));
+                                let filtered_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, triggering_cr));
                                 let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, filtered_vrs_list);
 
 
@@ -1145,7 +1145,7 @@ pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_
                                     
                                     seq_filter_contains_implies_seq_contains(
                                         vrs_list,
-                                        |vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr),
+                                        |vrs: VReplicaSetView| valid_owned_vrs(vrs, triggering_cr),
                                         filtered_vrs_list[i]
                                     );
 

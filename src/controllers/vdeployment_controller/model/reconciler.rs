@@ -89,7 +89,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
                 if vrs_list_or_none is None {
                     (error_state(state), None)
                 } else {
-                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd)));
+                    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd)));
                     let state_prime = VDeploymentReconcileState {
                         reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
                         new_vrs: new_vrs,
@@ -132,7 +132,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             else if state.old_vrs_index > state.old_vrs_list.len() {
                 (error_state(state), None)
             }
-            else if !valid_owned_object(state.old_vrs_list[state.old_vrs_index - 1], vd) {
+            else if !valid_owned_vrs(state.old_vrs_list[state.old_vrs_index - 1], vd) {
                 (error_state(state), None)
             } else {
                 scale_down_old_vrs(state, vd)
@@ -148,7 +148,7 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             else if state.old_vrs_index > state.old_vrs_list.len() {
                 (error_state(state), None)
             }
-            else if !valid_owned_object(state.old_vrs_list[state.old_vrs_index - 1], vd) {
+            else if !valid_owned_vrs(state.old_vrs_list[state.old_vrs_index - 1], vd) {
                 (error_state(state), None)
             } else {
                 scale_down_old_vrs(state, vd)

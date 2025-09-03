@@ -190,10 +190,10 @@ pub proof fn only_interferes_with_itself_equivalent_to_lifted_only_interferes_wi
     );
 }
 
-pub proof fn make_replica_set_makes_valid_owned_object(vd: VDeploymentView)
+pub proof fn make_replica_set_makes_valid_owned_vrs(vd: VDeploymentView)
 requires vd.well_formed(),
 ensures
-    valid_owned_object(make_replica_set(vd), vd),
+    valid_owned_vrs(make_replica_set(vd), vd),
 {
     assert(make_replica_set(vd).metadata.owner_references->0[0] == vd.controller_owner_ref());
 }
@@ -268,7 +268,7 @@ ensures
     assert(filtered_vrs_list == filter_vrs_managed_by_vd(triggering_cr, s.resources())) by {
         assert(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
         assert(vd.metadata.namespace->0 == triggering_cr.metadata.namespace->0);
-        assert((|vrs| valid_owned_object(vrs, vd)) == (|vrs| valid_owned_object(vrs, triggering_cr)));
+        assert((|vrs| valid_owned_vrs(vrs, vd)) == (|vrs| valid_owned_vrs(vrs, triggering_cr)));
     }
 }
 

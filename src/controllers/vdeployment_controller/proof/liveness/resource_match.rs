@@ -117,7 +117,7 @@ ensures
                 let s = ex.head();
                 let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
                 let resp_objs = msg.content.get_list_response().res.unwrap();
-                let filtered_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_object(vrs, triggering_cr));
+                let filtered_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, triggering_cr));
                 assert(filtered_vrs_list == filter_vrs_managed_by_vd(triggering_cr, s.resources()));
                 let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, filtered_vrs_list);
                 let nv_uid_key_replicas = if new_vrs is Some {
@@ -650,32 +650,32 @@ ensures
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
     let vrs_list_or_none = objects_to_vrs_list(resp_objs);
 
-    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, vd)));
+    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_vrs(vrs, vd)));
     let vrs_list = vrs_list_or_none->0;
-    let valid_owned_object_filter = |vrs: VReplicaSetView| valid_owned_object(vrs, vd);
-    assert(valid_owned_object_filter == (|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
-    let filtered_vrs_list = vrs_list.filter(valid_owned_object_filter);
+    let valid_owned_vrs_filter = |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd);
+    assert(valid_owned_vrs_filter == (|vrs: VReplicaSetView| valid_owned_vrs(vrs, triggering_cr)));
+    let filtered_vrs_list = vrs_list.filter(valid_owned_vrs_filter);
     let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
         &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
     };
     assert(old_vrs_list == filtered_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
 
-    assert((new_vrs, old_vrs_list) == filter_old_and_new_vrs(triggering_cr, vrs_list_or_none->0.filter(|vrs| valid_owned_object(vrs, triggering_cr)))) by {
-        assert(valid_owned_object_filter == (|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
-        assert(filtered_vrs_list == vrs_list.filter(|vrs: VReplicaSetView| valid_owned_object(vrs, triggering_cr)));
+    assert((new_vrs, old_vrs_list) == filter_old_and_new_vrs(triggering_cr, vrs_list_or_none->0.filter(|vrs| valid_owned_vrs(vrs, triggering_cr)))) by {
+        assert(valid_owned_vrs_filter == (|vrs: VReplicaSetView| valid_owned_vrs(vrs, triggering_cr)));
+        assert(filtered_vrs_list == vrs_list.filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, triggering_cr)));
         // new_vrs_filter is the same
         // assert((|vrs: VReplicaSetView| match_template_without_hash(triggering_cr.spec.template, vrs)) == (|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs)));
         // old_vrs_list_filter_with_new_vrs does not contain vd, skip
     }
 
-    assert forall |vrs| #[trigger] filtered_vrs_list.contains(vrs) implies vrs_list.contains(vrs) && valid_owned_object(vrs, vd) by {
-        seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_object_filter);
+    assert forall |vrs| #[trigger] filtered_vrs_list.contains(vrs) implies vrs_list.contains(vrs) && valid_owned_vrs(vrs, vd) by {
+        seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_vrs_filter);
     }
-    assert forall |vrs: VReplicaSetView| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) && valid_owned_object(vrs, vd) by {
+    assert forall |vrs: VReplicaSetView| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) && valid_owned_vrs(vrs, vd) by {
         seq_filter_is_a_subset_of_original_seq(filtered_vrs_list, old_vrs_list_filter_with_new_vrs);
     }
-    assert(new_vrs is Some ==> vrs_list.contains(new_vrs->0) && valid_owned_object(new_vrs->0, vd)) by {
+    assert(new_vrs is Some ==> vrs_list.contains(new_vrs->0) && valid_owned_vrs(new_vrs->0, vd)) by {
         let new_vrs_filter = |vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs);
         if filtered_vrs_list.filter(new_vrs_filter).len() == 0 {
             assert(new_vrs is None);
@@ -692,12 +692,12 @@ ensures
                 }
             }
             map_values_weakens_no_duplicates(vrs_list, map_key);
-            seq_filter_preserves_no_duplicates(vrs_list, valid_owned_object_filter);
+            seq_filter_preserves_no_duplicates(vrs_list, valid_owned_vrs_filter);
             seq_filter_preserves_no_duplicates(filtered_vrs_list, old_vrs_list_filter_with_new_vrs);
             assert(old_vrs_list.no_duplicates());
             assert forall |vrs| #[trigger] old_vrs_list.contains(vrs) implies vrs_list.contains(vrs) by {
                 seq_filter_contains_implies_seq_contains(filtered_vrs_list, old_vrs_list_filter_with_new_vrs, vrs);
-                seq_filter_contains_implies_seq_contains(vrs_list, valid_owned_object_filter, vrs);
+                seq_filter_contains_implies_seq_contains(vrs_list, valid_owned_vrs_filter, vrs);
             }
             assert forall |i, j| 0 <= i < old_vrs_list.len() && 0 <= j < old_vrs_list.len() && i != j && old_vrs_list.no_duplicates() implies
                 #[trigger] old_vrs_list[i].object_ref() != #[trigger] old_vrs_list[j].object_ref() by {
@@ -771,7 +771,7 @@ ensures
     assert(0 <= vds_prime.old_vrs_index <= vds_prime.old_vrs_list.len());
     assert(vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates());
     if nv_uid_key_replicas is None {
-        make_replica_set_makes_valid_owned_object(vd);
+        make_replica_set_makes_valid_owned_vrs(vd);
         assert(vds_prime.new_vrs == Some(make_replica_set(vd)));
         let new_vrs = vds_prime.new_vrs->0;
         let vd_ref_seq = make_owner_references(vd);

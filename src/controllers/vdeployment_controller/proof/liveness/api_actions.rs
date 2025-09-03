@@ -203,11 +203,6 @@ requires
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    // order in seq may change
-    // ({
-    //     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    //     &&& filter_vrs_managed_by_vd(triggering_cr, s.resources()) == filter_vrs_managed_by_vd(triggering_cr, s_prime.resources())
-    // }),
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     broadcast use group_seq_properties;
@@ -216,9 +211,9 @@ ensures
         &&& o.object_ref().kind == VReplicaSetView::kind()
     }; 
     let objs = s.resources().values().filter(list_req_filter).to_seq();
-    let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
+    let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
     let objs_prime = s_prime.resources().values().filter(list_req_filter).to_seq();
-    let filtered_vrs_list_prime = objects_to_vrs_list(objs_prime).unwrap().filter(|vrs: VReplicaSetView| valid_owned_object(vrs, vd));
+    let filtered_vrs_list_prime = objects_to_vrs_list(objs_prime).unwrap().filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
     assert forall |vrs| filtered_vrs_list.contains(vrs) implies filtered_vrs_list_prime.contains(vrs) by {
         assume({
             let etcd_obj = s.resources()[vrs.object_ref()];
