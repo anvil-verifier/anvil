@@ -231,8 +231,8 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         let key = request.key();
-        let obj = s.resources()[key];
-        let etcd_vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+        let etcd_obj = s.resources()[key];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(request.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
@@ -245,11 +245,10 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         // stronger than local_state_is_valid_and_coherent
         &&& state.old_vrs_index < state.old_vrs_list.len()
         &&& s.resources().contains_key(key)
-        // the scaled down vrs can previously pass old vrs filter
-        &&& valid_owned_obj(vd)(etcd_obj)
-        &&& old_vrs_filter(new_vrs_uid)(etcd_vrs)
         // etcd obj is owned by vd and should be protected by non-interference property
-        &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& valid_owned_obj(vd)(etcd_obj)
+        // the scaled down vrs can previously pass old vrs filter
+        &&& old_vrs_filter(Some(nv_uid))(etcd_vrs)
         // spec hasn't been updated 
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd
@@ -270,7 +269,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
         let key = request.key();
         let etcd_obj = s.resources()[key];
-        let etcd_vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(request.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
@@ -281,11 +280,10 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& request.owner_ref == vd.controller_owner_ref()
         &&& valid_owned_vrs(req_vrs, vd)
         &&& s.resources().contains_key(key)
-        // the scaled down vrs can previously pass new vrs filter
-        &&& valid_owned_obj(vd)(etcd_obj)
-        &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
         // etcd obj is owned by vd and should be protected by non-interference property
-        &&& VReplicaSetView::unmarshal(request.obj) is Ok
+        &&& valid_owned_obj(vd)(etcd_obj)
+        // the scaled down vrs can previously pass new vrs filter
+        &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
         // spec hasn't been updated here
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd

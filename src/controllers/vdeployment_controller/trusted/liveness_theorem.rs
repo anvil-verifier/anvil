@@ -58,9 +58,9 @@ pub open spec fn old_vrs_filter(new_vrs_uid: Option<Uid>) -> spec_fn(VReplicaSet
 // can be unmarshalled and unmarshalled vrs can pass valid_owned_vrs
 pub open spec fn valid_owned_obj(vd: VDeploymentView) -> spec_fn(DynamicObjectView) -> bool {
     |o: DynamicObjectView| {
-        &&& obj.kind == VReplicaSetView::kind()
-        &&& VReplicaSetView::unmarshal(obj) is Ok
-        &&& valid_owned_vrs(VReplicaSetView::unmarshal(obj).unwrap(), vd)
+        &&& o.kind == VReplicaSetView::kind()
+        &&& VReplicaSetView::unmarshal(o) is Ok
+        &&& valid_owned_vrs(VReplicaSetView::unmarshal(o).unwrap(), vd)
     }
 }
 
