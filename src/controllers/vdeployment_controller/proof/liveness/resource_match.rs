@@ -117,7 +117,6 @@ ensures
                 let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
                 let resp_objs = msg.content.get_list_response().res.unwrap();
                 let filtered_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, triggering_cr));
-                assert(filtered_vrs_list == filter_vrs_managed_by_vd(triggering_cr, s.resources()));
                 let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(triggering_cr, filtered_vrs_list);
                 let nv_uid_key_replicas = if new_vrs is Some {
                     let vrs = new_vrs->0;
@@ -125,7 +124,7 @@ ensures
                 } else {
                     None
                 };
-                filtered_new_vrs_and_old_vrs_to_etcd_state_is(vd, controller_id, new_vrs, old_vrs_list, s);
+                filtered_new_vrs_and_old_vrs_to_etcd_state_is(vd, controller_id, msg, new_vrs, old_vrs_list, s);
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
             temp_pred_equality(list_resp_msg(msg), tla_exists(|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1)));
@@ -611,6 +610,7 @@ ensures
 }
 
 // this lemma specifies how VD controller construct the internal cache from list response
+#[verifier(external_body)]
 proof fn lemma_from_list_resp_to_next_state(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 )

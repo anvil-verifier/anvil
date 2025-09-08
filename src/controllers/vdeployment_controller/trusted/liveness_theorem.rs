@@ -22,15 +22,26 @@ pub open spec fn vd_eventually_stable_reconciliation_per_cr(vd: VDeploymentView)
 // Also try using quantifiers to simplify the proofs
 pub open spec fn current_state_matches(vd: VDeploymentView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let filtered_vrs_list = filter_vrs_managed_by_vd(vd, s.resources());
-        &&& exists |new_vrs: VReplicaSetView| {
+        let obj_keys = filter_obj_keys_managed_by_vd(vd, s);
+        &&& exists |new_k: ObjectRef| {
             // owned by vd, match template and has desired replicas
-            &&& #[trigger] filtered_vrs_list.contains(new_vrs)
+            let new_obj = s.resources()[new_k];
+            let new_vrs = VReplicaSetView::unmarshal(new_obj)->Ok_0;
+            &&& s.resources().contains_key(new_k)
+            &&& #[trigger] obj_keys.contains(new_k)
+            &&& VReplicaSetView::unmarshal(new_obj) is Ok
             &&& new_vrs_filter(vd.spec.template)(new_vrs)
             &&& new_vrs.spec.replicas.unwrap_or(int1!()) == vd.spec.replicas.unwrap_or(int1!())
             // all old vrs have 0 replicas
             &&& new_vrs.metadata.uid is Some
-            &&& filtered_vrs_list.filter(old_vrs_filter(new_vrs.metadata.uid)).len() == 0
+            &&& forall |old_k: ObjectRef| !{
+                let old_obj = s.resources()[old_k];
+                let old_vrs = VReplicaSetView::unmarshal(old_obj)->Ok_0;
+                &&& #[trigger] obj_keys.contains(old_k)
+                &&& s.resources().contains_key(old_k)
+                &&& VReplicaSetView::unmarshal(old_obj) is Ok
+                &&& old_vrs_filter(new_vrs.metadata.uid)(old_vrs)
+            }
         }
     }
 }
@@ -64,10 +75,8 @@ pub open spec fn valid_owned_obj(vd: VDeploymentView) -> spec_fn(DynamicObjectVi
     }
 }
 
-pub open spec fn filter_vrs_managed_by_vd(vd: VDeploymentView, resources: StoredState) -> Seq<VReplicaSetView> {
-    let objs = resources.values().filter(list_vrs_filter(vd.metadata.namespace->0)).to_seq();
-    // simulate controller AfterListVRS step
-    objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd))
+pub open spec fn filter_obj_keys_managed_by_vd(vd: VDeploymentView, s: ClusterState) -> Set<ObjectRef> {
+    s.resources().dom().filter(|k: ObjectRef| valid_owned_obj(vd)(s.resources()[k]))
 }
 
 }

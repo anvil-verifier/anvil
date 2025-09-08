@@ -130,29 +130,27 @@ Ideally, we only need the namespace to match and vrs.metadata.owner_references->
 The unmarshallability part can be proved using each_custom_object_in_etcd_is_well_formed
 */
 
-// TODO: remove filter_vrs_managed_by_vd
 pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(vd: VDeploymentView, controller_id: int, resp_msg: Message, s: ClusterState) -> bool {
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
+    let managed_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, vd));
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
-    // instead of saying resp_objs is constructed by applying filter on etcd objects,
-    // we say it contains all vrs we care about
-    // because other controllers can create/delete vrs with the same namespace as vds
-    // and thus break the predicate
-    // TODO: this may be weakened from <==> to be ==>
-    &&& objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, vd))
-        == filter_vrs_managed_by_vd(vd, s.resources())
-    // &&& forall |obj| #[trigger] resp_objs.contains(obj) ==> {
-    //     &&& VReplicaSetView::unmarshal(obj) is Ok
-    //     &&& obj.metadata.namespace == vd.metadata.namespace
-    //     // &&& obj.metadata.owner_references is Some
-    //     // &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-    //     &&& s.resources().contains_key(obj.object_ref())
-    //     &&& s.resources()[obj.object_ref()] == obj
-    // }
+    &&& managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        == filter_obj_keys_managed_by_vd(vd, s)
+    &&& forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
+        let key = vrs.object_ref();
+        let etcd_obj = s.resources()[key];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& valid_owned_vrs(vrs, vd)
+        &&& s.resources().contains_key(key)
+        // weakly equal to etcd object
+        &&& valid_owned_obj(vd)(etcd_obj)
+        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.spec == vrs.spec
+    }
 }
 
 // because make_replica_set use vd's RV to fake hash
