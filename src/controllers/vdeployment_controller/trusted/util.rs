@@ -31,7 +31,12 @@ pub open spec fn valid_owned_vrs(vrs: VReplicaSetView, vd: VDeploymentView) -> b
 
 pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
 {
-    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd.spec.template, vrs));
+    // first vrs that match template and has non-zero replicas
+    // non-zero replicas ensures the stability of esr
+    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
+        &&& match_template_without_hash(vd.spec.template, vrs)
+        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+    });
     let new_vrs = if new_vrs_list.len() == 0 {
         None
     } else {
