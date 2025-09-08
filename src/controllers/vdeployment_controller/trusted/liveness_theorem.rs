@@ -55,7 +55,10 @@ pub open spec fn list_vrs_filter(namespace: StringView) -> spec_fn(DynamicObject
 }
 
 pub open spec fn new_vrs_filter(template: PodTemplateSpecView) -> spec_fn(VReplicaSetView) -> bool {
-    |vrs: VReplicaSetView| match_template_without_hash(template, vrs)
+    |vrs: VReplicaSetView| {
+        &&& match_template_without_hash(template, vrs)
+        &&& vrs.spec.replicas.unwrap_or(1) > 0
+    }
 }
 
 // None -> no new vrs
