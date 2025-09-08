@@ -19,6 +19,7 @@ use crate::vstd_ext::{seq_lib::*, set_lib::*};
 
 verus! {
 
+#[verifier(external_body)]
 pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message,
@@ -121,6 +122,7 @@ ensures
     return handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
