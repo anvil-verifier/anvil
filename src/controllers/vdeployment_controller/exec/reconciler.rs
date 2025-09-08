@@ -157,7 +157,17 @@ pub fn reconcile_core(vd: &VDeployment, resp_o: Option<Response<VoidEResp>>, sta
             if !(is_some_k_create_resp!(resp_o) && extract_some_k_create_resp_as_ref!(resp_o).is_ok()) {
                 return (error_state(state), None);
             }
-            return (new_vrs_ensured_state(state), None);
+            let new_obj = extract_some_k_create_resp!(resp_o).unwrap();
+            let new_vrs_or_err = VReplicaSet::unmarshal(new_obj);
+            if new_vrs_or_err.is_err() {
+                return (error_state(state), None);
+            }
+            let state_prime = VDeploymentReconcileState {
+                reconcile_step: VDeploymentReconcileStep::AfterEnsureNewVRS,
+                new_vrs: Some(new_vrs_or_err.unwrap()),
+                ..state
+            };
+            return (state_prime, None);
         }
         VDeploymentReconcileStep::AfterScaleNewVRS => {
             if !(is_some_k_get_then_update_resp!(resp_o) && extract_some_k_get_then_update_resp_as_ref!(resp_o).is_ok()) {
@@ -244,7 +254,7 @@ ensures
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStep::AfterCreateNewVRS,
-        new_vrs: Some(new_vrs),
+        new_vrs: None,
         old_vrs_list: state.old_vrs_list.clone(),
         old_vrs_index: state.old_vrs_index
     };

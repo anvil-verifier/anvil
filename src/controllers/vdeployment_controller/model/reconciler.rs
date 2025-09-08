@@ -114,7 +114,18 @@ pub open spec fn reconcile_core(vd: VDeploymentView, resp_o: Option<ResponseView
             if !(is_some_k_create_resp_view!(resp_o) && extract_some_k_create_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
             } else {
-                (new_vrs_ensured_state(state), None)
+                let new_obj = extract_some_k_create_resp_view!(resp_o).unwrap();
+                let new_vrs_or_err = VReplicaSetView::unmarshal(new_obj);
+                if new_vrs_or_err is Err {
+                    (error_state(state), None)
+                } else {
+                    let state_prime = VDeploymentReconcileState {
+                        reconcile_step: VDeploymentReconcileStepView::AfterEnsureNewVRS,
+                        new_vrs: Some(new_vrs_or_err->Ok_0),
+                        ..state
+                    };
+                    (state_prime, None)
+                }
             }
         },
         VDeploymentReconcileStepView::AfterScaleNewVRS => {
@@ -237,7 +248,6 @@ pub open spec fn create_new_vrs(state: VDeploymentReconcileState, vd: VDeploymen
     });
     let state_prime = VDeploymentReconcileState {
         reconcile_step: VDeploymentReconcileStepView::AfterCreateNewVRS,
-        new_vrs: Some(new_vrs),
         ..state
     };
     (state_prime, Some(RequestView::KRequest(req)))
