@@ -43,6 +43,7 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
 }
 
 pub open spec fn vrs_weakly_eq(lhs: VReplicaSetView, rhs: VReplicaSetView) -> bool {
+    &&& lhs.metadata.uid is Some
     &&& lhs.metadata.name is Some
     &&& lhs.metadata.namespace is Some
     &&& lhs.metadata.uid == rhs.metadata.uid
@@ -133,21 +134,31 @@ The unmarshallability part can be proved using each_custom_object_in_etcd_is_wel
 pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(vd: VDeploymentView, controller_id: int, resp_msg: Message, s: ClusterState) -> bool {
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    let managed_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, vd));
+    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+    let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
     &&& resp_msg.content.is_list_response()
     &&& resp_msg.content.get_list_response().res is Ok
     &&& objects_to_vrs_list(resp_objs) is Some
     &&& resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates()
     &&& managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
         == filter_obj_keys_managed_by_vd(vd, s)
+    &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
+        &&& VReplicaSetView::unmarshal(obj) is Ok
+        // &&& obj.metadata.namespace is Some
+        // &&& obj.metadata.name is Some
+        // &&& obj.metadata.uid is Some
+    }
     &&& forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
         let key = vrs.object_ref();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        // strengthen valid_owned_vrs, as only one controller owner is allowed
+        &&& vrs.metadata.owner_references is Some
+        &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         &&& valid_owned_vrs(vrs, vd)
         &&& s.resources().contains_key(key)
         // weakly equal to etcd object
-        &&& valid_owned_obj(vd)(etcd_obj)
+        &&& valid_owned_obj_key(vd, s)(key)
         &&& vrs_weakly_eq(etcd_vrs, vrs)
         &&& etcd_vrs.spec == vrs.spec
     }
@@ -244,9 +255,9 @@ pub open spec fn req_msg_is_scale_down_old_vrs_req(
         &&& state.old_vrs_index < state.old_vrs_list.len()
         &&& s.resources().contains_key(key)
         // etcd obj is owned by vd and should be protected by non-interference property
-        &&& valid_owned_obj(vd)(etcd_obj)
+        &&& valid_owned_obj_key(vd, s)(key)
         // the scaled down vrs can previously pass old vrs filter
-        &&& old_vrs_filter(Some(nv_uid))(etcd_vrs)
+        &&& filter_old_vrs_keys(Some(nv_uid), s)(key)
         // spec hasn't been updated 
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd
@@ -279,9 +290,9 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& valid_owned_vrs(req_vrs, vd)
         &&& s.resources().contains_key(key)
         // etcd obj is owned by vd and should be protected by non-interference property
-        &&& valid_owned_obj(vd)(etcd_obj)
+        &&& valid_owned_obj_key(vd, s)(key)
         // the scaled down vrs can previously pass new vrs filter
-        &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
+        &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd
@@ -390,22 +401,21 @@ pub open spec fn etcd_state_is(vd: VDeploymentView, controller_id: int, nv_uid_k
                 let etcd_obj = s.resources()[key];
                 let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
                 &&& s.resources().contains_key(key)
-                &&& valid_owned_obj(vd)(etcd_obj)
-                &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
+                &&& valid_owned_obj_key(vd, s)(key)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(key)
                 &&& etcd_vrs.metadata.uid is Some
                 &&& etcd_vrs.metadata.uid->0 == uid
                 &&& etcd_vrs.spec.replicas.unwrap_or(1) == replicas
             },
             None => {
-                &&& !exists |o: DynamicObjectView| {
-                    &&& #[trigger] s.resources().values().contains(o)
-                    &&& valid_owned_obj(vd)(o)
-                    &&& new_vrs_filter(vd.spec.template)(VReplicaSetView::unmarshal(o)->Ok_0)
+                &&& !exists |k: ObjectRef| {
+                    &&& #[trigger] s.resources().contains_key(k)
+                    &&& valid_owned_obj_key(vd, s)(k)
+                    &&& filter_new_vrs_keys(vd.spec.template, s)(k)
                 }
             }
         }
-        &&& s.resources().values().filter(|o: DynamicObjectView| valid_owned_obj(vd)(o)
-            && old_vrs_filter(new_vrs_uid)(VReplicaSetView::unmarshal(o)->Ok_0)).len() == ov_len
+        &&& filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)).len() == ov_len
     }
 }
 
@@ -439,18 +449,17 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
             &&& s.resources().contains_key(vds.old_vrs_list[i].object_ref())
         }
         // are owned by vd, and can pass corresponding filter
+        &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+            == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
             let etcd_obj = s.resources()[key];
             let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-            &&& old_vrs_filter(new_vrs_uid)(vrs)
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             // exists in etcd, can be unmarshalled and can pass old vrs filter
             &&& s.resources().contains_key(key)
-            &&& valid_owned_obj(vd)(etcd_obj)
-            &&& old_vrs_filter(new_vrs_uid)(etcd_vrs)
             // etcd obj weakly matches local ones
             &&& vrs_weakly_eq(etcd_vrs, vrs)
             &&& etcd_vrs.spec == vrs.spec
@@ -471,12 +480,12 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
                 // direct equality of etcd_vrs == new_vrs is weakened here
                 // we cannot use filtered_vrs_list.contains(new_vrs)
                 &&& !pending_create_new_vrs_req_in_flight(vd, controller_id)(s) ==> {
-                    // etcd vrs exists, matches local vrs, and can pass new_vrs_filter
+                    // etcd vrs exists, matches local vrs, and can pass filter_new_vrs_keys
                     let etcd_obj = s.resources()[key];
                     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
                     &&& s.resources().contains_key(key)
-                    &&& valid_owned_obj(vd)(etcd_obj)
-                    &&& new_vrs_filter(vd.spec.template)(etcd_vrs)
+                    &&& valid_owned_obj_key(vd, s)(key)
+                    &&& filter_new_vrs_keys(vd.spec.template, s)(key)
                     // etcd obj weakly equal to local version
                     &&& vrs_weakly_eq(etcd_vrs, new_vrs)
                     // otherwise the update replicas req is in flight
@@ -486,11 +495,6 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
             },
             None => {
                 &&& vds.new_vrs is None
-                &&& !exists |o: DynamicObjectView| {
-                    &&& #[trigger] s.resources().values().contains(o)
-                    &&& valid_owned_obj(vd)(o)
-                    &&& new_vrs_filter(vd.spec.template)(VReplicaSetView::unmarshal(o)->Ok_0)
-                }
             }
         }
     }

@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::spec::{
     label_selector::LabelSelectorView,
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::trusted::spec_types::*;
+use crate::vdeployment_controller::trusted::{spec_types::*, liveness_theorem::*};
 use vstd::prelude::*;
 
 verus! {
