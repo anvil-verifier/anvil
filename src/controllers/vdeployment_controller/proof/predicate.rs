@@ -459,7 +459,7 @@ pub open spec fn controller_owner_filter() -> spec_fn(OwnerReferenceView) -> boo
 pub open spec fn exists_nv_makes_etcd_state_be(vd: VDeploymentView, controller_id: int, ov_len: nat) -> StatePred<ClusterState> {
     |s: ClusterState| {
         exists |nv_uid_key: (Uid, ObjectRef)| {
-            &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(1 as int))), ov_len)(s)
+            &&& #[trigger] etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, get_replicas(vd.spec.replicas))), ov_len)(s)
         }
     }
 }
