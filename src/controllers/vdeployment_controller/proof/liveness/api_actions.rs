@@ -89,9 +89,9 @@ ensures
 
 #[verifier(external_body)]
 // staged, we need to handle collision
-pub proof fn lemma_create_new_vrs_request_returns_ok_after_ensure_new_vrs(
+pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
-    req_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
+    req_msg: Message, n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -99,12 +99,12 @@ requires
     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, None, n)(s),
-    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+    local_state_is(vd, controller_id, None, n)(s),
 ensures
     resp_msg == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
-    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    exists_nv_and_resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
+    exists_nv_makes_etcd_state_be(vd, controller_id, n)(s_prime),
+    local_state_is(vd, controller_id, None, n)(s_prime),
 {
     broadcast use group_seq_properties;
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
