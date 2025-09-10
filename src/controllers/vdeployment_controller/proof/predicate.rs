@@ -236,25 +236,8 @@ pub open spec fn resp_msg_is_ok_create_new_vrs_resp(
         &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, resp_msg, nv_uid_key, s)
     }
 }
-
-pub open spec fn exists_nv_and_resp_msg_is_ok_create_new_vrs_resp(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
-        &&& req_msg_is_create_vrs_req(vd, controller_id, req_msg, s)
-        &&& s.in_flight().contains(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& exists |nv_uid_key: (Uid, ObjectRef)| {
-            // we don't need info on content of the response at the moment
-            &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, resp_msg, nv_uid_key, s)
-        }
-    }
-}
-
-pub open spec fn exists_resp_msg_and_nv_makes_ok_create_new_vrs_resp(
-    vd: VDeploymentView, controller_id: int
+pub open spec fn exists_create_resp_msg_with_nv_and_etcd_state_is(
+    vd: VDeploymentView, controller_id: int, ov_len: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
@@ -265,7 +248,8 @@ pub open spec fn exists_resp_msg_and_nv_makes_ok_create_new_vrs_resp(
             &&& #[trigger] s.in_flight().contains(j.0)
             &&& resp_msg_matches_req_msg(j.0, req_msg)
             // we don't need info on content of the response at the moment
-            &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
+            &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
+            &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), ov_len)(s)
         }
     }
 }

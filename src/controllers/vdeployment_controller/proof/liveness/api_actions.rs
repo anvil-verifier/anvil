@@ -92,7 +92,7 @@ ensures
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
-) -> (resp_msg: Message)
+) -> (res: (Message, (Uid, ObjectRef)))
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
@@ -101,9 +101,9 @@ requires
     etcd_state_is(vd, controller_id, None, n)(s),
     local_state_is(vd, controller_id, None, n)(s),
 ensures
-    resp_msg == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    exists_nv_and_resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg)(s_prime),
-    exists_nv_makes_etcd_state_be(vd, controller_id, n)(s_prime),
+    res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
+    resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
+    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
     local_state_is(vd, controller_id, None, n)(s_prime),
 {
     broadcast use group_seq_properties;
@@ -119,7 +119,8 @@ ensures
         VReplicaSetView::marshal_preserves_integrity();
     }
     assume(false);
-    return handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
+    let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
+    return (resp_msg, (request.obj.metadata.uid->0, request.obj.object_ref()));
 }
 
 #[verifier(external_body)]
