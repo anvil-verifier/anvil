@@ -37,12 +37,6 @@ ensures
     spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)))
        .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Done]), current_state_matches(vd))))),
 {
-    let inv = {
-        &&& spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))
-        &&& spec.entails(always(lift_action(cluster.next())))
-        &&& spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i)))
-        &&& spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1))))
-    };
     // Init ~> send list req
     let init = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)));
     let list_req = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS]), pending_list_req_in_flight(vd, controller_id)));
@@ -66,7 +60,7 @@ ensures
         exists_pending_list_resp_in_flight_and_match_req(vd, controller_id)
     ));
     // \A |msg| (list_req_msg(msg) ~> list_resp)
-    assert forall |req_msg: Message| inv implies #[trigger] spec.entails(list_req_msg(req_msg).leads_to(list_resp)) by {
+    assert forall |req_msg: Message| true implies #[trigger] spec.entails(list_req_msg(req_msg).leads_to(list_resp)) by {
         lemma_from_after_send_list_vrs_req_to_receive_list_vrs_resp(vd, spec, cluster, controller_id, req_msg);
     };
     // \A |msg| (list_req_msg(msg) ~> list_resp) |= (\E |msg| list_resp_msg(msg)) ~> list_resp
@@ -146,6 +140,21 @@ ensures
                 assert(spec.entails(after_list_with_etcd_state(msg, None, n).leads_to(create_vrs_req))) by {
                     lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(vd, spec, cluster, controller_id, msg, n);
                 }
+                let create_vrs_req_msg = |msg: Message| lift_state(and!(
+                    at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
+                    req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, msg),
+                    etcd_state_is(vd, controller_id, None, n),
+                    local_state_is(vd, controller_id, None, n)
+                ));
+                assert(create_vrs_req == tla_exists(|msg| create_vrs_req_msg(msg))) by {
+                    assert forall |ex: Execution<ClusterState>| #[trigger] create_vrs_req.satisfied_by(ex) implies
+                        tla_exists(|msg| create_vrs_req_msg(msg)).satisfied_by(ex) by {
+                        let s = ex.head();
+                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                        assert((|msg| create_vrs_req_msg(msg))(req_msg).satisfied_by(ex));
+                    }
+                    temp_pred_equality(create_vrs_req, tla_exists(|msg| create_vrs_req_msg(msg)));
+                }
                 // TEST: is it possible to lift quantifier here
                 let create_vrs_resp = lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
@@ -170,7 +179,7 @@ ensures
                         let (resp_msg, nv_uid_key) = choose |resp_msg, nv_uid_key| {
                             &&& #[trigger] s.in_flight().contains(resp_msg)
                             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                            &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, resp_msg, nv_uid_key, s)
+                            &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, resp_msg, nv_uid_key, s)
                         };
                         assert((|j: (Message, (Uid, ObjectRef))| create_vrs_resp_msg_nv(j.0, j.1))((resp_msg, nv_uid_key)).satisfied_by(ex));
                     }
