@@ -144,9 +144,9 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(vd: VDeployment
         == filter_obj_keys_managed_by_vd(vd, s)
     &&& forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
         &&& VReplicaSetView::unmarshal(obj) is Ok
-        // &&& obj.metadata.namespace is Some
-        // &&& obj.metadata.name is Some
-        // &&& obj.metadata.uid is Some
+        &&& obj.metadata.namespace is Some
+        &&& obj.metadata.name is Some
+        &&& obj.metadata.uid is Some
     }
     &&& forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
         let key = vrs.object_ref();
@@ -178,7 +178,10 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
             let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
             &&& new_vrs is Some == nv_uid_key_replicas is Some
             &&& new_vrs is Some ==> {
+                &&& new_vrs->0.metadata.uid is Some
                 &&& new_vrs->0.metadata.uid->0 == (nv_uid_key_replicas->0).0
+                &&& new_vrs->0.metadata.name is Some
+                &&& new_vrs->0.metadata.namespace is Some
                 &&& new_vrs->0.object_ref() == (nv_uid_key_replicas->0).1
                 &&& new_vrs->0.spec.replicas.unwrap_or(1 as int) == (nv_uid_key_replicas->0).2
             }
