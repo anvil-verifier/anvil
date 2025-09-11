@@ -1619,7 +1619,6 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 if input->0 == req_msg {
-                    assume(false); // speedup
                     let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, req_msg, nv_uid_key, n);
                     VReplicaSetView::marshal_preserves_integrity();
                     assert({
