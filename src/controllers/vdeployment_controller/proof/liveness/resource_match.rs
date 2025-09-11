@@ -1188,7 +1188,6 @@ ensures
 
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1273,10 +1272,6 @@ ensures
                             assert(false);
                         }
                     }
-                    // it's possible to lift the predicate saying the object we care about is not touched during the transition caused by other msg
-                    // as a direct result of the boundary predicates and rely conditions
-                    // it can be used in both coherent(s) -> coherent(s_prime) and pending_req_msg_is_X(s) -> pending_req_msg_is_X(s_prime)
-
                     // etcd object is not touched by other msg
                     let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
                     assert(s.resources().contains_key(key));

@@ -277,6 +277,7 @@ pub open spec fn scale_new_vrs(state: VDeploymentReconcileState, vd: VDeployment
     (state_prime, Some(RequestView::KRequest(req)))
 }
 
+// TODO: to ensure consistency, we can update local replicas after ok resp is received
 // scale down old vrs to 0 replicas
 pub open spec fn scale_down_old_vrs(state: VDeploymentReconcileState, vd: VDeploymentView) -> (res: (VDeploymentReconcileState, Option<RequestView<VoidEReqView>>)) {
     let old_vrs_index = (state.old_vrs_index - 1) as nat;
