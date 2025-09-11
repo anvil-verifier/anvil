@@ -157,6 +157,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(vd: VDeployment
         &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         &&& valid_owned_vrs(vrs, vd)
         &&& s.resources().contains_key(key)
+        &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
         // weakly equal to etcd object
         &&& valid_owned_obj_key(vd, s)(key)
         &&& vrs_weakly_eq(etcd_vrs, vrs)
@@ -557,7 +558,7 @@ pub open spec fn old_vrs_list_len(n: nat) -> spec_fn(VDeploymentReconcileState) 
     |vds: VDeploymentReconcileState| vds.old_vrs_index == n
 }
 
-pub open spec fn vd_rely_condition(vd: VDeploymentView, cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
+pub open spec fn vd_rely_condition(cluster: Cluster, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| forall |other_id| other_id != controller_id && cluster.controller_models.contains_key(other_id)
                                         ==> #[trigger] vd_rely(other_id)(s)
 }

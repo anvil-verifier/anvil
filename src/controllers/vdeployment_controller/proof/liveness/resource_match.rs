@@ -745,7 +745,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -768,7 +768,7 @@ ensures
                     &&& s_prime.resources().contains_key(obj.object_ref())
                     &&& s_prime.resources()[obj.object_ref()] == obj
                 } by {
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, obj.object_ref(), msg
                     );
                 }
@@ -791,7 +791,7 @@ ensures
     );
 }
 
-#[verifier(external_body)]
+#[verifier(rlimit(100))]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_send_create_new_vrs_req(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, n: nat
 )
@@ -834,7 +834,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -849,17 +849,33 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
-                // nv_uid_key_replicas and n are not yet available
+                // nv_uid_key_replicas and n are not yet available locally
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
                     s, s_prime, vd, cluster, controller_id, msg, None, 0
                 );
+                lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
+                    s, s_prime, vd, cluster, controller_id, msg, None, n
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+                VDeploymentView::marshal_preserves_integrity();
+                let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
-                    &&& s_prime.resources().contains_key(obj.object_ref())
-                    &&& s_prime.resources()[obj.object_ref()] == obj
+                let vrs_list = objects_to_vrs_list(resp_objs)->0;
+                let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                    let key = vrs.object_ref();
+                    let etcd_obj = s_prime.resources()[key];
+                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                    &&& s_prime.resources().contains_key(key)
+                    &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
+                    &&& valid_owned_obj_key(vd, s_prime)(key)
+                    &&& vrs_weakly_eq(etcd_vrs, vrs)
+                    &&& etcd_vrs.spec == vrs.spec
                 } by {
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, obj.object_ref(), msg
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, vrs.object_ref(), msg
                     );
                 }
             },
@@ -920,7 +936,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1019,7 +1035,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1099,7 +1115,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1128,7 +1144,7 @@ ensures
                     &&& VReplicaSetView::unmarshal(obj) is Ok
                     &&& obj.metadata.namespace == vd.metadata.namespace
                 } by {
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, obj.object_ref(), msg
                     );
                 }
@@ -1197,7 +1213,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     let input = Some(req_msg);
     combine_spec_entails_always_n!(spec,
@@ -1251,7 +1267,7 @@ ensures
                     assert(VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata == etcd_obj.metadata);
                     // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
                     assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, key, msg
                     );
                     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
@@ -1323,7 +1339,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1405,7 +1421,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1489,7 +1505,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1575,7 +1591,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
@@ -1628,7 +1644,7 @@ ensures
                     assert(VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata == etcd_obj.metadata);
                     // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
                     assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, key, msg
                     );
                     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
@@ -1796,7 +1812,7 @@ ensures
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     combine_spec_entails_always_n!(spec,
@@ -1879,7 +1895,7 @@ ensures
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
-        &&& vd_rely_condition(vd, cluster, controller_id)(s)
+        &&& vd_rely_condition(cluster, controller_id)(s)
     };
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),

@@ -184,7 +184,7 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
-    vd_rely_condition(vd, cluster, controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s),
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
@@ -200,7 +200,7 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
-    vd_rely_condition(vd, cluster, controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s),
     (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
         || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
@@ -224,7 +224,7 @@ ensures
             &&& etcd_obj.metadata.owner_references is Some
             &&& etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         });
-        lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
             s, s_prime, vd, cluster, controller_id, vrs.object_ref(), msg
         );
         assume(filtered_vrs_list_prime.contains(vrs));
@@ -247,10 +247,31 @@ ensures
     assume(false);
 }
 
+// filter_obj_keys_managed_by_vd is maintained
+#[verifier(external_body)]
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
+    msg: Message
+)
+requires
+    cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
+    vd_rely_condition(cluster, controller_id)(s),
+    // equal to msg.src != HostId::Controller(controller_id, vd.object_ref())
+    (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+ensures
+    ({
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
+        &&& filter_obj_keys_managed_by_vd(triggering_cr, s) == filter_obj_keys_managed_by_vd(triggering_cr, s_prime)
+    }),
+{}
+
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API request msg does not change or delete the object
 // as the direct result of rely condition and non-interference property.
-pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     key: ObjectRef, msg: Message
 )
@@ -258,7 +279,7 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
-    vd_rely_condition(vd, cluster, controller_id)(s),
+    vd_rely_condition(cluster, controller_id)(s),
     // object in etcd is owned by vd
     ({
         let etcd_obj = s.resources()[key];
