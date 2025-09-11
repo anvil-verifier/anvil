@@ -1080,7 +1080,6 @@ ensures
 }
 
 #[verifier(rlimit(100))]
-#[verifier(external_body)]
 pub proof fn lemma_from_after_receive_list_vrs_resp_to_pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1146,15 +1145,26 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
                 );
+                lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+                VDeploymentView::marshal_preserves_integrity();
+                let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
-                    &&& s_prime.resources().contains_key(obj.object_ref())
-                    &&& s_prime.resources()[obj.object_ref()] == obj
-                    &&& VReplicaSetView::unmarshal(obj) is Ok
-                    &&& obj.metadata.namespace == vd.metadata.namespace
+                let vrs_list = objects_to_vrs_list(resp_objs)->0;
+                let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
+                assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
+                    let key = vrs.object_ref();
+                    let etcd_obj = s_prime.resources()[key];
+                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                    &&& s_prime.resources().contains_key(key)
+                    &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
+                    &&& valid_owned_obj_key(vd, s_prime)(key)
+                    &&& vrs_weakly_eq(etcd_vrs, vrs)
+                    &&& etcd_vrs.spec == vrs.spec
                 } by {
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, obj.object_ref(), msg
+                        s, s_prime, vd, cluster, controller_id, vrs.object_ref(), msg
                     );
                 }
             },
