@@ -261,22 +261,23 @@ pub open spec fn exists_create_resp_msg_with_nv_and_etcd_state_is(
 pub open spec fn resp_msg_is_ok_create_resp_containing_new_vrs(
     vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), s: ClusterState
 ) -> bool {
+    let (uid, key) = nv_uid_key;
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let resp_obj = resp_msg.content.get_create_response().res.unwrap();
     let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
-    let key = vrs.object_ref();
     let etcd_obj = s.resources()[key];
     let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
     &&& resp_msg.content.is_create_response()
     &&& resp_msg.content.get_create_response().res is Ok
     &&& VReplicaSetView::unmarshal(resp_obj) is Ok
-    &&& etcd_vrs.metadata.uid is Some
-    &&& etcd_vrs.metadata.uid->0 == nv_uid_key.0
-    &&& etcd_vrs.object_ref() == nv_uid_key.1
+    &&& vrs.object_ref() == key
+    &&& vrs.metadata.uid is Some
+    &&& vrs.metadata.uid->0 == uid
     // strengthen valid_owned_vrs, as only one controller owner is allowed
     &&& vrs.metadata.owner_references is Some
     &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-    &&& valid_owned_vrs(vrs, vd)
+    &&& vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+    // &&& valid_owned_vrs(vrs, vd)
     &&& s.resources().contains_key(key)
     // weakly equal to etcd object
     &&& valid_owned_obj_key(vd, s)(key)
