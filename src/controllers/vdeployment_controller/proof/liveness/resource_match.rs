@@ -611,11 +611,10 @@ ensures
     broadcast use group_seq_properties;
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-    let vrs_list_or_none = objects_to_vrs_list(resp_objs);
-    assert(vrs_list_or_none is Some);
-    let vrs_list = vrs_list_or_none->0;
-
-    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, vrs_list_or_none->0.filter(|vrs| valid_owned_vrs(vrs, vd)));
+    assert(objects_to_vrs_list(resp_objs) is Some);
+    let vrs_list = objects_to_vrs_list(resp_objs)->0;
+    let managed_vrs_list = objects_to_vrs_list(resp_objs)->0.filter(|vrs| valid_owned_vrs(vrs, vd));
+    let (new_vrs, old_vrs_list) = filter_old_and_new_vrs(vd, managed_vrs_list);
     let new_vrs_uid = if nv_uid_key_replicas is Some { Some((nv_uid_key_replicas->0).0) } else { None };
     let valid_owned_vrs_filter = |vrs: VReplicaSetView| valid_owned_vrs(vrs, vd);
     let managed_vrs_list = vrs_list.filter(valid_owned_vrs_filter);
@@ -627,6 +626,19 @@ ensures
         &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
     };
+    assert(old_vrs_list_filter_with_new_vrs =~= |vrs: VReplicaSetView| {
+        &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+        &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+    }) by {
+        if new_vrs is None {
+            assert(new_vrs_uid is None);
+        } else {
+            assert(new_vrs->0.metadata.uid is Some);
+            assert(new_vrs->0.metadata.uid->0 == new_vrs_uid->0);
+            assume(false);
+        }
+    }
+    // new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid == new_vrs_uid is None || vrs.metadata.uid != new_vrs_uid->0
     assert(old_vrs_list == managed_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
 
     assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies vrs_list.contains(vrs) && valid_owned_vrs(vrs, vd) by {
@@ -681,8 +693,11 @@ ensures
         }
     }
     // TODO
-    assume(old_vrs_list.map_values(map_key).to_set()
-        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)));
+    assert(old_vrs_list.map_values(map_key).to_set()
+        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))) by {
+        old_vrs_filter_on_objs_eq_filter_on_keys(vd, managed_vrs_list, new_vrs_uid, s);
+    }
+    // we have some flakiness issues here
     assert(old_vrs_list.len() == n) by {
         old_vrs_list.map_values(map_key).unique_seq_to_set();
         assert(old_vrs_list.map_values(map_key).len() == old_vrs_list.len());

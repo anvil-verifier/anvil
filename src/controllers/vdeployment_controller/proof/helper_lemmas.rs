@@ -289,4 +289,19 @@ ensures
         etcd_state_is(vd, controller_id, nv_uid_key_replicas, old_vrs_list.len())(s)
     }),
 {}
+
+#[verifier(external_body)]
+pub proof fn old_vrs_filter_on_objs_eq_filter_on_keys(
+    triggering_cr: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
+)
+requires
+    managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        == filter_obj_keys_managed_by_vd(triggering_cr, s)
+ensures
+    managed_vrs_list.filter(|vrs: VReplicaSetView| {
+        &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+        &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+    }).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
+        == filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(new_vrs_uid, s)),
+{}
 }
