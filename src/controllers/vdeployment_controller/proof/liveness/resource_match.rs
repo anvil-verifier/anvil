@@ -895,7 +895,6 @@ ensures
 }
 
 #[verifier(rlimit(100))]
-#[verifier(external_body)]
 pub proof fn lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, n: nat
 )
@@ -965,6 +964,9 @@ ensures
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+                        s, s_prime, vd, cluster, controller_id, msg, None, n
+                    );
+                    lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                         s, s_prime, vd, cluster, controller_id, msg, None, n
                     );
                 }
