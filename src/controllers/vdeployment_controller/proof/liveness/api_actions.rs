@@ -124,7 +124,6 @@ ensures
     return resp_msg;
 }
 
-#[verifier(external_body)]
 // staged, we need to handle collision
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
@@ -139,25 +138,50 @@ requires
     local_state_is(vd, controller_id, None, n)(s),
 ensures
     res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
+    resp_msg_matches_req_msg(res.0, req_msg),
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
     etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
     local_state_is(vd, controller_id, None, n)(s_prime),
 {
     broadcast use group_seq_properties;
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    VReplicaSetView::marshal_preserves_integrity();
+    let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let request = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
-    let new_vrs = make_replica_set(triggering_cr);
+    let new_vrs = make_replica_set(vd);
     assert(request == CreateRequest {
-        namespace: triggering_cr.metadata.namespace.unwrap(),
+        namespace: vd.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
     });
     assert(s_prime.api_server == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).0);
-    assert(create_request_admission_check(cluster.installed_types, request, s.api_server) is None) by {
-        VReplicaSetView::marshal_preserves_integrity();
-    }
-    assume(false);
+    assert(create_request_admission_check(cluster.installed_types, request, s.api_server) is None);
     let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
-    return (resp_msg, (request.obj.metadata.uid->0, request.obj.object_ref()));
+    let resp_obj = resp_msg.content.get_create_response().res.unwrap();
+    let key = resp_obj.object_ref();
+    assert(s_prime.resources() == s.resources().insert(key, resp_obj)) by {
+        assume(!s.resources().contains_key(key)); // generate_name is unique
+        assert(request.obj.metadata.owner_references is Some);
+        assert(resp_obj.metadata.owner_references is Some);
+        assert(request.obj.metadata.owner_references->0.len() == 1);
+        assert(request.obj.metadata.owner_references->0 == resp_obj.metadata.owner_references->0);
+        assert(created_object_validity_check(resp_obj, cluster.installed_types) is None);
+    }
+    assert(VReplicaSetView::unmarshal(resp_obj) is Ok);
+    let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
+    let etcd_obj = s_prime.resources()[key];
+    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+    assert(vrs.metadata.uid is Some);
+    assert(resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, (etcd_obj.metadata.uid->0, key))(s_prime)) by {
+        assert(vrs.object_ref() == key);
+        assert(vrs.metadata.owner_references is Some);
+        assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+        assert(vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
+        assert(s_prime.resources().contains_key(key));
+        assert(valid_owned_obj_key(vd, s_prime)(key));
+        assert(filter_new_vrs_keys(vd.spec.template, s_prime)(key));
+        assert(vrs_weakly_eq(etcd_vrs, vrs));
+        assert(etcd_vrs.spec == vrs.spec);
+    }
+    return (resp_msg, (etcd_obj.metadata.uid->0, key));
 }
 
 #[verifier(external_body)]

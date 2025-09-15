@@ -205,6 +205,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
     VReplicaSetView {
         metadata: ObjectMetaView {
             name: None, // let API-server generates a unique name
+            generate_name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
             namespace: vd.metadata.namespace,
             labels: vd.metadata.labels,
             owner_references: Some(make_owner_references(vd)),

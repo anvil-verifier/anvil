@@ -590,7 +590,7 @@ ensures
         let mut metadata = ObjectMeta::default();
         // let API server generates a unique name
         // // concatenation of (String, String) not yet supported in Verus
-        // // metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
+        metadata.set_generate_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
         metadata.set_namespace(vd.metadata().namespace().unwrap());
         if vd.metadata().labels().is_some() {
             metadata.set_labels(vd.metadata().labels().unwrap().clone());
