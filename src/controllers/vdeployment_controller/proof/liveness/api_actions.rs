@@ -184,23 +184,24 @@ ensures
     return (resp_msg, (etcd_obj.metadata.uid->0, key));
 }
 
-pub proof fn lemma_get_then_update_request_returns_ok_after_scale_new_vrs(
+pub proof fn lemma_scale_scale_new_vrs_req_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 ) -> (resp_msg: Message)
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_pending_scale_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
+    req_msg_is_pending_scale_new_vrs_req_in_flight(vd, controller_id, req_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
-    local_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
+    // TODO: isolate local_state_is
+    // local_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
     nv_uid_key_replicas.2 != vd.spec.replicas.unwrap_or(int1!()),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_scale_new_vrs_req_resp_in_flight(vd, controller_id, resp_msg)(s_prime),
+    resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s_prime),
     etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
-    local_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    // local_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
 {
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let req = req_msg.content.get_get_then_update_request();
@@ -212,7 +213,7 @@ ensures
     assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
 
     let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
-    assert(resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime)) by {
+    assert(resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s_prime)) by {
         assert(Cluster::has_pending_k8s_api_req_msg(controller_id, s_prime, vd.object_ref()));
         assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
         assert(req_msg.dst == HostId::APIServer);
@@ -236,13 +237,13 @@ pub proof fn lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg, nv_uid_key.0)(s),
+    req_msg_is_pending_scale_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key.0)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
     local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_get_then_update_resp(vd, controller_id, resp_msg)(s_prime),
+    resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0)(s_prime),
     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
     local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
 {
