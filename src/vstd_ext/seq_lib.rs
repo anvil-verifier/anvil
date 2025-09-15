@@ -396,4 +396,26 @@ pub proof fn commutativity_of_seq_drop_last_and_map<A, B>(s: Seq<A>, pred: spec_
     }
 }
 
+pub proof fn same_filter_implies_same_result<A>(s: Seq<A>, f1: spec_fn(A) -> bool, f2: spec_fn(A) -> bool)
+    requires forall |e: A| #[trigger] s.contains(e) ==> (f1(e) == f2(e)),
+    ensures s.filter(f1) == s.filter(f2),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        assert(forall |e: A| #[trigger] subseq.contains(e) ==> s.contains(e));
+        same_filter_implies_same_result(subseq, f1, f2);
+        assert(s.contains(s.last()));
+        if f1(s.last()){
+            assert(f2(s.last()));
+            assert(s.filter(f1) == subseq.filter(f1).push(s.last()));
+            assert(s.filter(f2) == subseq.filter(f2).push(s.last()));
+        } else {
+            assert(!f2(s.last()));
+            assert(s.filter(f1) == subseq.filter(f1));
+            assert(s.filter(f2) == subseq.filter(f2));
+        }
+    }
+}
 }

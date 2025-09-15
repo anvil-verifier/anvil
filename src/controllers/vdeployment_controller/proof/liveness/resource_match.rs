@@ -622,24 +622,40 @@ ensures
         &&& match_template_without_hash(vd.spec.template, vrs)
         &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
     };
+    assert forall |vrs| #[trigger] vrs_list.contains(vrs) implies vrs.metadata.uid is Some by {
+        let i = choose |i: int| 0 <= i < vrs_list.len() && vrs_list[i] == vrs;
+        VReplicaSetView::marshal_preserves_metadata();
+        assert(resp_objs.contains(resp_objs[i])); // trigger
+        assert(VReplicaSetView::unmarshal(resp_objs[i]) is Ok);
+        assert(vrs_list[i] == VReplicaSetView::unmarshal(resp_objs[i])->Ok_0);
+    }
+    assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies vrs.metadata.uid is Some by {
+        seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_vrs_filter);
+    }
     let old_vrs_list_filter_with_new_vrs = |vrs: VReplicaSetView| {
         &&& new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
     };
-    assert(old_vrs_list_filter_with_new_vrs =~= |vrs: VReplicaSetView| {
+    let another_filter_used_in_esr = |vrs: VReplicaSetView| {
         &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
-    }) by {
-        if new_vrs is None {
-            assert(new_vrs_uid is None);
-        } else {
-            assert(new_vrs->0.metadata.uid is Some);
-            assert(new_vrs->0.metadata.uid->0 == new_vrs_uid->0);
-            assume(false);
-        }
-    }
-    // new_vrs is None || vrs.metadata.uid != new_vrs->0.metadata.uid == new_vrs_uid is None || vrs.metadata.uid != new_vrs_uid->0
+    };
     assert(old_vrs_list == managed_vrs_list.filter(old_vrs_list_filter_with_new_vrs));
+    // because in reconciler we don't know all objects has uid, which is guaranteed by cluster env predicates
+    // so the filter in reconciler didn't use uid->0
+    assert(managed_vrs_list.filter(old_vrs_list_filter_with_new_vrs) == managed_vrs_list.filter(another_filter_used_in_esr)) by {
+        assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies
+            (old_vrs_list_filter_with_new_vrs(vrs) == another_filter_used_in_esr(vrs)) by {
+            if new_vrs is None {
+                assert(new_vrs_uid is None);
+            } else {
+                assert(vrs.metadata.uid is Some);
+                assert(new_vrs_uid is Some);
+                assert(new_vrs->0.metadata.uid == new_vrs_uid);
+            }
+        }
+        same_filter_implies_same_result(managed_vrs_list, old_vrs_list_filter_with_new_vrs, another_filter_used_in_esr);
+    }
 
     assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies vrs_list.contains(vrs) && valid_owned_vrs(vrs, vd) by {
         seq_filter_is_a_subset_of_original_seq(vrs_list, valid_owned_vrs_filter);
