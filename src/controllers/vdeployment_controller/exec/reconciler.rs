@@ -583,14 +583,14 @@ requires
     vd@.well_formed(),
 ensures
     vrs@ == model_reconciler::make_replica_set(vd@),
-    model_util::valid_owned_vrs(vrs@, vd@),
 {
     let pod_template_hash = vd.metadata().resource_version().unwrap();
     let mut vrs = VReplicaSet::default();
     vrs.set_metadata({
         let mut metadata = ObjectMeta::default();
-        // concatenation of (String, String) not yet supported in Verus
-        metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
+        // let API server generates a unique name
+        // // concatenation of (String, String) not yet supported in Verus
+        // // metadata.set_name(vd.metadata().name().unwrap().concat("-").concat(pod_template_hash.as_str()));
         metadata.set_namespace(vd.metadata().namespace().unwrap());
         if vd.metadata().labels().is_some() {
             metadata.set_labels(vd.metadata().labels().unwrap().clone());

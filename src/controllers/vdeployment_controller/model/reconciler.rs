@@ -204,7 +204,7 @@ pub open spec fn make_replica_set(vd: VDeploymentView) -> (vrs: VReplicaSetView)
     let match_labels = vd.spec.template.metadata.unwrap().labels.unwrap().insert("pod-template-hash"@, pod_template_hash);
     VReplicaSetView {
         metadata: ObjectMetaView {
-            name: Some(vd.metadata.name.unwrap() + "-"@ + pod_template_hash),
+            name: None, // let API-server generates a unique name
             namespace: vd.metadata.namespace,
             labels: vd.metadata.labels,
             owner_references: Some(make_owner_references(vd)),
