@@ -512,6 +512,7 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
             let key = vrs.object_ref();
             let etcd_obj = s.resources()[key];
             let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+            &&& valid_owned_vrs(vrs, vd) // used in checks at AfterScaleDownOldVRS
             &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             // exists in etcd, can be unmarshalled and can pass old vrs filter

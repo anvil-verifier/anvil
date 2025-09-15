@@ -1502,7 +1502,35 @@ ensures
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     VReplicaSetView::marshal_preserves_integrity();
-                    assume(false); // skip for now
+                    assert(pending_get_then_update_old_vrs_req_in_flight(vd, controller_id, nv_uid_key.0)(s_prime)) by {
+                        assume(false); // TODO: investigate later
+                        let nv_uid = nv_uid_key.0;
+                        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                        let vd = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+                        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        let key = request.key();
+                        let etcd_obj = s_prime.resources()[key];
+                        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+                        let req_vrs = VReplicaSetView::unmarshal(request.obj)->Ok_0;
+                        let state = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        assert(req_msg.src == HostId::Controller(controller_id, vd.object_ref()));
+                        assert(req_msg.dst == HostId::APIServer);
+                        assert(req_msg.content.is_APIRequest());
+                        assert(req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest());
+                        assert(request.namespace == vd.metadata.namespace->0);
+                        assert(request.owner_ref == vd.controller_owner_ref());
+                        assert(valid_owned_vrs(req_vrs, vd));
+                        assert(state.old_vrs_index < state.old_vrs_list.len());
+                        assert(s_prime.resources().contains_key(key));
+                        assert(valid_owned_obj_key(vd, s_prime)(key));
+                        assert(filter_old_vrs_keys(Some(nv_uid), s_prime)(key));
+                        assert(vrs_weakly_eq(etcd_vrs, req_vrs));
+                        assert(req_vrs.metadata.owner_references is Some);
+                        assert(req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
+                        assert(req_vrs.spec.replicas == Some(int0!()));
+                        assert(key == state.old_vrs_list[state.old_vrs_index as int].object_ref());
+                        assert(key == req_vrs.object_ref());
+                    }
                 }
             },
             _ => {}
