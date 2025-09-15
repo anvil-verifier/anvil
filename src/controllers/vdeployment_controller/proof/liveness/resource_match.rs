@@ -1095,8 +1095,19 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    // skip for now
-                    assume(false);
+                    let vd = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+                    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(None, s)) ==
+                        filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))) by {
+                        assert(filter_obj_keys_managed_by_vd(vd, s) == filter_obj_keys_managed_by_vd(vd, s_prime));
+                        assert forall |key: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(vd, s).contains(key) implies
+                            filter_old_vrs_keys(None, s)(key) == filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)(key) by {
+                            // uniqueness of name is guaranteed by the way API server handles a create request with empty name field
+                            let etcd_obj = s.resources()[key];
+                            assert(etcd_obj.metadata.uid is Some);
+                            // we need a lemma like lemma_always_object_in_etcd_has_lower_uid_than_uid_counter
+                            assume(etcd_obj.metadata.uid->0 != nv_uid_key.0);
+                        }
+                    }
                 }
             },
             _ => {}
