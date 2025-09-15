@@ -287,7 +287,7 @@ pub open spec fn resp_msg_is_ok_create_resp_containing_new_vrs(
     &&& etcd_vrs.spec == vrs.spec
 }
 
-pub open spec fn req_msg_is_scale_down_old_vrs_req(
+pub open spec fn req_msg_is_scale_old_vrs_req(
     vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid: Uid
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -359,17 +359,17 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
     }
 }
 
-pub open spec fn req_msg_is_pending_get_then_update_old_vrs_req_in_flight(
+pub open spec fn req_msg_is_pending_scale_old_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, req_msg: Message, nv_uid: Uid
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
+        &&& req_msg_is_scale_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
     }
 }
 
-pub open spec fn req_msg_is_pending_get_then_update_new_vrs_req_in_flight(
+pub open spec fn req_msg_is_pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -379,18 +379,18 @@ pub open spec fn req_msg_is_pending_get_then_update_new_vrs_req_in_flight(
     }
 }
 
-pub open spec fn pending_get_then_update_old_vrs_req_in_flight(
+pub open spec fn pending_scale_old_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int, nv_uid: Uid
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
         &&& s.in_flight().contains(req_msg)
-        &&& req_msg_is_scale_down_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
+        &&& req_msg_is_scale_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
     }
 }
 
-pub open spec fn pending_get_then_update_new_vrs_req_in_flight(
+pub open spec fn pending_scale_new_vrs_req_in_flight(
     vd: VDeploymentView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -401,40 +401,56 @@ pub open spec fn pending_get_then_update_new_vrs_req_in_flight(
     }
 }
 
-// currently controller does not distinguish between old vrs and new vrs response
-// just need it to return ok
-pub open spec fn resp_msg_is_ok_get_then_update_resp(
-    vd: VDeploymentView, controller_id: int, resp_msg: Message
+pub open spec fn resp_msg_is_ok_scale_old_vrs_req_resp_in_flight(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid: Uid
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        let request = req_msg.content.get_APIRequest_0();
-        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
-        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg.dst == HostId::APIServer
-        &&& req_msg.content.is_APIRequest()
-        &&& request.is_GetThenUpdateRequest()
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_scale_old_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
         &&& s.in_flight().contains(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         &&& resp_msg.content.get_get_then_update_response().res is Ok
     }
 }
 
-pub open spec fn exists_resp_msg_is_ok_get_then_update_resp(
+pub open spec fn resp_msg_is_ok_scale_new_vrs_req_resp_in_flight(
+    vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid: Uid
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg, nv_uid)(s)
+        &&& s.in_flight().contains(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& resp_msg.content.get_get_then_update_response().res is Ok
+    }
+}
+
+pub open spec fn exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(
     vd: VDeploymentView, controller_id: int
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
-        let request = req_msg.content.get_APIRequest_0();
-        &&& Cluster::has_pending_k8s_api_req_msg(controller_id, s, vd.object_ref())
-        &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
-        &&& req_msg.dst == HostId::APIServer
-        &&& req_msg.content.is_APIRequest()
-        &&& request.is_GetThenUpdateRequest()
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_scale_old_vrs_req(vd, controller_id, req_msg, (VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap().old_vrs_list[VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap().old_vrs_index as int].metadata.uid->0))(s)
         &&& exists |resp_msg| {
-            // predicate on resp_msg
             &&& #[trigger] s.in_flight().contains(resp_msg)
-            // we don't need info on content of the response at the moment
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.get_get_then_update_response().res is Ok
+        }
+    }
+}
+
+pub open spec fn exists_resp_msg_is_ok_scale_new_vrs_resp_in_flight(
+    vd: VDeploymentView, controller_id: int
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let req_msg = s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+        &&& Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), req_msg)
+        &&& req_msg_is_scale_new_vrs_req(vd, controller_id, req_msg)(s)
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_then_update_response().res is Ok
         }
@@ -546,7 +562,7 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
                     // etcd obj weakly equal to local version
                     &&& vrs_weakly_eq(etcd_vrs, new_vrs)
                     // otherwise the update replicas req is in flight
-                    &&& pending_get_then_update_new_vrs_req_in_flight(vd, controller_id)(s)
+                    &&& pending_scale_new_vrs_req_in_flight(vd, controller_id)(s)
                         || etcd_vrs.spec == new_vrs.spec
                 }
             },
