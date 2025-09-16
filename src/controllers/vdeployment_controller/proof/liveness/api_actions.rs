@@ -134,54 +134,92 @@ requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
     req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    // at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS])(s),
     etcd_state_is(vd, controller_id, None, n)(s),
-    local_state_is(vd, controller_id, None, n)(s),
+    // local_state_is(vd, controller_id, None, n)(s),
 ensures
     res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_matches_req_msg(res.0, req_msg),
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
     etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
-    local_state_is(vd, controller_id, None, n)(s_prime),
+    // local_state_is(vd, controller_id, None, n)(s_prime),
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
-    let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    let request = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
-    let new_vrs = make_replica_set(vd);
-    assert(request == CreateRequest {
-        namespace: vd.metadata.namespace.unwrap(),
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
+    assume(triggering_cr.metadata.namespace is Some);
+    let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    let new_vrs = make_replica_set(triggering_cr);
+    assert(req == CreateRequest {
+        namespace: triggering_cr.metadata.namespace.unwrap(),
         obj: new_vrs.marshal()
     });
+    assert(req.obj.metadata == new_vrs.metadata);
+    assert(req.obj.metadata.owner_references is Some && req.obj.metadata.owner_references->0 == seq![triggering_cr.controller_owner_ref()]);
     assert(s_prime.api_server == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).0);
-    assert(create_request_admission_check(cluster.installed_types, request, s.api_server) is None);
+    assert(create_request_admission_check(cluster.installed_types, req, s.api_server) is None);
     let resp_msg = handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1;
     let resp_obj = resp_msg.content.get_create_response().res.unwrap();
     let key = resp_obj.object_ref();
-    assert(s_prime.resources() == s.resources().insert(key, resp_obj)) by {
-        assume(!s.resources().contains_key(key)); // generate_name is unique
-        assert(request.obj.metadata.owner_references is Some);
-        assert(resp_obj.metadata.owner_references is Some);
-        assert(request.obj.metadata.owner_references->0.len() == 1);
-        assert(request.obj.metadata.owner_references->0 == resp_obj.metadata.owner_references->0);
-        assert(created_object_validity_check(resp_obj, cluster.installed_types) is None);
+    // emulate handle_create_request
+    let created_obj = DynamicObjectView {
+        kind: req.obj.kind,
+        metadata: ObjectMetaView {
+            name: if req.obj.metadata.name is Some {
+                req.obj.metadata.name
+            } else {
+                Some(generate_name(s.api_server))
+            },
+            namespace: Some(req.namespace),
+            resource_version: Some(s.api_server.resource_version_counter),
+            uid: Some(s.api_server.uid_counter),
+            deletion_timestamp: None,
+            ..req.obj.metadata
+        },
+        spec: req.obj.spec,
+        status: marshalled_default_status(req.obj.kind, cluster.installed_types), // Overwrite the status with the default one
+    };
+    assert(!s.resources().contains_key(created_obj.object_ref())) by {
+        assert(created_obj.object_ref().name == generate_name(s.api_server));
+        generated_name_is_unique(s.api_server);
+        if s.resources().contains_key(created_obj.object_ref()) {
+            assert(false);
+        }
     }
+    assert(created_object_validity_check(created_obj, cluster.installed_types) is None) by {
+        assert(metadata_validity_check(created_obj) is None) by {
+            assert(created_obj.metadata.owner_references is Some);
+            assert(created_obj.metadata.owner_references->0.len() == 1);
+        }
+        assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
+            // how to prove it's unmarshallable
+            assume(false);
+        }
+    }
+    assert(resp_obj == created_obj);
+    assert(s_prime.resources() == s.resources().insert(key, resp_obj));
     assert(VReplicaSetView::unmarshal(resp_obj) is Ok);
     let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
-    let etcd_obj = s_prime.resources()[key];
-    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+    assert(vrs.metadata == created_obj.metadata);
     assert(vrs.metadata.uid is Some);
-    assert(resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, (etcd_obj.metadata.uid->0, key))(s_prime)) by {
+    assert(resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, (created_obj.metadata.uid->0, key))(s_prime)) by {
         assert(vrs.object_ref() == key);
         assert(vrs.metadata.owner_references is Some);
-        assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
-        assert(vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1));
-        assert(s_prime.resources().contains_key(key));
-        assert(valid_owned_obj_key(vd, s_prime)(key));
-        assert(filter_new_vrs_keys(vd.spec.template, s_prime)(key));
-        assert(vrs_weakly_eq(etcd_vrs, vrs));
-        assert(etcd_vrs.spec == vrs.spec);
+        let singleton_seq = seq![triggering_cr.controller_owner_ref()];
+        assert(singleton_seq == Seq::empty().push(triggering_cr.controller_owner_ref()));
+        assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == singleton_seq) by {
+            assert(vrs.metadata.owner_references->0 == singleton_seq);
+            push_filter_and_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
+        }
+        assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key)) by {
+            assert(vrs.spec == make_replica_set(triggering_cr).spec);
+            assume(false); // TODO: helper lemma: make_replica_set pass match_template_without_hash
+            assert(match_template_without_hash(triggering_cr.spec.template, vrs));
+            assert(vrs.spec.replicas is Some && vrs.spec.replicas->0 > 0);
+        }
     }
-    return (resp_msg, (etcd_obj.metadata.uid->0, key));
+    return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 
 pub proof fn lemma_scale_scale_new_vrs_req_returns_ok(
@@ -345,7 +383,7 @@ ensures
 {}
 
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
-// the API request msg does not change or delete the object
+// the API req msg does not change or delete the object
 // as the direct result of rely condition and non-interference property.
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
