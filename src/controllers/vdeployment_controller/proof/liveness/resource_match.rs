@@ -1289,7 +1289,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 if msg == req_msg {
-                    let resp_msg = lemma_scale_scale_new_vrs_req_returns_ok(
+                    let resp_msg = lemma_scale_new_vrs_req_returns_ok(
                         s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
                     );
                     VReplicaSetView::marshal_preserves_integrity();
@@ -1337,7 +1337,7 @@ ensures
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input->0;
-        let resp_msg = lemma_scale_scale_new_vrs_req_returns_ok(
+        let resp_msg = lemma_scale_new_vrs_req_returns_ok(
             s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
         );
         // instantiate existential quantifier.
@@ -1689,7 +1689,7 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 if input->0 == req_msg {
-                    let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, req_msg, nv_uid_key, n);
+                    let resp_msg = lemma_scale_old_vrs_req_returns_ok(s, s_prime, vd, cluster, controller_id, req_msg, nv_uid_key, n);
                     VReplicaSetView::marshal_preserves_integrity();
                     assert({
                         &&& s_prime.in_flight().contains(resp_msg)
@@ -1744,7 +1744,7 @@ ensures
     }
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input->0;
-        let resp_msg = lemma_get_then_update_request_returns_ok_after_scale_down_old_vrs(s, s_prime, vd, cluster, controller_id, msg, nv_uid_key, n);
+        let resp_msg = lemma_scale_old_vrs_req_returns_ok(s, s_prime, vd, cluster, controller_id, msg, nv_uid_key, n);
         // instantiate existential quantifier.
         assert({
             &&& s_prime.in_flight().contains(resp_msg)

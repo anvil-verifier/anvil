@@ -342,7 +342,7 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
         &&& VReplicaSetView::unmarshal(req.obj) is Ok
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
-        // so old vrs will not get affected, used as barrier for lemma_scale_scale_new_vrs_req_returns_ok
+        // so old vrs will not get affected, used as barrier for lemma_scale_new_vrs_req_returns_ok
         &&& req_vrs.metadata.uid->0 == nv_uid_key.0
         &&& req_vrs.object_ref() == nv_uid_key.1
         // updated vrs is valid and owned by vd
@@ -543,7 +543,7 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
             // etcd obj weakly matches local ones
             &&& vrs_weakly_eq(etcd_vrs, vrs)
             &&& etcd_vrs.spec == vrs.spec
-            // isolate from new_vrs, helps simplify lemma_scale_scale_new_vrs_req_returns_ok.
+            // isolate from new_vrs, helps simplify lemma_scale_new_vrs_req_returns_ok.
             // TODO: fix broken proofs
             &&& nv_uid_key_replicas is Some ==> vrs.metadata.uid->0 != (nv_uid_key_replicas->0).0 && key != (nv_uid_key_replicas->0).1
         }
