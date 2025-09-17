@@ -64,12 +64,12 @@ pub open spec fn no_pending_req_in_cluster(vd: VDeploymentView, controller_id: i
 }
 
 pub open spec fn req_msg_is_list_vrs_req(vd: VDeploymentView, controller_id: int, req_msg: Message, s: ClusterState) -> bool {
-    let request = req_msg.content.get_APIRequest_0();
+    let req = req_msg.content.get_APIRequest_0();
     &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content.is_APIRequest()
-    &&& request.is_ListRequest()
-    &&& request.get_ListRequest_0() == ListRequest {
+    &&& req.is_ListRequest()
+    &&& req.get_ListRequest_0() == ListRequest {
         kind: VReplicaSetView::kind(),
         namespace: vd.metadata.namespace.unwrap(),
     }
@@ -197,12 +197,12 @@ pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
 // because vd only provides basic spec, and has no RV
 pub open spec fn req_msg_is_create_vrs_req(vd: VDeploymentView, controller_id: int, req_msg: Message, s: ClusterState) -> bool {
     let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    let request = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
+    let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
     &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
     &&& req_msg.dst == HostId::APIServer
     &&& req_msg.content.is_APIRequest()
     &&& req_msg.content.get_APIRequest_0().is_CreateRequest()
-    &&& request == CreateRequest {
+    &&& req == CreateRequest {
         namespace: vd.metadata.namespace.unwrap(),
         obj: make_replica_set(vd).marshal()
     }
@@ -292,18 +292,18 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
-        let key = request.key();
+        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+        let key = req.key();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        let req_vrs = VReplicaSetView::unmarshal(request.obj)->Ok_0;
+        let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
-        &&& request.namespace == vd.metadata.namespace->0
-        &&& request.owner_ref == vd.controller_owner_ref()
+        &&& req.namespace == vd.metadata.namespace->0
+        &&& req.owner_ref == vd.controller_owner_ref()
         &&& valid_owned_vrs(req_vrs, vd)
         // stronger than local_state_is_valid_and_coherent
         &&& state.old_vrs_index < state.old_vrs_list.len()
@@ -329,27 +329,32 @@ pub open spec fn req_msg_is_scale_new_vrs_req(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        let request = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
-        let key = request.key();
+        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+        let key = req.key();
         let etcd_obj = s.resources()[key];
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-        let req_vrs = VReplicaSetView::unmarshal(request.obj)->Ok_0;
+        let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
-        &&& request.namespace == vd.metadata.namespace->0
-        &&& request.owner_ref == vd.controller_owner_ref()
+        &&& VReplicaSetView::unmarshal(req.obj) is Ok
+        &&& req.namespace == vd.metadata.namespace->0
+        &&& req.owner_ref == vd.controller_owner_ref()
         // so old vrs will not get affected, used as barrier for lemma_scale_scale_new_vrs_req_returns_ok
         &&& req_vrs.metadata.uid->0 == nv_uid_key.0
         &&& req_vrs.object_ref() == nv_uid_key.1
+        // updated vrs is valid and owned by vd
         &&& valid_owned_vrs(req_vrs, vd)
-        &&& s.resources().contains_key(key)
+        // and can pass new vrs filter
+        &&& match_template_without_hash(vd.spec.template, req_vrs)
         // etcd obj is owned by vd and should be protected by non-interference property
+        &&& s.resources().contains_key(key)
         &&& valid_owned_obj_key(vd, s)(key)
         // the scaled down vrs can previously pass new vrs filter
-        &&& filter_new_vrs_keys(vd.spec.template, s)(key)
+        //// Q: do we really need this?
+        // &&& filter_new_vrs_keys(vd.spec.template, s)(key)
         // spec hasn't been updated here
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd
