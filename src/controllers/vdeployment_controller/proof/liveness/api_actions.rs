@@ -124,7 +124,6 @@ ensures
     return resp_msg;
 }
 
-// staged, we need to handle collision
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
