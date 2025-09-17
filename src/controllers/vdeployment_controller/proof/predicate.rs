@@ -526,16 +526,15 @@ pub open spec fn local_state_is(vd: VDeploymentView, controller_id: int, nv_uid_
         // are owned by vd, and can pass corresponding filter
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
             == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))
+        // coherence
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let key = vrs.object_ref();
             let etcd_obj = s.resources()[key];
             let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
             &&& valid_owned_vrs(vrs, vd) // used in checks at AfterScaleDownOldVRS
-            &&& vrs.metadata.owner_references is Some
             &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
             // exists in etcd, can be unmarshalled and can pass old vrs filter
-            &&& s.resources().contains_key(key)
             // etcd obj weakly matches local ones
             &&& vrs_weakly_eq(etcd_vrs, vrs)
             &&& etcd_vrs.spec == vrs.spec
