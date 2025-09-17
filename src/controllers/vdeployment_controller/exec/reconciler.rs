@@ -458,7 +458,7 @@ ensures
                 filtered_vrs_list.deep_view()
             };
             assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(filter));
-            push_filter_and_filter_push(vrs_list.deep_view().take(idx as int), filter, vrs@);
+            lemma_filter_push(vrs_list.deep_view().take(idx as int), filter, vrs@);
             assert(vrs_list.deep_view().take(idx as int).push(vrs@)
                    == vrs_list.deep_view().take(idx + 1 as int));
             assert(filter(vrs@) ==> filtered_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs@));
@@ -513,7 +513,7 @@ ensures
                 new_vrs_list.deep_view()
             };
             assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(spec_filter));
-            push_filter_and_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs_list[idx as int]@);
+            lemma_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs_list[idx as int]@);
             assert(vrs_list.deep_view().take(idx as int).push(vrs_list[idx as int]@)
                    == vrs_list.deep_view().take(idx + 1 as int));
             assert(spec_filter(vrs_list[idx as int]@ ) ==> new_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs_list[idx as int]@));
@@ -566,7 +566,7 @@ ensures
                 old_vrs_list.deep_view()
             };
             assert(pre_filtered_vrs_list == vrs_list.deep_view().take(idx as int).filter(spec_filter));
-            push_filter_and_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs@);
+            lemma_filter_push(vrs_list.deep_view().take(idx as int), spec_filter, vrs@);
             assert(vrs_list.deep_view().take(idx as int).push(vrs@)
                    == vrs_list.deep_view().take(idx + 1 as int));
             assert(spec_filter(vrs@) ==> old_vrs_list.deep_view() == pre_filtered_vrs_list.push(vrs@));
