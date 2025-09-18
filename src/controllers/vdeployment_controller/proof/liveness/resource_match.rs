@@ -795,14 +795,14 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
                 );
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
-                    &&& s_prime.resources().contains_key(obj.object_ref())
-                    &&& s_prime.resources()[obj.object_ref()] == obj
-                } by {
-                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, obj.object_ref(), msg
-                    );
-                }
+                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+                // assert forall |obj| #[trigger] resp_objs.contains(obj) implies {
+                //     &&& s_prime.resources().contains_key(obj.object_ref())
+                //     &&& s_prime.resources()[obj.object_ref()] == obj
+                // } by {
+                // }
             },
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
@@ -888,7 +888,7 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg, None, n
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, msg
+                    s, s_prime, vd, cluster, controller_id, msg, None
                 );
                 VDeploymentView::marshal_preserves_integrity();
                 let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
@@ -906,7 +906,7 @@ ensures
                     &&& etcd_vrs.spec == vrs.spec
                 } by {
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, vrs.object_ref(), msg
+                        s, s_prime, vd, cluster, controller_id, msg
                     );
                 }
             },
@@ -1089,7 +1089,7 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, nv_uid_key.1, msg
+                    s, s_prime, vd, cluster, controller_id, msg
                 );
             },
             Step::ControllerStep(input) => {
@@ -1188,7 +1188,7 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, msg
+                    s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas.0)
                 );
                 VDeploymentView::marshal_preserves_integrity();
                 let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
@@ -1206,7 +1206,7 @@ ensures
                     &&& etcd_vrs.spec == vrs.spec
                 } by {
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, vrs.object_ref(), msg
+                        s, s_prime, vd, cluster, controller_id, msg
                     );
                 }
             },
@@ -1324,7 +1324,7 @@ ensures
                     // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
                     assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, key, msg
+                        s, s_prime, vd, cluster, controller_id, msg
                     );
                     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
                         == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
@@ -1727,7 +1727,7 @@ ensures
                     // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
                     assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, key, msg
+                        s, s_prime, vd, cluster, controller_id, msg
                     );
                     assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
                         == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
