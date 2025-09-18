@@ -333,13 +333,17 @@ ensures
     // wait for the helper lemma: make_replica_set pass match_template_without_hash
     assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(req.key()));
 
-    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)).len() == n - 1) by {
-        // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
-        assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)).insert(req.key()) == 
-            filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))) by {
-            assert(!filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)(req.key()));
-        }
-    }
+    // this process is interestingly automatic, comments are kept here just in case we need them in the future
+    // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)).len() == n - 1) by {
+    //     assert(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req.key()) == 
+    //         filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))) by {
+    //         assert(!filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)(req.key())) by {
+    //             assert(updated_vrs.spec.replicas == Some(int0!())) by {
+    //                 assert(updated_obj.spec == req.obj.spec);
+    //             }
+    //         }
+    //     }
+    // }
 
     return resp_msg;
 }

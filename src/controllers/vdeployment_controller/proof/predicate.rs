@@ -302,6 +302,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
         &&& req_msg.content.get_APIRequest_0().is_GetThenUpdateRequest()
+        &&& VReplicaSetView::unmarshal(req.obj) is Ok
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
         &&& valid_owned_vrs(req_vrs, vd)
