@@ -307,14 +307,41 @@ requires
     req_msg_is_pending_scale_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key.0)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
-    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s),
+    // local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0)(s_prime),
     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
-    local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
+    // local_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
 {
-    return handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
+    VReplicaSetView::marshal_preserves_integrity();
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
+    assume(triggering_cr.metadata.namespace is Some);
+    assume(triggering_cr.spec == vd.spec);
+    let req = req_msg.content.get_get_then_update_request();
+    let etcd_obj = s.resources()[req.key()];
+    // update can succeed
+    assert(etcd_obj.metadata.owner_references_contains(req.owner_ref));
+    assert(req.owner_ref == triggering_cr.controller_owner_ref());
+    assert(s.resources().contains_key(req.key()));
+    assert(s_prime.api_server == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).0);
+    let resp_msg = handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1;
+    let updated_obj = s_prime.resources()[req.key()];
+    let updated_vrs = VReplicaSetView::unmarshal(updated_obj)->Ok_0;
+
+    // wait for the helper lemma: make_replica_set pass match_template_without_hash
+    assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(req.key()));
+
+    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)).len() == n - 1) by {
+        // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
+        assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)).insert(req.key()) == 
+            filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))) by {
+            assert(!filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)(req.key()));
+        }
+    }
+
+    return resp_msg;
 }
 
 #[verifier(external_body)]

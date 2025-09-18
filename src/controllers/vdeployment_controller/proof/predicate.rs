@@ -307,11 +307,15 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         &&& valid_owned_vrs(req_vrs, vd)
         // stronger than local_state_is_valid_and_coherent
         &&& state.old_vrs_index < state.old_vrs_list.len()
-        &&& s.resources().contains_key(key)
+        // can pass filter_old_vrs_keys if we ignore replicas
+        &&& req_vrs.metadata.uid is Some
+        &&& req_vrs.metadata.uid->0 != nv_uid
         // etcd obj is owned by vd and should be protected by non-interference property
+        &&& s.resources().contains_key(key)
         &&& valid_owned_obj_key(vd, s)(key)
         // the scaled down vrs can previously pass old vrs filter
-        &&& filter_old_vrs_keys(Some(nv_uid), s)(key)
+        //// Q: do we really need this?
+        // &&& filter_old_vrs_keys(Some(nv_uid), s)(key)
         // spec hasn't been updated 
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd
