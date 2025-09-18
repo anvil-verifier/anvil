@@ -14,7 +14,7 @@ use crate::vdeployment_controller::{
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
-use vstd::{seq_lib::*, prelude::*, map_lib::*};
+use vstd::{seq_lib::*, prelude::*, map_lib::*, set::*};
 use crate::vstd_ext::{seq_lib::*, set_lib::*};
 
 verus! {
@@ -422,7 +422,6 @@ ensures
 }
 
 // filter_obj_keys_managed_by_vd is maintained
-#[verifier(external_body)]
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,
     msg: Message
@@ -440,7 +439,29 @@ ensures
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s) == filter_obj_keys_managed_by_vd(triggering_cr, s_prime)
     }),
-{}
+{
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    assume(triggering_cr.metadata.namespace is Some);
+    assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
+    assume(triggering_cr.controller_owner_ref() == vd.controller_owner_ref());
+    // ==>
+    assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) implies filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k) by {
+        let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
+        assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+            // each_object_in_etcd_has_at_most_one_controller_owner
+            assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+        }
+        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, k, msg
+        );
+    }
+    // <==
+    assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k) implies filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) by {
+        assume(false);
+    }
+    // assert(forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) <==> filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k));
+    // axiom_set_ext_equal(filter_obj_keys_managed_by_vd(triggering_cr, s), filter_obj_keys_managed_by_vd(triggering_cr, s_prime));
+}
 
 // This lemma proves for all objects owned by vd (checked by namespace and owner_ref),
 // the API req msg does not change or delete the object
