@@ -569,6 +569,7 @@ requires
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    // equivlant form of above
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg) // equal to msg.src != HostId::Controller(controller_id, vd.object_ref())
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
@@ -700,6 +701,7 @@ ensures
             }
         }
     }
+    // we may lift the equivalence between owner_references_contains and owner_references->0.filter(...) == [...] to a lemma
     let controller_ref_singleton_seq = seq![vd.controller_owner_ref()];
     assert(controller_ref_singleton_seq.contains(vd.controller_owner_ref())) by {
         assert(controller_ref_singleton_seq[0] == vd.controller_owner_ref());
@@ -745,20 +747,41 @@ ensures
                     // fields we care about are not altered
                     if s.resources().contains_key(k) {
                         if req.key() == k {
-                            // ruled out by no_other_pending_get_then_update_request_interferes_with_vd_reconcile
-                            if req.owner_ref == vd.controller_owner_ref() {
-                                req.key().namespace == vd.metadata.namespace->0;
-                                assert(false);
-                            }
-                            // 2 cases, either obj in s has the right controller owner ref, or it's updated
+                            // either obj in s has the right controller owner ref, or it's updated
+                            // both cases are excluded by no_other_pending_get_then_update_request_interferes_with_vd_reconcile
                             let old_obj = s.resources()[k];
                             if old_obj.metadata.owner_references_contains(vd.controller_owner_ref()) {
-                                assume(false);
-                                // the update can't pass ownership check
-                                assert(s.resources() == s_prime.resources());
+                                // each_object_in_etcd_has_at_most_one_controller_owner
+                                assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq) by {
+                                    assume(false); // this branch makes proof super slow, masked for now
+                                    // TODO: lift the lemma on owner_references_contains
+                                    // assert(controller_owner_filter()(vd.controller_owner_ref()));
+                                    assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+                                    // assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+                                }
+                                assert(!old_obj.metadata.owner_references_contains(req.owner_ref)) by {
+                                    if old_obj.metadata.owner_references_contains(req.owner_ref) {
+                                        // ruled out by no_other_pending_get_then_update_request_interferes_with_vd_reconcile
+                                        assert(req.owner_ref != vd.controller_owner_ref()) by {
+                                            if req.owner_ref == vd.controller_owner_ref() {
+                                                assert(req.key().namespace == vd.metadata.namespace->0);
+                                                assert(false);
+                                            }
+                                        }
+                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                    }
+                                }
                             } else {
+                                assume({
+                                    &&& req.obj.metadata.owner_references is Some
+                                    &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq
+                                });
                                 // ruled out by the 2nd half of no_other_pending_get_then_update_request_interferes_with_vd_reconcile
-                                assume(false);
+                                if req.key().namespace == vd.metadata.namespace->0 {
+                                    assert(false);
+                                } else {
+                                    assert(false);
+                                }
                             }
                         }
                     }
