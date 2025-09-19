@@ -700,6 +700,9 @@ ensures
         }
     }
     let controller_ref_singleton_seq = seq![vd.controller_owner_ref()];
+    assert(controller_ref_singleton_seq.contains(vd.controller_owner_ref())) by {
+        assert(controller_ref_singleton_seq[0] == vd.controller_owner_ref());
+    }
     assert forall |k: ObjectRef| { // <==
         let obj = s_prime.resources()[k];
         &&& #[trigger] s_prime.resources().contains_key(k)
@@ -722,16 +725,13 @@ ensures
                     if !s.resources().contains_key(k) {
                         assert(helper_invariants::no_other_pending_create_request_interferes_with_vd_reconcile(req, vd)(s));
                         // req succeed
-                        let (s_prime_api_server, resp) = handle_create_request(cluster.installed_types, req, s.api_server);
+                        let resp = handle_create_request(cluster.installed_types, req, s.api_server).1;
                         if resp.res is Ok {
                             let created_obj = resp.res->Ok_0;
                             assert(s_prime.resources() == s.resources().insert(created_obj.object_ref(), created_obj));
                             assert((k, obj) == (created_obj.object_ref(), created_obj));
                             // trigger no_other_pending_create_request_interferes_with_vd_reconcile
                             assert(created_obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
-                                assert(controller_ref_singleton_seq.contains(vd.controller_owner_ref())) by {
-                                    assert(controller_ref_singleton_seq[0] == vd.controller_owner_ref());
-                                }
                                 seq_filter_is_a_subset_of_original_seq(created_obj.metadata.owner_references->0, controller_owner_filter());
                             }
                         } else {
@@ -740,18 +740,33 @@ ensures
                     }
                 },
                 APIRequest::GetThenUpdateRequest(req) => {
-                    assume(false);
                     assert(helper_invariants::no_other_pending_get_then_update_request_interferes_with_vd_reconcile(req, vd)(s));
+                    // fields we care about are not altered
+                    if s.resources().contains_key(k) {
+                        if req.key() == k {
+                            // ruled out by no_other_pending_get_then_update_request_interferes_with_vd_reconcile
+                            if req.owner_ref == vd.controller_owner_ref() {
+                                req.key().namespace == vd.metadata.namespace->0;
+                                assert(false);
+                            }
+                            // 2 cases, either obj in s has the right controller owner ref, or it's updated
+                            let old_obj = s.resources()[k];
+                            if old_obj.metadata.owner_references_contains(vd.controller_owner_ref()) {
+                                assume(false);
+                                // the update can't pass ownership check
+                                assert(s.resources() == s_prime.resources());
+                            } else {
+                                // ruled out by the 2nd half of no_other_pending_get_then_update_request_interferes_with_vd_reconcile
+                                assume(false);
+                            }
+                        }
+                    }
                 },
                 APIRequest::UpdateRequest(Req) => {
                     assume(false);
                     assert(helper_invariants::no_other_pending_update_request_interferes_with_vd_reconcile(Req, vd)(s));
                 },
-                _ => {
-                    assume(false);
-                    // other requests cannot create new object
-                    assert(s.resources().contains_key(k)); // trigger
-                }
+                _ => {}
             }
         }
     }
