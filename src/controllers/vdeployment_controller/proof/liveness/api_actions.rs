@@ -500,6 +500,7 @@ pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_objects_owne
 )
 requires
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(msg))),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
@@ -524,10 +525,10 @@ ensures
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k)
         &&& filter_old_vrs_keys(nv_uid, s)(k) == filter_old_vrs_keys(nv_uid, s_prime)(k)
     } by {
-        let vrs = VReplicaSetView::unmarshal(s.resources()[k])->Ok_0;
-        assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+        let obj = s.resources()[k];
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
             // each_object_in_etcd_has_at_most_one_controller_owner
-            assert(vrs.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
         }
         lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
             s, s_prime, vd, cluster, controller_id, msg
@@ -538,19 +539,14 @@ ensures
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k)
         &&& filter_old_vrs_keys(nv_uid, s)(k) == filter_old_vrs_keys(nv_uid, s_prime)(k)
      } by {
-        if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
-            // must be a create request
-            match msg.content.get_APIRequest_0() {
-                APIRequest::CreateRequest(req) => {
-                    // create can only add new object, not modify existing ones
-                    assert(helper_invariants::no_other_pending_create_request_interferes_with_vd_reconcile(req, vd)(s));
-                },
-                _ => {
-                    // other requests cannot create new object
-                    assert(s.resources().contains_key(k)); // trigger
-                }
-            }
+        let obj = s_prime.resources()[k];
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+            // each_object_in_etcd_has_at_most_one_controller_owner
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
         }
+        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, msg
+        );
     }
     // assert(forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) <==> filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k));
     // axiom_set_ext_equal(filter_obj_keys_managed_by_vd(triggering_cr, s), filter_obj_assume(false);keys_managed_by_vd(triggering_cr, s_prime));
