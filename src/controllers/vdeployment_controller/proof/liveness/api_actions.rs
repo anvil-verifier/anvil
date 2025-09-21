@@ -751,14 +751,6 @@ ensures
                             // both cases are excluded by no_other_pending_get_then_update_request_interferes_with_vd_reconcile
                             let old_obj = s.resources()[k];
                             if old_obj.metadata.owner_references_contains(vd.controller_owner_ref()) {
-                                // each_object_in_etcd_has_at_most_one_controller_owner
-                                assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq) by {
-                                    // assume(false); // this branch makes proof super slow, masked for now
-                                    // TODO: lift the lemma on owner_references_contains
-                                    // assert(controller_owner_filter()(vd.controller_owner_ref()));
-                                    assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
-                                    // assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
-                                }
                                 assert(!old_obj.metadata.owner_references_contains(req.owner_ref)) by {
                                     if old_obj.metadata.owner_references_contains(req.owner_ref) {
                                         // ruled out by no_other_pending_get_then_update_request_interferes_with_vd_reconcile
@@ -768,7 +760,11 @@ ensures
                                                 assert(false);
                                             }
                                         }
+                                        // reasoning over cardinality is slow, from <1s to 29s
                                         assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+                                        // each_object_in_etcd_has_at_most_one_controller_owner
+                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
                                     }
                                 }
                             } else {
