@@ -753,7 +753,7 @@ ensures
                             if old_obj.metadata.owner_references_contains(vd.controller_owner_ref()) {
                                 // each_object_in_etcd_has_at_most_one_controller_owner
                                 assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq) by {
-                                    assume(false); // this branch makes proof super slow, masked for now
+                                    // assume(false); // this branch makes proof super slow, masked for now
                                     // TODO: lift the lemma on owner_references_contains
                                     // assert(controller_owner_filter()(vd.controller_owner_ref()));
                                     assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
