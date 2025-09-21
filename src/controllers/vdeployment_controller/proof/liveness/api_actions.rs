@@ -760,11 +760,12 @@ ensures
                                                 assert(false);
                                             }
                                         }
-                                        // reasoning over cardinality is slow, from <1s to 29s
-                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
-                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
                                         // each_object_in_etcd_has_at_most_one_controller_owner
-                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).len() <= 1);
+                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq) by {
+                                            assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(vd.controller_owner_ref()));
+                                        }
+                                        assert(old_obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(req.owner_ref));
+                                        assert(false);
                                     }
                                 }
                             } else {
