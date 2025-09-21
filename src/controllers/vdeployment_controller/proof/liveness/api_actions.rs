@@ -790,9 +790,29 @@ ensures
                         }
                     }
                 },
-                APIRequest::UpdateRequest(Req) => {
-                    assume(false);
-                    assert(helper_invariants::no_other_pending_update_request_interferes_with_vd_reconcile(Req, vd)(s));
+                APIRequest::UpdateRequest(req) => {
+                    assert(helper_invariants::no_other_pending_update_request_interferes_with_vd_reconcile(req, vd)(s));
+                    if s.resources().contains_key(k) {
+                        let (s_prime_server, resp) = handle_update_request(cluster.installed_types, req, s.api_server);
+                        let old_obj = s.resources()[k];
+                        if req.key() == k && resp.res is Ok {
+                            if old_obj.metadata.owner_references is Some
+                                && old_obj.metadata.owner_references_contains(vd.controller_owner_ref()) {
+                                assert(false); // impossible by no_other_pending_update_request_interferes_with_vd_reconcile
+                            } else {
+                                if req.obj.metadata.owner_references is Some
+                                    && req.obj.metadata.owner_references->0.contains(vd.controller_owner_ref()) {
+                                    assert(false); // impossible by no_other_pending_update_request_interferes_with_vd_reconcile
+                                } else {
+                                    assert(obj.metadata.owner_references == req.obj.metadata.owner_references);
+                                    seq_filter_contains_implies_seq_contains(obj.metadata.owner_references->0, controller_owner_filter(), vd.controller_owner_ref());
+                                    assert(false);
+                                }
+                            }   
+                        } else {
+                            assert(s.resources()[k] == s_prime.resources()[k]);
+                        }
+                    }
                 },
                 _ => {}
             }
