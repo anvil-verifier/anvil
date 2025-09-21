@@ -712,7 +712,7 @@ ensures
         &&& VReplicaSetView::unmarshal(obj) is Ok
         &&& obj.metadata.namespace == vd.metadata.namespace
         &&& obj.metadata.owner_references is Some
-        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+        &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq
     } implies {
         &&& s.resources().contains_key(k)
         // TODO: weaken to allow status update requests
@@ -772,15 +772,16 @@ ensures
                                     }
                                 }
                             } else {
-                                assume({
-                                    &&& req.obj.metadata.owner_references is Some
-                                    &&& req.obj.metadata.owner_references->0.filter(controller_owner_filter()) == controller_ref_singleton_seq
-                                });
-                                // ruled out by the 2nd half of no_other_pending_get_then_update_request_interferes_with_vd_reconcile
-                                if req.key().namespace == vd.metadata.namespace->0 {
+                                if old_obj.metadata.owner_references_contains(req.owner_ref) {
+                                    // update succeeds
+                                    assert(obj.metadata.owner_references == req.obj.metadata.owner_references);
+                                    assert(obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
+                                        seq_filter_is_a_subset_of_original_seq(obj.metadata.owner_references->0, controller_owner_filter());
+                                    }
                                     assert(false);
                                 } else {
-                                    assert(false);
+                                    // update fails
+                                    assert(s.resources()[k] == s_prime.resources()[k]);
                                 }
                             }
                         }
