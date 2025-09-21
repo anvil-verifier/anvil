@@ -773,12 +773,15 @@ ensures
                                 }
                             } else {
                                 if old_obj.metadata.owner_references_contains(req.owner_ref) {
-                                    // update succeeds
-                                    assert(obj.metadata.owner_references == req.obj.metadata.owner_references);
-                                    assert(obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
-                                        seq_filter_is_a_subset_of_original_seq(obj.metadata.owner_references->0, controller_owner_filter());
+                                    // update fails
+                                    if obj.metadata.owner_references != req.obj.metadata.owner_references {
+                                        assert(s.resources()[k] == s_prime.resources()[k]);
+                                    } else {
+                                        assert(obj.metadata.owner_references_contains(vd.controller_owner_ref())) by {
+                                            seq_filter_is_a_subset_of_original_seq(obj.metadata.owner_references->0, controller_owner_filter());
+                                        }
+                                        assert(false);
                                     }
-                                    assert(false);
                                 } else {
                                     // update fails
                                     assert(s.resources()[k] == s_prime.resources()[k]);
