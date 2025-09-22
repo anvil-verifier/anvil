@@ -381,28 +381,32 @@ ensures
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len()
-            implies s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()) by {
-            let old_vrs = vds_prime.old_vrs_list[i];
-            let k = old_vrs.object_ref();
-            assert(vds.old_vrs_list[i] == old_vrs); // trigger
-            let obj = s.resources()[k];
-            assert({
-                &&& #[trigger] s.resources().contains_key(k)
-                &&& VReplicaSetView::unmarshal(obj) is Ok
-                &&& obj.metadata.namespace == triggering_cr.metadata.namespace
-                &&& obj.metadata.owner_references is Some
-                &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]
-            }) by {
-                let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
-                assert(vrs.metadata == obj.metadata);
-                assert(obj.metadata.namespace is Some);
-                assert(obj.metadata.namespace->0 == triggering_cr.metadata.namespace->0);
+            implies {
+                let key = vds_prime.old_vrs_list[i].object_ref();
+                &&& s_prime.resources().contains_key(key)
+                &&& s_prime.resources()[key] == s.resources()[key]
+                &&& valid_owned_obj_key(triggering_cr, s_prime)(key)
+            } by {
+                let obj = s.resources()[vds.old_vrs_list[i].object_ref()];
+                // convert valid_owned_obj_key to pre of lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
+                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+                    // each_object_in_etcd_has_at_most_one_controller_owner
+                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+                }
+                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
+        }
+        if nv_uid_key_replicas is Some && !pending_create_new_vrs_req_in_flight(triggering_cr, controller_id)(s) {
+            let obj = s.resources()[(nv_uid_key_replicas->0).1];
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
             }
             lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                 s, s_prime, vd, cluster, controller_id, msg
             );
         }
-        assume(false);
+        assert(local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime));
     }
     
 }
