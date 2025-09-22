@@ -431,72 +431,50 @@ ensures
     // assumption bundle, should be put in helper lemma later :P
     // assume(triggering_cr.metadata.name is Some);
     assume(triggering_cr.spec == vd.spec);
+    assume(triggering_cr.metadata.namespace is Some);
+    assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
+    assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
     if etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) {
+        let nv_uid = match nv_uid_key_replicas {
+            Some((uid, _, _)) => Some(uid),
+            None => None
+        };
+        lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, msg, nv_uid
+        );
         match nv_uid_key_replicas {
             Some((uid, key, replicas)) => {
+                let obj = s.resources()[key];
+                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+                }
                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                     s, s_prime, vd, cluster, controller_id, msg
                 );
             },
             None => {
+                // if no new_vrs exists in s, no new_vrs should exist in s_prime, prove by contradiction
                 if exists |k: ObjectRef| {
                     &&& #[trigger] s_prime.resources().contains_key(k)
                     &&& valid_owned_obj_key(triggering_cr, s_prime)(k)
                     &&& filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(k)
                 }{
-                    let k = choose |k: ObjectRef| {
+                    let key = choose |k: ObjectRef| {
                         &&& #[trigger] s_prime.resources().contains_key(k)
                         &&& valid_owned_obj_key(triggering_cr, s_prime)(k)
                         &&& filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(k)
                     };
-                    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k));
-                    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                        s, s_prime, vd, cluster, controller_id, msg, None
-                    );
-                    assert(filter_new_vrs_keys(triggering_cr.spec.template, s)(k)) by {
-                        assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(k));
-                        assert(valid_owned_obj_key(triggering_cr, s)(k));
-                        let obj = s.resources()[k];
-                        let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
-                        assert(obj.kind == VReplicaSetView::kind());
-                        assert(VReplicaSetView::unmarshal(obj) is Ok);
-                        assert(match_template_without_hash(triggering_cr.spec.template, vrs));
-                        assert(vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0);
+                    let obj = s_prime.resources()[key];
+                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+                        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
                     }
+                    // !p(s) => !p(s') <==> p(s') => p(s), I love this ownership lemma
+                    lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                        s, s_prime, vd, cluster, controller_id, msg
+                    );
+                    assert(s.resources().contains_key(key));
                 }
             }
-        }
-        let nv_uid = match nv_uid_key_replicas {
-            Some((uid, key, replicas)) => Some(uid),
-            None => None
-        };
-        assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(nv_uid, s_prime)).len() == n) by {
-            lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-                s, s_prime, vd, cluster, controller_id, msg, nv_uid
-            );
-        }
-        assert(etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime)) by {
-            let vd = triggering_cr;
-            match nv_uid_key_replicas {
-                Some((uid, key, replicas)) => {
-                    let etcd_obj = s_prime.resources()[key];
-                    let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                    assert(s_prime.resources().contains_key(key));
-                    assert(valid_owned_obj_key(vd, s_prime)(key));
-                    assert(filter_new_vrs_keys(vd.spec.template, s_prime)(key));
-                    assert(etcd_vrs.metadata.uid is Some);
-                    assert(etcd_vrs.metadata.uid->0 == uid);
-                    assert(etcd_vrs.spec.replicas.unwrap_or(1) == replicas);
-                },
-                None => {
-                    assert(!exists |k: ObjectRef| {
-                        &&& #[trigger] s_prime.resources().contains_key(k)
-                        &&& valid_owned_obj_key(vd, s_prime)(k)
-                        &&& filter_new_vrs_keys(vd.spec.template, s_prime)(k)
-                    });
-                }
-            }
-            assert(filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(nv_uid, s_prime)).len() == n);
         }
     }
 }
