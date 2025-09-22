@@ -25,9 +25,10 @@ pub open spec fn valid_owned_vrs(vrs: VReplicaSetView, vd: VDeploymentView) -> b
     &&& vrs.metadata.name is Some
     &&& vrs.metadata.namespace is Some
     &&& vrs.metadata.namespace->0 == vd.metadata.namespace->0
+    &&& vrs.state_validation()
+    // shall not be deleted and is owned by vd
     &&& vrs.metadata.deletion_timestamp is None
     &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-    &&& vrs.state_validation()
 }
 
 pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
