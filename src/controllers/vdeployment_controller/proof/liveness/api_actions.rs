@@ -358,8 +358,9 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
-    (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
@@ -414,8 +415,9 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
-    (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
     etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
@@ -504,9 +506,9 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
-    // equal to msg.src != HostId::Controller(controller_id, vd.object_ref())
-    (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-        || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    msg.src != HostId::Controller(controller_id, vd.object_ref()),
+    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
+    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
     ({
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr)->Ok_0;
