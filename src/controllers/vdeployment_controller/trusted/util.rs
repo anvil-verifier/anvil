@@ -23,7 +23,8 @@ pub open spec fn valid_owned_vrs(vrs: VReplicaSetView, vd: VDeploymentView) -> b
     // weaker version of well_formed, only need the key to be in etcd
     // and corresponding objects can pass the filter
     &&& vrs.metadata.name is Some
-    &&& vrs.metadata.namespace == vd.metadata.namespace
+    &&& vrs.metadata.namespace is Some
+    &&& vrs.metadata.namespace->0 == vd.metadata.namespace->0
     &&& vrs.metadata.deletion_timestamp is None
     &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
     &&& vrs.state_validation()

@@ -365,44 +365,46 @@ ensures
     local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     broadcast use group_seq_properties;
-    let list_req_filter = |o: DynamicObjectView| {
-        &&& o.object_ref().namespace == vd.metadata.namespace->0
-        &&& o.object_ref().kind == VReplicaSetView::kind()
-    }; 
-    let objs = s.resources().values().filter(list_req_filter).to_seq();
-    let filtered_vrs_list = objects_to_vrs_list(objs).unwrap().filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
-    let objs_prime = s_prime.resources().values().filter(list_req_filter).to_seq();
-    let filtered_vrs_list_prime = objects_to_vrs_list(objs_prime).unwrap().filter(|vrs: VReplicaSetView| valid_owned_vrs(vrs, vd));
-    assert forall |vrs| filtered_vrs_list.contains(vrs) implies filtered_vrs_list_prime.contains(vrs) by {
-        assume({
-            let etcd_obj = s.resources()[vrs.object_ref()];
-            &&& s.resources().contains_key(vrs.object_ref())
-            &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
-            &&& etcd_obj.metadata.namespace == vd.metadata.namespace
-            &&& etcd_obj.metadata.owner_references is Some
-            &&& etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-        });
-        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-            s, s_prime, vd, cluster, controller_id, msg
-        );
-        assume(filtered_vrs_list_prime.contains(vrs));
-    }
-    assert forall |vrs| filtered_vrs_list_prime.contains(vrs) implies filtered_vrs_list.contains(vrs) by {
-        if !filtered_vrs_list.contains(vrs) {
-            if msg.content.is_APIRequest() && msg.dst.is_APIServer() {
-                match msg.src {
-                    HostId::Controller(id, cr_key) => {
-                        assume(false);
-                    },
-                    _ => {
-                        assume(false);
-                    },
-                }
+    VReplicaSetView::marshal_preserves_integrity();
+    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
+    assume(triggering_cr.metadata.namespace is Some);
+    assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
+    let nv_uid = match nv_uid_key_replicas {
+        Some((uid, _, _)) => Some(uid),
+        None => None
+    };
+    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
+        s, s_prime, vd, cluster, controller_id, msg, nv_uid
+    );
+    if local_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) {
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len()
+            implies s_prime.resources().contains_key(vds_prime.old_vrs_list[i].object_ref()) by {
+            let old_vrs = vds_prime.old_vrs_list[i];
+            let k = old_vrs.object_ref();
+            assert(vds.old_vrs_list[i] == old_vrs); // trigger
+            let obj = s.resources()[k];
+            assert({
+                &&& #[trigger] s.resources().contains_key(k)
+                &&& VReplicaSetView::unmarshal(obj) is Ok
+                &&& obj.metadata.namespace == triggering_cr.metadata.namespace
+                &&& obj.metadata.owner_references is Some
+                &&& obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]
+            }) by {
+                let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+                assert(vrs.metadata == obj.metadata);
+                assert(obj.metadata.namespace is Some);
+                assert(obj.metadata.namespace->0 == triggering_cr.metadata.namespace->0);
             }
+            lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                s, s_prime, vd, cluster, controller_id, msg
+            );
         }
+        assume(false);
     }
-    // second, prove local_state_is_valid_and_coherent(vd, controller_id)(s_prime)
-    assume(false);
+    
 }
 
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
