@@ -192,18 +192,12 @@ ensures
             assert(created_obj.metadata.owner_references is Some);
             assert(created_obj.metadata.owner_references->0.len() == 1);
         }
-        assert(object_validity_check(created_obj, cluster.installed_types) is None) by {
-            // how to prove it's unmarshallable
-            assume(false);
-        }
+        // TODO: helper lemma: created obj can pass object_validity_check
+        assume(object_validity_check(created_obj, cluster.installed_types) is None);
     }
     assert(resp_obj == created_obj);
     assert(s_prime.resources() == s.resources().insert(key, resp_obj));
-    assert(VReplicaSetView::unmarshal(resp_obj) is Ok);
     let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
-    assert(vrs.metadata == created_obj.metadata);
-    assert(vrs.metadata.uid is Some);
-    assert(vrs.spec == make_replica_set(triggering_cr).spec);
     assert(resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, (created_obj.metadata.uid->0, key))(s_prime)) by {
         assert(vrs.object_ref() == key);
         assert(vrs.metadata.owner_references is Some);
@@ -213,36 +207,27 @@ ensures
             assert(vrs.metadata.owner_references->0 == singleton_seq);
             lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
         }
-        assert(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key)) by {
-            // assert(vrs.spec == make_replica_set(triggering_cr).spec);
-            assume(false); // TODO: helper lemma: make_replica_set pass match_template_without_hash
-            assert(match_template_without_hash(triggering_cr.spec.template, vrs));
-            assert(vrs.spec.replicas is Some && vrs.spec.replicas->0 > 0);
-        }
+        // TODO: helper lemma: make_replica_set pass match_template_without_hash
+        assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key));
     }
     // I didn't expect this to pass, it seems to be too hard for Verus to prove
     // TODO: investigate
-    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)).len() == n) by {
-        // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
-        assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)) == 
-            filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s))) by {
-            assert(!filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)(key));
-        }
-        let replicas_non_zero_filter = |k: ObjectRef| {
-            let obj = s.resources()[k];
-            let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
-            &&& obj.kind == VReplicaSetView::kind()
-            &&& VReplicaSetView::unmarshal(obj) is Ok
-            &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
-        };
-        let managed_keys_in_s = filter_obj_keys_managed_by_vd(triggering_cr, s);
-        assert(managed_keys_in_s.filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s)) == managed_keys_in_s.filter(replicas_non_zero_filter)) by {
-            // because that uid didn't exists in s
-            // assert(forall |k: ObjectRef| #[trigger] managed_keys_in_s.contains(k) ==> s.resources()[k].metadata.uid->0 != created_obj.metadata.uid->0);
-        }
-        // we know the former one's length is n
-        assert(managed_keys_in_s.filter(filter_old_vrs_keys(None, s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
+    // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
+    assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)) == 
+        filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s))) by {
+        assert(!filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)(key));
     }
+    let replicas_non_zero_filter = |k: ObjectRef| {
+        let obj = s.resources()[k];
+        let vrs = VReplicaSetView::unmarshal(obj)->Ok_0;
+        &&& obj.kind == VReplicaSetView::kind()
+        &&& VReplicaSetView::unmarshal(obj) is Ok
+        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+    };
+    let managed_keys_in_s = filter_obj_keys_managed_by_vd(triggering_cr, s);
+    assert(managed_keys_in_s.filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
+    // we know the former one's length is n
+    assert(managed_keys_in_s.filter(filter_old_vrs_keys(None, s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
     return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 
