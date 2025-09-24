@@ -333,7 +333,7 @@ ensures
 
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
-    msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
+    msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: Exception
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -345,7 +345,7 @@ requires
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, Exception::None)(s) ==> local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, Exception::None)(s_prime),
+    local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s) ==> local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s_prime),
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
@@ -360,7 +360,7 @@ ensures
     lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
         s, s_prime, vd, cluster, controller_id, msg, nv_uid
     );
-    if local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, Exception::None)(s) {
+    if local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s) {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len()
@@ -380,7 +380,7 @@ ensures
                     s, s_prime, vd, cluster, controller_id, msg
                 );
         }
-        if nv_uid_key_replicas is Some && !pending_create_new_vrs_req_in_flight(triggering_cr, controller_id)(s) {
+        if nv_uid_key_replicas is Some {
             let obj = s.resources()[(nv_uid_key_replicas->0).1];
             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
                 assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
@@ -389,7 +389,7 @@ ensures
                 s, s_prime, vd, cluster, controller_id, msg
             );
         }
-        assert(local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, Exception::None)(s_prime));
+        assert(local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s_prime));
     }
     
 }

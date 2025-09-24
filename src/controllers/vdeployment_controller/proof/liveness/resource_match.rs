@@ -792,7 +792,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
+                    s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n, Exception::None
                 );
                 let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                 lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
@@ -882,7 +882,7 @@ ensures
                 let msg = input->0;
                 // nv_uid_key_replicas and n are not yet available locally
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, None, 0
+                    s, s_prime, vd, cluster, controller_id, msg, None, 0, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, None, n
@@ -1000,7 +1000,7 @@ ensures
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                        s, s_prime, vd, cluster, controller_id, msg, None, n
+                        s, s_prime, vd, cluster, controller_id, msg, None, n, Exception::NewVRSCreated
                     );
                     lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                         s, s_prime, vd, cluster, controller_id, msg, None, n
@@ -1088,7 +1088,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, None, n
+                    s, s_prime, vd, cluster, controller_id, msg, None, n, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1187,7 +1187,7 @@ ensures
                 let msg = input->0;
                 // nv_uid_key_replicas and n are available
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, None, 0
+                    s, s_prime, vd, cluster, controller_id, msg, None, 0, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
@@ -1305,7 +1305,7 @@ ensures
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::NewVRSReplicaUpdated
                     );
                     lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                         s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1416,7 +1416,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1497,7 +1497,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1609,7 +1609,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1704,7 +1704,7 @@ ensures
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - 1) as nat
+                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - 1) as nat, Exception::None
                     );
                     lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                         s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1917,7 +1917,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1998,7 +1998,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!()
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!(), Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!()
