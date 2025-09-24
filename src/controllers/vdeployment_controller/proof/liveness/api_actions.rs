@@ -139,11 +139,14 @@ ensures
     resp_msg_matches_req_msg(res.0, req_msg),
     resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
     etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
-    // pass local_state_is_coherent_with_etcd to s_prime. None is used in filter since new_vrs isn't available locally
+    // created obj has different key and uid from all old_vrs in local_state
     ({
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime)) ==
-            filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some((res.1).0), s))
+            filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(None, s))
+        &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
+            vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0
     }),
 {
     broadcast use group_seq_properties;
@@ -231,6 +234,10 @@ ensures
     assert(managed_keys_in_s.filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
     // we know the former one's length is n
     assert(managed_keys_in_s.filter(filter_old_vrs_keys(None, s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
+    // TODO: helper lemma: every_obj_in_etcd_has_different_uid
+    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+    assume(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
+            vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0);
     return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 

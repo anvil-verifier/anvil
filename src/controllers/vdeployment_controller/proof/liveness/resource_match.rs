@@ -996,6 +996,11 @@ ensures
                         // validation
                         assert(vds.old_vrs_list.take(n as int).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
                             == filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)));
+                        // assume(forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_list.len() ==> {
+                        //     let vrs = vds.old_vrs_list[i];
+                        //     // does not have the same uid as new_vrs
+                        //     &&& vrs.metadata.uid->0 != nv_uid_key.0
+                        // });
                     }
                 } else {
                     let msg = input->0;
