@@ -1238,7 +1238,6 @@ ensures
     );
 }
 
-#[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
@@ -1299,6 +1298,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 if msg == req_msg {
+                    // TODO: investigate why this branch is super slow
                     let resp_msg = lemma_scale_new_vrs_req_returns_ok(
                         s, s_prime, vd, cluster, controller_id, msg, nv_uid_key_replicas, n
                     );
@@ -1328,17 +1328,11 @@ ensures
                     let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
                     assert(s.resources().contains_key(key));
                     let etcd_obj = s.resources()[key];
-                    assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
                     VReplicaSetView::marshal_preserves_integrity();
-                    assert(VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata == etcd_obj.metadata);
-                    // rule out cases when etcd_obj get deleted with rely_delete and handle_delete_eq checks
                     assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
-                    assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
-                        == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
-                    assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
                     assert(s_prime.in_flight().contains(req_msg));
                 }
             },
