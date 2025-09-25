@@ -1052,7 +1052,7 @@ ensures
             at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
             resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, nv_uid_key),
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
-            local_state_is_coherent_with_etcd(vd, controller_id, None, n, Exception::None)
+            local_state_is_coherent_with_etcd(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None)
         ))
         .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
@@ -1065,7 +1065,7 @@ ensures
         at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
         resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, nv_uid_key),
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
-        local_state_is_coherent_with_etcd(vd, controller_id, None, n, Exception::None)
+        local_state_is_coherent_with_etcd(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None)
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterEnsureNewVRS]),
@@ -1093,7 +1093,7 @@ ensures
             Step::APIServerStep(input) => {
                 let msg = input->0;
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-                    s, s_prime, vd, cluster, controller_id, msg, None, n, Exception::None
+                    s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::None
                 );
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
@@ -1105,19 +1105,6 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    let vd = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-                    assert(filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(None, s)) ==
-                        filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime))) by {
-                        assert(filter_obj_keys_managed_by_vd(vd, s) == filter_obj_keys_managed_by_vd(vd, s_prime));
-                        assert forall |key: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(vd, s).contains(key) implies
-                            filter_old_vrs_keys(None, s)(key) == filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)(key) by {
-                            // uniqueness of name is guaranteed by the way API server handles a create request with empty name field
-                            let etcd_obj = s.resources()[key];
-                            assert(etcd_obj.metadata.uid is Some);
-                            // we need a lemma like lemma_always_object_in_etcd_has_lower_uid_than_uid_counter
-                            assume(etcd_obj.metadata.uid->0 != nv_uid_key.0);
-                        }
-                    }
                 }
             },
             _ => {}
