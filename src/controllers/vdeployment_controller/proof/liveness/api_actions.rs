@@ -145,6 +145,7 @@ ensures
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime)) ==
             filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(None, s))
+        // TODO: only talk about keys and uids on API server side, may need to update local_state_is_coherent_with_etcd to include uid
         &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
             vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0
     }),
