@@ -821,46 +821,9 @@ ensures
                         );
                     }
                     assert(s_prime.in_flight().contains(resp_msg));
-                    assert(resp_msg.content.is_list_response());
-                    assert(resp_msg.content.get_list_response().res is Ok);
-
-                    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)) by {
-                        let vd = triggering_cr;
-                        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-                        let vrs_list = objects_to_vrs_list(resp_objs)->0;
-                        let managed_vrs_list = vrs_list.filter(|vrs| valid_owned_vrs(vrs, vd));
-                        assert(resp_msg.content.is_list_response());
-                        assert(resp_msg.content.get_list_response().res is Ok);
-                        assert(objects_to_vrs_list(resp_objs) is Some);
-                        assert(resp_objs.map_values(|obj: DynamicObjectView| obj.object_ref()).no_duplicates());
-                        assert(managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
-                            == filter_obj_keys_managed_by_vd(vd, s_prime));
-                        assert(forall |obj: DynamicObjectView| #[trigger] resp_objs.contains(obj) ==> {
-                            &&& VReplicaSetView::unmarshal(obj) is Ok
-                            &&& obj.metadata.namespace is Some
-                            &&& obj.metadata.name is Some
-                            &&& obj.metadata.uid is Some
-                        });
-                        assert(forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
-                            let key = vrs.object_ref();
-                            let etcd_obj = s_prime.resources()[key];
-                            let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
-                            // strengthen valid_owned_vrs, as only one controller owner is allowed
-                            &&& vrs.metadata.owner_references is Some
-                            &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
-                            &&& valid_owned_vrs(vrs, vd)
-                            &&& s_prime.resources().contains_key(key)
-                            &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
-                            // weakly equal to etcd object
-                            &&& valid_owned_obj_key(vd, s_prime)(key)
-                            &&& vrs_weakly_eq(etcd_vrs, vrs)
-                            &&& etcd_vrs.spec == vrs.spec
-                        });
-                    }
                 }
             },
             Step::ControllerStep(input) => {
-                assume(false);
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     VReplicaSetView::marshal_preserves_integrity();
