@@ -301,6 +301,7 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
         let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
         let state = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        let local_vrs = state.old_vrs_list[state.old_vrs_index as int];
         &&& req_msg.src == HostId::Controller(controller_id, vd.object_ref())
         &&& req_msg.dst == HostId::APIServer
         &&& req_msg.content.is_APIRequest()
@@ -309,8 +310,6 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         &&& req.namespace == vd.metadata.namespace->0
         &&& req.owner_ref == vd.controller_owner_ref()
         &&& valid_owned_vrs(req_vrs, vd)
-        // stronger than local_state_is_coherent_with_etcd
-        &&& state.old_vrs_index < state.old_vrs_list.len()
         // can pass filter_old_vrs_keys if we ignore replicas
         &&& req_vrs.metadata.uid is Some
         &&& req_vrs.metadata.uid->0 != nv_uid
@@ -318,16 +317,19 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         &&& s.resources().contains_key(key)
         &&& valid_owned_obj_key(vd, s)(key)
         // the scaled down vrs can previously pass old vrs filter
-        //// Q: do we really need this?
-        // &&& filter_old_vrs_keys(Some(nv_uid), s)(key)
-        // spec hasn't been updated 
         &&& vrs_weakly_eq(etcd_vrs, req_vrs)
         // owned by vd
         &&& req_vrs.metadata.owner_references is Some
         &&& req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
         // scaled down vrs should not pass old vrs filter in s_prime
         &&& req_vrs.spec.replicas == Some(int0!())
-        &&& key == state.old_vrs_list[state.old_vrs_index as int].object_ref()
+        // stronger than local_state_is_coherent_with_etcd
+        &&& state.old_vrs_index < state.old_vrs_list.len()
+        // of course, replica isn't updated locally
+        &&& vrs_weakly_eq(req_vrs, local_vrs)
+        // this is important, then we know etcd_vrs can pass old_vrs_filter from the coherence predicate
+        &&& etcd_vrs.spec == local_vrs.spec
+        &&& key == local_vrs.object_ref()
         &&& key == req_vrs.object_ref()
     }
 }
@@ -529,7 +531,10 @@ pub enum Exception {
 // new_vrs.object_ref works as a unique identifier
 // new_vrs.metadata.uid->0 works as a filter for old vrs list
 // new_vrs_uid_and_key is None -> no new_vrs in etcd exists
-pub open spec fn local_state_is_coherent_with_etcd(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, exception: Exception) -> StatePred<ClusterState> {
+// so this predicate is inconsistent in terms of "local state", n describes local old vrs index while nv_X describes etcd state
+pub open spec fn local_state_is_coherent_with_etcd(
+    vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: Exception
+) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
@@ -552,6 +557,12 @@ pub open spec fn local_state_is_coherent_with_etcd(vd: VDeploymentView, controll
             // key exists in etcd and etcd obj is owned by vd
             &&& s.resources().contains_key(vrs.object_ref())
             &&& valid_owned_obj_key(vd, s)(vrs.object_ref())
+            // can pass old vrs filter, so we can infer filter_old_vrs_keys
+            // the reason we don't use filter_old_vrs_keys directly in the quantifier below is
+            // when the scale down request is in flight, old_vrs_list[old_vrs_index] is not covered
+            // then we need to introduce another special case with extra complexity
+            &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+            &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
         }
         // coherence: weakly equal to etcd object
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
@@ -560,18 +571,20 @@ pub open spec fn local_state_is_coherent_with_etcd(vd: VDeploymentView, controll
             &&& vrs_weakly_eq(etcd_vrs, vrs)
             &&& etcd_vrs.spec == vrs.spec
         }
-        &&& vds.old_vrs_list.take(n as int).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
-            == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s))
         &&& match nv_uid_key_replicas {
             Some((uid, key, _)) => {
                 // etcd obj exists
                 &&& s.resources().contains_key(key)
                 &&& valid_owned_obj_key(vd, s)(key)
                 &&& filter_new_vrs_keys(vd.spec.template, s)(key)
-                &&& match exception {
-                    // exception 1: new vrs is just created and not available locally
-                    // exception 2: replica is just updated and replicas do not match
-                    Exception::None | Exception::NewVRSReplicaUpdated => {
+                &&& match e {
+                    // Exception 1: new vrs is just created and not available locally
+                    Exception::NewVRSCreated => {
+                        &&& vds.new_vrs is None
+                    },
+                    // Exception 2: replica is just updated and replicas do not match, skipped
+                    // and other cases
+                    _ => {
                         let new_vrs = vds.new_vrs->0;
                         let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[key])->Ok_0;
                         // new vrs in local cache exists and its fingerprint matchesnew_vrs
@@ -584,9 +597,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vd: VDeploymentView, controll
                         &&& vrs_weakly_eq(etcd_vrs, new_vrs)
                         // we don't need to check unless MaxSurge | MaxUnavailable is supported
                         // &&& etcd_vrs.spec == new_vrs.spec
-                    },
-                    Exception::NewVRSCreated => {
-                        &&& vds.new_vrs is None
                     },
                 }
             },

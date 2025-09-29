@@ -1009,18 +1009,6 @@ ensures
                         &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, resp_msg, nv_uid_key, s_prime)
                         &&& etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime)
                     });
-                    assert(local_state_is_coherent_with_etcd(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, Exception::NewVRSCreated)(s_prime)) by {
-                        let triggering_cr = VDeploymentView::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-                        let vds = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-                        // validation
-                        assert(vds.old_vrs_list.take(n as int).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
-                            == filter_obj_keys_managed_by_vd(vd, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)));
-                        // assume(forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_list.len() ==> {
-                        //     let vrs = vds.old_vrs_list[i];
-                        //     // does not have the same uid as new_vrs
-                        //     &&& vrs.metadata.uid->0 != nv_uid_key.0
-                        // });
-                    }
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
@@ -1693,7 +1681,6 @@ ensures
         lifted_vd_rely_condition_action(cluster, controller_id),
         lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
     );
-    let input = Some(req_msg);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
         let step = choose |step| cluster.next_step(s, s_prime, step);
         match step {
@@ -1706,6 +1693,8 @@ ensures
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
                     });
                     VDeploymentReconcileState::marshal_preserves_integrity();
+                    assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - 1) as nat)(s_prime));
+                    assert(local_state_is_coherent_with_etcd(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - 1) as nat, Exception::None)(s_prime));
                 } else {
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
@@ -1723,44 +1712,24 @@ ensures
                             assert(false);
                         }
                     }
-                    // it's possible to lift the predicate saying the object we care about is not touched during the transition caused by other msg
-                    // as a direct result of the boundary predicates and rely conditions
-                    // it can be used in both coherent(s) -> coherent(s_prime) and pending_req_msg_is_X(s) -> pending_req_msg_is_X(s_prime)
-
                     // etcd object is not touched by other msg
-                    let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
-                    let key = req.key();
-                    let etcd_obj = s.resources()[key];
-                    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-                    assume(triggering_cr.controller_owner_ref() == vd.controller_owner_ref()); // TODO: investigate later
+                    let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
                     assert(s.resources().contains_key(key));
-                    assert(VReplicaSetView::unmarshal(etcd_obj) is Ok);
+                    let etcd_obj = s.resources()[key];
                     VReplicaSetView::marshal_preserves_integrity();
-                    assert(VReplicaSetView::unmarshal(etcd_obj).unwrap().metadata == etcd_obj.metadata);
-                    assert(etcd_obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
-                        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj).unwrap();
-                        assert(etcd_vrs.metadata.owner_references == etcd_obj.metadata.owner_references);
-                        let req_vrs = VReplicaSetView::unmarshal(req.obj)->Ok_0;
-                        assert(req_vrs.metadata.owner_references is Some);
-                        assert(req_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]);
-                        assert(vrs_weakly_eq(etcd_vrs, req_vrs));
-                    }
+                    assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
-                    assert(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg
-                        == s.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg);
-                    // assert(Cluster::pending_req_msg_is(controller_id, s_prime, vd.object_ref(), req_msg));
-                    // assert(s_prime.in_flight().contains(req_msg));
-                    // assert(at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS])(s_prime));
-                    // assert(req_msg_is_pending_scale_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key.0)(s_prime));
-                    // assert(etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime));
-                    // assert(local_state_is_coherent_with_etcd(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat, Exception::None)(s_prime));
+                    assert(s_prime.resources().contains_key(key));
+                    assert(s_prime.resources()[key] == etcd_obj);
+                    assert(s_prime.in_flight().contains(req_msg));
                 }
             },
             _ => {}
         }
     }
+    let input = Some(req_msg);
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.api_server_next().forward(input)(s, s_prime) implies post(s_prime) by {
         let msg = input->0;
         let resp_msg = lemma_scale_old_vrs_req_returns_ok(s, s_prime, vd, cluster, controller_id, msg, nv_uid_key, n);

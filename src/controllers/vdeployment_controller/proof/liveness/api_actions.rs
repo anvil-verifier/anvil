@@ -315,7 +315,6 @@ ensures
     ({
         let req = req_msg.content.get_get_then_update_request();
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s_prime)) ==
             filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key.0), s)).remove(req.key())
     }),
@@ -380,9 +379,6 @@ ensures
         Some((uid, _, _)) => Some(uid),
         None => None
     };
-    lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd(
-        s, s_prime, vd, cluster, controller_id, msg, nv_uid
-    );
     if local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s) {
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
