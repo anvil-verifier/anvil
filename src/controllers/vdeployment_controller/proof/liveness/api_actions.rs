@@ -355,7 +355,7 @@ ensures
 
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
-    msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: Exception
+    msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: SpecialCase
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),

@@ -257,7 +257,7 @@ pub open spec fn exists_create_resp_msg_containing_new_vrs_uid_key(
             // we don't need info on content of the response at the moment
             &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
             &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n)(s)
-            &&& local_state_is_coherent_with_etcd(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n, Exception::NewVRSCreated)(s)
+            &&& local_state_is_coherent_with_etcd(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n, SpecialCase::NewVRSCreated)(s)
         }
     }
 }
@@ -522,7 +522,7 @@ pub open spec fn get_replicas(i: Option<int>) -> int {
 }
 
 // when coherence breaks
-pub enum Exception {
+pub enum SpecialCase {
     None,
     NewVRSCreated,
     NewVRSReplicaUpdated,
@@ -533,7 +533,7 @@ pub enum Exception {
 // new_vrs_uid_and_key is None -> no new_vrs in etcd exists
 // so this predicate is inconsistent in terms of "local state", n describes local old vrs index while nv_X describes etcd state
 pub open spec fn local_state_is_coherent_with_etcd(
-    vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: Exception
+    vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: SpecialCase
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -578,11 +578,11 @@ pub open spec fn local_state_is_coherent_with_etcd(
                 &&& valid_owned_obj_key(vd, s)(key)
                 &&& filter_new_vrs_keys(vd.spec.template, s)(key)
                 &&& match e {
-                    // Exception 1: new vrs is just created and not available locally
-                    Exception::NewVRSCreated => {
+                    // SpecialCase 1: new vrs is just created and not available locally
+                    SpecialCase::NewVRSCreated => {
                         &&& vds.new_vrs is None
                     },
-                    // Exception 2: replica is just updated and replicas do not match, skipped
+                    // SpecialCase 2: replica is just updated and replicas do not match, skipped
                     // and other cases
                     _ => {
                         let new_vrs = vds.new_vrs->0;
