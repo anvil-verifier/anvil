@@ -17,7 +17,6 @@ pub type ResourceVersion = int;
 pub type GenerateNameCounter = int;
 
 #[is_variant]
-#[verifier::ext_equal]
 pub enum Kind {
     ConfigMapKind,
     CustomResourceKind(StringView),
