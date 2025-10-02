@@ -19,19 +19,19 @@ pub struct VStatefulSetReconcileState {
 }
 
 impl Reconciler<VStatefulSetReconcileState, VStatefulSetView, VoidEReqView, VoidERespView> for VStatefulSetReconciler {
-    fn reconcile_init_state() -> VStatefulSetReconcileState {
+    open spec fn reconcile_init_state() -> VStatefulSetReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(vrs: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
+    open spec fn reconcile_core(vrs: VStatefulSetView, resp_o: DefaultResp, state: VStatefulSetReconcileState) -> (VStatefulSetReconcileState, DefaultReq) {
         reconcile_core(vrs, resp_o, state)
     }
 
-    fn reconcile_done(state: VStatefulSetReconcileState) -> bool {
+    open spec fn reconcile_done(state: VStatefulSetReconcileState) -> bool {
         reconcile_done(state)
     }
 
-    fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
+    open spec fn reconcile_error(state: VStatefulSetReconcileState) -> bool {
         reconcile_error(state)
     }
 }

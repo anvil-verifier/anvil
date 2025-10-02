@@ -19,7 +19,7 @@ implement_object_wrapper_type!(
 
 implement_field_wrapper_type!(
     VReplicaSetSpec,
-    VReplicaSetSpec,
+    crate::crds::VReplicaSetSpec,
     spec_types::VReplicaSetSpecView
 );
 
