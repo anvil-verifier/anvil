@@ -12,7 +12,7 @@ pub fn test_default() {
     let label_selector = LabelSelector::default();
     assert_eq!(
         label_selector.into_kube(),
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default()
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default()
     );
 }
 
@@ -46,7 +46,7 @@ pub fn test_clone() {
 #[test]
 pub fn test_kube() {
     let kube_label_selector =
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
             match_labels: Some(
                 vec![
                     ("key".to_string(), "value".to_string()),

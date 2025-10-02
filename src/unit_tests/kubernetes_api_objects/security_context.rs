@@ -10,7 +10,7 @@ use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_security_context = deps_hack::k8s_openapi::api::core::v1::SecurityContext {
+    let kube_security_context = k8s_openapi::api::core::v1::SecurityContext {
         privileged: Some(true),
         ..Default::default()
     };

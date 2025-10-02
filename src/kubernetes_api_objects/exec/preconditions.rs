@@ -8,7 +8,7 @@ verus! {
 
 implement_field_wrapper_type!(
     Preconditions,
-    deps_hack::kube::api::Preconditions,
+    kube::api::Preconditions,
     PreconditionsView
 );
 

@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::exec::object_meta::*;
 use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::exec::resource_requirements::*;
 use crate::vstd_ext::string_map::*;
-use deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity;
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use std::collections::BTreeMap;
 use vstd::prelude::*;
 use vstd::string::*;
@@ -14,7 +14,7 @@ pub fn test_default() {
     let resource_requirements = ResourceRequirements::default();
     assert_eq!(
         resource_requirements.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default()
+        k8s_openapi::api::core::v1::ResourceRequirements::default()
     );
 }
 
@@ -70,7 +70,7 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_resource_requirements = deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+    let kube_resource_requirements = k8s_openapi::api::core::v1::ResourceRequirements {
         limits: Some(
             vec![("cpu".to_string(), Quantity("100m".to_string()))]
                 .into_iter()

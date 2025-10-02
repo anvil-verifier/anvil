@@ -185,7 +185,7 @@ macro_rules! implement_resource_view_trait {
             }
 
             open spec fn unmarshal(obj: DynamicObjectView) -> Result<Self, UnmarshalError> {
-                if obj.kind != Self::kind() {
+                if !(obj.kind =~= Self::kind()) {
                     Err(())
                 } else if !(Self::unmarshal_spec(obj.spec) is Ok) {
                     Err(())

@@ -12,13 +12,13 @@ verus! {
 
 #[verifier(external_body)]
 pub struct DynamicObject {
-    inner: deps_hack::kube::api::DynamicObject,
+    inner: kube::api::DynamicObject,
 }
 
 implement_view_trait!(DynamicObject, DynamicObjectView);
 implement_deep_view_trait!(DynamicObject, DynamicObjectView);
 implement_clone_trait!(DynamicObject);
-implement_resource_wrapper_trait!(DynamicObject, deps_hack::kube::api::DynamicObject);
+implement_resource_wrapper_trait!(DynamicObject, kube::api::DynamicObject);
 
 impl DynamicObject {
     #[verifier(external_body)]

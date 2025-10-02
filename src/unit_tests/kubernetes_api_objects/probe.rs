@@ -70,7 +70,7 @@ pub fn test_default() {
     let probe = Probe::default();
     assert_eq!(
         probe.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Probe::default()
+        k8s_openapi::api::core::v1::Probe::default()
     );
 }
 
@@ -84,10 +84,10 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_probe = deps_hack::k8s_openapi::api::core::v1::Probe {
+    let kube_probe = k8s_openapi::api::core::v1::Probe {
         failure_threshold: Some(3),
         initial_delay_seconds: Some(3),
-        exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+        exec: Some(k8s_openapi::api::core::v1::ExecAction {
             command: Some(vec!["command".to_string()]),
         }),
         period_seconds: Some(3),

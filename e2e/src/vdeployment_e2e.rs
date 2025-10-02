@@ -23,7 +23,7 @@ use tokio::time::sleep;
 use tracing::*;
 
 use crate::common::*;
-use deps_hack::VReplicaSet;
+use VReplicaSet;
 
 pub fn v_deployment() -> String {
     "

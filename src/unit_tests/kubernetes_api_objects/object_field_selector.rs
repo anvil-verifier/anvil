@@ -32,7 +32,7 @@ pub fn test_default() {
     let object_field_selector = ObjectFieldSelector::default();
     assert_eq!(
         object_field_selector.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
+        k8s_openapi::api::core::v1::ObjectFieldSelector::default()
     );
 }
 
@@ -50,7 +50,7 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_object_field_selector = deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+    let kube_object_field_selector = k8s_openapi::api::core::v1::ObjectFieldSelector {
         api_version: Some("api_version".to_string()),
         field_path: "field_path".to_string(),
     };

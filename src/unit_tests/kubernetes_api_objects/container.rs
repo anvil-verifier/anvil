@@ -152,7 +152,7 @@ pub fn test_set_image_pull_policy() {
 
 #[test]
 pub fn test_set_env() {
-    let env_var = EnvVar::from_kube(deps_hack::k8s_openapi::api::core::v1::EnvVar::default());
+    let env_var = EnvVar::from_kube(k8s_openapi::api::core::v1::EnvVar::default());
     let mut container = Container::default();
     container.set_env(vec![env_var.clone()]);
     assert_eq!(
@@ -166,7 +166,7 @@ pub fn test_default() {
     let container = Container::default();
     assert_eq!(
         container.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Container::default()
+        k8s_openapi::api::core::v1::Container::default()
     );
 }
 
@@ -183,7 +183,7 @@ pub fn test_set_args() {
 #[test]
 pub fn test_set_security_context() {
     let mut container = Container::default();
-    let kube_security_context = deps_hack::k8s_openapi::api::core::v1::SecurityContext {
+    let kube_security_context = k8s_openapi::api::core::v1::SecurityContext {
         run_as_user: Some(1000),
         run_as_group: Some(1000),
         privileged: Some(true),
@@ -208,7 +208,7 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_container = deps_hack::k8s_openapi::api::core::v1::Container {
+    let kube_container = k8s_openapi::api::core::v1::Container {
         name: "name".to_string(),
         image: Some("image".to_string()),
         ..Default::default()
@@ -218,12 +218,12 @@ pub fn test_kube() {
 
     assert_eq!(container.into_kube(), kube_container.clone());
 
-    let kube_container = deps_hack::k8s_openapi::api::core::v1::Container {
+    let kube_container = k8s_openapi::api::core::v1::Container {
         name: "name_2".to_string(),
         image: Some("image_2".to_string()),
         command: Some(vec!["command".to_string()]),
-        liveness_probe: Some(deps_hack::k8s_openapi::api::core::v1::Probe {
-            tcp_socket: Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
+        liveness_probe: Some(k8s_openapi::api::core::v1::Probe {
+            tcp_socket: Some(k8s_openapi::api::core::v1::TCPSocketAction {
                 host: Some("liveness".to_string()),
                 ..Default::default()
             }),

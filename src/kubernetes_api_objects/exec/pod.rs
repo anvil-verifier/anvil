@@ -23,23 +23,23 @@ verus! {
 //
 // More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
 
-implement_object_wrapper_type!(Pod, deps_hack::k8s_openapi::api::core::v1::Pod, PodView);
+implement_object_wrapper_type!(Pod, k8s_openapi::api::core::v1::Pod, PodView);
 
 implement_field_wrapper_type!(
     PodSpec,
-    deps_hack::k8s_openapi::api::core::v1::PodSpec,
+    k8s_openapi::api::core::v1::PodSpec,
     PodSpecView
 );
 
 implement_field_wrapper_type!(
     PodSecurityContext,
-    deps_hack::k8s_openapi::api::core::v1::PodSecurityContext,
+    k8s_openapi::api::core::v1::PodSecurityContext,
     PodSecurityContextView
 );
 
 implement_field_wrapper_type!(
     LocalObjectReference,
-    deps_hack::k8s_openapi::api::core::v1::LocalObjectReference,
+    k8s_openapi::api::core::v1::LocalObjectReference,
     LocalObjectReferenceView
 );
 

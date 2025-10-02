@@ -22,7 +22,7 @@ pub fn test_set_port() {
     let mut tcp_socket_action = TCPSocketAction::default();
     tcp_socket_action.set_port(8080);
     assert_eq!(
-        deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
+        k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
         tcp_socket_action.into_kube().port
     );
 }
@@ -32,7 +32,7 @@ pub fn test_default() {
     let tcp_socket_action = TCPSocketAction::default();
     assert_eq!(
         tcp_socket_action.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default()
+        k8s_openapi::api::core::v1::TCPSocketAction::default()
     );
 }
 
@@ -50,9 +50,9 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_tcp_socket_action = deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
+    let kube_tcp_socket_action = k8s_openapi::api::core::v1::TCPSocketAction {
         host: Some("host".to_string()),
-        port: deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
+        port: k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
     };
 
     let tcp_socket_action = TCPSocketAction::from_kube(kube_tcp_socket_action.clone());

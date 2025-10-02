@@ -14,7 +14,7 @@ pub fn test_default() {
     let downward_api_volume_file = DownwardAPIVolumeFile::default();
     assert_eq!(
         downward_api_volume_file.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile::default()
+        k8s_openapi::api::core::v1::DownwardAPIVolumeFile::default()
     );
 }
 
@@ -43,8 +43,8 @@ pub fn test_set_path() {
 #[test]
 pub fn test_kube() {
     let kube_downward_api_volume_file =
-        deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile {
-            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+        k8s_openapi::api::core::v1::DownwardAPIVolumeFile {
+            field_ref: Some(k8s_openapi::api::core::v1::ObjectFieldSelector {
                 api_version: None,
                 field_path: "field_path".to_string(),
             }),

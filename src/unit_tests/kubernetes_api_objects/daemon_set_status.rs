@@ -11,7 +11,7 @@ use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_daemon_set_status = deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus {
+    let kube_daemon_set_status = k8s_openapi::api::apps::v1::DaemonSetStatus {
         current_number_scheduled: 1,
         number_misscheduled: 2,
         desired_number_scheduled: 3,
@@ -25,7 +25,7 @@ pub fn test_kube() {
 #[test]
 pub fn test_number_ready() {
     let daemon_set_status =
-        DaemonSetStatus::from_kube(deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus {
+        DaemonSetStatus::from_kube(k8s_openapi::api::apps::v1::DaemonSetStatus {
             number_ready: 1,
             ..Default::default()
         });

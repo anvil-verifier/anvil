@@ -13,12 +13,12 @@ use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_pod_security_context = deps_hack::k8s_openapi::api::core::v1::PodSecurityContext {
+    let kube_pod_security_context = k8s_openapi::api::core::v1::PodSecurityContext {
         fs_group: Some(1024),
         run_as_group: Some(1024),
         run_as_non_root: Some(true),
         run_as_user: Some(1024),
-        se_linux_options: Some(deps_hack::k8s_openapi::api::core::v1::SELinuxOptions {
+        se_linux_options: Some(k8s_openapi::api::core::v1::SELinuxOptions {
             level: Some("level".to_string()),
             role: Some("role".to_string()),
             type_: Some("type_".to_string()),
@@ -27,7 +27,7 @@ pub fn test_kube() {
         }),
         supplemental_groups: Some(vec![1024, 1024]),
         windows_options: Some(
-            deps_hack::k8s_openapi::api::core::v1::WindowsSecurityContextOptions {
+            k8s_openapi::api::core::v1::WindowsSecurityContextOptions {
                 gmsa_credential_spec: Some("gmsa_credential_spec".to_string()),
                 gmsa_credential_spec_name: Some("gmsa_credential_spec_name".to_string()),
                 run_as_user_name: Some("run_as_user_name".to_string()),

@@ -46,7 +46,7 @@ pub fn test_default() {
     let volume_mount = VolumeMount::default();
     assert_eq!(
         volume_mount.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::VolumeMount::default()
+        k8s_openapi::api::core::v1::VolumeMount::default()
     );
 }
 
@@ -55,7 +55,7 @@ pub fn test_new_with() {
     let volume_mount = VolumeMount::new_with("mount_path".to_string(), "name".to_string());
     assert_eq!(
         volume_mount.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::VolumeMount {
+        k8s_openapi::api::core::v1::VolumeMount {
             mount_path: "mount_path".to_string(),
             name: "name".to_string(),
             ..Default::default()
@@ -65,7 +65,7 @@ pub fn test_new_with() {
 
 #[test]
 pub fn test_kube() {
-    let kube_volume_mount = deps_hack::k8s_openapi::api::core::v1::VolumeMount {
+    let kube_volume_mount = k8s_openapi::api::core::v1::VolumeMount {
         mount_path: "mount_path".to_string(),
         name: "name".to_string(),
         sub_path: Some("sub_path".to_string()),

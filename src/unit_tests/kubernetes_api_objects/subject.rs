@@ -12,7 +12,7 @@ pub fn test_default() {
     let subject = Subject::default();
     assert_eq!(
         subject.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::Subject::default()
+        k8s_openapi::api::rbac::v1::Subject::default()
     );
 }
 
@@ -42,7 +42,7 @@ pub fn test_set_namespace() {
 
 #[test]
 pub fn test_kube() {
-    let kube_subject = deps_hack::k8s_openapi::api::rbac::v1::Subject {
+    let kube_subject = k8s_openapi::api::rbac::v1::Subject {
         kind: "kind".to_string(),
         name: "name".to_string(),
         namespace: Some("namespace".to_string()),
@@ -53,7 +53,7 @@ pub fn test_kube() {
 
     assert_eq!(
         subject.into_kube(),
-        deps_hack::k8s_openapi::api::rbac::v1::Subject {
+        k8s_openapi::api::rbac::v1::Subject {
             kind: "kind".to_string(),
             name: "name".to_string(),
             namespace: Some("namespace".to_string()),

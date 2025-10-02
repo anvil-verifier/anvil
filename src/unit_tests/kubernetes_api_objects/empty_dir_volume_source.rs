@@ -14,7 +14,7 @@ pub fn test_default() {
     let empty_dir_volume_source = EmptyDirVolumeSource::default();
     assert_eq!(
         empty_dir_volume_source.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default()
+        k8s_openapi::api::core::v1::EmptyDirVolumeSource::default()
     );
 }
 
@@ -31,7 +31,7 @@ pub fn test_clone() {
 #[test]
 pub fn test_kube() {
     let kube_empty_dir_volume_source =
-        deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource {
+        k8s_openapi::api::core::v1::EmptyDirVolumeSource {
             ..Default::default()
         };
 

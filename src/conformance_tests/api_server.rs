@@ -4,12 +4,12 @@ use crate::kubernetes_api_objects::{
     exec::{api_resource::*, prelude::*},
     spec::prelude::Kind,
 };
-use deps_hack::kube::{
+use kube::{
     api::{Api, DeleteParams, ListParams, ObjectMeta, PostParams},
     Client,
 };
-use deps_hack::proptest::prelude::*;
-use deps_hack::tokio::runtime::Runtime;
+use proptest::prelude::*;
+use tokio::runtime::Runtime;
 use rand::Rng;
 use std::process::Command;
 use vstd::prelude::*;
@@ -31,13 +31,13 @@ impl KindExec {
     fn to_api_resource(&self) -> ApiResource {
         match self {
             KindExec::ConfigMapKind => {
-                ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<
-                    deps_hack::k8s_openapi::api::core::v1::ConfigMap,
+                ApiResource::from_kube(kube::api::ApiResource::erase::<
+                    k8s_openapi::api::core::v1::ConfigMap,
                 >(&()))
             }
             KindExec::SecretKind => {
-                ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<
-                    deps_hack::k8s_openapi::api::core::v1::Secret,
+                ApiResource::from_kube(kube::api::ApiResource::erase::<
+                    k8s_openapi::api::core::v1::Secret,
                 >(&()))
             }
             _ => panic!(),
@@ -91,9 +91,9 @@ fn create_new_testing_namespace(len: usize) -> Option<std::string::String> {
     let rt = Runtime::new().unwrap();
     let resp = rt.block_on(async {
         let client = Client::try_default().await.unwrap();
-        let namespace_api = Api::<deps_hack::k8s_openapi::api::core::v1::Namespace>::all(client);
-        let namespace_obj = deps_hack::k8s_openapi::api::core::v1::Namespace {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+        let namespace_api = Api::<k8s_openapi::api::core::v1::Namespace>::all(client);
+        let namespace_obj = k8s_openapi::api::core::v1::Namespace {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                 name: Some(namespace_name.to_string()),
                 ..Default::default()
             },
@@ -140,7 +140,7 @@ proptest! {
                     let rt = Runtime::new().unwrap();
                     let kind_resp = rt.block_on(async {
                         let client = Client::try_default().await.unwrap();
-                        let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                        let api = Api::<kube::api::DynamicObject>::namespaced_with(
                             client, &namespace, kind.to_api_resource().as_kube_ref()
                         );
                         api.get(&name).await
@@ -165,7 +165,7 @@ proptest! {
                     let rt = Runtime::new().unwrap();
                     let kind_resp = rt.block_on(async {
                         let client = Client::try_default().await.unwrap();
-                        let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                        let api = Api::<kube::api::DynamicObject>::namespaced_with(
                             client, &namespace, kind.to_api_resource().as_kube_ref()
                         );
                         api.create(&PostParams::default(), &obj.into_kube()).await
