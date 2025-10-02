@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-builtin = { path = "../verus/source/builtin" }
-builtin_macros = { path = "../verus/source/builtin_macros" }
-vstd = { path = "../verus/source/vstd" }
+verus_builtin = "0.0.0-2025-08-12-1837"
+verus_builtin_macros = "0.0.0-2025-08-12-1837"
+vstd = "=0.0.0-2025-08-12-1837"
 deps_hack = { path = "src/deps_hack" }
 tungstenite = "0.20.1"
 rand = "0.8"
+
+[package.metadata.verus]
+verify = true
