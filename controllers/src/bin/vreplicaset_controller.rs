@@ -1,11 +1,6 @@
-pub mod crds;
-
-#[path = "vreplicaset_controller/mod.rs"]
-pub mod vreplicaset_controller;
-
-use crds::*;
+use controllers::crds::*;
 use verifiable_controllers::external_shim_layer::VoidExternalShimLayer;
-use vreplicaset_controller::exec::reconciler::VReplicaSetReconciler;
+use controllers::vreplicaset_controller::exec::reconciler::VReplicaSetReconciler;
 use anyhow::Result;
 use kube::CustomResourceExt;
 use serde_yaml;

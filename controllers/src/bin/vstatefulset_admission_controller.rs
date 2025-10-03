@@ -1,13 +1,8 @@
 #![allow(unused_imports)]
 
-#[path = "vstatefulset_controller/mod.rs"]
-pub mod vstatefulset_controller;
-
-pub mod crds;
-
-use crds::*;
+use controllers::crds::*;
 use verifiable_controllers::kubernetes_api_objects::exec::{dynamic::DynamicObject, resource::ResourceWrapper};
-use vstatefulset_controller::trusted::exec_types::VStatefulSet;
+use controllers::vstatefulset_controller::trusted::exec_types::VStatefulSet;
 use anyhow::Result;
 use kube::core::{
     admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},

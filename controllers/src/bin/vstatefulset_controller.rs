@@ -1,8 +1,6 @@
 #![allow(unused_imports)]
 
-pub mod crds;
-
-use crds::*;
+use controllers::crds::*;
 // use crate::external_shim_layer::VoidExternalShimLayer;
 // use crate::vstatefulset_controller::exec::reconciler::VStatefulSetReconciler;
 use anyhow::Result;

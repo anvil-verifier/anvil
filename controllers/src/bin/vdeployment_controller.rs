@@ -1,14 +1,6 @@
 #![allow(unused_imports)]
 
-#[path = "vreplicaset_controller/mod.rs"]
-pub mod vreplicaset_controller;
-
-#[path = "vdeployment_controller/mod.rs"]
-pub mod vdeployment_controller;
-
-pub mod crds;
-
-use crds::*;
+use controllers::crds::*;
 // use crate::external_shim_layer::VoidExternalShimLayer;
 // use crate::vdeployment_controller::exec::reconciler::VDeploymentReconciler;
 use anyhow::Result;
@@ -20,7 +12,7 @@ use tracing_subscriber;
 use verifiable_controllers::shim_layer::controller_runtime::run_controller;
 use std::env;
 use verifiable_controllers::external_shim_layer::VoidExternalShimLayer;
-use vdeployment_controller::exec::reconciler::VDeploymentReconciler;
+use controllers::vdeployment_controller::exec::reconciler::VDeploymentReconciler;
 
 #[tokio::main]
 async fn main() -> Result<()> {

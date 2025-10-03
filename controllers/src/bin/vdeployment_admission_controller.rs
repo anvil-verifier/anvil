@@ -1,15 +1,8 @@
 #![allow(unused_imports)]
 
-#[path = "vreplicaset_controller/mod.rs"]
-pub mod vreplicaset_controller;
-#[path = "vdeployment_controller/mod.rs"]
-pub mod vdeployment_controller;
-
-pub mod crds;
-
-use crds::*;
+use controllers::crds::*;
 use verifiable_controllers::kubernetes_api_objects::exec::dynamic::DynamicObject;
-use vdeployment_controller::trusted::exec_types::{VDeployment, VDeploymentSpec};
+use controllers::vdeployment_controller::trusted::exec_types::{VDeployment, VDeploymentSpec};
 use anyhow::Result;
 use kube::CustomResourceExt;
 use serde_yaml;
