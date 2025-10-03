@@ -23,7 +23,7 @@ use tokio::time::sleep;
 use tracing::*;
 
 use crate::common::*;
-use VReplicaSet;
+use controllers::crds::VReplicaSet;
 
 pub fn v_deployment() -> String {
     "
