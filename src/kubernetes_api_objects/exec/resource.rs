@@ -49,14 +49,14 @@ macro_rules! implement_object_wrapper_type {
             pub fn api_resource() -> (res: ApiResource)
                 ensures res@.kind == $vt::kind(),
             {
-                ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<$it>(&()))
+                ApiResource::from_kube(kube::api::ApiResource::erase::<$it>(&()))
             }
 
             #[verifier(external_body)]
             pub fn marshal(self) -> (obj: DynamicObject)
                 ensures obj@ == self@.marshal(),
             {
-                DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
+                DynamicObject::from_kube(k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
             }
 
             #[verifier(external_body)]

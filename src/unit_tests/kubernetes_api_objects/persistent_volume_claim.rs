@@ -14,7 +14,7 @@ pub fn test_default() {
     let persistent_volume_claim = PersistentVolumeClaim::default();
     assert_eq!(
         persistent_volume_claim.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim::default()
+        k8s_openapi::api::core::v1::PersistentVolumeClaim::default()
     );
 }
 
@@ -82,24 +82,24 @@ pub fn test_api_resource() {
 #[test]
 pub fn test_kube() {
     let kube_persistent_volume_claim =
-        deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+        k8s_openapi::api::core::v1::PersistentVolumeClaim {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                 name: Some("name".to_string()),
                 namespace: Some("namespace".to_string()),
                 ..Default::default()
             },
             spec: Some(
-                deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
+                k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
                     access_modes: Some(
                         vec!["ReadWriteOnce".to_string(), "ReadOnlyMany".to_string()]
                             .into_iter()
                             .collect(),
                     ),
                     resources: Some(
-                        deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
+                        k8s_openapi::api::core::v1::VolumeResourceRequirements {
                             requests: Some(BTreeMap::from([(
                                 "storage".to_string(),
-                                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(
+                                k8s_openapi::apimachinery::pkg::api::resource::Quantity(
                                     "1Gi".to_string(),
                                 ),
                             )])),
@@ -125,24 +125,24 @@ pub fn test_kube() {
 #[test]
 pub fn test_marshal() {
     let kube_persistent_volume_claim =
-        deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
-            metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+        k8s_openapi::api::core::v1::PersistentVolumeClaim {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                 name: Some("name".to_string()),
                 namespace: Some("namespace".to_string()),
                 ..Default::default()
             },
             spec: Some(
-                deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
+                k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
                     access_modes: Some(
                         vec!["ReadWriteOnce".to_string(), "ReadOnlyMany".to_string()]
                             .into_iter()
                             .collect(),
                     ),
                     resources: Some(
-                        deps_hack::k8s_openapi::api::core::v1::VolumeResourceRequirements {
+                        k8s_openapi::api::core::v1::VolumeResourceRequirements {
                             requests: Some(BTreeMap::from([(
                                 "storage".to_string(),
-                                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(
+                                k8s_openapi::apimachinery::pkg::api::resource::Quantity(
                                     "1Gi".to_string(),
                                 ),
                             )])),

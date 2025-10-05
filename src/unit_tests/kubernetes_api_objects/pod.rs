@@ -13,7 +13,7 @@ pub fn test_default() {
     let pod = Pod::default();
     assert_eq!(
         pod.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::Pod::default()
+        k8s_openapi::api::core::v1::Pod::default()
     );
 }
 
@@ -67,13 +67,13 @@ pub fn test_api_resource() {
 
 #[test]
 pub fn test_kube() {
-    let kube_pod = deps_hack::k8s_openapi::api::core::v1::Pod {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_pod = k8s_openapi::api::core::v1::Pod {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
-        spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
-            containers: vec![deps_hack::k8s_openapi::api::core::v1::Container {
+        spec: Some(k8s_openapi::api::core::v1::PodSpec {
+            containers: vec![k8s_openapi::api::core::v1::Container {
                 name: "name".to_string(),
                 ..Default::default()
             }],
@@ -89,13 +89,13 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_pod = deps_hack::k8s_openapi::api::core::v1::Pod {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_pod = k8s_openapi::api::core::v1::Pod {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
-        spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
-            containers: vec![deps_hack::k8s_openapi::api::core::v1::Container {
+        spec: Some(k8s_openapi::api::core::v1::PodSpec {
+            containers: vec![k8s_openapi::api::core::v1::Container {
                 name: "name".to_string(),
                 ..Default::default()
             }],

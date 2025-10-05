@@ -8,79 +8,79 @@ verus! {
 
 implement_field_wrapper_type!(
     Volume,
-    deps_hack::k8s_openapi::api::core::v1::Volume,
+    k8s_openapi::api::core::v1::Volume,
     VolumeView
 );
 
 implement_field_wrapper_type!(
     EmptyDirVolumeSource,
-    deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource,
+    k8s_openapi::api::core::v1::EmptyDirVolumeSource,
     EmptyDirVolumeSourceView
 );
 
 implement_field_wrapper_type!(
     HostPathVolumeSource,
-    deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource,
+    k8s_openapi::api::core::v1::HostPathVolumeSource,
     HostPathVolumeSourceView
 );
 
 implement_field_wrapper_type!(
     ConfigMapVolumeSource,
-    deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource,
+    k8s_openapi::api::core::v1::ConfigMapVolumeSource,
     ConfigMapVolumeSourceView
 );
 
 implement_field_wrapper_type!(
     SecretVolumeSource,
-    deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource,
+    k8s_openapi::api::core::v1::SecretVolumeSource,
     SecretVolumeSourceView
 );
 
 implement_field_wrapper_type!(
     ProjectedVolumeSource,
-    deps_hack::k8s_openapi::api::core::v1::ProjectedVolumeSource,
+    k8s_openapi::api::core::v1::ProjectedVolumeSource,
     ProjectedVolumeSourceView
 );
 
 implement_field_wrapper_type!(
     VolumeProjection,
-    deps_hack::k8s_openapi::api::core::v1::VolumeProjection,
+    k8s_openapi::api::core::v1::VolumeProjection,
     VolumeProjectionView
 );
 
 implement_field_wrapper_type!(
     ConfigMapProjection,
-    deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection,
+    k8s_openapi::api::core::v1::ConfigMapProjection,
     ConfigMapProjectionView
 );
 
 implement_field_wrapper_type!(
     SecretProjection,
-    deps_hack::k8s_openapi::api::core::v1::SecretProjection,
+    k8s_openapi::api::core::v1::SecretProjection,
     SecretProjectionView
 );
 
 implement_field_wrapper_type!(
     KeyToPath,
-    deps_hack::k8s_openapi::api::core::v1::KeyToPath,
+    k8s_openapi::api::core::v1::KeyToPath,
     KeyToPathView
 );
 
 implement_field_wrapper_type!(
     DownwardAPIVolumeSource,
-    deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource,
+    k8s_openapi::api::core::v1::DownwardAPIVolumeSource,
     DownwardAPIVolumeSourceView
 );
 
 implement_field_wrapper_type!(
     DownwardAPIVolumeFile,
-    deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile,
+    k8s_openapi::api::core::v1::DownwardAPIVolumeFile,
     DownwardAPIVolumeFileView
 );
 
 implement_field_wrapper_type!(
     ObjectFieldSelector,
-    deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector,
+    k8s_openapi::api::core::v1::ObjectFieldSelector,
     ObjectFieldSelectorView
 );
 

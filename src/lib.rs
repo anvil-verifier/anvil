@@ -14,4 +14,14 @@ pub mod temporal_logic;
 pub mod unit_tests;
 pub mod vstd_ext;
 
+mod tla_demo;
+
 use vstd::prelude::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("ShimLayerError: {0}")]
+    ShimLayerError(String),
+    #[error("ReconcileCoreError")]
+    ReconcileCoreError,
+}

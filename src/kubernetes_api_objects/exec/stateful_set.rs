@@ -24,43 +24,43 @@ verus! {
 
 implement_object_wrapper_type!(
     StatefulSet,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSet,
+    k8s_openapi::api::apps::v1::StatefulSet,
     StatefulSetView
 );
 
 implement_field_wrapper_type!(
     StatefulSetSpec,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec,
+    k8s_openapi::api::apps::v1::StatefulSetSpec,
     StatefulSetSpecView
 );
 
 implement_field_wrapper_type!(
     StatefulSetStatus,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus,
+    k8s_openapi::api::apps::v1::StatefulSetStatus,
     StatefulSetStatusView
 );
 
 implement_field_wrapper_type!(
     StatefulSetPersistentVolumeClaimRetentionPolicy,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
+    k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
     StatefulSetPersistentVolumeClaimRetentionPolicyView
 );
 
 implement_field_wrapper_type!(
     StatefulSetUpdateStrategy,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy,
+    k8s_openapi::api::apps::v1::StatefulSetUpdateStrategy,
     StatefulSetUpdateStrategyView
 );
 
 implement_field_wrapper_type!(
     RollingUpdateStatefulSetStrategy,
-    deps_hack::k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy,
+    k8s_openapi::api::apps::v1::RollingUpdateStatefulSetStrategy,
     RollingUpdateStatefulSetStrategyView
 );
 
 implement_field_wrapper_type!(
     StatefulSetOrdinals,
-    deps_hack::k8s_openapi::api::apps::v1::StatefulSetOrdinals,
+    k8s_openapi::api::apps::v1::StatefulSetOrdinals,
     StatefulSetOrdinalsView
 );
 
@@ -323,9 +323,9 @@ impl RollingUpdateStatefulSetStrategy {
     {
         match &self.inner.max_unavailable {
             Some(mu) => match mu {
-                deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
+                k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(i) => Some(*i),
                 // TODO: support the String option
-                deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(_) => panic!(),
+                k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(_) => panic!(),
             },
             None => None,
         }
@@ -343,7 +343,7 @@ impl RollingUpdateStatefulSetStrategy {
         ensures self@ == old(self)@.with_max_unavailable(max_unavailable as int),
     {
         self.inner.max_unavailable = Some(
-            deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(max_unavailable)
         );
     }
 }

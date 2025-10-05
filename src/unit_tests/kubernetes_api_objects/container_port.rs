@@ -12,7 +12,7 @@ pub fn test_default() {
     let container_port = ContainerPort::default();
     assert_eq!(
         container_port.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ContainerPort::default()
+        k8s_openapi::api::core::v1::ContainerPort::default()
     );
 }
 
@@ -56,7 +56,7 @@ pub fn test_protocol() {
         panic!("protocol should be none");
     }
     let container_port =
-        ContainerPort::from_kube(deps_hack::k8s_openapi::api::core::v1::ContainerPort {
+        ContainerPort::from_kube(k8s_openapi::api::core::v1::ContainerPort {
             container_port: 8080,
             host_ip: Some("host_ip".to_string()),
             host_port: Some(8080),
@@ -69,7 +69,7 @@ pub fn test_protocol() {
 
 #[test]
 pub fn test_kube() {
-    let kube_container_port = deps_hack::k8s_openapi::api::core::v1::ContainerPort {
+    let kube_container_port = k8s_openapi::api::core::v1::ContainerPort {
         container_port: 8080,
         host_ip: Some("host_ip".to_string()),
         host_port: Some(8080),

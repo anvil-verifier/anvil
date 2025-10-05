@@ -1,10 +1,10 @@
-use deps_hack::anyhow::Result;
-use deps_hack::k8s_openapi::api::core::v1::ConfigMap;
-use deps_hack::kube::{
+use anyhow::Result;
+use k8s_openapi::api::core::v1::ConfigMap;
+use kube::{
     api::{Api, PostParams},
     Client,
 };
-use deps_hack::tracing::info;
+use tracing::info;
 
 pub async fn crash_or_continue(
     client: &Client,
@@ -23,7 +23,7 @@ pub async fn crash_or_continue(
         "{} Get {}: {}",
         log_header,
         config_map_name,
-        deps_hack::k8s_openapi::serde_json::to_string(&config_map).unwrap()
+        k8s_openapi::serde_json::to_string(&config_map).unwrap()
     );
     let data = config_map
         .data

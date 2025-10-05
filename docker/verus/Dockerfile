@@ -1,18 +1,15 @@
-FROM ubuntu:22.04
+FROM rust:1.88-slim-bookworm
 
-ARG VERUS_VER
+ARG VERUS_VER=0.2025.09.25.04e8687
 WORKDIR /
 
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && apt-get install -y git wget unzip curl gcc
-RUN git clone https://github.com/verus-lang/verus.git \
-    && cd verus \
-    && git checkout ${VERUS_VER} \
-    && curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y \
-    && . "$HOME/.cargo/env" \
-    && rustup toolchain install \
-    && cd source \
-    && ./tools/get-z3.sh \
-    && source ../tools/activate \
-    && vargo build --release
+ENV PATH=$PATH:/usr/local/verus
+RUN curl -LO https://github.com/verus-lang/verus/releases/download/release/${VERUS_VER}/verus-${VERUS_VER}-x86-linux.zip && \
+    unzip verus-${VERUS_VER}-x86-linux.zip && \
+    cp -r verus-x86-linux/ /usr/local/verus && \
+    rm verus-${VERUS_VER}-x86-linux.zip && \
+    rm -r verus-x86-linux && \
+    cargo verus

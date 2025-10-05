@@ -4,8 +4,8 @@ use crate::kubernetes_api_objects::exec::object_meta::*;
 use crate::kubernetes_api_objects::exec::owner_reference::*;
 use crate::kubernetes_api_objects::exec::resource::*;
 use crate::vstd_ext::string_map::*;
-use deps_hack::chrono::{DateTime, Utc};
-use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use chrono::{DateTime, Utc};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -14,7 +14,7 @@ pub fn test_default() {
     let object_meta = ObjectMeta::default();
     assert_eq!(
         object_meta.into_kube(),
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default()
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default()
     );
 }
 
@@ -83,12 +83,12 @@ pub fn test_owner_references_only_contains() {
     assert_eq!(
         false,
         object_meta.owner_references_only_contains(OwnerReference::from_kube(
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default()
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default()
         ))
     );
     let own_refs_gen = || {
         let own_ref =
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default();
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default();
         let mut owner_references = Vec::new();
         owner_references.push(OwnerReference::from_kube(own_ref.clone()));
         owner_references
@@ -97,7 +97,7 @@ pub fn test_owner_references_only_contains() {
     assert_eq!(
         true,
         object_meta.owner_references_only_contains(OwnerReference::from_kube(
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default()
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default()
         ))
     );
 }
@@ -110,7 +110,7 @@ pub fn test_resource_version() {
         panic!("Expected None")
     }
     let object_meta = ObjectMeta::from_kube(
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             resource_version: Some("resource_version".to_string()),
             ..Default::default()
         },
@@ -127,7 +127,7 @@ pub fn test_has_deletion_timestamp() {
     let time = Time(Utc::now());
     assert_eq!(false, object_meta.has_deletion_timestamp());
     let object_meta = ObjectMeta::from_kube(
-        deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             deletion_timestamp: Some(time),
             ..Default::default()
         },
@@ -224,7 +224,7 @@ pub fn test_set_owner_references() {
     let mut object_meta = ObjectMeta::default();
     let own_refs_gen = || {
         let own_ref =
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default();
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default();
         let mut owner_references = Vec::new();
         owner_references.push(OwnerReference::from_kube(own_ref.clone()));
         owner_references
@@ -241,7 +241,7 @@ pub fn test_set_owner_references() {
 
 #[test]
 pub fn test_kube() {
-    let kube_object_meta = deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_object_meta = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
         name: Some("name".to_string()),
         namespace: Some("namespace".to_string()),
         labels: Some(
@@ -256,7 +256,7 @@ pub fn test_kube() {
         ),
         finalizers: Some(vec!["finalizer".to_string()].into_iter().collect()),
         owner_references: Some(vec![
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default(),
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default(),
         ]),
         ..Default::default()
     };

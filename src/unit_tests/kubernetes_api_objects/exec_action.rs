@@ -22,7 +22,7 @@ pub fn test_default() {
     let exec_action = ExecAction::default();
     assert_eq!(
         exec_action.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ExecAction::default()
+        k8s_openapi::api::core::v1::ExecAction::default()
     );
 }
 
@@ -36,7 +36,7 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_exec_action = deps_hack::k8s_openapi::api::core::v1::ExecAction {
+    let kube_exec_action = k8s_openapi::api::core::v1::ExecAction {
         command: Some(vec!["command".to_string()]),
     };
 

@@ -12,7 +12,7 @@ pub fn test_default() {
     let service_account = ServiceAccount::default();
     assert_eq!(
         service_account.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::ServiceAccount::default()
+        k8s_openapi::api::core::v1::ServiceAccount::default()
     );
 }
 
@@ -55,8 +55,8 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_service_account = deps_hack::k8s_openapi::api::core::v1::ServiceAccount {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_service_account = k8s_openapi::api::core::v1::ServiceAccount {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },
@@ -70,8 +70,8 @@ pub fn test_kube() {
 
 #[test]
 pub fn test_marshal() {
-    let kube_service_account = deps_hack::k8s_openapi::api::core::v1::ServiceAccount {
-        metadata: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    let kube_service_account = k8s_openapi::api::core::v1::ServiceAccount {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
             name: Some("name".to_string()),
             ..Default::default()
         },

@@ -19,6 +19,6 @@ use vstd::prelude::*;
 
 implement_object_wrapper_type!(
     ServiceAccount,
-    deps_hack::k8s_openapi::api::core::v1::ServiceAccount,
+    k8s_openapi::api::core::v1::ServiceAccount,
     ServiceAccountView
 );

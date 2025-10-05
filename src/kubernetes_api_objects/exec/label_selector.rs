@@ -18,7 +18,7 @@ verus! {
 
 implement_field_wrapper_type!(
     LabelSelector,
-    deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+    k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
     LabelSelectorView
 );
 

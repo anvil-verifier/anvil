@@ -17,13 +17,13 @@ verus! {
 
 implement_object_wrapper_type!(
     RoleBinding,
-    deps_hack::k8s_openapi::api::rbac::v1::RoleBinding,
+    k8s_openapi::api::rbac::v1::RoleBinding,
     RoleBindingView
 );
 
 implement_field_wrapper_type!(
     RoleRef,
-    deps_hack::k8s_openapi::api::rbac::v1::RoleRef,
+    k8s_openapi::api::rbac::v1::RoleRef,
     RoleRefView
 );
 
@@ -31,7 +31,7 @@ implement_eq!(RoleRef);
 
 implement_field_wrapper_type!(
     Subject,
-    deps_hack::k8s_openapi::api::rbac::v1::Subject,
+    k8s_openapi::api::rbac::v1::Subject,
     SubjectView
 );
 

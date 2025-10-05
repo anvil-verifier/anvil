@@ -14,7 +14,7 @@ pub fn test_default() {
     let key_to_path = KeyToPath::default();
     assert_eq!(
         key_to_path.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::KeyToPath::default()
+        k8s_openapi::api::core::v1::KeyToPath::default()
     );
 }
 
@@ -34,7 +34,7 @@ pub fn test_set_path() {
 
 #[test]
 pub fn test_kube() {
-    let kube_key_to_path = deps_hack::k8s_openapi::api::core::v1::KeyToPath {
+    let kube_key_to_path = k8s_openapi::api::core::v1::KeyToPath {
         key: "key".to_string(),
         path: "path".to_string(),
         ..Default::default()

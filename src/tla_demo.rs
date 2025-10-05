@@ -1,10 +1,7 @@
 #![allow(unused_imports)]
-pub mod state_machine;
-pub mod temporal_logic;
-pub mod vstd_ext;
 
-use state_machine::action::*;
-use temporal_logic::{defs::*, rules::*};
+use crate::state_machine::action::*;
+use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {

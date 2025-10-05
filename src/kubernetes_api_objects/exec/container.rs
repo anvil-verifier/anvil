@@ -9,67 +9,67 @@ verus! {
 
 implement_field_wrapper_type!(
     Container,
-    deps_hack::k8s_openapi::api::core::v1::Container,
+    k8s_openapi::api::core::v1::Container,
     ContainerView
 );
 
 implement_field_wrapper_type!(
     ContainerPort,
-    deps_hack::k8s_openapi::api::core::v1::ContainerPort,
+    k8s_openapi::api::core::v1::ContainerPort,
     ContainerPortView
 );
 
 implement_field_wrapper_type!(
     VolumeMount,
-    deps_hack::k8s_openapi::api::core::v1::VolumeMount,
+    k8s_openapi::api::core::v1::VolumeMount,
     VolumeMountView
 );
 
 implement_field_wrapper_type!(
     Probe,
-    deps_hack::k8s_openapi::api::core::v1::Probe,
+    k8s_openapi::api::core::v1::Probe,
     ProbeView
 );
 
 implement_field_wrapper_type!(
     ExecAction,
-    deps_hack::k8s_openapi::api::core::v1::ExecAction,
+    k8s_openapi::api::core::v1::ExecAction,
     ExecActionView
 );
 
 implement_field_wrapper_type!(
     TCPSocketAction,
-    deps_hack::k8s_openapi::api::core::v1::TCPSocketAction,
+    k8s_openapi::api::core::v1::TCPSocketAction,
     TCPSocketActionView
 );
 
 implement_field_wrapper_type!(
     Lifecycle,
-    deps_hack::k8s_openapi::api::core::v1::Lifecycle,
+    k8s_openapi::api::core::v1::Lifecycle,
     LifecycleView
 );
 
 implement_field_wrapper_type!(
     LifecycleHandler,
-    deps_hack::k8s_openapi::api::core::v1::LifecycleHandler,
+    k8s_openapi::api::core::v1::LifecycleHandler,
     LifecycleHandlerView
 );
 
 implement_field_wrapper_type!(
     EnvVar,
-    deps_hack::k8s_openapi::api::core::v1::EnvVar,
+    k8s_openapi::api::core::v1::EnvVar,
     EnvVarView
 );
 
 implement_field_wrapper_type!(
     EnvVarSource,
-    deps_hack::k8s_openapi::api::core::v1::EnvVarSource,
+    k8s_openapi::api::core::v1::EnvVarSource,
     EnvVarSourceView
 );
 
 implement_field_wrapper_type!(
     SecurityContext,
-    deps_hack::k8s_openapi::api::core::v1::SecurityContext,
+    k8s_openapi::api::core::v1::SecurityContext,
     SecurityContextView
 );
 
@@ -334,7 +334,7 @@ impl TCPSocketAction {
     pub fn set_port(&mut self, port: i32)
         ensures self@ == old(self)@.with_port(port as int),
     {
-        self.inner.port = deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(port);
+        self.inner.port = k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(port);
     }
 }
 

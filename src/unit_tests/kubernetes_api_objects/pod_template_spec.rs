@@ -14,7 +14,7 @@ pub fn test_default() {
     let pod_template_spec = PodTemplateSpec::default();
     assert_eq!(
         pod_template_spec.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec::default()
+        k8s_openapi::api::core::v1::PodTemplateSpec::default()
     );
 }
 
@@ -62,15 +62,15 @@ pub fn test_clone() {
 
 #[test]
 pub fn test_kube() {
-    let kube_pod_template_spec = deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
+    let kube_pod_template_spec = k8s_openapi::api::core::v1::PodTemplateSpec {
         metadata: Some(
-            deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                 name: Some("name".to_string()),
                 ..Default::default()
             },
         ),
-        spec: Some(deps_hack::k8s_openapi::api::core::v1::PodSpec {
-            containers: vec![deps_hack::k8s_openapi::api::core::v1::Container {
+        spec: Some(k8s_openapi::api::core::v1::PodSpec {
+            containers: vec![k8s_openapi::api::core::v1::Container {
                 name: "name".to_string(),
                 ..Default::default()
             }],

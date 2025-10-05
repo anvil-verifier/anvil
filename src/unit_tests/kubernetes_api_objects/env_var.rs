@@ -13,7 +13,7 @@ pub fn test_default() {
     let env = EnvVar::default();
     assert_eq!(
         env.into_kube(),
-        deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+        k8s_openapi::api::core::v1::EnvVar::default()
     );
 }
 
@@ -56,11 +56,11 @@ pub fn test_set_value_from() {
 
 #[test]
 pub fn test_kube() {
-    let kube_env_var = deps_hack::k8s_openapi::api::core::v1::EnvVar {
+    let kube_env_var = k8s_openapi::api::core::v1::EnvVar {
         name: "name".to_string(),
         value: Some("value".to_string()),
-        value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-            field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+        value_from: Some(k8s_openapi::api::core::v1::EnvVarSource {
+            field_ref: Some(k8s_openapi::api::core::v1::ObjectFieldSelector {
                 field_path: "field_path".to_string(),
                 ..Default::default()
             }),

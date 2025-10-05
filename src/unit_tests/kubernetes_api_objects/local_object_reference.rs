@@ -13,7 +13,7 @@ use vstd::string::*;
 
 #[test]
 pub fn test_kube() {
-    let kube_local_object_reference = deps_hack::k8s_openapi::api::core::v1::LocalObjectReference {
+    let kube_local_object_reference = k8s_openapi::api::core::v1::LocalObjectReference {
         name: Some("name".to_string()),
     };
 
