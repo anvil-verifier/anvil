@@ -16,17 +16,20 @@
 ├── e2e
 │   └── src
 ├── local-test.sh
-├── src
-│   └── <controller_name>_controller.rs
+├── controllers
+│   └── src
+│       └── <controller_name>_controller/
+│       └── bin/
+│           └── <controller_name>_controller.rs
 ├──...
 ```
 
-Controller source should be put in `src/`, with e2e test in `e2e/src` and test workload specified in `deploy/`
+Controller source should be put in `controllers/src/`, with e2e test in `e2e/src` and test workload specified in `deploy/`
 
 ### Dependencies
 
 ```
-verus_commit: 3b6b805ac86cd6640d59468341055c7fa14cff07
+verus_commit: 04e8687a238debca8323955dc041e3602a5168e0
 kind_version: 0.23.0
 go_version: "^1.20"
 ```
@@ -35,9 +38,9 @@ go_version: "^1.20"
 
 ## Build and Verify
 
- `VERUS_DIR=../verus ./build.sh <controller_name.rs> [other verus arguments]` 
+ `cargo verus verify <controller_name> -- [other verus arguments]`
 
-Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<controller_name>` corresponds to entry file in `src`
+Make sure `<controller_name>` corresponds to entry file in `controllers/src`
 
 > More argument usage by `verus --help`
 
@@ -45,13 +48,13 @@ Make sure `VERUS_DIR` points to verus repo location and built binary exists, `<c
 
 ### Build controller only
 
-`VERUS_DIR=../verus ./build.sh <controller_name.rs> [--no-verify] [other verus arguments]`
+`cargo verus build <controller_name> -- [--no-verify] [other verus arguments]`
 
 `--no-verify` is optional for fast build. Controller built without this option from the section above can be directly used, but verifications could take long time.
 
 ### Test pipeline
 
-1. Build controller binary by `build.sh`
+1. Build controller binary by `cargo verus build`
 2. Build controller docker image
 
    Base image and builder image is specified in `docker/controller/Dockerfile.[local|remote]` respectively
@@ -65,17 +68,18 @@ This process can be automated with:
 ```
 ./local-test.sh <controller_name> [--build|--build-remote]
 Usage:
-	--build:		Call ./build.sh to build the controller before test, should have VERUS_DIR speccified
-	--build-remote:		Call ./build.sh to build the controller image using Verus builder. This is useful when host has different runtime environment from image (Ubuntu 22.04), for example, different glibc version
-	unspecified:		Just use existing built controller image to set up kind cluster. Assume the image is named as `local/$app-controller:v0.1.0`
+ --build:  Call `cargo verus build` to build the controller before test
+ --build-remote:  Build the controller image using Verus builder. This is useful when host has different runtime environment from image (Ubuntu 22.04), for example, different glibc version
+ unspecified:  Just use existing built controller image to set up kind cluster. Assume the image is named as `local/$app-controller:v0.1.0`
 ```
 
 If deployment/test failed, you can manually run `./deploy.sh <controller_name> [local|remote]` to reset the e2e test environment.
 
 **4**
+
 ```
 cd e2e
-cargo run -- <controller_name>
+cargo verus build && target/debug/e2e_test <controller_name>
 ```
 
 > More examples in `.github/workflows/ci.yml`

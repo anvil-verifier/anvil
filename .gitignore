@@ -4,8 +4,7 @@
 src/*_controller
 src/*.long-type-*.txt
 src/.verus-log/
-e2e/target/
-/target
+**/target
 /Cargo.lock
 src/liblib.rlib
 verifiable-controllers.code-workspace

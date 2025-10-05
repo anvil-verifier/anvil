@@ -13,11 +13,7 @@ build_controller="no"
 dockerfile_path="docker/controller/Dockerfile.local"
 
 if [ $# -gt 1 ]; then
-    if  [ "$2" == "--build" ]; then # chain build.sh
-        if [ ! -f "${VERUS_DIR}/source/target-verus/release/verus" ]; then
-            echo "Verus not found. Please set VERUS_DIR correct"
-            exit 1
-        fi
+    if  [ "$2" == "--build" ]; then # chain cargo verus build
         build_controller="local"
     elif [ "$2" == "--build-remote" ]; then
         build_controller="remote"
@@ -28,7 +24,7 @@ case "$build_controller" in
     local)
         echo "Building $app controller binary"
         shift 2
-        ./build.sh "${app_filename}_controller.rs" "--no-verify" $@
+        cargo verus build "${app_filename}_controller" -- "--no-verify" $@
         echo "Building $app controller image"
         docker build -f $dockerfile_path -t local/$app-controller:v0.1.0 --build-arg APP=$app_filename .
         ;;
@@ -47,7 +43,7 @@ if [ "$app" == "vdeployment" ]; then
     case "$build_controller" in
         local)
             echo "Building vreplicaset controller binary"
-            ./build.sh "vreplicaset_controller.rs" "--no-verify" $@
+            cargo verus build "vreplicaset_controller" -- "--no-verify" $@
             echo "Building vreplicaset controller image"
             docker build -f $dockerfile_path -t local/vreplicaset-controller:v0.1.0 --build-arg APP=vreplicaset .
             ;;
