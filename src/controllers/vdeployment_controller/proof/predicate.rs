@@ -528,6 +528,88 @@ pub enum SpecialCase {
     NewVRSReplicaUpdated,
 }
 
+// local state matches description by arguments, and is valid
+pub open spec local_state_is(
+    vd_key: ObjectRef, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].local_state).unwrap();
+        &&& 0 <= vds.old_vrs_index <= vds.old_vrs_list.len()
+        &&& vds.old_vrs_index == n
+        &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
+        &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_list.len() ==> {
+            let vrs = vds.old_vrs_list[i];
+            // does not have the same uid as new_vrs
+            &&& nv_uid_key_replicas is Some ==> {
+                &&& vrs.metadata.uid->0 != (nv_uid_key_replicas->0).0
+                &&& vrs.object_ref() != (nv_uid_key_replicas->0).1
+            }
+            // is owned by vd
+            &&& vrs.metadata.owner_references is Some
+            &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+            &&& valid_owned_vrs(vrs, vd) // used in checks at AfterScaleDownOldVRS
+            // can pass old vrs filter, so we can infer filter_old_vrs_keys
+            // the reason we don't use filter_old_vrs_keys directly in the quantifier below is
+            // when the scale down request is in flight, old_vrs_list[old_vrs_index] is not covered
+            // then we need to introduce another special case with extra complexity
+            &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+            &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+        }
+        &&& match nv_uid_key_replicas {
+            Some((uid, key, _)) => {
+                let new_vrs = vds.new_vrs->0;
+                // new vrs in local cache exists and its fingerprint matchesnew_vrs
+                &&& vds.new_vrs is Some
+                &&& new_vrs.object_ref() == key
+                &&& new_vrs.metadata.uid is Some
+                &&& new_vrs.metadata.uid->0 == uid
+                &&& new_vrs.metadata.owner_references is Some
+                &&& new_vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+            },
+            None => {
+                &&& vds.new_vrs is None
+            }
+        }
+    }
+}
+
+// as the name suggests
+pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].local_state).unwrap();
+        // coherence: weakly equal to etcd object
+        &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
+            let vrs = vds.old_vrs_list[i];
+            let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
+            &&& s.resources().contains_key(vrs.object_ref())
+            &&& valid_owned_obj_key(vd, s)(vrs.object_ref())
+            &&& vrs_weakly_eq(etcd_vrs, vrs)
+            &&& etcd_vrs.spec == vrs.spec
+        }
+        &&& match vds.new_vrs {
+            Some(vrs) => {
+                // etcd obj exists
+                let key = vrs.object_ref();
+                let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[key])->Ok_0;
+                &&& s.resources().contains_key(key)
+                &&& valid_owned_obj_key(vd, s)(key)
+                &&& filter_new_vrs_keys(vd.spec.template, s)(key)
+                &&& vrs.object_ref() == key
+                &&& vrs.metadata.uid is Some
+                &&& vrs.metadata.uid->0 == uid
+                &&& vrs.metadata.owner_references is Some
+                &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
+                &&& vrs_weakly_eq(etcd_vrs, vrs)
+                // we don't need to check unless MaxSurge | MaxUnavailable is supported
+                // &&& etcd_vrs.spec == new_vrs.spec
+            },
+            None => {},
+        }
+    }
+}
+
 // new_vrs.object_ref works as a unique identifier
 // new_vrs.metadata.uid->0 works as a filter for old vrs list
 // new_vrs_uid_and_key is None -> no new_vrs in etcd exists
