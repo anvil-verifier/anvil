@@ -1724,4 +1724,17 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+#[verifier(external_body)]
+pub proof fn lemma_always_cr_has_the_same_spec_uid_name_and_namespace_as_vd(
+    spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
+)
+requires
+    spec.entails(lift_state(cluster.init())),
+    spec.entails(always(lift_action(cluster.next()))),
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+ensures
+    spec.entails(always(lift_state(cr_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
+{}
+
 }

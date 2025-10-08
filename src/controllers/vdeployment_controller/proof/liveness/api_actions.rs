@@ -154,8 +154,6 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
-    assume(triggering_cr.metadata.namespace is Some);
-    assume(triggering_cr.spec == vd.spec);
     let req = req_msg.content.get_APIRequest_0().get_CreateRequest_0();
     let new_vrs = make_replica_set(triggering_cr);
     assert(req == CreateRequest {
@@ -270,8 +268,6 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
-    assume(triggering_cr.metadata.namespace is Some);
-    assume(triggering_cr.spec == vd.spec);
     let req = req_msg.content.get_get_then_update_request();
     let etcd_obj = s.resources()[req.key()];
     // update can succeed
@@ -322,8 +318,6 @@ ensures
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
-    assume(triggering_cr.metadata.namespace is Some);
-    assume(triggering_cr.spec == vd.spec);
     let req = req_msg.content.get_get_then_update_request();
     let etcd_obj = s.resources()[req.key()];
     // update can succeed
@@ -374,6 +368,7 @@ ensures
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+    // TODO: remove assumptions and investigate flakiness
     assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
     assume(triggering_cr.metadata.namespace is Some);
     assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
@@ -422,10 +417,6 @@ ensures
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // assumption bundle, should be put in helper lemma later :P
-    // assume(triggering_cr.metadata.name is Some);
-    assume(triggering_cr.spec == vd.spec);
-    assume(triggering_cr.metadata.namespace is Some);
-    assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
     assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
     if etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) {
         let nv_uid = match nv_uid_key_replicas {
@@ -495,9 +486,6 @@ ensures
     }),
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    assume(triggering_cr.metadata.name is Some);
-    assume(triggering_cr.metadata.namespace is Some);
-    assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
     assume(triggering_cr.controller_owner_ref() == vd.controller_owner_ref());
     // ==>
     assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) implies {
