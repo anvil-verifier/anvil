@@ -366,6 +366,8 @@ requires
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
     local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s),
+    // validity of local state
+    exists |i: (Option<(Uid, ObjectRef, int)>, nat)| #[trigger] local_state_is(vd.object_ref(), controller_id, i.0, i.1)(s),
 ensures
     local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime),
 {
@@ -377,19 +379,14 @@ ensures
     assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len()
+    let (nv_uid_key_replicas, n) = choose |i: (Option<(Uid, ObjectRef, int)>, nat)| #[trigger] local_state_is(vd.object_ref(), controller_id, i.0, i.1)(s);
+    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
         implies {
             let key = vds_prime.old_vrs_list[i].object_ref();
             &&& s_prime.resources().contains_key(key)
             &&& s_prime.resources()[key] == s.resources()[key]
             &&& valid_owned_obj_key(triggering_cr, s_prime)(key)
         } by {
-            let obj = s.resources()[vds.old_vrs_list[i].object_ref()];
-            // convert valid_owned_obj_key to pre of lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
-            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
-                // each_object_in_etcd_has_at_most_one_controller_owner
-                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
-            }
             lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                 s, s_prime, vd, cluster, controller_id, msg
             );
