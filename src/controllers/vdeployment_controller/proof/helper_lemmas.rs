@@ -268,29 +268,6 @@ ensures
 }
 
 #[verifier(external_body)]
-pub proof fn filtered_new_vrs_and_old_vrs_to_etcd_state_is(vd: VDeploymentView, controller_id: int, resp_msg: Message, new_vrs: Option<VReplicaSetView>, old_vrs_list: Seq<VReplicaSetView>, s: ClusterState)
-requires
-    at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
-    resp_msg_is_pending_list_resp_in_flight_and_match_req(vd, controller_id, resp_msg)(s),
-    ({
-        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        let resp_objs = resp_msg.content.get_list_response().res.unwrap();
-        let managed_vrs_list = objects_to_vrs_list(resp_objs).unwrap().filter(|vrs| valid_owned_vrs(vrs, vd));
-        (new_vrs, old_vrs_list) == filter_old_and_new_vrs(vd, managed_vrs_list)
-    })
-ensures
-    ({
-        let nv_uid_key_replicas = if new_vrs is Some {
-            let vrs = new_vrs->0;
-            Some((vrs.metadata.uid->0, vrs.object_ref(), vrs.spec.replicas.unwrap_or(int1!())))
-        } else {
-            None
-        };
-        etcd_state_is(vd, controller_id, nv_uid_key_replicas, old_vrs_list.len())(s)
-    }),
-{}
-
-#[verifier(external_body)]
 pub proof fn old_vrs_filter_on_objs_eq_filter_on_keys(
     triggering_cr: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
 )

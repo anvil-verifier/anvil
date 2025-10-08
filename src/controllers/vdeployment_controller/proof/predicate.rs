@@ -574,7 +574,7 @@ pub open spec local_state_is(
     }
 }
 
-// as the name suggests
+// TODO: replace vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
 pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
@@ -597,10 +597,6 @@ pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller
                 &&& valid_owned_obj_key(vd, s)(key)
                 &&& filter_new_vrs_keys(vd.spec.template, s)(key)
                 &&& vrs.object_ref() == key
-                &&& vrs.metadata.uid is Some
-                &&& vrs.metadata.uid->0 == uid
-                &&& vrs.metadata.owner_references is Some
-                &&& vrs.metadata.owner_references->0.filter(controller_owner_filter()) == seq![vd.controller_owner_ref()]
                 &&& vrs_weakly_eq(etcd_vrs, vrs)
                 // we don't need to check unless MaxSurge | MaxUnavailable is supported
                 // &&& etcd_vrs.spec == new_vrs.spec
