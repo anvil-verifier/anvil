@@ -354,8 +354,7 @@ ensures
 }
 
 pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
-    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int,// new_vrs, old_vrs_list
-    msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: SpecialCase
+    s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
@@ -366,8 +365,9 @@ requires
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s),
 ensures
-    local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s) ==> local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s_prime),
+    local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime),
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
@@ -375,41 +375,35 @@ ensures
     assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
     assume(triggering_cr.metadata.namespace is Some);
     assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
-    let nv_uid = match nv_uid_key_replicas {
-        Some((uid, _, _)) => Some(uid),
-        None => None
-    };
-    if local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s) {
-        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-        assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len()
-            implies {
-                let key = vds_prime.old_vrs_list[i].object_ref();
-                &&& s_prime.resources().contains_key(key)
-                &&& s_prime.resources()[key] == s.resources()[key]
-                &&& valid_owned_obj_key(triggering_cr, s_prime)(key)
-            } by {
-                let obj = s.resources()[vds.old_vrs_list[i].object_ref()];
-                // convert valid_owned_obj_key to pre of lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
-                assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
-                    // each_object_in_etcd_has_at_most_one_controller_owner
-                    assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
-                }
-                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
-                    s, s_prime, vd, cluster, controller_id, msg
-                );
-        }
-        if nv_uid_key_replicas is Some {
-            let obj = s.resources()[(nv_uid_key_replicas->0).1];
+    let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+    let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+    assert forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len()
+        implies {
+            let key = vds_prime.old_vrs_list[i].object_ref();
+            &&& s_prime.resources().contains_key(key)
+            &&& s_prime.resources()[key] == s.resources()[key]
+            &&& valid_owned_obj_key(triggering_cr, s_prime)(key)
+        } by {
+            let obj = s.resources()[vds.old_vrs_list[i].object_ref()];
+            // convert valid_owned_obj_key to pre of lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd
             assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+                // each_object_in_etcd_has_at_most_one_controller_owner
                 assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
             }
             lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                 s, s_prime, vd, cluster, controller_id, msg
             );
-        }
-        assert(local_state_is_coherent_with_etcd(vd, controller_id, nv_uid_key_replicas, n, e)(s_prime));
     }
+    if vds.new_vrs is Some {
+        let obj = s.resources()[vds.new_vrs->0.object_ref()];
+        assert(obj.metadata.owner_references->0.filter(controller_owner_filter()) == seq![triggering_cr.controller_owner_ref()]) by {
+            assert(obj.metadata.owner_references->0.filter(controller_owner_filter()).contains(triggering_cr.controller_owner_ref()));
+        }
+        lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+            s, s_prime, vd, cluster, controller_id, msg
+        );
+    }
+    assert(local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime));
     
 }
 

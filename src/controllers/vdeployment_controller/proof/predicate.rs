@@ -257,7 +257,6 @@ pub open spec fn exists_create_resp_msg_containing_new_vrs_uid_key(
             // we don't need info on content of the response at the moment
             &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd, controller_id, j.0, j.1, s)
             &&& etcd_state_is(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n)(s)
-            &&& local_state_is_coherent_with_etcd(vd, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n, SpecialCase::NewVRSCreated)(s)
         }
     }
 }
@@ -529,7 +528,7 @@ pub enum SpecialCase {
 }
 
 // local state matches description by arguments, and is valid
-pub open spec local_state_is(
+pub open spec fn local_state_is(
     vd_key: ObjectRef, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -553,7 +552,7 @@ pub open spec local_state_is(
             // the reason we don't use filter_old_vrs_keys directly in the quantifier below is
             // when the scale down request is in flight, old_vrs_list[old_vrs_index] is not covered
             // then we need to introduce another special case with extra complexity
-            &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+            &&& nv_uid_key_replicas is None || vrs.metadata.uid->0 != (nv_uid_key_replicas->0).0
             &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
         }
         &&& match nv_uid_key_replicas {
@@ -601,7 +600,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller
                 // we don't need to check unless MaxSurge | MaxUnavailable is supported
                 // &&& etcd_vrs.spec == new_vrs.spec
             },
-            None => {},
+            None => {true},
         }
     }
 }
@@ -610,7 +609,7 @@ pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller
 // new_vrs.metadata.uid->0 works as a filter for old vrs list
 // new_vrs_uid_and_key is None -> no new_vrs in etcd exists
 // so this predicate is inconsistent in terms of "local state", n describes local old vrs index while nv_X describes etcd state
-pub open spec fn local_state_is_coherent_with_etcd(
+pub open spec fn local_state_is_coherent_with_etcd_(
     vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat, e: SpecialCase
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
