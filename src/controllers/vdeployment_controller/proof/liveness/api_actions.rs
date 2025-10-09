@@ -357,8 +357,7 @@ requires
     forall |vd| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s),
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
-    // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
-    //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s),
     // validity of local state
     exists |i: (Option<(Uid, ObjectRef, int)>, nat)| #[trigger] local_state_is(vd.object_ref(), controller_id, i.0, i.1)(s),
@@ -368,10 +367,6 @@ ensures
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // TODO: remove assumptions and investigate flakiness
-    assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
-    assume(triggering_cr.metadata.namespace is Some);
-    assume(triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0);
     let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let vds_prime = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
     let (nv_uid_key_replicas, n) = choose |i: (Option<(Uid, ObjectRef, int)>, nat)| #[trigger] local_state_is(vd.object_ref(), controller_id, i.0, i.1)(s);
