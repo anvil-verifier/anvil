@@ -1213,8 +1213,6 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
-                // nv_uid_key_replicas and n are available
-                lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vd, cluster, controller_id, msg);
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
                 );
