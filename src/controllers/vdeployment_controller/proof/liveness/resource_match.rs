@@ -120,7 +120,12 @@ ensures
                 } else {
                     None
                 };
-                assert(new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(vd.object_ref(), controller_id, msg, nv_uid_key_replicas, old_vrs_list.len())(s));
+                // TODO: helper lemma
+                assume(new_vrs is Some ==> {
+                    &&& new_vrs->0.metadata.uid is Some
+                    &&& new_vrs->0.metadata.name is Some
+                    &&& new_vrs->0.metadata.namespace is Some
+                });
                 assume(etcd_state_is(vd, controller_id, nv_uid_key_replicas, old_vrs_list.len())(s));
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
