@@ -168,7 +168,7 @@ pub open spec fn resp_msg_is_ok_list_resp_containing_matched_vrs(vd: VDeployment
     }
 }
 
-// fix the choice of new_vrs
+// glue predicate that connects (new_vrs, n) and resp_objs
 pub open spec fn new_vrs_and_old_vrs_of_n_can_be_extracted_from_resp_objs(
     vd: VDeploymentView, controller_id: int, resp_msg: Message, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, n: nat
 ) -> StatePred<ClusterState> {
