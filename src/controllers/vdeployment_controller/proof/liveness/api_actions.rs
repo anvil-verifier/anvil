@@ -145,7 +145,7 @@ ensures
         let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some((res.1).0), s_prime)) ==
             filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(None, s))
-        // TODO: only talk about keys and uids on API server side, may need to update local_state_is_coherent_with_etcd to include uid
+        // TODO: only talk about keys and uids on API server side, may need to update local_state_is_valid_and_coherent_with_etcd to include uid
         &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
             vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0
     }),
@@ -260,7 +260,7 @@ ensures
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)) ==
             filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))
-        // TODO: only talk about keys and uids on API server side, may need to update local_state_is_coherent_with_etcd to include uid
+        // TODO: only talk about keys and uids on API server side, may need to update local_state_is_valid_and_coherent_with_etcd to include uid
         // &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
         //     vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0
     }),
@@ -358,11 +358,9 @@ requires
     vd_rely_condition(cluster, controller_id)(s),
     msg.src != HostId::Controller(controller_id, vd.object_ref()),
     s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
-    local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s),
-    // validity of local state
-    exists |i: (Option<(Uid, ObjectRef, int)>, nat)| #[trigger] local_state_is(vd.object_ref(), controller_id, i.0, i.1)(s),
+    local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)(s),
 ensures
-    local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime),
+    local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime),
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
@@ -390,7 +388,7 @@ ensures
             s, s_prime, vd, cluster, controller_id, msg
         );
     }
-    assert(local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime));
+    assert(local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)(s_prime));
     
 }
 
