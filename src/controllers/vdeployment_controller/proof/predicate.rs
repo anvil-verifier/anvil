@@ -29,9 +29,11 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
         &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).is_ok()
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
+        // TODO: deprecate these assumptions as we have cr_has_the_same_spec_uid_name_and_namespace_as_vd
         &&& triggering_cr.object_ref() == vd.object_ref()
         &&& triggering_cr.spec() == vd.spec()
         &&& triggering_cr.metadata.uid == vd.metadata.uid
+        // this should not be required
         &&& triggering_cr.metadata.labels == vd.metadata.labels
         &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
         &&& triggering_cr.well_formed()
