@@ -1126,6 +1126,8 @@ ensures
         match step {
             Step::APIServerStep(input) => {
                 let msg = input->0;
+                assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| local_state_is(vd.object_ref(), controller_id, i.0, i.1))
+                    ((Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n))(s)); // precondition
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(s, s_prime, vd, cluster, controller_id, msg);
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n
