@@ -347,7 +347,7 @@ ensures
     return resp_msg;
 }
 
-pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_coherence(
+pub proof fn lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, msg: Message
 )
 requires
