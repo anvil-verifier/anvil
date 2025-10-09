@@ -167,7 +167,8 @@ ensures
                 // TEST: is it possible to lift quantifier here
                 let create_vrs_resp = lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
-                    exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n)
+                    exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n),
+                    local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)
                 ));
                 assert forall |msg| spec.entails(#[trigger] create_vrs_req_msg(msg).leads_to(create_vrs_resp)) by {
                     lemma_from_after_send_create_new_vrs_req_to_receive_ok_resp(vd, spec, cluster, controller_id, msg, n);
@@ -997,7 +998,8 @@ ensures
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
-            exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n)
+            exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n),
+            local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)
         )))),
 {
     let pre = and!(
@@ -1009,7 +1011,8 @@ ensures
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
-        exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n)
+        exists_create_resp_msg_containing_new_vrs_uid_key(vd, controller_id, n),
+        local_state_is_coherent_with_etcd(vd.object_ref(), controller_id)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
