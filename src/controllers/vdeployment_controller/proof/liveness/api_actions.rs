@@ -31,7 +31,7 @@ requires
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
     resp_msg == handle_list_request_msg(req_msg, s.api_server).1,
-    resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime),
+    resp_msg_is_ok_list_resp_containing_matched_vrs(vd.object_ref(), controller_id, resp_msg, s_prime),
 {
     broadcast use group_seq_properties;
     VReplicaSetView::marshal_preserves_integrity();
@@ -43,7 +43,7 @@ ensures
         &&& o.object_ref().kind == req.kind
     }; 
     let resp_msg = handle_list_request_msg(req_msg, s.api_server).1;
-    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd, controller_id, resp_msg, s_prime)) by {
+    assert(resp_msg_is_ok_list_resp_containing_matched_vrs(vd.object_ref(), controller_id, resp_msg, s_prime)) by {
         assert(vd.metadata.namespace is Some);
         assert(req.kind == VReplicaSetView::kind());
         assert(req.namespace == vd.metadata.namespace->0);
