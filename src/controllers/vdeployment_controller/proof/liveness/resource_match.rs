@@ -395,7 +395,7 @@ ensures
             // from req to resp
             let scale_down_resp = |n: nat| lift_state(and!(
                 at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-                exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+                exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
                 etcd_state_is(vd, controller_id, nv_uid_key_replicas, n),
                 local_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n),
                 local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
@@ -411,7 +411,7 @@ ensures
                 )));
                 temp_pred_equality(scale_down_resp((n - nat1!()) as nat), lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-                    exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+                    exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
                     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
                     local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
                     local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
@@ -422,14 +422,14 @@ ensures
             assert forall |n: nat| #![trigger scale_down_resp(n)] n > 0 implies spec.entails(scale_down_resp(n).leads_to(scale_down_resp((n - nat1!()) as nat))) by {
                 temp_pred_equality(scale_down_resp(n), lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-                    exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+                    exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
                     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
                     local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
                     local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
                 )));
                 temp_pred_equality(scale_down_resp((n - nat1!()) as nat), lift_state(and!(
                     at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-                    exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+                    exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
                     etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
                     local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
                     local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
@@ -1092,7 +1092,7 @@ ensures
             at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
             resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, nv_uid_key),
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
-            local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
+            local_state_is(vd.object_ref(), controller_id, None, n),
             local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
         ))
         .leads_to(lift_state(and!(
@@ -1107,7 +1107,7 @@ ensures
         at_vd_step_with_vd(vd, controller_id, at_step![AfterCreateNewVRS]),
         resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, nv_uid_key),
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
-        local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
+        local_state_is(vd.object_ref(), controller_id, None, n),
         local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
     );
     let post = and!(
@@ -1695,7 +1695,7 @@ ensures
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-            exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+            exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
             local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
             local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
@@ -1710,7 +1710,7 @@ ensures
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-        exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+        exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
         local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
         local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
@@ -1807,14 +1807,14 @@ requires
 ensures
     spec.entails(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-            exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+            exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
             local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
             local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-            exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+            exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
             etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
             local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n - nat1!()),
             local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
@@ -1822,7 +1822,7 @@ ensures
 {
     let scale_resp = |n: nat| lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![AfterScaleDownOldVRS]),
-        exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id),
+        exists_resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, nv_uid_key.0),
         etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
         local_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n),
         local_state_is_valid_and_coherent_with_etcd(vd.object_ref(), controller_id)
