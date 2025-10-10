@@ -2016,7 +2016,6 @@ ensures
                 );
             },
             Step::ControllerStep(input) => {
-                assume(false);
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     final_state_to_esr(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!(), s_prime);
