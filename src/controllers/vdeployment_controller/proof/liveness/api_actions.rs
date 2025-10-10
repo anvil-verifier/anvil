@@ -26,7 +26,7 @@ pub proof fn lemma_list_vrs_request_returns_ok_with_objs_matching_vd(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_list_vrs_req(vd, controller_id, req_msg, s),
+    req_msg_is_list_vrs_req(vd.object_ref(), controller_id, req_msg, s),
     at_vd_step_with_vd(vd, controller_id, at_step![AfterListVRS])(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
 ensures
@@ -131,14 +131,14 @@ pub proof fn lemma_create_new_vrs_request_returns_ok(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_pending_create_new_vrs_req_in_flight(vd, controller_id, req_msg)(s),
+    req_msg_is_pending_create_new_vrs_req_in_flight(vd.object_ref(), controller_id, req_msg)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, None, n)(s),
+    etcd_state_is(vd.object_ref(), controller_id, None, n)(s),
 ensures
     res.0 == handle_create_request_msg(cluster.installed_types, req_msg, s.api_server).1,
     resp_msg_matches_req_msg(res.0, req_msg),
-    resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, res.0, res.1)(s_prime),
-    etcd_state_is(vd, controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, res.0, res.1)(s_prime),
+    etcd_state_is(vd.object_ref(), controller_id, Some(((res.1).0, (res.1).1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
     // created obj has different key and uid from all old_vrs in local_state
     ({
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -203,7 +203,7 @@ ensures
     assert(resp_obj == created_obj);
     assert(s_prime.resources() == s.resources().insert(key, resp_obj));
     let vrs = VReplicaSetView::unmarshal(resp_obj)->Ok_0;
-    assert(resp_msg_is_ok_create_new_vrs_resp(vd, controller_id, resp_msg, (created_obj.metadata.uid->0, key))(s_prime)) by {
+    assert(resp_msg_is_ok_create_new_vrs_resp(vd.object_ref(), controller_id, resp_msg, (created_obj.metadata.uid->0, key))(s_prime)) by {
         assert(vrs.object_ref() == key);
         assert(vrs.metadata.owner_references is Some);
         let singleton_seq = seq![triggering_cr.controller_owner_ref()];
@@ -247,14 +247,14 @@ pub proof fn lemma_scale_new_vrs_req_returns_ok(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_pending_scale_new_vrs_req_in_flight(vd, controller_id, req_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s),
+    req_msg_is_pending_scale_new_vrs_req_in_flight(vd.object_ref(), controller_id, req_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, Some(nv_uid_key_replicas), n)(s),
+    etcd_state_is(vd.object_ref(), controller_id, Some(nv_uid_key_replicas), n)(s),
     nv_uid_key_replicas.2 != vd.spec.replicas.unwrap_or(int1!()),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd, controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s_prime),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
+    resp_msg_is_ok_scale_new_vrs_resp_in_flight(vd.object_ref(), controller_id, resp_msg, (nv_uid_key_replicas.0, nv_uid_key_replicas.1))(s_prime),
+    etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
     ({
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
@@ -300,13 +300,13 @@ pub proof fn lemma_scale_old_vrs_req_returns_ok(
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster.next_step(s, s_prime, Step::APIServerStep(Some(req_msg))),
-    req_msg_is_pending_scale_old_vrs_req_in_flight(vd, controller_id, req_msg, nv_uid_key.0)(s),
+    req_msg_is_pending_scale_old_vrs_req_in_flight(vd.object_ref(), controller_id, req_msg, nv_uid_key.0)(s),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
+    etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n)(s),
 ensures
     resp_msg == handle_get_then_update_request_msg(cluster.installed_types, req_msg, s.api_server).1,
-    resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd, controller_id, resp_msg, nv_uid_key.0)(s_prime),
-    etcd_state_is(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
+    resp_msg_is_ok_scale_old_vrs_resp_in_flight(vd.object_ref(), controller_id, resp_msg, nv_uid_key.0)(s_prime),
+    etcd_state_is(vd.object_ref(), controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), (n - nat1!()) as nat)(s_prime),
     // lemma_api_request_other_than_pending_req_msg_maintains_objects_owned_by_vd, but when the msg is from vd controller
     ({
         let req = req_msg.content.get_get_then_update_request();
@@ -406,12 +406,12 @@ requires
     // (!Cluster::pending_req_msg_is(controller_id, s, vd.object_ref(), msg)
     //     || !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())),
 ensures
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) ==> etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s_prime),
+    etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s) ==> etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     // assumption bundle, should be put in helper lemma later :P
     assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
-    if etcd_state_is(vd, controller_id, nv_uid_key_replicas, n)(s) {
+    if etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s) {
         let nv_uid = match nv_uid_key_replicas {
             Some((uid, _, _)) => Some(uid),
             None => None

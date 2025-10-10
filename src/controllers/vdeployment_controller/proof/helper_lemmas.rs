@@ -258,7 +258,7 @@ requires
     nv_uid_key_replicas is Some,
     (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()),
     ov_len == 0,
-    etcd_state_is(vd, controller_id, nv_uid_key_replicas, ov_len)(s),
+    etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, ov_len)(s),
     at_vd_step_with_vd(vd, controller_id, at_step![Done])(s), // provide cr.spec == vd.spec
 ensures
     current_state_matches(vd)(s),
