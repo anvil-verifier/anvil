@@ -124,6 +124,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
@@ -147,7 +148,7 @@ ensures
             filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(None, s))
         // TODO: only talk about keys and uids on API server side, may need to update local_state_is_valid_and_coherent_with_etcd to include uid
         &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
-            vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0
+            vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0 && vds_prime.old_vrs_list[i].object_ref() != (res.1).1
     }),
 {
     broadcast use group_seq_properties;
