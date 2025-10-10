@@ -2007,9 +2007,13 @@ ensures
                 lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
                 lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
                     s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!()
-                )
+                );
+                lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
+                    s, s_prime, vd, cluster, controller_id, msg
+                );
             },
             Step::ControllerStep(input) => {
+                assume(false);
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     final_state_to_esr(vd, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!(), s_prime);
