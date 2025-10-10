@@ -835,7 +835,6 @@ ensures
                     );
                     // prove coherence part in resp_msg_is_ok_list_resp_containing_matched_vrs
                     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-                    assume(triggering_cr.controller_owner_ref() == vd.controller_owner_ref());
                     let resp_objs = resp_msg.content.get_list_response().res.unwrap();
                     let managed_vrs_list = objects_to_vrs_list(resp_objs)->0.filter(|vrs| valid_owned_vrs(vrs, triggering_cr));
                     assert forall |vrs| #[trigger] managed_vrs_list.contains(vrs) implies {
