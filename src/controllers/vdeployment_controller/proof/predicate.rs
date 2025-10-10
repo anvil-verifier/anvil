@@ -566,9 +566,16 @@ pub open spec fn local_state_is(
 // TODO: replace vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd
 pub open spec fn local_state_is_valid_and_coherent_with_etcd(vd_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
     |s: ClusterState| {
+        &&& local_state_is_coherent_with_etcd(vd_key, controller_id)(s)
+        &&& local_state_is_valid(vd_key, controller_id)(s)
+    }
+}
+
+// coherence: weakly equal to etcd object
+pub open spec fn local_state_is_coherent_with_etcd(vd_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
         let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].local_state).unwrap();
-        // coherence: weakly equal to etcd object
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_index ==> {
             let vrs = vds.old_vrs_list[i];
             let etcd_vrs = VReplicaSetView::unmarshal(s.resources()[vrs.object_ref()])->Ok_0;
@@ -590,7 +597,14 @@ pub open spec fn local_state_is_valid_and_coherent_with_etcd(vd_key: ObjectRef, 
             // we don't need to check unless MaxSurge | MaxUnavailable is supported
             // &&& etcd_vrs.spec == new_vrs.spec
         }
-        // validity
+    }
+}
+
+// validity
+pub open spec fn local_state_is_valid(vd_key: ObjectRef, controller_id: int) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
+        let vds = VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].local_state).unwrap();
         &&& 0 <= vds.old_vrs_index <= vds.old_vrs_list.len()
         &&& vds.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).no_duplicates()
         &&& forall |i| #![trigger vds.old_vrs_list[i]] 0 <= i < vds.old_vrs_list.len() ==> {
