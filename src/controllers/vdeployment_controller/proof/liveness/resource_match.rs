@@ -1341,7 +1341,7 @@ ensures
                     let msg = input->0;
                     lemma_api_request_other_than_pending_req_msg_maintains_local_state_validity_and_coherence(s, s_prime, vd, cluster, controller_id, msg);
                     lemma_api_request_other_than_pending_req_msg_maintains_etcd_state(
-                        s, s_prime, vd, cluster, controller_id, msg, Some((nv_uid_key_replicas.0, nv_uid_key_replicas.1, vd.spec.replicas.unwrap_or(int1!()))), n
+                        s, s_prime, vd, cluster, controller_id, msg, Some(nv_uid_key_replicas), n
                     );
                     // trigger
                     assert(s.in_flight().contains(msg));
@@ -1352,12 +1352,6 @@ ensures
                             assert(false);
                         }
                     }
-                    // etcd object is not touched by other msg
-                    let key = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0().key();
-                    assert(s.resources().contains_key(key));
-                    let etcd_obj = s.resources()[key];
-                    VReplicaSetView::marshal_preserves_integrity();
-                    assert(etcd_obj.metadata.owner_references->0.contains(vd.controller_owner_ref()));
                     lemma_api_request_other_than_pending_req_msg_maintains_object_owned_by_vd(
                         s, s_prime, vd, cluster, controller_id, msg
                     );
