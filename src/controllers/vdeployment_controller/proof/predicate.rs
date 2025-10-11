@@ -348,6 +348,9 @@ pub open spec fn req_msg_is_scale_old_vrs_req(
         &&& state.old_vrs_index < state.old_vrs_list.len()
         // of course, replica isn't updated locally
         &&& vrs_weakly_eq(req_vrs, local_vrs)
+        // FIXME
+        // this is important, then we know etcd_vrs can pass old_vrs_filter from the coherence predicate
+        // &&& req_vrs.spec == local_vrs.spec
         &&& key == local_vrs.object_ref()
         &&& key == req_vrs.object_ref()
     }
