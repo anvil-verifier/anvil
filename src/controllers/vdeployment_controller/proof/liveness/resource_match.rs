@@ -120,12 +120,23 @@ ensures
                 } else {
                     None
                 };
-                // TODO: helper lemma
-                assume(new_vrs is Some ==> {
+                assert(new_vrs is Some ==> {
                     &&& new_vrs->0.metadata.uid is Some
                     &&& new_vrs->0.metadata.name is Some
                     &&& new_vrs->0.metadata.namespace is Some
-                });
+                }) by {
+                    if new_vrs is Some {
+                        let vrs = new_vrs->0;
+                        let new_vrs_filter = |vrs: VReplicaSetView| {
+                            &&& match_template_without_hash(triggering_cr.spec.template, vrs)
+                            &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+                        };
+                        assert(managed_vrs_list.filter(new_vrs_filter).contains(vrs)); // trigger
+                        seq_filter_is_a_subset_of_original_seq(managed_vrs_list, new_vrs_filter);
+                        VReplicaSetView::marshal_preserves_integrity();
+                    }
+                }
+                // TODO: helper lemma
                 assume(etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, old_vrs_list.len())(s));
                 assert((|i: (Option<(Uid, ObjectRef, int)>, nat)| after_list_with_etcd_state(msg, i.0, i.1))((nv_uid_key_replicas, old_vrs_list.len())).satisfied_by(ex));
             }
