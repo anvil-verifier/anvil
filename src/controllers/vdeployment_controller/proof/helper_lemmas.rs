@@ -252,9 +252,10 @@ pub proof fn owner_references_contains_ignoring_uid_is_invariant_if_owner_refere
     );
 }
 
-#[verifier(external_body)]
-pub proof fn final_state_to_esr(vd: VDeploymentView, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, ov_len: nat, s: ClusterState)
+pub proof fn final_state_to_esr(vd: VDeploymentView, cluster: Cluster, controller_id: int, nv_uid_key_replicas: Option<(Uid, ObjectRef, int)>, ov_len: nat, s: ClusterState)
 requires
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
     nv_uid_key_replicas is Some,
     (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()),
     ov_len == 0,
@@ -265,6 +266,37 @@ ensures
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
     let etcd_new_vrs = VReplicaSetView::unmarshal(s.resources()[(nv_uid_key_replicas->0).1])->Ok_0;
+    assert forall |k: ObjectRef| #[trigger] s.resources().contains_key(k) implies
+    !({
+        &&& valid_owned_obj_key(triggering_cr, s)(k)
+        &&& filter_old_vrs_keys(Some((nv_uid_key_replicas->0).0), s)(k)
+    }) by {
+        if valid_owned_obj_key(triggering_cr, s)(k) && filter_old_vrs_keys(Some((nv_uid_key_replicas->0).0), s)(k) {
+            assert(filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k));
+            assert(filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some((nv_uid_key_replicas->0).0), s)).contains(k));
+            assert(false);
+        }
+    }
+    assume(valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s)); // TODO: helper lemma
+    let nv_uid = (nv_uid_key_replicas->0).0;
+    let nv_key = (nv_uid_key_replicas->0).1;
+    let esr_pred = |i: (Uid, ObjectRef)| {
+        let etcd_obj = s.resources()[i.1];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& s.resources().contains_key(i.1)
+        &&& valid_owned_obj_key(vd, s)(i.1)
+        &&& filter_new_vrs_keys(vd.spec.template, s)(i.1)
+        &&& etcd_vrs.spec.replicas.unwrap_or(1) == vd.spec.replicas.unwrap_or(1)
+        // no old vrs, including the 2nd new vrs (if any)
+        &&& !exists |k: ObjectRef| {
+            &&& s.resources().contains_key(k)
+            &&& valid_owned_obj_key(vd, s)(k)
+            &&& filter_old_vrs_keys(Some(i.0), s)(k)
+        }
+    };
+    assert(exists |i: (Uid, ObjectRef)| #[trigger] esr_pred(i)) by {
+        assert(esr_pred((nv_uid, nv_key)));
+    }
 }
 
 #[verifier(external_body)]
