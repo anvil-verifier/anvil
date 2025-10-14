@@ -1276,6 +1276,7 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_send_get_then_update_req_to_receive_ok_resp_of_new_replicas(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, req_msg: Message, nv_uid_key_replicas: (Uid, ObjectRef, int), n: nat
 )
@@ -1544,7 +1545,22 @@ ensures
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     VReplicaSetView::marshal_preserves_integrity();
-                    assert(pending_scale_old_vrs_req_in_flight(vd.object_ref(), controller_id, nv_uid_key.0)(s_prime));
+                    assert(pending_scale_old_vrs_req_in_flight(vd.object_ref(), controller_id, nv_uid_key.0)(s_prime)) by {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        let key = req.key();
+                        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        assert forall |i: int| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
+                            implies vds_prime.old_vrs_list[i].object_ref() != key by {
+                            assert(key == vds_prime.old_vrs_list[vds_prime.old_vrs_index as int].object_ref());
+                            if vds_prime.old_vrs_list[i].object_ref() == key {
+                                let key_list = vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref());
+                                assert(key_list[i] == key_list[vds_prime.old_vrs_index as int]);
+                                assert(!key_list.no_duplicates());
+                                assert(false);
+                            }
+                        }
+                    }
                 }
             },
             _ => {}
@@ -1559,6 +1575,7 @@ ensures
 }
 
 #[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_after_scale_down_old_vrs_with_old_vrs_of_n_to_pending_scale_down_req_in_flight(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef), n: nat
 )
@@ -1633,6 +1650,22 @@ ensures
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
                     VReplicaSetView::marshal_preserves_integrity();
+                    assert(pending_scale_old_vrs_req_in_flight(vd.object_ref(), controller_id, nv_uid_key.0)(s_prime)) by {
+                        let req_msg = s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].pending_req_msg->0;
+                        let req = req_msg.content.get_APIRequest_0().get_GetThenUpdateRequest_0();
+                        let key = req.key();
+                        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+                        assert forall |i: int| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_index
+                            implies vds_prime.old_vrs_list[i].object_ref() != key by {
+                            assert(key == vds_prime.old_vrs_list[vds_prime.old_vrs_index as int].object_ref());
+                            if vds_prime.old_vrs_list[i].object_ref() == key {
+                                let key_list = vds_prime.old_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref());
+                                assert(key_list[i] == key_list[vds_prime.old_vrs_index as int]);
+                                assert(!key_list.no_duplicates());
+                                assert(false);
+                            }
+                        }
+                    }
                 }
             },
             _ => {}
@@ -1951,6 +1984,8 @@ ensures
     );
 }
 
+#[verifier(rlimit(100))]
+#[verifier(spinoff_prover)]
 pub proof fn lemma_from_old_vrs_len_zero_at_scale_down_old_vrs_to_current_state_matches(
     vd: VDeploymentView, spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int, resp_msg: Message, nv_uid_key: (Uid, ObjectRef)
 )
