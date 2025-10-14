@@ -283,6 +283,21 @@ pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, e: A)
     }
 }
 
+pub proof fn lemma_filter_to_set_eq_to_set_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    ensures s.filter(pred).to_set() == s.to_set().filter(pred),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() > 0 {
+        let subseq = s.drop_last();
+        lemma_filter_to_set_eq_to_set_filter(subseq, pred);
+        lemma_filter_push(subseq, pred, s.last());
+        if pred(s.last()) {
+            push_to_set_eq_to_set_insert(subseq.filter(pred), s.last());
+        }
+    }
+}
+
 pub proof fn lemma_filter_push<A>(s: Seq<A>, pred: spec_fn(A) -> bool, e: A)
     ensures
         pred(e) ==> s.push(e).filter(pred) == s.filter(pred).push(e),
