@@ -299,18 +299,42 @@ ensures
     }
 }
 
-#[verifier(external_body)]
 pub proof fn old_vrs_filter_on_objs_eq_filter_on_keys(
-    triggering_cr: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
+    vd: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
 )
 requires
+    // required as precondition of commutativity_of_seq_map_and_filter
+    forall |vrs: VReplicaSetView| #[trigger] managed_vrs_list.contains(vrs) ==> {
+        let key = vrs.object_ref();
+        let etcd_obj = s.resources()[key];
+        let etcd_vrs = VReplicaSetView::unmarshal(etcd_obj)->Ok_0;
+        &&& s.resources().contains_key(key)
+        &&& etcd_obj.kind == VReplicaSetView::kind()
+        &&& VReplicaSetView::unmarshal(etcd_obj) is Ok
+        &&& vrs_weakly_eq(etcd_vrs, vrs)
+        &&& etcd_vrs.spec == vrs.spec
+    },
     managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
-        == filter_obj_keys_managed_by_vd(triggering_cr, s)
+        == filter_obj_keys_managed_by_vd(vd, s),
 ensures
     managed_vrs_list.filter(|vrs: VReplicaSetView| {
         &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
         &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
     }).map_values(|vrs: VReplicaSetView| vrs.object_ref()).to_set()
-        == filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(new_vrs_uid, s)),
-{}
+        == filter_obj_keys_managed_by_vd(vd, s).filter(filter_old_vrs_keys(new_vrs_uid, s)),
+{
+    let new_vrs_filter = |vrs: VReplicaSetView| {
+        &&& new_vrs_uid is None || vrs.metadata.uid->0 != new_vrs_uid->0
+        &&& vrs.spec.replicas is None || vrs.spec.replicas->0 > 0
+    };
+    let managed_vrs_keys = managed_vrs_list.map_values(|vrs: VReplicaSetView| vrs.object_ref());
+    // precondition of commutativity_of_seq_map_and_filter
+    assert forall |i: int| 0 <= i && i < managed_vrs_list.len() implies
+        new_vrs_filter(managed_vrs_list[i]) == filter_old_vrs_keys(new_vrs_uid, s)(managed_vrs_keys[i]) by {
+        assert(managed_vrs_list.contains(managed_vrs_list[i])); // trigger
+        assert(managed_vrs_keys[i] == managed_vrs_list[i].object_ref());
+    }
+    commutativity_of_seq_map_and_filter(managed_vrs_list, new_vrs_filter, filter_old_vrs_keys(new_vrs_uid, s), |vrs: VReplicaSetView| vrs.object_ref());
+    lemma_filter_to_set_eq_to_set_filter(managed_vrs_keys, filter_old_vrs_keys(new_vrs_uid, s));
+}
 }
