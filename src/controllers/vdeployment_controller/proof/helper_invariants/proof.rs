@@ -1724,6 +1724,7 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+#[verifier(external)]
 pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
@@ -1732,10 +1733,33 @@ requires
     spec.entails(always(lift_action(cluster.next()))),
     spec.entails(always(lift_state(Cluster::desired_state_is(vd)))),
     cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
 ensures
     spec.entails(always(lift_state(cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)))),
 {
-    
+    VDeploymentView::marshal_preserves_integrity();
+    let inv = cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id);
+    let stronger_next = |s: ClusterState, s_prime: ClusterState| {
+        &&& cluster.next()(s, s_prime)
+        &&& Cluster::there_is_the_controller_state(controller_id)(s)
+    };
+    cluster.lemma_always_there_is_the_controller_state(spec, controller_id);
+    assert forall |s, s_prime: ClusterState| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        let key = vd.object_ref();
+        // (Cluster) Step::ScheduleControllerReconcileStep
+        if !s.scheduled_reconciles(controller_id).contains_key(key) && s_prime.scheduled_reconciles(controller_id).contains_key(key) {
+            assume(false);
+        } else if s.scheduled_reconciles(controller_id).contains_key(key) {
+            assume(false);
+        }
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(cluster.next()),
+        lift_state(Cluster::there_is_the_controller_state(controller_id))
+    );
+    init_invariant(spec, cluster.init(), stronger_next, inv);
+
 }
 
 pub proof fn lemma_always_cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(
