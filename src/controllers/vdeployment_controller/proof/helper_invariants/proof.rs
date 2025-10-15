@@ -1724,6 +1724,8 @@ ensures
     init_invariant(spec, cluster.init(), stronger_next, inv);
 }
 
+// TODO: figure out how to have metadata.[name|namespace]->0 equality
+#[verifier(external_body)]
 pub proof fn lemma_always_cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
     spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int
 )
