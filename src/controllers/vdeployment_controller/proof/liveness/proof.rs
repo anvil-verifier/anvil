@@ -159,7 +159,6 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     leads_to_trans(spec.and(spec_before_phase_n(i, vd, cluster, controller_id)), true_pred(), invariants_since_phase_n(i, vd, cluster, controller_id), always(lift_state(current_state_matches(vd))));
 }
 
-// TODO: write in proof details.
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
