@@ -30,16 +30,13 @@ pub open spec fn at_vd_step_with_vd(vd: VDeploymentView, controller_id: int, ste
         &&& VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).is_ok()
         &&& VDeploymentReconcileState::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).is_ok()
         // TODO: deprecate these assumptions as we have cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd
-        &&& triggering_cr.object_ref() == vd.object_ref()
-        &&& triggering_cr.spec() == vd.spec()
-        &&& triggering_cr.metadata.uid == vd.metadata.uid
-        // this should not be required
-        &&& triggering_cr.metadata.labels == vd.metadata.labels
-        &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
-        &&& triggering_cr.well_formed()
-        &&& triggering_cr.metadata.namespace is Some
-        // TODO: put it elsewere
-        &&& vd.metadata.namespace is Some
+        // // this should not be required
+        // &&& triggering_cr.metadata.labels == vd.metadata.labels
+        // &&& triggering_cr.controller_owner_ref() == vd.controller_owner_ref()
+        // &&& triggering_cr.well_formed()
+        // &&& triggering_cr.metadata.namespace is Some
+        // // TODO: put it elsewere
+        // &&& vd.metadata.namespace is Some
         &&& step_pred(local_state)
     }
 }
@@ -262,8 +259,8 @@ pub open spec fn exists_create_resp_msg_containing_new_vrs_uid_key(
     vd_key: ObjectRef, controller_id: int, n: nat
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        let req_msg = s.ongoing_reconciles(controller_id)[vd_key].pending_req_msg->0;
         let vd = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd_key].triggering_cr).unwrap();
+        let req_msg = s.ongoing_reconciles(controller_id)[vd_key].pending_req_msg->0;
         &&& Cluster::pending_req_msg_is(controller_id, s, vd_key, req_msg)
         &&& req_msg_is_create_vrs_req(vd_key, controller_id, req_msg, s)
         &&& exists |j: (Message, (Uid, ObjectRef))| {
@@ -271,9 +268,8 @@ pub open spec fn exists_create_resp_msg_containing_new_vrs_uid_key(
             &&& #[trigger] s.in_flight().contains(j.0)
             &&& resp_msg_matches_req_msg(j.0, req_msg)
             // we don't need info on content of the response at the moment
-            &&& resp_msg_is_ok_create_resp_containing_new_vrs(vd_key, controller_id, j.0, j.1, s)
+            &&& #[trigger] resp_msg_is_ok_create_resp_containing_new_vrs(vd_key, controller_id, j.0, j.1, s)
             &&& etcd_state_is(vd_key, controller_id, Some(((j.1).0, (j.1).1, get_replicas(vd.spec.replicas))), n)(s)
-            &&& local_state_is(vd_key, controller_id, None, n)(s)
         }
     }
 }
