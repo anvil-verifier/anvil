@@ -256,11 +256,11 @@ pub proof fn final_state_to_esr(vd: VDeploymentView, cluster: Cluster, controlle
 requires
     cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
     cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s),
+    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
     nv_uid_key_replicas is Some,
     (nv_uid_key_replicas->0).2 == vd.spec.replicas.unwrap_or(int1!()),
     ov_len == 0,
     etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, ov_len)(s),
-    at_vd_step_with_vd(vd, controller_id, at_step![Done])(s), // provide cr.spec == vd.spec
 ensures
     current_state_matches(vd)(s),
 {
