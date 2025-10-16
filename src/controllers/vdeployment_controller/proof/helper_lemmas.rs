@@ -277,9 +277,7 @@ ensures
             assert(false);
         }
     }
-    assert(valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s)) by {
-        valid_owned_obj_key_is_equiv_for_triggering_cr_and_static_cr(vd, cluster, controller_id, s);
-    }
+    assert(valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s));
     let nv_uid = (nv_uid_key_replicas->0).0;
     let nv_key = (nv_uid_key_replicas->0).1;
     let esr_pred = |i: (Uid, ObjectRef)| {
@@ -300,27 +298,6 @@ ensures
         assert(esr_pred((nv_uid, nv_key)));
     }
 }
-
-pub proof fn valid_owned_obj_key_is_equiv_for_triggering_cr_and_static_cr(
-    vd: VDeploymentView, cluster: Cluster, controller_id: int, s: ClusterState
-)
-requires
-    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
-    helper_invariants::cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(vd, controller_id)(s),
-    s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()),
-ensures
-    ({
-        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-        &&& #[trigger] valid_owned_obj_key(vd, s) == valid_owned_obj_key(triggering_cr, s)
-    }),
-{
-    let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    assert forall |vrs: VReplicaSetView| true implies #[trigger] valid_owned_vrs(vrs, vd) == valid_owned_vrs(vrs, triggering_cr) by {
-        assert(vd.metadata.namespace->0 == triggering_cr.metadata.namespace->0);
-        assert(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
-    }
-}
-
 
 pub proof fn old_vrs_filter_on_objs_eq_filter_on_keys(
     vd: VDeploymentView, managed_vrs_list: Seq<VReplicaSetView>, new_vrs_uid: Option<Uid>, s: ClusterState
