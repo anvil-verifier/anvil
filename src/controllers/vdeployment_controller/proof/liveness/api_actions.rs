@@ -397,8 +397,7 @@ ensures
     etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s) ==> etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s_prime),
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // assumption bundle, should be put in helper lemma later :P
-    assume(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
+    assert(vd.controller_owner_ref() == triggering_cr.controller_owner_ref());
     if etcd_state_is(vd.object_ref(), controller_id, nv_uid_key_replicas, n)(s) {
         let nv_uid = match nv_uid_key_replicas {
             Some((uid, _, _)) => Some(uid),
@@ -468,7 +467,7 @@ ensures
     }),
 {
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    assume(triggering_cr.controller_owner_ref() == vd.controller_owner_ref());
+    assert(triggering_cr.controller_owner_ref() == vd.controller_owner_ref());
     // ==>
     assert forall |k: ObjectRef| #[trigger] filter_obj_keys_managed_by_vd(triggering_cr, s).contains(k) implies {
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).contains(k)
