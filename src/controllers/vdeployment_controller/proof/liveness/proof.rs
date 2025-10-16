@@ -159,7 +159,6 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
 }
 
 // TODO: write in proof details.
-#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPred<ClusterState>, vd: VDeploymentView, cluster: Cluster, controller_id: int) 
     requires
         // The cluster always takes an action, and the relevant actions satisfy weak fairness.
@@ -173,6 +172,68 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
             ==> provided_spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))),
     ensures
         provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id)).entails(true_pred().leads_to(always(lift_state(current_state_matches(vd))))),
-{}
+{
+    let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
+    // non-interference properties
+    assert forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
+        implies spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))) by {
+        assert(provided_spec.entails(always(lift_state(vd_rely(other_id)))));
+        entails_and_different_temp(
+            provided_spec,
+            assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
+            always(lift_state(vd_rely(other_id))),
+            true_pred()
+        );
+        assert(spec.entails(always(lift_state(vd_rely(other_id))).and(true_pred())));
+        temp_pred_equality(
+            always(lift_state(vd_rely(other_id))).and(true_pred()),
+            always(lift_state(vd_rely(other_id)))
+        );
+    }
+
+    let reconcile_idle = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+    };
+    let reconcile_scheduled = |s: ClusterState| {
+        &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+        &&& s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
+    };
+    assert(spec.entails(lift_state(reconcile_idle).leads_to(lift_state(reconcile_scheduled)))) by {
+        let input = vd.object_ref();
+        let stronger_reconcile_idle = |s: ClusterState| {
+            &&& !s.ongoing_reconciles(controller_id).contains_key(vd.object_ref())
+            &&& !s.scheduled_reconciles(controller_id).contains_key(vd.object_ref())
+        };
+        let stronger_next = |s, s_prime| {
+            &&& cluster.next()(s, s_prime)
+            &&& Cluster::desired_state_is(vd)(s)
+            &&& Cluster::desired_state_is(vd)(s_prime)
+        };
+        always_to_always_later(spec, lift_state(Cluster::desired_state_is(vd)));
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
+            lift_action(cluster.next()),
+            lift_state(Cluster::desired_state_is(vd)),
+            later(lift_state(Cluster::desired_state_is(vd)))
+        );
+        cluster.lemma_pre_leads_to_post_by_schedule_controller_reconcile(
+            spec,
+            controller_id,
+            input,
+            stronger_next,
+            and!(stronger_reconcile_idle, Cluster::desired_state_is(vd)),
+            reconcile_scheduled
+        );
+        temp_pred_equality(
+            lift_state(stronger_reconcile_idle).and(lift_state(Cluster::desired_state_is(vd))),
+            lift_state(and!(stronger_reconcile_idle, Cluster::desired_state_is(vd)))
+        );
+        leads_to_by_borrowing_inv(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(Cluster::desired_state_is(vd)));
+        entails_implies_leads_to(spec, lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        or_leads_to_combine(spec, lift_state(stronger_reconcile_idle), lift_state(reconcile_scheduled), lift_state(reconcile_scheduled));
+        temp_pred_equality(lift_state(stronger_reconcile_idle).or(lift_state(reconcile_scheduled)), lift_state(reconcile_idle));
+    }
+    assume(false);
+}
 
 }
