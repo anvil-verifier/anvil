@@ -10,7 +10,7 @@ use crate::vreplicaset_controller::trusted::spec_types::*;
 use crate::vdeployment_controller::{
     trusted::{spec_types::*, step::*, util::*, liveness_theorem::*, rely_guarantee::*},
     model::{install::*, reconciler::*},
-    proof::{predicate::*, helper_invariants},
+    proof::{predicate::*, helper_invariants, helper_lemmas::*},
 };
 use crate::vdeployment_controller::trusted::step::VDeploymentReconcileStepView::*;
 use crate::reconciler::spec::io::*;
@@ -124,7 +124,6 @@ ensures
     return resp_msg;
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
@@ -198,8 +197,6 @@ ensures
             assert(created_obj.metadata.owner_references is Some);
             assert(created_obj.metadata.owner_references->0.len() == 1);
         }
-        // TODO: helper lemma: created obj can pass object_validity_check
-        assume(object_validity_check(created_obj, cluster.installed_types) is None);
     }
     assert(resp_obj == created_obj);
     assert(s_prime.resources() == s.resources().insert(key, resp_obj));
@@ -213,8 +210,7 @@ ensures
             assert(vrs.metadata.owner_references->0 == singleton_seq);
             lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
         }
-        // TODO: helper lemma: make_replica_set pass match_template_without_hash
-        assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key));
+        make_replica_set_makes_valid_owned_vrs(triggering_cr);
     }
     // I didn't expect this to pass, it seems to be too hard for Verus to prove
     // TODO: investigate
