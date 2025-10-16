@@ -34,8 +34,15 @@ requires
     spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
     spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
 ensures
-    spec.entails(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)))
-       .leads_to(lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Done]), current_state_matches(vd))))),
+    spec.entails(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![Init]),
+            no_pending_req_in_cluster(vd, controller_id)
+        ))
+       .leads_to(lift_state(and!(
+            at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+            no_pending_req_in_cluster(vd, controller_id),
+            current_state_matches(vd)
+        )))),
 {
     // Init ~> send list req
     let init = lift_state(and!(at_vd_step_with_vd(vd, controller_id, at_step![Init]), no_pending_req_in_cluster(vd, controller_id)));
@@ -359,6 +366,7 @@ ensures
     );
     let done = lift_state(and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+        no_pending_req_in_cluster(vd, controller_id),
         current_state_matches(vd)
     ));
     // AfterEnsureNewVRS ~> Done
@@ -2008,6 +2016,7 @@ ensures
         ))
        .leads_to(lift_state(and!(
             at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+            no_pending_req_in_cluster(vd, controller_id),
             current_state_matches(vd)
         )))),
 {
@@ -2020,20 +2029,24 @@ ensures
     );
     let post = and!(
         at_vd_step_with_vd(vd, controller_id, at_step![Done]),
+        no_pending_req_in_cluster(vd, controller_id),
         current_state_matches(vd)
     );
     let stronger_next = |s, s_prime: ClusterState| {
         &&& cluster.next()(s, s_prime)
         &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s)
+        &&& cluster_invariants_since_reconciliation(cluster, vd, controller_id)(s_prime)
         &&& forall |vd: VDeploymentView| helper_invariants::vd_reconcile_request_only_interferes_with_itself(controller_id, vd)(s)
         &&& vd_rely_condition(cluster, controller_id)(s)
     };
+    always_to_always_later(spec, lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)));
     combine_spec_entails_always_n!(spec,
         lift_action(stronger_next),
         lift_action(cluster.next()),
         lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id),
         lifted_vd_rely_condition_action(cluster, controller_id),
-        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))
+        lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)),
+        later(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))
     );
     let input = (Some(resp_msg), Some(vd.object_ref()));
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2067,6 +2080,33 @@ ensures
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
     );
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_current_state_matches_is_stable(
+    spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int
+)
+requires
+    cluster.type_is_installed_in_cluster::<VDeploymentView>(),
+    cluster.type_is_installed_in_cluster::<VReplicaSetView>(),
+    cluster.controller_models.contains_pair(controller_id, vd_controller_model()),
+    spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id)))),
+    spec.entails(always(lift_action(cluster.next()))),
+    // spec.entails(tla_forall(|i| cluster.api_server_next().weak_fairness(i))),
+    spec.entails(tla_forall(|i: (Option<Message>, Option<ObjectRef>)| cluster.controller_next().weak_fairness((controller_id, i.0, i.1)))),
+    spec.entails(always(lifted_vd_reconcile_request_only_interferes_with_itself_action(controller_id))),
+    spec.entails(always(lifted_vd_rely_condition_action(cluster, controller_id))),
+    spec.entails(p.leads_to(lift_state(and!(
+        current_state_matches(vd),
+        no_pending_req_in_cluster(vd, controller_id),
+        at_vd_step_with_vd(vd, controller_id, at_step!(Done)
+    ))))),
+ensures
+    spec.entails(p.leads_to(always(lift_state(and!(
+        current_state_matches(vd),
+        no_pending_req_in_cluster(vd, controller_id),
+        at_vd_step_with_vd(vd, controller_id, at_step!(Done)
+    )))))),
+{}
 
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
