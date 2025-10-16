@@ -177,20 +177,11 @@ proof fn lemma_true_leads_to_always_current_state_matches(provided_spec: TempPre
 {
     let spec = provided_spec.and(assumption_and_invariants_of_all_phases(vd, cluster, controller_id));
     // non-interference properties
-    assert forall |other_id| cluster.controller_models.remove(controller_id).contains_key(other_id)
-        implies spec.entails(always(lift_state(#[trigger] vd_rely(other_id)))) by {
-        assert(provided_spec.entails(always(lift_state(vd_rely(other_id)))));
-        entails_and_different_temp(
-            provided_spec,
-            assumption_and_invariants_of_all_phases(vd, cluster, controller_id),
-            always(lift_state(vd_rely(other_id))),
-            true_pred()
-        );
-        assert(spec.entails(always(lift_state(vd_rely(other_id))).and(true_pred())));
-        temp_pred_equality(
-            always(lift_state(vd_rely(other_id))).and(true_pred()),
-            always(lift_state(vd_rely(other_id)))
-        );
+    vd_rely_condition_equivalent_to_lifted_vd_rely_condition(provided_spec, cluster, controller_id);
+    entails_trans(spec, provided_spec, always(lifted_vd_rely_condition(cluster, controller_id)));
+    only_interferes_with_itself_equivalent_to_lifted_only_interferes_with_itself_action(spec, cluster, controller_id);
+    assert(spec.entails(always(lift_state(cluster_invariants_since_reconciliation(cluster, vd, controller_id))))) by {
+        assume(false); // TODO
     }
     // true ~> reconcile_idle
     let reconcile_idle = |s: ClusterState| {
