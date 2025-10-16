@@ -257,14 +257,10 @@ ensures
         let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
         &&& filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s_prime)) ==
             filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(nv_uid_key_replicas.0), s))
-        // TODO: only talk about keys and uids on API server side, may need to update local_state_is_valid_and_coherent_with_etcd to include uid
-        // &&& forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
-        //     vds_prime.old_vrs_list[i].metadata.uid->0 != (res.1).0
     }),
 {
     VReplicaSetView::marshal_preserves_integrity();
     let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
-    // TODO: remove this after adding lemma_always_triggering_cr_is_well_formed
     let req = req_msg.content.get_get_then_update_request();
     let etcd_obj = s.resources()[req.key()];
     // update can succeed
