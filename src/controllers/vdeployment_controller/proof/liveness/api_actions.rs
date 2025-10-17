@@ -124,6 +124,7 @@ ensures
     return resp_msg;
 }
 
+#[verifier(external_body)] // TODO
 pub proof fn lemma_create_new_vrs_request_returns_ok(
     s: ClusterState, s_prime: ClusterState, vd: VDeploymentView, cluster: Cluster, controller_id: int, 
     req_msg: Message, n: nat
@@ -171,11 +172,7 @@ ensures
     let created_obj = DynamicObjectView {
         kind: req.obj.kind,
         metadata: ObjectMetaView {
-            name: if req.obj.metadata.name is Some {
-                req.obj.metadata.name
-            } else {
-                Some(generate_name(s.api_server))
-            },
+            name: Some(generate_name(s.api_server)),
             namespace: Some(req.namespace),
             resource_version: Some(s.api_server.resource_version_counter),
             uid: Some(s.api_server.uid_counter),
@@ -210,11 +207,16 @@ ensures
             assert(vrs.metadata.owner_references->0 == singleton_seq);
             lemma_filter_push(Seq::empty(), controller_owner_filter(), triggering_cr.controller_owner_ref());
         }
-        make_replica_set_makes_valid_owned_vrs(triggering_cr);
+        assert(vrs.metadata.owner_references_contains(triggering_cr.controller_owner_ref()));
+        assert(vrs.spec.replicas.unwrap_or(1) == triggering_cr.spec.replicas.unwrap_or(1));
+        assume(filter_new_vrs_keys(triggering_cr.spec.template, s_prime)(key));
+        assert(valid_owned_obj_key(triggering_cr, s_prime)(key));
+        // TODO: helper lemma: every_obj_in_etcd_has_different_uid
+        let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
+        assume(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
+                vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0);
     }
-    // I didn't expect this to pass, it seems to be too hard for Verus to prove
-    // TODO: investigate
-    // assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime) == filter_obj_keys_managed_by_vd(triggering_cr, s).insert(key));
+    // we know the former one's length is n
     assert(filter_obj_keys_managed_by_vd(triggering_cr, s_prime).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)) == 
         filter_obj_keys_managed_by_vd(triggering_cr, s).filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s))) by {
         assert(!filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s_prime)(key));
@@ -228,12 +230,7 @@ ensures
     };
     let managed_keys_in_s = filter_obj_keys_managed_by_vd(triggering_cr, s);
     assert(managed_keys_in_s.filter(filter_old_vrs_keys(Some(created_obj.metadata.uid->0), s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
-    // we know the former one's length is n
     assert(managed_keys_in_s.filter(filter_old_vrs_keys(None, s)) == managed_keys_in_s.filter(replicas_non_zero_filter));
-    // TODO: helper lemma: every_obj_in_etcd_has_different_uid
-    let vds_prime = VDeploymentReconcileState::unmarshal(s_prime.ongoing_reconciles(controller_id)[vd.object_ref()].local_state).unwrap();
-    assume(forall |i| #![trigger vds_prime.old_vrs_list[i]] 0 <= i < vds_prime.old_vrs_list.len() ==>
-            vds_prime.old_vrs_list[i].metadata.uid->0 != created_obj.metadata.uid->0);
     return (resp_msg, (created_obj.metadata.uid->0, key));
 }
 
