@@ -157,7 +157,6 @@ pub open spec fn reconcile_core(v_replica_set: VReplicaSetView, resp_o: Option<R
             }
         },
         VReplicaSetRecStepView::AfterDeletePod(diff) => {
-            // TODO: remove reference here
             let diff = *diff;
             if !(is_some_k_get_then_delete_resp_view!(resp_o) && extract_some_k_get_then_delete_resp_view!(resp_o) is Ok) {
                 (error_state(state), None)
