@@ -1986,7 +1986,7 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == None::<Message> && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    final_state_to_esr(vd, cluster, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, s_prime);
+                    lemma_esr_equiv_to_and_etcd_state_is(vd, cluster, controller_id, s_prime);
                 }
             },
             _ => {}
@@ -1995,7 +1995,7 @@ ensures
     // without this proof will fail
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
-        final_state_to_esr(vd, cluster, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), n, s_prime);
+        lemma_esr_equiv_to_and_etcd_state_is(vd, cluster, controller_id, s_prime);
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
@@ -2075,7 +2075,7 @@ ensures
             Step::ControllerStep(input) => {
                 if input.0 == controller_id && input.1 == Some(resp_msg) && input.2 == Some(vd.object_ref()) {
                     VDeploymentReconcileState::marshal_preserves_integrity();
-                    final_state_to_esr(vd, cluster, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!(), s_prime);
+                    lemma_esr_equiv_to_and_etcd_state_is(vd, cluster, controller_id, s_prime);
                 }
             },
             _ => {}
@@ -2084,13 +2084,19 @@ ensures
     // without this the proof will be 1s slower
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && cluster.controller_next().forward((controller_id, input.0, input.1))(s, s_prime) implies post(s_prime)  by {
         VDeploymentReconcileState::marshal_preserves_integrity();
-        final_state_to_esr(vd, cluster, controller_id, Some((nv_uid_key.0, nv_uid_key.1, vd.spec.replicas.unwrap_or(int1!()))), nat0!(), s_prime);
+        lemma_esr_equiv_to_and_etcd_state_is(vd, cluster, controller_id, s_prime);
     }
     cluster.lemma_pre_leads_to_post_by_controller(
         spec, controller_id, input, stronger_next, ControllerStep::ContinueReconcile, pre, post
     );
 }
 
+// From lemma_from_init_to_current_state_matches, we know the final state is
+// final = at_vd_step_with_vd(.., at_step![Done]) && no_pending_req_in_cluster(..) && current_state_matches(..)
+// We need to construct a reachable closure predicate where:
+// P -> []P
+// final |= P
+// P |= ESR (ESR = current_state_matches(vd))
 #[verifier(external_body)]
 pub proof fn lemma_current_state_matches_is_stable(
     spec: TempPred<ClusterState>, vd: VDeploymentView, p: TempPred<ClusterState>, cluster: Cluster, controller_id: int
@@ -2116,7 +2122,15 @@ ensures
         no_pending_req_in_cluster(vd, controller_id),
         current_state_matches(vd)
     ))))),
-{}
+{
+    // ESR -> etcd_state_is (which is easier to reason about)
+    let inv_after_esr = |s: ClusterState| {
+        &&& current_state_matches(vd)(s)
+        &&& s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
+            true
+        }
+    };
+}
 
 // Havoc function for VDeploymentView.
 uninterp spec fn make_vd() -> VDeploymentView;
