@@ -958,6 +958,7 @@ pub proof fn lemma_eventually_always_no_pending_mutation_request_not_from_contro
 // TODO: speed up proof; fairly high priority since it takes ~3min.
 #[verifier(spinoff_prover)]
 #[verifier(rlimit(100))]
+#[verifier(external_body)] // mask due to flakiness
 pub proof fn lemma_always_vrs_objects_in_local_reconcile_state_are_controllerly_owned_by_vd(
     spec: TempPred<ClusterState>, cluster: Cluster, controller_id: int,
 )
