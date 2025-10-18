@@ -387,7 +387,7 @@ fn filter_pods(pods: Vec<Pod>, v_replica_set: &VReplicaSet) -> (filtered_pods: V
                 filtered_pods.deep_view()
             };
             assert(old_filtered == pods.deep_view().take(idx as int).filter(spec_filter));
-            push_filter_and_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
+            lemma_filter_push(pods.deep_view().take(idx as int), spec_filter, pod@);
             assert(pods.deep_view().take(idx as int).push(pod@)
                    == pods.deep_view().take((idx + 1) as int));
             assert(spec_filter(pod@) ==> filtered_pods.deep_view() == old_filtered.push(pod@));

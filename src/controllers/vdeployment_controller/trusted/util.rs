@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::spec::{
     label_selector::LabelSelectorView,
 };
 use crate::vreplicaset_controller::trusted::spec_types::*;
-use crate::vdeployment_controller::trusted::spec_types::*;
+use crate::vdeployment_controller::trusted::{spec_types::*, liveness_theorem::*};
 use vstd::prelude::*;
 
 verus! {
@@ -19,19 +19,26 @@ pub open spec fn objects_to_vrs_list(objs: Seq<DynamicObjectView>) -> (vrs_list:
     }
 }
 
-pub open spec fn valid_owned_object(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
+pub open spec fn valid_owned_vrs(vrs: VReplicaSetView, vd: VDeploymentView) -> bool {
     // weaker version of well_formed, only need the key to be in etcd
     // and corresponding objects can pass the filter
     &&& vrs.metadata.name is Some
-    &&& vrs.metadata.namespace == vd.metadata.namespace
+    &&& vrs.metadata.namespace is Some
+    &&& vrs.metadata.namespace->0 == vd.metadata.namespace->0
+    &&& vrs.state_validation()
+    // shall not be deleted and is owned by vd
     &&& vrs.metadata.deletion_timestamp is None
     &&& vrs.metadata.owner_references_contains(vd.controller_owner_ref())
-    &&& vrs.state_validation()
 }
 
 pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VReplicaSetView>) -> (res: (Option<VReplicaSetView>, Seq<VReplicaSetView>))
 {
-    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| match_template_without_hash(vd, vrs));
+    // first vrs that match template and has non-zero replicas
+    // non-zero replicas ensures the stability of esr
+    let new_vrs_list = vrs_list.filter(|vrs: VReplicaSetView| {
+        &&& match_template_without_hash(vd.spec.template, vrs)
+        &&& vrs.spec.replicas is None || vrs.spec.replicas.unwrap() > 0
+    });
     let new_vrs = if new_vrs_list.len() == 0 {
         None
     } else {
@@ -44,9 +51,9 @@ pub open spec fn filter_old_and_new_vrs(vd: VDeploymentView, vrs_list: Seq<VRepl
     (new_vrs, old_vrs_list)
 }
 
-pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
+pub open spec fn match_template_without_hash(template: PodTemplateSpecView, vrs: VReplicaSetView) -> bool {
     let vrs_template = vrs.spec.template.unwrap();
-    vd.spec.template == PodTemplateSpecView {
+    template == PodTemplateSpecView {
         metadata: Some(ObjectMetaView {
             labels: Some(vrs_template.metadata.unwrap().labels.unwrap().remove("pod-template-hash"@)),
             ..vrs_template.metadata.unwrap()
@@ -58,5 +65,39 @@ pub open spec fn match_template_without_hash(vd: VDeploymentView, vrs: VReplicaS
 pub open spec fn match_replicas(vd: VDeploymentView, vrs: VReplicaSetView) -> bool {
     vd.spec.replicas.unwrap_or(1) == vrs.spec.replicas.unwrap_or(1 as int)
 }
+
+// hacky workaround for type conversion bug: error[E0605]: non-primitive cast: `{integer}` as `builtin::nat`
+#[macro_export]
+macro_rules! nat0 {
+    () => {
+        spec_literal_nat("0")
+    };
+}
+
+#[macro_export]
+macro_rules! nat1 {
+    () => {
+        spec_literal_nat("1")
+    };
+}
+
+#[macro_export]
+macro_rules! int0 {
+    () => {
+        spec_literal_int("0")
+    };
+}
+
+#[macro_export]
+macro_rules! int1 {
+    () => {
+        spec_literal_int("1")
+    };
+}
+
+pub use nat0;
+pub use nat1;
+pub use int0;
+pub use int1;
 
 }

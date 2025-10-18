@@ -61,10 +61,10 @@ pub proof fn reconcile_eventually_terminates(
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterCreateNewVRS]))))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleNewVRS]))))),
         spec.entails(always(tla_forall(|vd: VDeploymentView| lift_state(Cluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(controller_id, vd.object_ref(), at_step_or![AfterScaleDownOldVRS]))))),
-        ensures
-            spec.entails(tla_forall(|key: ObjectRef| 
-                true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
-            )),
+    ensures
+        spec.entails(tla_forall(|key: ObjectRef| 
+            true_pred().leads_to(lift_state(|s: ClusterState| !s.ongoing_reconciles(controller_id).contains_key(key)))
+        )),
 {
     let post = |key: ObjectRef|
         true_pred().leads_to(lift_state(

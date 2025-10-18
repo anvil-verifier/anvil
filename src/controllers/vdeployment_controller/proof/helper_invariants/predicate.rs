@@ -441,4 +441,31 @@ pub open spec fn vd_in_ongoing_reconciles_does_not_have_deletion_timestamp(
     }
 }
 
+pub open spec fn cr_in_schedule_has_the_same_spec_uid_name_and_namespace_as_vd(
+    vd: VDeploymentView, controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| s.scheduled_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
+        let scheduled_cr = VDeploymentView::unmarshal(s.scheduled_reconciles(controller_id)[vd.object_ref()]).unwrap();
+        &&& scheduled_cr.spec == vd.spec
+        &&& scheduled_cr.metadata.uid->0 == vd.metadata.uid->0
+        &&& scheduled_cr.metadata.name->0 == vd.metadata.name->0
+        &&& scheduled_cr.metadata.namespace->0 == vd.metadata.namespace->0
+    }
+}
+
+pub open spec fn cr_in_reconciles_has_the_same_spec_uid_name_and_namespace_as_vd(
+    vd: VDeploymentView, controller_id: int,
+) -> StatePred<ClusterState> {
+    |s: ClusterState| s.ongoing_reconciles(controller_id).contains_key(vd.object_ref()) ==> {
+        let triggering_cr = VDeploymentView::unmarshal(s.ongoing_reconciles(controller_id)[vd.object_ref()].triggering_cr).unwrap();
+        // required by ESR
+        &&& triggering_cr.spec == vd.spec
+        // required by controller_owner_ref
+        &&& triggering_cr.metadata.uid->0 == vd.metadata.uid->0
+        &&& triggering_cr.metadata.name->0 == vd.metadata.name->0
+        // required by requests/responses and filters
+        &&& triggering_cr.metadata.namespace->0 == vd.metadata.namespace->0
+    }
+}
+
 }

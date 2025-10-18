@@ -283,7 +283,22 @@ pub proof fn push_to_set_eq_to_set_insert<A>(s: Seq<A>, e: A)
     }
 }
 
-pub proof fn push_filter_and_filter_push<A>(s: Seq<A>, pred: spec_fn(A) -> bool, e: A)
+pub proof fn lemma_filter_to_set_eq_to_set_filter<A>(s: Seq<A>, pred: spec_fn(A) -> bool)
+    ensures s.filter(pred).to_set() == s.to_set().filter(pred),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() > 0 {
+        let subseq = s.drop_last();
+        lemma_filter_to_set_eq_to_set_filter(subseq, pred);
+        lemma_filter_push(subseq, pred, s.last());
+        if pred(s.last()) {
+            push_to_set_eq_to_set_insert(subseq.filter(pred), s.last());
+        }
+    }
+}
+
+pub proof fn lemma_filter_push<A>(s: Seq<A>, pred: spec_fn(A) -> bool, e: A)
     ensures
         pred(e) ==> s.push(e).filter(pred) == s.filter(pred).push(e),
         !pred(e) ==> s.push(e).filter(pred) == s.filter(pred),
@@ -396,4 +411,26 @@ pub proof fn commutativity_of_seq_drop_last_and_map<A, B>(s: Seq<A>, pred: spec_
     }
 }
 
+pub proof fn same_filter_implies_same_result<A>(s: Seq<A>, f1: spec_fn(A) -> bool, f2: spec_fn(A) -> bool)
+    requires forall |e: A| #[trigger] s.contains(e) ==> (f1(e) == f2(e)),
+    ensures s.filter(f1) == s.filter(f2),
+    decreases s.len()
+{
+    reveal(Seq::filter);
+    if s.len() != 0 {
+        let subseq = s.drop_last();
+        assert(forall |e: A| #[trigger] subseq.contains(e) ==> s.contains(e));
+        same_filter_implies_same_result(subseq, f1, f2);
+        assert(s.contains(s.last()));
+        if f1(s.last()){
+            assert(f2(s.last()));
+            assert(s.filter(f1) == subseq.filter(f1).push(s.last()));
+            assert(s.filter(f2) == subseq.filter(f2).push(s.last()));
+        } else {
+            assert(!f2(s.last()));
+            assert(s.filter(f1) == subseq.filter(f1));
+            assert(s.filter(f2) == subseq.filter(f2));
+        }
+    }
+}
 }
